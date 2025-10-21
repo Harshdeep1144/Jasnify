@@ -101,11 +101,11 @@ fun LoginOrSignup(
             if (account.idToken != null) {
                 viewModel.signInWithGoogle(account)
             } else {
-                toastData = ToastData("Google sign-in failed: Token missing", ToastType.ERROR)
+                toastData = ToastData("Sign-in failed", ToastType.ERROR)
             }
 
         } catch (e: ApiException) {
-            toastData = ToastData("Google sign-in failed: ${e.statusCode}", ToastType.ERROR)
+            toastData = ToastData("Sign-in failed", ToastType.ERROR)
         }
     }
 
@@ -116,8 +116,8 @@ fun LoginOrSignup(
             is AuthState.Loading -> {}
 
             is AuthState.CodeSent -> {
-                val route = Screen.OtpVerification.otpVerificationRoute(phoneNumber)
-                navController.navigate(route)
+//                val route = Screen.OtpVerification.otpVerificationRoute(phoneNumber)
+//                navController.navigate(route)
             }
 
             is AuthState.Success -> {
@@ -127,7 +127,7 @@ fun LoginOrSignup(
                 val hasCompletedEventCreation = eventViewModel.checkIfUserHasEventsInDatabase()
 
                 val destination = if (hasCompletedEventCreation) {
-                    Screen.HomeScreen.route
+                    Screen.MainAppScreen.route
                 } else {
                     Screen.EventCreationScreen.route
                 }

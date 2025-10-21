@@ -125,9 +125,9 @@ fun EventCreation(
 
                 delay(500L)
 
-                navController.navigate(Screen.HomeScreen.route) {
-                    popUpTo(navController.graph.id) {
-                        inclusive = true // Clear the entire onboarding flow
+                navController.navigate(Screen.MainAppGraph.route) {
+                    popUpTo(Screen.OnboardingGraph.route) {
+                        inclusive = true
                     }
                 }
 
@@ -189,7 +189,7 @@ fun EventCreation(
                 when (eventData.isMultiDay) {
                     true -> currentStep = EventCreationStep.EVENT_TIMELINE
                     false -> currentStep = EventCreationStep.EVENT_DATE
-                    null -> toastData = ToastData("Please select single or multiple days", ToastType.ERROR)
+                    null -> toastData = ToastData("Please select days", ToastType.ERROR)
                 }
             }
             EventCreationStep.EVENT_DATE -> {
@@ -206,7 +206,7 @@ fun EventCreation(
                 if (allSaved && eventData.subEvents.isNotEmpty()) {
                     currentStep = EventCreationStep.EVENT_BUDGET
                 } else {
-                    toastData = ToastData("Please complete and save all event timeline details.", ToastType.ERROR)
+                    toastData = ToastData("Please save all event timeline details.", ToastType.ERROR)
                 }
             }
             EventCreationStep.EVENT_BUDGET -> {

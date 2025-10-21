@@ -41,7 +41,7 @@ class EventViewModel @Inject constructor(
     fun saveEventData(eventData: EventData) {
         val user = auth.currentUser
         if (user == null) {
-            _eventState.value = EventCreationState.Error("User not logged in. Cannot save event.")
+            _eventState.value = EventCreationState.Error("Login to save event.")
             return
         }
 
@@ -53,10 +53,10 @@ class EventViewModel @Inject constructor(
         // Push a new, unique child node to store the event data
         eventsRef.push().setValue(eventData)
             .addOnSuccessListener {
-                _eventState.value = EventCreationState.Success("Event '${eventData.eventName}' created and saved successfully!")
+                _eventState.value = EventCreationState.Success("'${eventData.eventName}' event created!")
             }
             .addOnFailureListener { e ->
-                _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event data.")
+                _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event.")
             }
     }
 
