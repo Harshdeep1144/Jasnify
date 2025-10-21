@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "708758951367",
+    "firebase_url": "https://jasnify-5ecc3-default-rtdb.firebaseio.com",
+    "project_id": "jasnify-5ecc3",
+    "storage_bucket": "jasnify-5ecc3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:708758951367:android:7d9f98b261d61bd5e635e2",
+        "android_client_info": {
+          "package_name": "com.harshdeep.jasnify"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "708758951367-laplt2jf0d3uva2vtqfett3tcivk93am.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.harshdeep.jasnify",
+            "certificate_hash": "7e325d4943ad88d02dcdf0a133c0eb911fb09b63"
+          }
+        },
+        {
+          "client_id": "708758951367-ug210fv66l95d66a2oog6lub6cg1b2lv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArkuWTu1rQE_-B-T7dgD0vNoxH6gFhhvY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "708758951367-ug210fv66l95d66a2oog6lub6cg1b2lv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
