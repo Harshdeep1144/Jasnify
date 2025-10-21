@@ -37,13 +37,13 @@ fun SplashScreen(
         val isLoggedIn = authViewModel.isUserLoggedIn()
 
         val destination = when {
-            !isLoggedIn -> Screen.OnboardingType.route
+            !isLoggedIn -> Screen.OnboardingGraph.route
             else -> {
-                delay(50L) // let Firebase initialize user session
+//                delay(50L) // let Firebase initialize user session
                 val hasCompletedEventCreation = eventViewModel.checkIfUserHasEventsInDatabase()
 
                 if (hasCompletedEventCreation) {
-                    Screen.HomeScreen.route
+                    Screen.MainAppScreen.route
                 } else {
                     Screen.EventCreationScreen.route
                 }

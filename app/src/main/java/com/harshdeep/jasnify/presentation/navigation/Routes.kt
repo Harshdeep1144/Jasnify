@@ -1,28 +1,48 @@
 package com.harshdeep.jasnify.presentation.navigation
 
+import androidx.annotation.DrawableRes
 import com.harshdeep.jasnify.R
 
+// --- Top-Level Screen Definitions (Routes) ---
+
 sealed class Screen(val route: String) {
-    // Helper function to create the actual route string
-    fun otpVerificationRoute(phoneNumber: String): String {
-        val encodedPhoneNumber = java.net.URLEncoder.encode(phoneNumber, "UTF-8")
-        return "otp_verification/$encodedPhoneNumber"
+    // Helper function for URL encoding the phone number argument
+//    fun otpVerificationRoute(phoneNumber: String): String {
+//        // Ensure the phone number is safely encoded for the URL parameter
+//        val encodedPhoneNumber = java.net.URLEncoder.encode(phoneNumber, "UTF-8")
+//        return "otp_verification_screen/$encodedPhoneNumber"
+//    }
+
+
+
+    // Top-Level Graph Routes
+    data object SplashScreen : Screen("splash_screen")
+    data object OnboardingGraph : Screen("onboarding_graph")
+    data object MainAppGraph : Screen("main_app_graph")
+
+
+
+
+    // Onboarding Screens (Inside OnboardingGraph)
+    data object OnboardingType : Screen("onboarding_type_screen")
+    data object LoginOrSignUp : Screen("login_or_signup_screen")
+    data object EventCreationScreen : Screen("event_creation_screen")
+    data object OtpVerification :
+        Screen("otp_verification_screen/{phoneNumber}") // Reintroduced with argument
+
+
+
+    // Main App Host Screen (Start of MainAppGraph)
+    data object MainAppScreen : Screen("main_app_screen")   // for whole home screens
+
+
+
+    // --- Bottom Navigation Items  ---
+    sealed class HomeTabScreen(val route: String, @DrawableRes val iconResId: Int, val title: String) {
+        data object Home : HomeTabScreen("home_tab_root", R.drawable.ic_home, "home")
+        data object Inspirations : HomeTabScreen("inspirations_tab_root", R.drawable.ic_inspirations, "inspiration")
+        data object Checklists : HomeTabScreen("checklists_tab_root", R.drawable.ic_checklists, "checklist")
+        data object Vendors : HomeTabScreen("vendors_tab_root", R.drawable.ic_vendor, "vendor")
+        data object Profile : HomeTabScreen("profile_tab_root", R.drawable.ic_profile, "profile")
     }
-
-    object SplashScreen : Screen("splash_screen")
-    object OnboardingType : Screen("onboarding_type")
-    object LoginOrSignUp : Screen("login_or_signup")
-    object OtpVerification : Screen("otp_verification/{phoneNumber}")
-    object EventCreationScreen : Screen("event_create")
-    object HomeScreen : Screen("main_home_flow")
-
-}
-
-
-sealed class HomeTabScreen(val route: String, val title: String, val iconResId: Int) {
-    object Home : HomeTabScreen("home_dashboard", "Home", R.drawable.ic_home)
-    object Checklists : HomeTabScreen("home_checklists", "Checklists", R.drawable.ic_checklists)
-    object Vendors : HomeTabScreen("home_vendors", "Vendors", R.drawable.ic_vendor)
-    object Inspirations : HomeTabScreen("home_inspirations", "Inspirations", R.drawable.ic_inspirations)
-    object Profile : HomeTabScreen("home_profile", "Profile", R.drawable.ic_profile)
 }
