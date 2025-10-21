@@ -100,9 +100,9 @@ class AuthViewModel @Inject constructor(
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     // Changed message to clearly indicate sign-up/creation
-                    _authState.value = AuthState.Success("Account successfully created!")
+                    _authState.value = AuthState.Success("Account created!")
                 } else {
-                    _authState.value = AuthState.Error(task.exception?.message ?: "Sign up failed")
+                    _authState.value = AuthState.Error("Sign up failed")
                 }
             }
     }
@@ -116,9 +116,9 @@ class AuthViewModel @Inject constructor(
         auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    _authState.value = AuthState.Success("Successfully logged in with Google!")
+                    _authState.value = AuthState.Success("logged in!")
                 } else {
-                    _authState.value = AuthState.Error(task.exception?.message ?: "Google Sign-In failed")
+                    _authState.value = AuthState.Error( "Sign-In failed")
                 }
             }
     }
@@ -147,10 +147,10 @@ class AuthViewModel @Inject constructor(
             googleSignInClient.signOut().addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     // Only set success state after the asynchronous Google sign-out is done
-                    _authState.value = AuthState.Success("Logged out successfully!")
+                    _authState.value = AuthState.Success("Logged out!")
                 } else {
                     // If Google sign-out fails, the user is still logged out of Firebase.
-                    _authState.value = AuthState.Success("Logged out successfully! (Google client clear warning: ${task.exception?.message})")
+                    _authState.value = AuthState.Success("Logged out!")
                 }
             }
 
