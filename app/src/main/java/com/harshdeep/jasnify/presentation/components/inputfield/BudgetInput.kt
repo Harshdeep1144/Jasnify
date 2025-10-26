@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -15,32 +14,30 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CurrencyBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlin.math.roundToInt
 import java.text.NumberFormat
 import java.util.Locale
-import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.util.toFlagEmoji
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.SurfaceBrand
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
-val MIN_AMOUNT_FLOAT = 100_000f
-val MAX_AMOUNT_FLOAT = 10_000_000f
+const val MIN_AMOUNT_FLOAT = 100_000f
+const val MAX_AMOUNT_FLOAT = 10_000_000f
+const val INTERVAL_FLOAT = 500_000f
+val SLIDER_STEPS = ((MAX_AMOUNT_FLOAT - MIN_AMOUNT_FLOAT) / INTERVAL_FLOAT - 1).roundToInt()
 
 // Helper function to format the number (e.g., 100000 -> 100,000)
 fun formatAmount(amount: Float, locale: Locale = Locale.US): String {
@@ -52,7 +49,7 @@ fun formatAmount(amount: Float, locale: Locale = Locale.US): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetInput(
-    value: String, // The full currency string (e.g., "₹100000")
+    value: String, // The full currency string (e.g., "INR100000")
     onValueChange: (String) -> Unit
 ) {
     // tracks the local currency value part (without code/symbol)
@@ -63,7 +60,6 @@ fun BudgetInput(
         mutableStateOf(SelectableItem("INR", "Indian Rupee", "IN"))
     }
 
-    // State for the slider value (float)
     var sliderValue by remember { mutableStateOf(MIN_AMOUNT_FLOAT) }
 
     // Flag to prevent the slider from overwriting user manual input immediately
@@ -104,14 +100,12 @@ fun BudgetInput(
         maxLabelText = "1 Cr"
     } else {
         // Use standard large numbers for non-INR currencies
-        minLabelText = "${selectedCurrency.code}${formatAmount(MIN_AMOUNT_FLOAT)}"
-        maxLabelText = "${selectedCurrency.code}${formatAmount(MAX_AMOUNT_FLOAT)}"
+        minLabelText = selectedCurrency.code + "\t" + formatAmount(MIN_AMOUNT_FLOAT)
+        maxLabelText = selectedCurrency.code + "\t" + formatAmount(MAX_AMOUNT_FLOAT)
     }
 
     // --- UI Layout ---
     Column(modifier = Modifier.fillMaxWidth()) {
-
-        // Currency Input Field
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -136,7 +130,7 @@ fun BudgetInput(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = selectedCurrency.emoji, // Placeholder for Flag emoji or icon
+                    text = selectedCurrency.emoji,
                     modifier = Modifier.padding(end = 4.dp)
                 )
                 Text(selectedCurrency.code,
@@ -201,7 +195,6 @@ fun BudgetInput(
                         IconButton(
                             onClick = {
                                 localCurrencyValue = ""
-                                // Set the slider back to the minimum allowed value
                                 sliderValue = MIN_AMOUNT_FLOAT
                                 isManualInput = false
                             }
@@ -240,17 +233,23 @@ fun BudgetInput(
             Slider(
                 value = sliderValue,
                 onValueChange = { newSliderValue ->
-                    sliderValue = newSliderValue
-                    val roundedValue = newSliderValue.roundToInt().toString()
+                    // Snap the new value to the nearest interval step
+                    val snappedValue = ((newSliderValue / INTERVAL_FLOAT).roundToInt() * INTERVAL_FLOAT)
+                        .coerceIn(MIN_AMOUNT_FLOAT, MAX_AMOUNT_FLOAT)
+
+                    sliderValue = snappedValue
+                    val roundedValue = snappedValue.roundToInt().toString()
                     localCurrencyValue = roundedValue
                     isManualInput = true
                 },
                 valueRange = MIN_AMOUNT_FLOAT..MAX_AMOUNT_FLOAT,
-                steps = 0,
+                steps = SLIDER_STEPS,
                 colors = SliderDefaults.colors(
-                    activeTrackColor = ContentBrand,
-                    inactiveTrackColor = ContentTertiary,
-                    thumbColor = ContentBrand
+                    activeTrackColor = SurfaceBrand,
+                    inactiveTrackColor = SurfaceSecondary,
+                    thumbColor = ContentBrand,
+                    activeTickColor = SurfacePrimary,
+                    inactiveTickColor = ContentSecondary
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,7 +287,7 @@ fun BudgetInput(
     }
 }
 
-@Preview(showBackground = true, showSystemUi = true)
+@Preview(showBackground = true)
 @Composable
 fun CurrencyInputPreview() {
     BudgetInput(

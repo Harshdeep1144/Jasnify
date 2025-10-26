@@ -60,7 +60,7 @@ fun TopBarIconButton(
 ) {
     val backgroundColor = when (backgroundStyle) {
         ButtonBackground.TRANSPARENT -> Color.Transparent
-        ButtonBackground.TRANSLUCENT -> SurfaceSecondary
+        ButtonBackground.TRANSLUCENT -> SurfaceSecondary.copy(alpha = 0.5f)
         ButtonBackground.OPAQUE -> SurfaceSecondary
     }
 
@@ -84,7 +84,7 @@ fun TopBarIconButton(
                 if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
                     Modifier.border(
                         width = 0.5.dp,
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = SurfaceSecondary.copy(alpha = 0.25f),
                         shape = SquircleShape(100, CornerSmoothingDefault)
                     )
                 } else {
@@ -92,8 +92,6 @@ fun TopBarIconButton(
                 }
             )
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null, // Set to null to remove default ripple, or use a custom one
                 onClick = onClick
             ),
         contentAlignment = Alignment.Center

@@ -52,7 +52,6 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
 import sv.lib.squircleshape.SquircleShape
 
-
 @Composable
 fun EventTypeChip(
     modifier: Modifier = Modifier,

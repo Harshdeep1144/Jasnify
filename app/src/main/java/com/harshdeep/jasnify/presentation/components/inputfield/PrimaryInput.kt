@@ -6,6 +6,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.rounded.MailOutline
+import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -20,12 +25,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
@@ -53,17 +58,35 @@ fun PrimaryInput(
     cornerType: CornerType = CornerType.DEFAULT
 ) {
     val isPassword = keyboardType == KeyboardType.Password
+
     var isPasswordVisible by remember { mutableStateOf(false) }
-    val showClearIcon = value.isNotEmpty()
+    val showTrailingIcon = value.isNotEmpty()
 
     val currentVisualTransformation = when {
         isPassword && !isPasswordVisible -> PasswordVisualTransformation()
-        else -> visualTransformation // Use the provided visualTransformation for other cases (or VisualTransformation.None)
+        else -> visualTransformation
     }
 
     val shape = when (cornerType) {
         CornerType.DEFAULT -> SquircleShape(CornerLarge, CornerSmoothingDefault)
-        CornerType.MESSAGE -> SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge,CornerLarge, CornerSmoothingDefault)
+        CornerType.MESSAGE -> SquircleShape(
+            CornerExtraSmall,
+            CornerLarge,
+            CornerLarge,
+            CornerLarge,
+            CornerSmoothingDefault
+        )
+    }
+
+    val defaultLeadingIcon: ImageVector? = when (keyboardType) {
+        KeyboardType.Password -> if (value.isEmpty()) {
+            Icons.Outlined.LockOpen
+        } else {
+            Icons.Outlined.Lock
+        }
+        KeyboardType.Email -> Icons.Rounded.MailOutline
+        // No leading icon for other types (like Text, Number, Phone, etc.)
+        else -> null
     }
 
     OutlinedTextField(
@@ -88,10 +111,10 @@ fun PrimaryInput(
             unfocusedContainerColor = SurfaceSecondary
         ),
         trailingIcon = {
-            if (showClearIcon) {
+            if (showTrailingIcon) {
                 if (isPassword) {
-                    // Password visibility toggle icon
-                    val image = if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
+                    val image =
+                        if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
                     val description = if (isPasswordVisible) "Hide password" else "Show password"
 
                     IconButton(
@@ -104,17 +127,14 @@ fun PrimaryInput(
                         )
                     }
                 } else {
-                    // Clear text button for non-password fields
                     IconButton(onClick = { onValueChange("") }) {
                         if (trailingIcon != null) {
-                            // Custom icon provided, show it but it will clear the text on click
                             Icon(
                                 painter = trailingIcon,
                                 contentDescription = "Custom Icon",
                                 tint = ContentSecondary
                             )
                         } else {
-                            // Default clear icon
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear input",
@@ -125,9 +145,21 @@ fun PrimaryInput(
                 }
             }
         },
+        leadingIcon = if (defaultLeadingIcon != null) {
+            {
+                Icon(
+                    imageVector = defaultLeadingIcon,
+                    contentDescription = null,
+                    tint = ContentSecondary
+                )
+            }
+        } else {
+            null // Explicitly set to null to remove the space
+        },
         visualTransformation = currentVisualTransformation
     )
 }
+
 
 @Preview(showBackground = true)
 @Composable
@@ -164,7 +196,20 @@ fun PrimaryInputCustomPreview() {
         value = email,
         onValueChange = { email = it },
         placeholder = "Enter email address",
-        keyboardType = KeyboardType.Email,
+        keyboardType = KeyboardType.Password,
         cornerType = CornerType.MESSAGE
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PrimaryInputTextNoIconPreview() {
+    var text by remember { mutableStateOf("Some text") }
+
+    PrimaryInput(
+        value = text,
+        onValueChange = { text = it },
+        placeholder = "Enter regular text",
+        keyboardType = KeyboardType.Text // KeyboardType.Text has a null defaultLeadingIcon
     )
 }
