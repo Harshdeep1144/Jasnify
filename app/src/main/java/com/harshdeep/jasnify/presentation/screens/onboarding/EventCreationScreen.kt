@@ -737,6 +737,8 @@ fun EventBudgetContent(
             style = JasnifyTheme.typography.displayLarge
         )
 
+        Spacer(Modifier.height(4.dp))
+
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)

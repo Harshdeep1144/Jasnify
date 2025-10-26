@@ -13,24 +13,27 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentTertiary
 
 @Composable
 fun OrDivider(
+    modifier: Modifier = Modifier,
     text: String? = null,
-    divider: Boolean? = null
+    divider: Boolean? = null,
+    dividerGap: Dp = 16.dp
 ) {
     val showDivider = divider ?: true // default = show divider
     val textValue = text ?: "OR"
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
-                .padding(top = 16.dp, bottom = 16.dp)
+                .padding(top = dividerGap, bottom = dividerGap)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center

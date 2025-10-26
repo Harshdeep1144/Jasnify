@@ -68,7 +68,7 @@ fun CustomTopBar(
             if (onMenuClick != null) {
                 TopBarIconButton(
                     onClick = { onMenuClick() },
-                    icon = TopIcon.Predefined.BACK,
+                    icon = TopIcon.Predefined.MENU_VERTICAL,
                     backgroundStyle = ButtonBackground.TRANSLUCENT
                 )
             } else {
@@ -78,7 +78,7 @@ fun CustomTopBar(
     }
 }
 
-// --- Content Composables for Center Area ---
+// --- Content Composable for Center Area ---
 
 @Composable
 fun TopBarTitleContent(
@@ -168,7 +168,7 @@ fun TopBarImageSubtitleTitleContent(
 
 
 
-// --- Preview Composables ---
+// --- Preview Composable ---
 
 @Preview(showBackground = true)
 @Composable
