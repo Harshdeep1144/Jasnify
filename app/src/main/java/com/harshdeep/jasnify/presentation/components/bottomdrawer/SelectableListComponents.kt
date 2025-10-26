@@ -30,9 +30,12 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import sv.lib.squircleshape.SquircleShape
 
 // Data class to represent a selectable item (used for country code, currency, etc.)
 data class SelectableItem(
@@ -54,16 +57,17 @@ fun SelectableItemRow(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
             .clickable { onSelect(item) }
             .background(if (isSelected) SurfaceAccent else BackgroundPrimary)
-            .padding(horizontal = 12.dp),
+            .padding(0.dp, 0.dp, 12.dp, 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clip(RoundedCornerShape(12.dp))
+            modifier = Modifier.clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+
         ) {
             RadioButton(
                 selected = isSelected,
@@ -72,31 +76,32 @@ fun SelectableItemRow(
                     selectedColor = ContentBrand,
                     unselectedColor = ContentSecondary
                 ),
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Display the Image/Icon using the resource ID
-            Text(
-                text = item.emoji,
-                fontSize = 24.sp,
-                modifier = Modifier.align(Alignment.CenterVertically)
+                modifier = Modifier.padding(0.dp)
             )
 
             Spacer(modifier = Modifier.width(4.dp))
 
+            // Display the Image/Icon using the resource ID
             Text(
-                text = item.code,
-                style = JasnifyTheme.typography.labelXLarge.copy(
-                    color = if (isSelected) ContentPrimary else ContentSecondary
-                ),
+                text = item.emoji,
+                fontSize = 20.sp,
+                modifier = Modifier.align(Alignment.CenterVertically)
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Text(
+                text = item.name,
+                style = JasnifyTheme.typography.labelLarge,
+                color = ContentPrimary
             )
         }
 
         Text(
-            text = item.name,
-            style = JasnifyTheme.typography.labelXLarge,
-            color = Color.Black
+            text = item.code,
+            style = JasnifyTheme.typography.labelLarge.copy(
+                color = if (isSelected) ContentPrimary else ContentSecondary
+            ),
         )
     }
 }

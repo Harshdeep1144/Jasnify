@@ -19,6 +19,13 @@ val Outfit = FontFamily(
     Font(R.font.outfit_bold, FontWeight.Bold)
 )
 
+val Pattaya = FontFamily(
+    Font(
+        resId = R.font.pattaya_regular,
+        weight = FontWeight.Normal,
+    )
+)
+
 
 data class JasnifyTypography(
     // Display
