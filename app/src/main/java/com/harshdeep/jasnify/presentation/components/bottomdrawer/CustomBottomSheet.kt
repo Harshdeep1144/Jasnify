@@ -20,6 +20,9 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +31,7 @@ fun CustomBottomSheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
     sheetHeight: Dp = 400.dp,
+    sheetGesturesEnabled: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     ModalBottomSheet(
@@ -35,7 +39,8 @@ fun CustomBottomSheet(
         sheetState = sheetState,
         containerColor = SurfacePrimary,
         scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
-        dragHandle = null
+        dragHandle = null,
+        sheetGesturesEnabled = sheetGesturesEnabled,
     ) {
         Column(
             modifier = Modifier
@@ -58,11 +63,10 @@ fun CustomBottomSheet(
                     color = ContentPrimary
                 )
 
-                CustomIconButton(
-                    onClick = onDismiss,
-                    icon = painterResource(R.drawable.ic_cross),
-                    size = ButtonSize.Small,
-                    type = ButtonType.Secondary
+                TopBarIconButton(
+                    backgroundStyle = ButtonBackground.OPAQUE,
+                    icon = TopIcon.Predefined.CLOSE,
+                    onClick = onDismiss
                 )
             }
 

@@ -61,10 +61,10 @@ fun JasnifyTheme(
         SideEffect {
             val window = (view.context as Activity).window
 
-            // FIX OPTION 2 (Recommended): Convert Compose Color to ARGB int
+            // Convert Compose Color to ARGB int
             window.statusBarColor = Color.Transparent.toArgb()
 
-            // 2. Control icon/text lightness (assuming light theme)
+            // Control icon/text lightness (assuming light theme)
             WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
