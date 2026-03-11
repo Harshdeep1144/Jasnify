@@ -8,7 +8,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import com.harshdeep.jasnify.presentation.screens.home.BudgetDetail
+import com.harshdeep.jasnify.presentation.screens.budget.BudgetDetail
 import com.harshdeep.jasnify.presentation.screens.onboarding.OnboardingType
 import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.LoginOrSignup
 import com.harshdeep.jasnify.presentation.screens.onboarding.EventCreation
@@ -84,6 +84,7 @@ fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
 // ------------------------------------------
 
 // MAIN APP NAVIGATION GRAPH
+@RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
     navigation(
         startDestination = Screen.MainAppScreen.route,
