@@ -20,7 +20,7 @@ val NeutralBlack = Color(0xff0d0d0d)
 
 
 // Misty Teal
-val MistyTeal50 = Color(0xffe8fafa)
+val MistyTeal50 = Color(0xFFD7E3E3)
 val MistyTeal100 = Color(0xffc7f3f3)
 val MistyTeal200 = Color(0xfface4e4)
 val MistyTeal300 = Color(0xff9cd0d0)
@@ -58,13 +58,15 @@ val ContentInvPrimary = NeutralWhite
 val ContentBrand = BrandMistyTeal
 val ContentBrandDark = MistyTeal900
 
+
 // Surface
 val SurfacePrimary = NeutralWhite
 val SurfaceSecondary = Neutral100
 val SurfaceInvPrimary = NeutralBlack
 val SurfaceInvSecondary = Neutral300
 val SurfaceAccent = AccentCloudWhisper
-val SurfaceBrand = BrandMistyTeal
+val SurfaceBrandPrimary = BrandMistyTeal
+val SurfaceBrandSecondary = MistyTeal50
 
 
 

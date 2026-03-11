@@ -21,7 +21,7 @@ import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.SurfaceAccent
-import com.harshdeep.jasnify.theme.SurfaceBrand
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 import androidx.compose.material3.SuggestionChipDefaults

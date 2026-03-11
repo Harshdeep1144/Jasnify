@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -28,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
@@ -36,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -93,11 +92,11 @@ fun BudgetTrackerCard(
             ) {
                 Image(
                     painter = painterResource(R.drawable.bg_wave),
+                    contentScale = ContentScale.FillBounds,
                     contentDescription = "wave background",
                     alignment = Alignment.BottomCenter,
                     colorFilter = ColorFilter.tint(Color(0x1A006363).copy(alpha = 0.9f)),
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.None
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 
@@ -107,15 +106,16 @@ fun BudgetTrackerCard(
                     .padding(16.dp)
             ) {
                 Text(
-                    text = insight ?: "insights",
-                    color = Color(0xFF006363),
-                    style = JasnifyTheme.typography.labelSmall
+                    text = heading ?: "Budget Tracker",
+                    color = ContentPrimary,
+                    style = JasnifyTheme.typography.headingLarge,
+                    fontWeight = FontWeight.Medium
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = heading ?: "Budget Tracker",
-                    color = ContentPrimary,
-                    style = JasnifyTheme.typography.headingLarge
+                    text = insight ?: "insights",
+                    color = Color(0xFF006363),
+                    style = JasnifyTheme.typography.labelSmall
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -141,18 +141,16 @@ fun BudgetTrackerCard(
 
                     Box(
                         modifier = Modifier
-                            .width(120.dp)
-                            .height(80.dp),
-                        contentAlignment = Alignment.Center
+                            .padding(0.dp),
+                        contentAlignment = Alignment.BottomEnd
                     ) {
                         val finalImage = illustration ?: painterResource(R.drawable.ill_budget_tracker_card)
 
                         Image(
                             painter = finalImage,
                             contentDescription = "Card Illustration",
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .scale(1.2f)
+                            modifier = Modifier.height(80.dp),
+                            contentScale = ContentScale.FillHeight
                         )
                     }
                 }

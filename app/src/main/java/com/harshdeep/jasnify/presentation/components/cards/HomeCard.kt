@@ -81,8 +81,7 @@ fun HomeCard(
                     alignment = Alignment.BottomCenter,
                     colorFilter = ColorFilter.tint(waveColor),
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.None
-
+                    contentScale = ContentScale.FillWidth,
                 )
             }
 
@@ -93,30 +92,30 @@ fun HomeCard(
                     .padding(16.dp)
             ) {
                 Text(
+                    text = heading,
+                    color = ContentPrimary,
+                    style = JasnifyTheme.typography.headingLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
                     text = insight,
                     color = insightColor,
                     style = JasnifyTheme.typography.labelSmall
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = heading,
-                    color = ContentPrimary,
-                    style = JasnifyTheme.typography.headingLarge
-                )
+                Spacer(Modifier.height(16.dp))
 
-                Spacer(Modifier.height(20.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .zIndex(3f)
-                        .align(Alignment.End),
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(0.dp),
+                    horizontalArrangement = Arrangement.End
                 ) {
                     Image(
                         painter = illustration,
-                        contentDescription = "Card Illustration",
-                        modifier = Modifier.fillMaxSize()
-                            .scale(1.4f)
+                        contentDescription = null,
+                        modifier = Modifier.height(80.dp),
+                        contentScale = ContentScale.FillHeight
                     )
                 }
             }

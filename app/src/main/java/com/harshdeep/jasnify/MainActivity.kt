@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge(
             // icons color light
-//           statusBarStyle = SystemBarStyle.dark(Color.Transparent.toArgb())
+            // statusBarStyle = SystemBarStyle.dark(Color.Transparent.toArgb())
             // icons color dark
           statusBarStyle = SystemBarStyle.Companion.light(Color.Companion.Transparent.toArgb(), Color.Companion.White.toArgb())
         )

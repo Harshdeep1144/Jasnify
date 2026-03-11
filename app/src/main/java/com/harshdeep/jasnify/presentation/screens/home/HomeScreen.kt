@@ -1,5 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.home
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -31,16 +33,22 @@ import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
 import androidx.compose.foundation.layout.WindowInsets
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.VendorsCarousel
 import kotlin.math.roundToInt
 
 private val FADE_DISTANCE_DP = 160.dp
 private val HEADER_HEIGHT = 350.dp
 private const val PARALLAX_RATE = 0.5f // Smaller rate means slower scroll/more parallax
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun HomeTabContent(internalNavController: NavHostController) {
+fun HomeTabContent(
+        internalNavController: NavHostController,
+        onBudgetClick: () -> Unit,
+    ) {
 
     val scrollState = rememberScrollState()
     val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
@@ -75,7 +83,7 @@ fun HomeTabContent(internalNavController: NavHostController) {
 
         Scaffold(
             topBar = {
-                HomeTopBar(alpha = topBarAlpha)
+                HomeTopBar(title = "Taylor & Travis’s Wedding", dateString = "2026-11-21", alpha = topBarAlpha)
             },
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
@@ -89,7 +97,7 @@ fun HomeTabContent(internalNavController: NavHostController) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
                         .padding(12.dp, 12.dp, 12.dp, 0.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
 
                     // Spacer ensures the cards start below the large background image
@@ -102,12 +110,11 @@ fun HomeTabContent(internalNavController: NavHostController) {
                         progress = 0.45f,
                         amountText = "₹46L",
                         labelText = "left",
-                        onClick = {}
+                        onClick = onBudgetClick
                     )
 
-
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         HomeCard(
@@ -133,7 +140,7 @@ fun HomeTabContent(internalNavController: NavHostController) {
                     }
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         HomeCard(
@@ -159,35 +166,32 @@ fun HomeTabContent(internalNavController: NavHostController) {
                         )
                     }
 
-                    OrDivider(dividerGap = 12.dp, text = "Explore")
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        HomeCard(
-                            insight = "Plan and Manage.",
-                            heading = "Budget Tracker",
-                            illustration = painterResource(R.drawable.ill_moments_card),
-                            modifier = Modifier.weight(1f),
-                            cardBgColor = Color(0xFFC4D4C2),
-                            waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
-                            insightColor = Color(0xFF47671A),
-                            onClick = {}
-                        )
-
-                        HomeCard(
-                            insight = "Organize. Schedule. Relax.",
-                            heading = "Planner",
-                            illustration = painterResource(R.drawable.ill_moments_card),
-                            modifier = Modifier.weight(1f),
-                            cardBgColor = Color(0xFFC4D4C2),
-                            waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
-                            insightColor = Color(0xFF47671A),
-                            onClick = {}
-                        )
-                    }
+                    OrDivider(dividerGap = 12.dp, text = "EXPLORE")
                 }
+
+                Column (
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    VendorsCarousel(
+                        title = "Trending Venues in Patna",
+                        vendors = MockData.sampleVenues1,
+                        onVendorClick = { /* Handle click */ },
+                        onFavoriteToggle = { /* Handle favorite */ },
+                        onOfferClick = { /* Handle offer click */ }
+                    )
+
+                    Spacer(Modifier.height(12.dp))
+
+                    VendorsCarousel(
+                        title = "Trending Venues in Patna",
+                        vendors = MockData.sampleVenues2,
+                        onVendorClick = { /* Handle click */ },
+                        onFavoriteToggle = { /* Handle favorite */ },
+                        onOfferClick = { /* Handle offer click */ }
+                    )
+                }
+
                 FooterJansify()
             }
         }
@@ -278,6 +282,7 @@ fun ProfileTabContent(
 
 // -------------------------------------------  The Main App Host  ------------------------------------------
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
@@ -360,7 +365,11 @@ fun HomeScreen(
         ) {
             composable(route = Screen.HomeTabScreen.Home.route) {
                 HomeTabContent(
-                    internalNavController
+                    internalNavController = internalNavController,
+                    onBudgetClick = {
+                        // This hides the bottom bar because mainNavController
+                        mainNavController.navigate(Screen.BudgetDetail.route)
+                    },
                 )
             }
             composable(route = Screen.HomeTabScreen.Checklists.route) { ChecklistsTabContent() }
@@ -376,6 +385,7 @@ fun HomeScreen(
 }
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun HomeScreenPreview() {
