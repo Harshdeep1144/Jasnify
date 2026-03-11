@@ -8,6 +8,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.harshdeep.jasnify.presentation.screens.home.BudgetDetail
 import com.harshdeep.jasnify.presentation.screens.onboarding.OnboardingType
 import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.LoginOrSignup
 import com.harshdeep.jasnify.presentation.screens.onboarding.EventCreation
@@ -95,6 +96,12 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             exitTransition = { fadeOut(tween(300)) },
         ) {
             HomeScreen(mainNavController = mainNavController)
+        }
+
+        composable(
+            route = Screen.BudgetDetail.route
+        ){
+            BudgetDetail()
         }
     }
 }

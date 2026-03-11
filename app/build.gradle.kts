@@ -92,4 +92,7 @@ dependencies {
     // Squircle Shape
     implementation("io.github.stoyan-vuchev:squircle-shape-android:2.0.10")
 
+    // Coil image loading
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
 }

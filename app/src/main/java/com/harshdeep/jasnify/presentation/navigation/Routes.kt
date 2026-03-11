@@ -39,10 +39,13 @@ sealed class Screen(val route: String) {
 
     // --- Bottom Navigation Items  ---
     sealed class HomeTabScreen(val route: String, @DrawableRes val iconResId: Int, val title: String) {
-        data object Home : HomeTabScreen("home_tab_root", R.drawable.ic_home, "home")
-        data object Inspirations : HomeTabScreen("inspirations_tab_root", R.drawable.ic_inspirations, "inspiration")
-        data object Checklists : HomeTabScreen("checklists_tab_root", R.drawable.ic_checklists, "checklist")
-        data object Vendors : HomeTabScreen("vendors_tab_root", R.drawable.ic_vendor, "vendor")
-        data object Profile : HomeTabScreen("profile_tab_root", R.drawable.ic_profile, "profile")
+        data object Home : HomeTabScreen("home_tab_root", R.drawable.ic_home, "Home")
+        data object Inspirations : HomeTabScreen("inspirations_tab_root", R.drawable.ic_inspirations, "Inspiration")
+        data object Checklists : HomeTabScreen("checklists_tab_root", R.drawable.ic_checklists, "Checklist")
+        data object Vendors : HomeTabScreen("vendors_tab_root", R.drawable.ic_vendor, "Vendor")
+        data object Profile : HomeTabScreen("profile_tab_root", R.drawable.ic_profile, "Profile")
     }
+
+    // --- Home internal Screens (Full Screen / No Bottom Bar) ---
+    data object BudgetDetail : Screen("budget_detail_screen")
 }

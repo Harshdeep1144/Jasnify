@@ -30,7 +30,7 @@ import java.util.Locale
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
-import com.harshdeep.jasnify.theme.SurfaceBrand
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
@@ -245,7 +245,7 @@ fun BudgetInput(
                 valueRange = MIN_AMOUNT_FLOAT..MAX_AMOUNT_FLOAT,
                 steps = SLIDER_STEPS,
                 colors = SliderDefaults.colors(
-                    activeTrackColor = SurfaceBrand,
+                    activeTrackColor = SurfaceBrandPrimary,
                     inactiveTrackColor = SurfaceSecondary,
                     thumbColor = ContentBrand,
                     activeTickColor = SurfacePrimary,

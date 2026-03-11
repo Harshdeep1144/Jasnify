@@ -43,7 +43,7 @@ import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.*
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.components.scaffold.TopBarTitleContent
+import com.harshdeep.jasnify.presentation.components.scaffold.TopBarSimpleTitle
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.ToastData
 import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
@@ -245,7 +245,7 @@ fun EventCreation(
         topBar = {
             CustomTopBar(
                 onBackClick = if (showBackButton) onBack else null,
-                content = { TopBarTitleContent(title = currentStep.title) }
+                content = { TopBarSimpleTitle(title = currentStep.title) }
             )
         },
         bottomBar = {

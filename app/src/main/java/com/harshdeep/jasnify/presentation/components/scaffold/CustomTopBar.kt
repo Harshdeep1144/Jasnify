@@ -1,128 +1,85 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle // Import TextStyle
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.SurfaceInvPrimary
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.theme.BackgroundBrand
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import sv.lib.squircleshape.SquircleShape
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CustomTopBar(
-    content: @Composable RowScope.() -> Unit, // Flexible center content
     onBackClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
+    backIcon: TopIcon = TopIcon.Predefined.BACK,
+    menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
+    buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
+    content: @Composable RowScope.() -> Unit
 ) {
     Surface(
-        color = BackgroundPrimary,
-        modifier = Modifier
-            .fillMaxWidth()
+        color = Color.White,
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(vertical = 16.dp, horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Navigation Icon
-            if (onBackClick != null) {
-                TopBarIconButton(
-                    onClick = { onBackClick() },
-                    icon = TopIcon.Predefined.BACK,
-                    backgroundStyle = ButtonBackground.TRANSLUCENT
-                )
-            } else {
-                Spacer(modifier = Modifier.size(40.dp)) // keep layout consistent
+            // Left Action Slot (Fixed width)
+            Box(modifier = Modifier.width(40.dp)) {
+                if (onBackClick != null) {
+                    TopBarIconButton(
+                        icon = backIcon,
+                        onClick = onBackClick,
+                        backgroundStyle = buttonStyle,
+                        size = 40.dp,
+                        iconSize = 24.dp
+                    )
+                }
             }
 
-            // Title Content - takes up available space
+            // Center Content Slot
             Row(
                 modifier = Modifier.weight(1f),
-                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 content()
             }
 
-            // Action Icon
-            if (onMenuClick != null) {
-                TopBarIconButton(
-                    onClick = { onMenuClick() },
-                    icon = TopIcon.Predefined.MENU_VERTICAL,
-                    backgroundStyle = ButtonBackground.TRANSLUCENT
-                )
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
-            }
-        }
-    }
-}
-
-// --- Content Composable for Center Area ---
-
-@Composable
-fun TopBarTitleContent(
-    title: String,
-    typography: TextStyle = JasnifyTheme.typography.headingXLarge
-) {
-    Text(
-        text = title,
-        style = typography, 
-        color = SurfaceInvPrimary
-    )
-}
-
-@Composable
-fun TopBarSubtitleContent(
-    title: String,
-    subtitle: String,
-    onSubtitleClick: (() -> Unit)? = null,
-    typography: TextStyle = JasnifyTheme.typography.headingXLarge
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(enabled = onSubtitleClick != null, onClick = { onSubtitleClick?.invoke() })
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = title,
-                style = typography, // Use the provided style
-                color = SurfaceInvPrimary
-            )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = subtitle,
-                    // Subtitle style remains fixed
-                    style = MaterialTheme.typography.bodySmall,
-                    color = SurfaceInvPrimary.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(end = 4.dp)
-                )
-                if (onSubtitleClick != null) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_left), // Placeholder for dropdown
-                        contentDescription = "Dropdown",
-                        tint = SurfaceInvPrimary.copy(alpha = 0.7f),
-                        modifier = Modifier.size(16.dp)
+            // Right Action Slot (Fixed width)
+            Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.CenterEnd) {
+                if (onMenuClick != null) {
+                    TopBarIconButton(
+                        icon = menuIcon,
+                        onClick = onMenuClick,
+                        backgroundStyle = buttonStyle,
+                        size = 40.dp,
+                        iconSize = 24.dp
                     )
                 }
             }
@@ -131,100 +88,168 @@ fun TopBarSubtitleContent(
 }
 
 @Composable
-fun TopBarImageSubtitleTitleContent(
+fun TopBarSimpleTitle(title: String) {
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = title,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color.Black
+        )
+    }
+}
+
+@Composable
+fun TopBarSubtitleDropdown(
     title: String,
     subtitle: String,
-    imagePainter: Painter,
-    onImageClick: (() -> Unit)? = null,
-    typography: TextStyle = JasnifyTheme.typography.headingXLarge
+    onClick: () -> Unit = {}
 ) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxWidth(0.6f) // Give more space for left alignment
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null, // Typically no ripple for header dropdowns, or add indication if preferred
+                onClick = onClick
+            ),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Image(
-            painter = imagePainter,
-            contentDescription = "Profile Image",
-            modifier = Modifier
-                .size(32.dp)
-                .clip(MaterialTheme.shapes.small) // Use a small clip for rectangular image
-                .clickable(enabled = onImageClick != null, onClick = { onImageClick?.invoke() })
+        Text(
+            text = title,
+            style = JasnifyTheme.typography.headingLarge,
+            color = ContentPrimary
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.Start) {
-            Text(
-                text = title,
-                style = typography,
-                color = SurfaceInvPrimary
-            )
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = subtitle,
                 style = JasnifyTheme.typography.labelMedium,
-                color = SurfaceInvPrimary.copy(alpha = 0.7f)
+                color = ContentSecondary
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+                tint = ContentSecondary
             )
         }
     }
 }
 
+@Composable
+fun TopBarProfileContent(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .clip(SquircleShape(12, CornerSmoothingDefault))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(SquircleShape(100, 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.ic_profile),
+                contentDescription = "Profile Image",
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.size(40.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = title,
+                style = JasnifyTheme.typography.headingLarge,
+                color = ContentPrimary
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(
+                text = subtitle,
+                style = JasnifyTheme.typography.labelMedium,
+                color = ContentSecondary
+            )
+        }
+    }
+}
 
+// --- Comprehensive Preview showing all variants ---
 
-// --- Preview Composable ---
-
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFFF5F5F5)
 @Composable
 fun CustomTopBarVariantsPreview() {
-    val imagePlaceholder = painterResource(R.drawable.ic_right)
-
-    // Example of using a different typography for a title
-    val headingTypography = MaterialTheme.typography.headlineSmall
-
     Column(
-        modifier = Modifier.fillMaxWidth().
-        background(SurfaceInvPrimary)
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFFF5F5F5)),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // 1. Menu Button Only
+        CustomTopBar(onMenuClick = {}) {
+            Spacer(Modifier.weight(1f))
+        }
 
-        // 1. Title Content with default typography (titleLarge)
-        CustomTopBar(
-            onBackClick = {},
-            content = { TopBarTitleContent(title = "Label") }
-        )
-        Spacer(Modifier.height(20.dp))
+        // 2. Back Button Only
+        CustomTopBar(onBackClick = {}) {
+            Spacer(Modifier.weight(1f))
+        }
 
-        // 2. Title Content with custom typography (headlineSmall)
+        // 3. Back + Menu Button
+        CustomTopBar(onBackClick = {}, onMenuClick = {}) {
+            Spacer(Modifier.weight(1f))
+        }
+
+        // 4. Centered Dropdown (No actions)
+        CustomTopBar {
+            TopBarSubtitleDropdown("Label", "Subtitle", onClick = {})
+        }
+
+        // 5. Back + Centered Dropdown
+        CustomTopBar(onBackClick = {}) {
+            TopBarSubtitleDropdown("Label", "Subtitle", onClick = {})
+        }
+
+        // 6. Back + Centered Dropdown + Menu
+        CustomTopBar(onBackClick = {}, onMenuClick = {}) {
+            TopBarSubtitleDropdown("Label", "Subtitle", onClick = {})
+        }
+
+        // 7. Simple Centered Title (No actions)
+        CustomTopBar {
+            TopBarSimpleTitle("Label")
+        }
+
+        // 8. Back + Simple Centered Title
+        CustomTopBar(onBackClick = {}) {
+            TopBarSimpleTitle("Label")
+        }
+
+        // 9. Back + Simple Centered Title + Menu
+        CustomTopBar(onBackClick = {}, onMenuClick = {}) {
+            TopBarSimpleTitle("Label")
+        }
+
+        // 10. Profile Variant (Start aligned)
+        CustomTopBar(onBackClick = {}, onMenuClick = {}) {
+            TopBarProfileContent("Label", "Subtitle", onClick = {})
+        }
+
+        // 11. Translucent Button Style Variant
         CustomTopBar(
             onBackClick = {},
             onMenuClick = {},
-            content = { TopBarTitleContent(title = "Label", typography = headingTypography) }
-        )
-        Spacer(Modifier.height(20.dp))
-
-        // 3. Subtitle Content with custom typography
-        CustomTopBar(
-            onBackClick = {},
-            onMenuClick = {},
-            content = {
-                TopBarSubtitleContent(
-                    title = "Label",
-                    subtitle = "New Delhi",
-                    onSubtitleClick = {},
-                    typography = headingTypography
-                )
-            }
-        )
-        Spacer(Modifier.height(20.dp))
-
-        // 4. Image Subtitle Content with default typography
-        CustomTopBar(
-            onBackClick = {},
-            onMenuClick = {},
-            content = {
-                TopBarImageSubtitleTitleContent(
-                    title = "Label",
-                    subtitle = "Subtitle",
-                    imagePainter = imagePlaceholder,
-                )
-            }
-        )
-        Spacer(Modifier.height(20.dp))
+            buttonStyle = ButtonBackground.TRANSLUCENT
+        ) {
+            TopBarSimpleTitle("Translucent")
+        }
     }
 }

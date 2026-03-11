@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.JasnifyTheme
 
 @Composable
 fun OrDivider(
@@ -51,7 +52,7 @@ fun OrDivider(
                 modifier = Modifier.padding(8.dp),
                 text = textValue,
                 color = ContentTertiary,
-                style = MaterialTheme.typography.bodyLarge
+                style = JasnifyTheme.typography.bodyLarge
             )
 
             if (showDivider) {

@@ -27,7 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -38,7 +41,8 @@ import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.Outfit
 import com.harshdeep.jasnify.theme.SurfaceAccent
-import com.harshdeep.jasnify.theme.SurfaceBrand
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
@@ -64,14 +68,14 @@ fun getButtonStyles(
     // Colors
     val colors = when (type) {
         ButtonType.Primary -> ButtonDefaults.buttonColors(
-            containerColor = SurfaceBrand,
+            containerColor = SurfaceBrandPrimary,
             contentColor = ContentInvPrimary,
             disabledContainerColor = ContentSecondary,
             disabledContentColor = SurfaceInvSecondary
         )
         ButtonType.Secondary -> ButtonDefaults.buttonColors(
-            containerColor = SurfaceAccent,
-            contentColor = ContentPrimary,
+            containerColor = SurfaceBrandSecondary,
+            contentColor = ContentBrandDark,
             disabledContainerColor = SurfaceSecondary,
             disabledContentColor = ContentTertiary
         )
@@ -85,9 +89,9 @@ fun getButtonStyles(
 
     // Size (Height and Icon Size)
     val height = when (size) {
-        ButtonSize.Small -> 42.dp
+        ButtonSize.Small -> 40.dp
         ButtonSize.Medium -> 56.dp
-        ButtonSize.Large -> 80.dp
+        ButtonSize.Large -> 84.dp
     }
 
     // Shape
@@ -122,15 +126,15 @@ fun CustomTextButton(
 
     // Calculate content padding and icon size based on the button height
     val contentPadding = when (size) {
-        ButtonSize.Small -> PaddingValues(horizontal = 12.dp, vertical = 4.dp)
-        ButtonSize.Medium -> PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-        ButtonSize.Large -> PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+        ButtonSize.Small -> PaddingValues(horizontal = 16.dp, vertical = 10.dp)
+        ButtonSize.Medium -> PaddingValues(horizontal = 24.dp, vertical = 18.dp)
+        ButtonSize.Large -> PaddingValues(horizontal = 48.dp, vertical = 32.dp)
     }
 
     val iconSize = when (size) {
-        ButtonSize.Small -> 16.dp
+        ButtonSize.Small -> 18.dp
         ButtonSize.Medium -> 20.dp
-        ButtonSize.Large -> 24.dp
+        ButtonSize.Large -> 20.dp
     }
 
     val finalBorder = customBorder?: null
