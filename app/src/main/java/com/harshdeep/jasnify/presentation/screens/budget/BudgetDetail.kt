@@ -1,9 +1,7 @@
-package com.harshdeep.jasnify.presentation.screens.home
+package com.harshdeep.jasnify.presentation.screens.budget
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
