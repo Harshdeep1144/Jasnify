@@ -66,9 +66,9 @@ fun BudgetTrackerCard(
             .border(
                 width = 1.dp,
                 color = Color(0x33006363),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                shape = SquircleShape(20.dp, CornerSmoothingDefault)
             )
-            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
             .clickable(
                 onClick = onClick
             ),

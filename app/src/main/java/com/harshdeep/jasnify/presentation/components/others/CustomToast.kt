@@ -15,12 +15,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmall
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
 
 val DefaultToastBackground = Color(0xFF555555).copy(alpha = 0.9f)
@@ -81,12 +83,11 @@ fun CustomToast(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 5.dp)
             .background(
                 color = style.backgroundColor,
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                shape = SquircleShape(16.dp, CornerSmoothingDefault)
             )
-            .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         style.icon?.let { icon ->
@@ -104,24 +105,23 @@ fun CustomToast(
             text = message,
             color = style.contentColor,
             modifier = Modifier.weight(1f),
-            style = MaterialTheme.typography.labelLarge
+            style = JasnifyTheme.typography.labelXLarge
         )
 
         Spacer(modifier = Modifier.width(8.dp))
 
         if (showButton) {
             Button(
-                onClick = onButtonClick!!,
+                onClick = onButtonClick,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = style.buttonColor,
                     contentColor = style.contentColor
                 ),
-                shape = SquircleShape(CornerSmall, CornerSmoothingDefault),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp, pressedElevation = 0.dp),
-                modifier = Modifier.height(36.dp)
+                shape = SquircleShape(12.dp, CornerSmoothingDefault),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 11.dp),
+                modifier = Modifier.height(40.dp).align(alignment = Alignment.CenterVertically)
             ) {
-                Text(text = buttonText, style = MaterialTheme.typography.labelLarge)
+                Text(text = buttonText, style = JasnifyTheme.typography.labelLarge, textAlign = TextAlign.Center)
             }
         }
     }
@@ -140,9 +140,9 @@ fun ToastComponentPreview() {
         Text("Toast Examples", color = Color.White)
 
         CustomToast(
-            message = "Default Toast with button",
+            message = "Toast Message",
             type = ToastType.DEFAULT,
-            buttonText = "Tap",
+            buttonText = "Button",
             onButtonClick = {}
         )
 

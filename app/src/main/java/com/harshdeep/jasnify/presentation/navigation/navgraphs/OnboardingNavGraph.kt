@@ -1,31 +1,30 @@
-package com.harshdeep.jasnify.presentation.navigation
+package com.harshdeep.jasnify.presentation.navigation.navgraphs
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import com.harshdeep.jasnify.presentation.screens.budget.BudgetDetail
+import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.onboarding.OnboardingType
 import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.LoginOrSignup
 import com.harshdeep.jasnify.presentation.screens.onboarding.EventCreation
-import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 
-// Increased duration for a smoother, less abrupt feel
+// Custom Transition Duration for a smooth onboarding experience
 private const val TRANSITION_DURATION = 450
 
-// Reverting to the combined Slide and Fade, but with a smoother duration
+// Shared animations for onboarding screens
 private val smoothSlideInFromRight = slideInHorizontally(
     animationSpec = tween(TRANSITION_DURATION),
-    initialOffsetX = { it / 4 } // Starts closer to the screen for a less dramatic slide
+    initialOffsetX = { it / 4 }
 ) + fadeIn(tween(TRANSITION_DURATION))
 
 private val smoothSlideOutToLeft = slideOutHorizontally(
     animationSpec = tween(TRANSITION_DURATION),
-    targetOffsetX = { -it / 4 } // Exits slower
+    targetOffsetX = { -it / 4 }
 ) + fadeOut(tween(TRANSITION_DURATION))
 
 private val smoothSlideInFromLeft = slideInHorizontally(
@@ -38,18 +37,15 @@ private val smoothSlideOutToRight = slideOutHorizontally(
     targetOffsetX = { it / 4 }
 ) + fadeOut(tween(TRANSITION_DURATION))
 
-// ------------------------------------------
-
-// ONBOARDING NAVIGATION GRAPH
 @RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
     navigation(
         startDestination = Screen.OnboardingType.route,
         route = Screen.OnboardingGraph.route
     ) {
+        // 1. Selection Screen: User chooses role (Host/Vendor)
         composable(
             route = Screen.OnboardingType.route,
-            // Using the smoother, combined transitions
             enterTransition = { smoothSlideInFromRight },
             exitTransition = { smoothSlideOutToLeft },
             popEnterTransition = { smoothSlideInFromLeft },
@@ -58,17 +54,18 @@ fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
             OnboardingType(mainNavController)
         }
 
+        // 2. Authentication Screen: Login or Signup
         composable(
             route = Screen.LoginOrSignUp.route,
-            // Using the smoother, combined transitions
             enterTransition = { smoothSlideInFromRight },
             exitTransition = { smoothSlideOutToLeft },
             popEnterTransition = { smoothSlideInFromLeft },
             popExitTransition = { smoothSlideOutToRight }
         ) {
-            LoginOrSignup(mainNavController) // Must navigate to MainAppGraph on success
+            LoginOrSignup(mainNavController)
         }
 
+        // 3. Event Creation: Setup the first wedding/event details
         composable(
             route = Screen.EventCreationScreen.route,
             enterTransition = { smoothSlideInFromRight },
@@ -76,33 +73,19 @@ fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
             popEnterTransition = { smoothSlideInFromLeft },
             popExitTransition = { smoothSlideOutToRight }
         ) {
-            EventCreation(mainNavController) // Must navigate to MainAppGraph on complete
-        }
-    }
-}
-
-// ------------------------------------------
-
-// MAIN APP NAVIGATION GRAPH
-@RequiresApi(Build.VERSION_CODES.O)
-fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
-    navigation(
-        startDestination = Screen.MainAppScreen.route,
-        route = Screen.MainAppGraph.route
-    ) {
-        composable(
-            route = Screen.MainAppScreen.route,
-            // Keeping the Fade for the main screen is still the most professional choice
-            enterTransition = { fadeIn(tween(300)) },
-            exitTransition = { fadeOut(tween(300)) },
-        ) {
-            HomeScreen(mainNavController = mainNavController)
+            EventCreation(mainNavController)
         }
 
+        // 4. OTP Verification (Optional/Nested inside Auth flow)
         composable(
-            route = Screen.BudgetDetail.route
-        ){
-            BudgetDetail()
+            route = Screen.OtpVerification.route,
+            enterTransition = { smoothSlideInFromRight },
+            exitTransition = { smoothSlideOutToLeft },
+            popEnterTransition = { smoothSlideInFromLeft },
+            popExitTransition = { smoothSlideOutToRight }
+        ) { backStackEntry ->
+            val phoneNumber = backStackEntry.arguments?.getString("phoneNumber") ?: ""
+            // OtpVerificationScreen(phoneNumber, mainNavController)
         }
     }
 }

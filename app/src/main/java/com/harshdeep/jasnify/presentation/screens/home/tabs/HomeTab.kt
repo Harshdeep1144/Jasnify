@@ -26,6 +26,7 @@ import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.VendorsCarousel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import kotlin.math.roundToInt
 
@@ -37,6 +38,7 @@ private const val PARALLAX_RATE = 0.5f
 @Composable
 fun HomeTab(
     onBudgetClick: () -> Unit,
+    onVenueClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
@@ -49,7 +51,7 @@ fun HomeTab(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundSecondary)
+            .background(BackgroundPrimary)
     ) {
         Image(
             painter = painterResource(id = R.drawable.bg_home),
@@ -117,7 +119,7 @@ fun HomeTab(
                             cardBgColor = Color(0xFFD3CDE8),
                             waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
                             insightColor = Color(0xFF6448D6),
-                            onClick = {}
+                            onClick = onVenueClick
                         )
                     }
 

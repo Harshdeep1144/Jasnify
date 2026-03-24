@@ -1,9 +1,8 @@
 package com.harshdeep.jasnify.theme
 
-import androidx.compose.material3.CardColors
 import androidx.compose.ui.graphics.Color
 
-// --- Base Colors ---
+// --------------------------- Base Colors ----------------------
 
 // Neutrals
 val NeutralWhite = Color(0xfff1f1f1)
@@ -19,6 +18,7 @@ val Neutral900 = Color(0xff191919)
 val NeutralBlack = Color(0xff0d0d0d)
 
 
+
 // Misty Teal
 val MistyTeal50 = Color(0xFFD7E3E3)
 val MistyTeal100 = Color(0xffc7f3f3)
@@ -31,7 +31,10 @@ val MistyTeal700 = Color(0xff638585)
 val MistyTeal800 = Color(0xff557373)
 val MistyTeal900 = Color(0xff395555)
 
-// Accent
+
+
+
+// Others
 val AccentMistyPale = Color(0xfff2efea)
 val AccentCloudWhisper = Color(0xffdfe5f3)
 
@@ -39,18 +42,21 @@ val AccentCloudWhisper = Color(0xffdfe5f3)
 
 
 
-// --- Color Tokens (Mapping to Base Colors) ---
+// ------------------ Color Tokens ----------------------
 
-// Brand
+
+// Brand Colors
 val BrandMistyTeal = MistyTeal800
 val BrandMistyPale = AccentMistyPale
 
-// Background
+
+// Background Colors
 val BackgroundPrimary = NeutralWhite
 val BackgroundSecondary = Neutral100
 val BackgroundBrand = BrandMistyPale
 
-// Content
+
+// Content Colors
 val ContentPrimary = NeutralBlack
 val ContentSecondary = Neutral400
 val ContentTertiary = Neutral300
@@ -59,7 +65,7 @@ val ContentBrand = BrandMistyTeal
 val ContentBrandDark = MistyTeal900
 
 
-// Surface
+// Surface Colors
 val SurfacePrimary = NeutralWhite
 val SurfaceSecondary = Neutral100
 val SurfaceInvPrimary = NeutralBlack
@@ -67,6 +73,39 @@ val SurfaceInvSecondary = Neutral300
 val SurfaceAccent = AccentCloudWhisper
 val SurfaceBrandPrimary = BrandMistyTeal
 val SurfaceBrandSecondary = MistyTeal50
+
+
+
+// Accent Colors
+val CloudWhisper = Color(0xFFE9EDF7)
+val SoftMint = Color(0xFFDAE8D8)
+val PaleLavender = Color(0xFFE6E3F2)
+val LightSkyBlue = Color(0xFFD3DFEE)
+val SoftPeach = Color(0xFFF4E3E2)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

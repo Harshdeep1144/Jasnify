@@ -28,6 +28,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import java.time.Duration
@@ -45,7 +46,7 @@ fun HomeTopBar(
     dateString: String,
     alpha: Float = 1f
 ) {
-    val containerColor = BackgroundSecondary.copy(alpha = alpha)
+    val containerColor = BackgroundPrimary.copy(alpha = alpha)
     val contentColor = if (alpha < 0.5f) ContentPrimary else ContentPrimary
     val buttonBackground = if (alpha > 0.5f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
 

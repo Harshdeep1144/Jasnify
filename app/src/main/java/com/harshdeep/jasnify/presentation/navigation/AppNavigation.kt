@@ -7,6 +7,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.harshdeep.jasnify.presentation.navigation.navgraphs.mainAppNavGraph
+import com.harshdeep.jasnify.presentation.navigation.navgraphs.onboardingNavGraph
 import com.harshdeep.jasnify.presentation.screens.onboarding.SplashScreen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -17,7 +19,7 @@ fun AppNavigation(
     authViewModel: AuthViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel()
 ) {
-    // The GLOBAL Controller
+    // The main controller that handles full-screen transitions and graph switching
     val mainNavController = rememberNavController()
 
     NavHost(
@@ -32,10 +34,10 @@ fun AppNavigation(
             )
         }
 
-        // Onboarding/Auth Graph
+        // --- Layer 1: Onboarding/Auth Flow ---
         onboardingNavGraph(mainNavController)
 
-        // Main Application Graph (The Bottom Bar Wrapper)
+        // --- Layer 2: Main App Flow (Bottom Nav + Deep Feature Screens) ---
         mainAppNavGraph(mainNavController)
     }
 }

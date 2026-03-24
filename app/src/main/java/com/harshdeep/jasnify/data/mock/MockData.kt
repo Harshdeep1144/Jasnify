@@ -10,7 +10,7 @@ object MockData {
             vendorType = null,
             rating = 4.4,
             totalReviews = "1k",
-            services = listOf("AC Rooms", "Catering", "Parking"),
+            services = listOf("AC Rooms", "Catering", "Parking","AC Rooms","AC Rooms","AC Rooms","AC Rooms","AC Rooms","AC Rooms"),
             priceStartsFrom = "₹2,999",
             images = listOf(
                 "https://picsum.photos/800/400?random=1",

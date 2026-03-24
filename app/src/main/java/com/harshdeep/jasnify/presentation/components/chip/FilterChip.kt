@@ -2,11 +2,13 @@ package com.harshdeep.jasnify.presentation.components.chip
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -48,7 +50,7 @@ fun getChipStyles(
     val contentColor = when {
         isSelected && hasStroke -> ContentBrandDark
         isSelected -> ContentInvPrimary
-        else -> ContentPrimary
+        else -> ContentSecondary
     }
 
     val shape = when (shapeStyle) {
@@ -62,40 +64,40 @@ fun getChipStyles(
     return Triple(containerColor, contentColor, shape)
 }
 
-/**
- * FilterChip component - A highly customizable chip for filtering and selection.
- * Renamed from BasicChip to reflect its primary use case in the UI.
- */
 @Composable
 fun FilterChip(
     label: String,
     modifier: Modifier = Modifier,
     isSelected: Boolean = false,
-    size: ChipSize = ChipSize.Medium,
+    size: ChipSize = ChipSize.Small,
     shapeStyle: ChipShapeStyle = ChipShapeStyle.Square,
     hasStroke: Boolean = false,
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     hasDropdown: Boolean = false,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onTrailingIconClick: () -> Unit = {}
 ) {
     val (containerColor, contentColor, shape) = getChipStyles(isSelected, size, shapeStyle, hasStroke)
 
-    // Border logic: Only apply border if hasStroke is true
+    // Border logic: Apply primary brand color border for outlined-selected state
     val border = if (hasStroke) {
-        BorderStroke(1.dp, if (isSelected) SurfaceBrandPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
+        BorderStroke(
+            width = 1.dp,
+            color = if (isSelected) SurfaceBrandPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)
+        )
     } else null
 
-    // Sizing and Padding Configuration
+    // Sizing and Layout Configuration
     val height = if (size == ChipSize.Small) 36.dp else 40.dp
     val iconSize = if (size == ChipSize.Small) 16.dp else 20.dp
-
-    // Custom padding as requested
     val horizontalPadding = if (size == ChipSize.Small) 12.dp else 16.dp
-    val verticalPadding = if (size == ChipSize.Small) 8.dp else 10.dp
-    val gap = 12.dp
+    val gap = 8.dp
 
-    val style = if (size == ChipSize.Small) JasnifyTheme.typography.labelMedium else JasnifyTheme.typography.labelLarge
+    val textStyle = if (size == ChipSize.Small)
+        JasnifyTheme.typography.labelMedium
+    else
+        JasnifyTheme.typography.labelLarge
 
     Surface(
         onClick = onClick,
@@ -106,43 +108,48 @@ fun FilterChip(
         border = border
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            modifier = Modifier.padding(horizontal = horizontalPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            // 1. Leading Icon
+            // Leading Icon
             if (leadingIcon != null) {
                 Icon(
                     imageVector = leadingIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(iconSize)
+                    modifier = Modifier.size(iconSize),
+                    tint = contentColor
                 )
                 Spacer(Modifier.width(gap))
             }
 
-            // 2. Label
+            // Label
             Text(
                 text = label,
-                style = style,
+                style = textStyle,
+                color = contentColor
             )
 
-            // 3. Dropdown Icon
-            if (hasDropdown) {
-                Spacer(Modifier.width(gap))
+            //  Dropdown Icon
+            if (hasDropdown && !isSelected) {
+                Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
-                    modifier = Modifier.size(iconSize)
+                    modifier = Modifier.size(iconSize),
+                    tint = contentColor
                 )
             }
 
-            // 4. Trailing Icon
             if (trailingIcon != null) {
                 Spacer(Modifier.width(gap))
                 Icon(
                     imageVector = trailingIcon,
                     contentDescription = null,
-                    modifier = Modifier.size(iconSize)
+                    modifier = Modifier
+                        .size(iconSize)
+                        .clickable { onTrailingIconClick() },
+                    tint = contentColor
                 )
             }
         }
@@ -151,74 +158,65 @@ fun FilterChip(
 
 // --------- Previews ----------
 
-@Preview(showBackground = true, name = "All FilterChip Combinations")
+@Preview(showBackground = true, name = "FilterChip Design System")
 @Composable
 private fun ChipPreview() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF9F9F9))
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .background(Color(0xFFEEEEEE)) // Slightly darker background to see the chips
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(32.dp)
     ) {
-        // --- Section 1: Without Stroke (Solid) ---
-        ChipSectionHeader("Without Stroke (Solid Variations)")
-        ChipRow {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Default", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Filter Chip", hasStroke = false)
+        // --- Section 1: Default & Solid Selected (Matches top of image) ---
+        Column {
+            ChipSectionHeader("Solid Style")
+            ChipRow {
                 FilterChip(
-                    label = "Full House",
+                    label = "Label",
+                    isSelected = false,
                     leadingIcon = Icons.Default.FilterList,
                     hasDropdown = true,
-                    trailingIcon = Icons.Default.Close,
-                    hasStroke = false
+                    trailingIcon = Icons.Default.Close
                 )
-                FilterChip(label = "Rounded", shapeStyle = ChipShapeStyle.Round, hasStroke = false)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Selected (Solid)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Filter Chip", isSelected = true, hasStroke = false)
                 FilterChip(
-                    label = "Full House",
+                    label = "Label",
                     isSelected = true,
                     leadingIcon = Icons.Default.FilterList,
-                    trailingIcon = Icons.Default.Close,
-                    hasStroke = false
+                    trailingIcon = Icons.Default.Close
                 )
-                FilterChip(label = "Rounded", shapeStyle = ChipShapeStyle.Round, isSelected = true, hasStroke = false)
             }
         }
 
-        Spacer(Modifier.height(32.dp))
-
-        // --- Section 2: With Stroke (Outlined) ---
-        ChipSectionHeader("With Stroke (Outlined Variations)")
-        ChipRow {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Default", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Stroked", hasStroke = true)
-                FilterChip(label = "Rounded", shapeStyle = ChipShapeStyle.Round, hasStroke = true)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Selected (Stroked)", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Stroked", isSelected = true, hasStroke = true)
-                FilterChip(label = "Rounded", shapeStyle = ChipShapeStyle.Round, isSelected = true, hasStroke = true)
+        // --- Section 2: Outlined Style (Matches bottom of image) ---
+        Column {
+            ChipSectionHeader("Outlined Style")
+            ChipRow {
+                FilterChip(
+                    label = "Label",
+                    isSelected = false,
+                    hasStroke = true,
+                    leadingIcon = Icons.Default.FilterList,
+                    hasDropdown = true,
+                    trailingIcon = Icons.Default.Close
+                )
+                FilterChip(
+                    label = "Label",
+                    isSelected = true,
+                    hasStroke = true,
+                    leadingIcon = Icons.Default.FilterList,
+                    trailingIcon = Icons.Default.Close
+                )
             }
         }
 
-        Spacer(Modifier.height(32.dp))
-
-        // --- Section 3: Small Sizes ---
-        ChipSectionHeader("Small Sizing Examples")
-        ChipRow {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Small Default", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Small Chip", size = ChipSize.Small)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Small Selected", fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                FilterChip(label = "Small Sel", size = ChipSize.Small, isSelected = true)
+        // --- Section 3: Rounded vs Square ---
+        Column {
+            ChipSectionHeader("Shape Comparison")
+            ChipRow {
+                FilterChip(label = "Squircle", shapeStyle = ChipShapeStyle.Square, isSelected = true)
+                FilterChip(label = "Circle", shapeStyle = ChipShapeStyle.Round, isSelected = true)
             }
         }
     }
@@ -227,10 +225,13 @@ private fun ChipPreview() {
 @Composable
 private fun ChipSectionHeader(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
+        text = title.uppercase(),
+        style = JasnifyTheme.typography.labelSmall.copy(
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp
+        ),
         color = Color.Gray,
-        modifier = Modifier.padding(bottom = 16.dp)
+        modifier = Modifier.padding(bottom = 12.dp)
     )
 }
 
@@ -238,7 +239,7 @@ private fun ChipSectionHeader(title: String) {
 private fun ChipRow(content: @Composable RowScope.() -> Unit) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         content = content
     )
 }
