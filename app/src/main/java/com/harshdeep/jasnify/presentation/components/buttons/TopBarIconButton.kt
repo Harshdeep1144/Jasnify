@@ -78,7 +78,7 @@ fun TopBarIconButton(
     Box(
         modifier = modifier
             .size(size)
-            .clip(shape = SquircleShape(100, CornerSmoothingDefault))
+            .clip(shape = SquircleShape(100, 0f))
             .background(backgroundColor)
             .then(
                 if (backgroundStyle == ButtonBackground.TRANSLUCENT) {

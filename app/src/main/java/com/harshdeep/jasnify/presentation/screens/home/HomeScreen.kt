@@ -15,7 +15,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomNavBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.navigation.homeNavGraph
+import com.harshdeep.jasnify.presentation.navigation.navgraphs.homeNavGraph
 import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
 
 @RequiresApi(Build.VERSION_CODES.O)

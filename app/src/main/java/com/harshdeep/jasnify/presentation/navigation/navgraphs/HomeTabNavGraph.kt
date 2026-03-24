@@ -1,10 +1,11 @@
-package com.harshdeep.jasnify.presentation.navigation
+package com.harshdeep.jasnify.presentation.navigation.navgraphs
 
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.tabs.*
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -15,7 +16,12 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
             onBudgetClick = {
-                mainNavController.navigate(Screen.BudgetDetail.route)
+                // Navigate to the Budget FEATURE GRAPH
+                mainNavController.navigate(Screen.BudgetGraph.route)
+            },
+            onVenueClick = {
+                // Navigate to the Venue FEATURE GRAPH
+                mainNavController.navigate(Screen.VenueGraph.route)
             }
         )
     }

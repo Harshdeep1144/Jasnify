@@ -21,6 +21,9 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import sv.lib.squircleshape.SquircleShape
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ColorFilter
@@ -51,12 +54,14 @@ fun HomeCard(
             .border(
                 width = 1.dp,
                 color = insightColor.copy(alpha = 0.1f),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                shape = SquircleShape(20.dp, CornerSmoothingDefault)
             )
+            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
             .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = ripple(bounded = true), // Ensures ripple stays inside the box
                 onClick = onClick
-            )
-            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault)),
+            ),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
             containerColor = cardBgColor,

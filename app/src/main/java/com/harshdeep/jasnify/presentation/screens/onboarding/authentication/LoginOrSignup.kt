@@ -174,7 +174,6 @@ fun LoginOrSignup(
         topBar = {
             CustomTopBar(
                 onBackClick = { navController.popBackStack() },
-                content = { }
             )
         },
         content = { paddingValues ->

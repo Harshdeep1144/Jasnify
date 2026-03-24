@@ -33,7 +33,7 @@
       <SelectionState runConfigName="EventCreationScreenPreview">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="EventCreationPreview">
+      <SelectionState runConfigName="LocationScreenPreview">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>

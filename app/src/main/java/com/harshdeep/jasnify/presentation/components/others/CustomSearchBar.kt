@@ -1,7 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.others
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -22,7 +21,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
@@ -43,15 +41,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.CornerLarge
-import com.harshdeep.jasnify.theme.CornerSmall
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
@@ -66,18 +62,21 @@ fun CustomSearchBar(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    type: SearchBarType = SearchBarType.DEFAULT
+    type: SearchBarType = SearchBarType.DEFAULT,
+    onActiveChange: (Boolean) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isFocused by interactionSource.collectIsFocusedAsState()
-
     val focusManager = LocalFocusManager.current
-    // 1. Create a FocusRequester
     val focusRequester = remember { FocusRequester() }
 
     var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT) }
-
     val duration = 300
+
+    // Sync the external 'active' state with the internal focus state
+    LaunchedEffect(isFocused) {
+        onActiveChange(isFocused)
+    }
 
     AnimatedContent(
         targetState = isExpanded,
@@ -97,75 +96,89 @@ fun CustomSearchBar(
         label = "SearchBarTransition"
     ) { targetIsExpanded ->
         if (targetIsExpanded) {
-            OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = modifier
+            Box(
+                modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
-                    .focusRequester(focusRequester), // Apply the focus requester here
-                singleLine = true,
-                placeholder = {
-                    Text(
-                        text = "Search",
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentSecondary
+                    .background(
+                        color = SurfaceSecondary,
+                        shape = SquircleShape(100, 0f)
                     )
-                },
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-                leadingIcon = {
-                    if (isFocused) {
-                        IconButton(
-                            onClick = {
-                                if (type == SearchBarType.COMPACT) {
-                                    isExpanded = false
-                                    onValueChange("")
-                                } else {
-                                    onValueChange("")
-                                }
-                                focusManager.clearFocus()
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.ArrowBack,
-                                contentDescription = "Back",
-                                tint = ContentPrimary
-                            )
-                        }
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.Search,
-                            contentDescription = "Search",
-                            tint = ContentSecondary
+                    .border(
+                        width = 1.dp,
+                        color = if (isFocused) ContentPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                        shape = SquircleShape(100, 0f)
+                    )
+            ) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    singleLine = true,
+                    placeholder = {
+                        Text(
+                            text = "Search",
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentSecondary
                         )
-                    }
-                },
-                trailingIcon = {
-                    if (value.isNotEmpty()) {
-                        IconButton(
-                            onClick = { onValueChange("") }
-                        ) {
+                    },
+                    shape = SquircleShape(100, 0f),
+                    leadingIcon = {
+                        if (isFocused) {
+                            IconButton(
+                                onClick = {
+                                    if (type == SearchBarType.COMPACT) {
+                                        isExpanded = false
+                                    }
+                                    onValueChange("")
+                                    focusManager.clearFocus()
+                                    // Manually trigger false just in case focus clear takes a frame
+                                    onActiveChange(false)
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = ContentPrimary
+                                )
+                            }
+                        } else {
                             Icon(
-                                imageVector = Icons.Rounded.Close,
-                                contentDescription = "Clear search",
-                                tint = ContentPrimary
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = "Search",
+                                tint = ContentSecondary
                             )
                         }
-                    }
-                },
+                    },
+                    trailingIcon = {
+                        if (value.isNotEmpty()) {
+                            IconButton(
+                                onClick = { onValueChange("") }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Clear search",
+                                    tint = ContentPrimary
+                                )
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        disabledBorderColor = Color.Transparent,
+                        errorBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        cursorColor = ContentBrand,
+                    ),
+                    interactionSource = interactionSource,
+                )
+            }
 
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                    disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                    focusedContainerColor = SurfaceSecondary,
-                    unfocusedContainerColor = SurfaceSecondary,
-                    cursorColor = ContentBrand,
-                ),
-                interactionSource = interactionSource,
-            )
-
-            // Request focus when the Composable enters the composition (i.e., when expanded)
+            // Auto-focus when expanding from COMPACT mode
             LaunchedEffect(Unit) {
                 if (type == SearchBarType.COMPACT) {
                     focusRequester.requestFocus()
@@ -173,23 +186,26 @@ fun CustomSearchBar(
             }
 
         } else {
+            // COMPACT Mode
             Box(
                 modifier = modifier
                     .size(56.dp)
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                        shape = SquircleShape(100, 0f)
                     )
                     .background(
                         color = SurfaceSecondary,
-                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                        shape = SquircleShape(100, 0f)
                     )
                     .clickable(
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() },
                         onClick = {
                             isExpanded = true
+                            // Since we haven't gained focus yet, notify active manually
+                            onActiveChange(true)
                         }
                     ),
                 contentAlignment = Alignment.Center
@@ -208,19 +224,21 @@ fun CustomSearchBar(
 @Composable
 fun CustomSearchBarPreview() {
     var text by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
 
     JasnifyTheme {
         Column(modifier = Modifier.padding(16.dp)) {
-            CustomSearchBar(
-                value = text,
-                onValueChange = {text = it},
+            Text(
+                text = "Is Search Active: $isSearchActive",
+                color = if (isSearchActive) ContentBrand else ContentSecondary
             )
 
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(10.dp))
 
             CustomSearchBar(
-                value = "Compose Search Query",
-                onValueChange = {},
+                value = text,
+                onValueChange = { text = it },
+                onActiveChange = { isSearchActive = it }
             )
 
             Spacer(Modifier.height(20.dp))
@@ -228,7 +246,8 @@ fun CustomSearchBarPreview() {
             CustomSearchBar(
                 value = text,
                 onValueChange = { text = it },
-                type = SearchBarType.COMPACT
+                type = SearchBarType.COMPACT,
+                onActiveChange = { isSearchActive = it }
             )
         }
     }
