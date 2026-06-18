@@ -260,20 +260,12 @@ fun LocationScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .statusBarsPadding()
         ) {
-            // Header Top-Bar Animation
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !isSearchActive,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                CustomTopBar(
-                    title = "Location",
-                    onBackClick = onBackClick,
-                    isLargeTitle = true
-                )
-            }
+            CustomTopBar(
+                title = "Location",
+                onBackClick = onBackClick,
+                isLargeTitle = true
+            )
 
             // Fixed non-scrollable Search Bar (Always visible)
             Box(

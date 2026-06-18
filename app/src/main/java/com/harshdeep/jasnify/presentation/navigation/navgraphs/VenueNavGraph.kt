@@ -1,5 +1,7 @@
 package com.harshdeep.jasnify.presentation.navigation.navgraphs
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.collectAsState
@@ -14,6 +16,7 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 
 private const val ANIM_DURATION = 400
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.venueNavGraph(mainNavController: NavHostController) {
     navigation(
         startDestination = Screen.VenueRoot.route,
@@ -54,7 +57,7 @@ fun NavGraphBuilder.venueNavGraph(mainNavController: NavHostController) {
             val previousBackStackEntry = mainNavController.previousBackStackEntry
 
             LocationScreen(
-                initialSearches = listOf("Patna", "New Delhi", "Mumbai", "Haryana", "Noida", "Pune"),
+                initialSearches = emptyList(),
                 currentAddress = previousBackStackEntry?.savedStateHandle?.get<String>("selected_location") ?: "Patna, Bihar",
                 onAddressSelected = { selectedAddress ->
                     // 2. Set the address inside the savedStateHandle and pop back safely
