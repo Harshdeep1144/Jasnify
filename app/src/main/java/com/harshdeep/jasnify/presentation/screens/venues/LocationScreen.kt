@@ -1,49 +1,241 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
-import com.harshdeep.jasnify.R
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Geocoder
+import android.location.Location
+import android.location.LocationManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import androidx.core.app.ActivityCompat
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FamousCityChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
+import java.util.Locale
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
+    currentAddress: String, // Hoisted global state
+    onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    val recentSearches = remember { mutableStateListOf<String>().apply { addAll(initialSearches) } }
+    // local state to temporarily show geocoder feedback on the UI button row
+    var exactAddressState by remember { mutableStateOf<String?>(null) }
+
+    // Initialize Android Local Storage via SharedPreferences
+    val sharedPrefs = remember {
+        context.getSharedPreferences("jasnify_location_prefs", Context.MODE_PRIVATE)
+    }
+
+    // Load recent searches from Local Storage, using fallback default list if empty
+    val recentSearches = remember {
+        val savedString = sharedPrefs.getString("recent_searches_key", null)
+        val initialList = if (!savedString.isNullOrEmpty()) {
+            savedString.split("|||").filter { it.isNotBlank() }
+        } else {
+            initialSearches
+        }
+        mutableStateListOf<String>().apply { addAll(initialList) }
+    }
+
+    // Helper to persist the current state of recent searches list to local storage
+    val saveRecentSearchesToStorage: (List<String>) -> Unit = { list ->
+        sharedPrefs.edit()
+            .putString("recent_searches_key", list.joinToString("|||"))
+            .apply()
+    }
+
     var selectedCityId by remember { mutableStateOf("") }
+
+    val locationManager = remember {
+        context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+    }
+
+    // Comprehensive list of location suggestions for search autofill
+    val searchDatabase = remember {
+        listOf(
+            "Hajipur, Bihar",
+            "Patna, Bihar",
+            "Muzaffarpur, Bihar",
+            "Gaya, Bihar",
+            "Bhagalpur, Bihar",
+            "Noida, Uttar Pradesh",
+            "Greater Noida, Uttar Pradesh",
+            "Ghaziabad, Uttar Pradesh",
+            "Delhi NCR",
+            "New Delhi, Delhi",
+            "Connaught Place, New Delhi",
+            "Indiranagar, Bengaluru",
+            "Koramangala, Bengaluru",
+            "Whitefield, Bengaluru",
+            "HSR Layout, Bengaluru",
+            "Andheri West, Mumbai",
+            "Bandra, Mumbai",
+            "Colaba, Mumbai",
+            "Gachibowli, Hyderabad",
+            "Jubilee Hills, Hyderabad",
+            "Adyar, Chennai",
+            "T. Nagar, Chennai",
+            "C-Scheme, Jaipur",
+            "Malviya Nagar, Jaipur",
+            "Taj Ganj, Agra",
+            "Salt Lake, Kolkata",
+            "Park Street, Kolkata"
+        )
+    }
+
+    // Live filtering based on the search query
+    val filteredSuggestions = remember(text) {
+        if (text.isBlank()) {
+            searchDatabase
+        } else {
+            searchDatabase.filter { it.contains(text, ignoreCase = true) }
+        }
+    }
+
+    // Save and finalize selected address selection
+    val handleLocationSelected: (String) -> Unit = { selectedAddress ->
+        // Add to recent searches (move to top if exists)
+        recentSearches.remove(selectedAddress)
+        recentSearches.add(0, selectedAddress)
+
+        // Trim history list to 10 items to save local memory
+        if (recentSearches.size > 10) {
+            recentSearches.removeLast()
+        }
+
+        // Persist to local SharedPreferences storage
+        saveRecentSearchesToStorage(recentSearches)
+
+        // Clear search inputs and bubble up selections
+        text = ""
+        isSearchActive = false
+        onAddressSelected(selectedAddress)
+    }
+
+    fun fetchLocationAndResolveAddress() {
+        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) {
+            exactAddressState = "Locating exact address..."
+
+            try {
+                val providers = locationManager.getProviders(true)
+                var bestLocation: Location? = null
+
+                for (provider in providers) {
+                    val loc = locationManager.getLastKnownLocation(provider) ?: continue
+                    if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
+                        bestLocation = loc
+                    }
+                }
+
+                val location = bestLocation
+                if (location != null) {
+                    coroutineScope.launch(Dispatchers.IO) {
+                        try {
+                            val geocoder = Geocoder(context, Locale.getDefault())
+                            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                            if (!addresses.isNullOrEmpty()) {
+                                val addressObj = addresses[0]
+                                val formattedAddress = addressObj.getAddressLine(0) ?: "${addressObj.locality}, ${addressObj.adminArea}"
+
+                                withContext(Dispatchers.Main) {
+                                    exactAddressState = null // reset local text feedback
+                                    handleLocationSelected(formattedAddress)
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) {
+                                    exactAddressState = null
+                                    handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
+                                }
+                            }
+                        } catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                exactAddressState = null
+                                handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
+                                Toast.makeText(context, "Could not fetch street details: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+                } else {
+                    exactAddressState = null
+                    Toast.makeText(context, "No cached location. Try opening Google Maps first.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: SecurityException) {
+                exactAddressState = null
+                Toast.makeText(context, "Location access restricted.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+
+        if (fineLocationGranted || coarseLocationGranted) {
+            fetchLocationAndResolveAddress()
+        } else {
+            Toast.makeText(
+                context,
+                "Permission Denied. Please ensure permissions are declared in AndroidManifest.xml or reset App Settings.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     data class City<T>(
         val name: String,
@@ -63,130 +255,210 @@ fun LocationScreen(
         City("Patna", R.drawable.ic_city_ptn, "patna")
     )
 
-    Scaffold(
-        topBar = {
-            // Added statusBarsPadding here so the TopBar respects the system status bar
-            Column(modifier = Modifier.statusBarsPadding()) {
-                if (!isSearchActive) {
-                    CustomTopBar(
-                        title = "Location",
-                        onBackClick = onBackClick,
-                        isLargeTitle = true
-                    )
-                }
-            }
-        }
-    ) { paddingValues ->
+    Scaffold { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .statusBarsPadding()
         ) {
-            Box(modifier = Modifier.padding(horizontal = 12.dp)) {
-                Column {
-                    CustomSearchBar(
-                        value = text,
-                        onValueChange = { text = it },
-                        onActiveChange = { isSearchActive = it }
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Box(modifier = Modifier.padding(horizontal = 12.dp)) {
-                LocationPicker(
-                    city = "Hajipur",
-                    state = "Bihar",
-                    onClick = {}
+            // Header Top-Bar Animation
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !isSearchActive,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                CustomTopBar(
+                    title = "Location",
+                    onBackClick = onBackClick,
+                    isLargeTitle = true
                 )
             }
 
-            if (recentSearches.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "Recent Searches",
-                            style = JasnifyTheme.typography.headingMedium,
-                            fontWeight = FontWeight.Medium
-                        )
+            // Fixed non-scrollable Search Bar (Always visible)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            ) {
+                CustomSearchBar(
+                    value = text,
+                    onValueChange = { text = it },
+                    onActiveChange = { isSearchActive = it }
+                )
+            }
 
-                        TextButton(
-                            onClick = { recentSearches.clear() },
-                        ) {
-                            Text(
-                                text = "Clear all",
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentBrandDark
-                            )
+            // Layout Split Container
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                // Background main content scroll layer
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(modifier = Modifier.padding(horizontal = 12.dp)) {
+                        LocationPicker(
+                            exactLocationAddress = exactAddressState ?: currentAddress,
+                            onClick = {
+                                val hasFinePermission = ActivityCompat.checkSelfPermission(
+                                    context, Manifest.permission.ACCESS_FINE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                val hasCoarsePermission = ActivityCompat.checkSelfPermission(
+                                    context, Manifest.permission.ACCESS_COARSE_LOCATION
+                                ) == PackageManager.PERMISSION_GRANTED
+
+                                if (hasFinePermission || hasCoarsePermission) {
+                                    fetchLocationAndResolveAddress()
+                                } else {
+                                    locationPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
+                                }
+                            }
+                        )
+                    }
+
+                    if (recentSearches.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Recent Searches",
+                                    style = JasnifyTheme.typography.headingMedium,
+                                    fontWeight = FontWeight.Medium
+                                )
+
+                                TextButton(
+                                    onClick = {
+                                        recentSearches.clear()
+                                        saveRecentSearchesToStorage(emptyList())
+                                    },
+                                ) {
+                                    Text(
+                                        text = "Clear all",
+                                        style = JasnifyTheme.typography.labelXLarge,
+                                        color = ContentBrandDark
+                                    )
+                                }
+                            }
+
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                items(recentSearches) { city ->
+                                    FilterChip(
+                                        label = city,
+                                        trailingIcon = Icons.Default.Close,
+                                        hasStroke = true,
+                                        shapeStyle = ChipShapeStyle.Round,
+                                        onTrailingIconClick = {
+                                            recentSearches.remove(city)
+                                            saveRecentSearchesToStorage(recentSearches)
+                                        },
+                                        onClick = {
+                                            handleLocationSelected(city)
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    LazyRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    Text(
+                        text = "Popular Cities",
+                        style = JasnifyTheme.typography.headingMedium,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
+                    )
+
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(horizontal = 12.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(recentSearches) { city ->
-                            FilterChip(
-                                label = city,
-                                trailingIcon = Icons.Default.Close,
-                                hasStroke = true,
-                                shapeStyle = ChipShapeStyle.Round,
-                                onTrailingIconClick = {
-                                    recentSearches.remove(city)
+                        cities.chunked(3).forEach { rowItems ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                rowItems.forEach { city ->
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        FamousCityChip(
+                                            cityName = city.name,
+                                            cityImage = painterResource(id = city.imageRes),
+                                            isSelected = selectedCityId == city.value,
+                                            onClick = {
+                                                selectedCityId = city.value
+                                                handleLocationSelected(city.name)
+                                            }
+                                        )
+                                    }
                                 }
-                            )
+
+                                if (rowItems.size < 3) {
+                                    repeat(3 - rowItems.size) {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            Text(
-                text = "Popular Cities",
-                style = JasnifyTheme.typography.headingMedium,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(12.dp, 12.dp, 12.dp, 4.dp)
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                cities.chunked(3).forEach { rowItems ->
-                    Row(
+                // Explicit top-level AnimatedVisibility overlay to prevent compiler scope mismatch
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = isSearchActive,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
                     ) {
-                        rowItems.forEach { city ->
-                            Box(modifier = Modifier.weight(1f)) {
-                                FamousCityChip(
-                                    cityName = city.name,
-                                    cityImage = painterResource(id = city.imageRes),
-                                    isSelected = selectedCityId == city.value,
-                                    onClick = {
-                                        selectedCityId = city.value
-                                    }
-                                )
-                            }
-                        }
-
-                        // Fill empty slots if the last row has fewer than 3 items
-                        if (rowItems.size < 3) {
-                            repeat(3 - rowItems.size) {
-                                Spacer(modifier = Modifier.weight(1f))
+                        if (filteredSuggestions.isEmpty() && text.isNotBlank()) {
+                            ListItem(
+                                headlineContent = { Text("Search for \"$text\"") },
+                                leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { handleLocationSelected(text) }
+                            )
+                        } else {
+                            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                items(filteredSuggestions) { suggestion ->
+                                    ListItem(
+                                        headlineContent = { Text(suggestion) },
+                                        leadingContent = {
+                                            Icon(
+                                                imageVector = if (recentSearches.contains(suggestion)) Icons.Default.History else Icons.Default.LocationOn,
+                                                contentDescription = null
+                                            )
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { handleLocationSelected(suggestion) }
+                                    )
+                                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                }
                             }
                         }
                     }
@@ -198,8 +470,7 @@ fun LocationScreen(
 
 @Composable
 fun LocationPicker(
-    city: String,
-    state: String,
+    exactLocationAddress: String,
     onClick: () -> Unit
 ) {
     Row(
@@ -235,7 +506,7 @@ fun LocationPicker(
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = "$city, $state",
+                text = exactLocationAddress,
                 color = ContentBrandDark,
                 style = JasnifyTheme.typography.labelMedium,
             )
@@ -250,12 +521,16 @@ fun LocationPicker(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)
 @Composable
 fun LocationScreenPreview() {
+    var previewAddress by remember { mutableStateOf("Hajipur, Bihar") }
     JasnifyTheme {
         LocationScreen(
             initialSearches = listOf("Patna", "New Delhi", "Mumbai", "Pune", "Goa"),
+            currentAddress = previewAddress,
+            onAddressSelected = { previewAddress = it },
             onBackClick = {}
         )
     }
