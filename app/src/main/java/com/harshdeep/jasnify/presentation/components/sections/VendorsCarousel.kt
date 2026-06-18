@@ -20,7 +20,7 @@ import com.harshdeep.jasnify.theme.*
 @Composable
 fun VendorsCarousel(
     title: String,
-    vendors: List<VendorCardData>,
+    vendors: List<VendorCardData>, 
     modifier: Modifier = Modifier,
     onSeeAllClick: () -> Unit = {},
     onVendorClick: (VendorCardData) -> Unit = {},

@@ -62,7 +62,9 @@ data class VendorCardData(
     val services: List<String>,
     val priceStartsFrom: String,
     val images: List<String> = listOf(),
-    val enquiriesLastMonth: Int = 65
+    val enquiriesLastMonth: Int = 65,
+    val isFavorite: Boolean = false,
+    val timestamp: Long = System.currentTimeMillis() // Added timestamp field with default value for ordering
 )
 
 enum class CompactCardSize {
@@ -81,9 +83,7 @@ fun VendorCardFull(
     onOfferClick: () -> Unit = {}
 ) {
     val actualPageCount = vendor.images.size
-    // Logic: If more than 1 image, use a huge virtual count to simulate infinity
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    // Start at a multiple of actualPageCount in the middle of the virtual range
     val initialPage = if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
 
     val pagerState = rememberPagerState(
@@ -91,7 +91,6 @@ fun VendorCardFull(
         pageCount = { virtualCount }
     )
 
-    // Auto-scroll logic: Simply increment current page
     if (actualPageCount > 1) {
         LaunchedEffect(Unit) {
             while (true) {
@@ -136,11 +135,16 @@ fun VendorCardFull(
                 Surface(
                     onClick = onFavoriteToggle,
                     shape = CircleShape,
-                    color = ContentPrimary.copy(alpha = 0.5f),
+                    color = if (vendor.isFavorite) Color.White else ContentPrimary.copy(alpha = 0.5f),
                     modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(44.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.FavoriteBorder, null, Modifier.size(20.dp), ContentInvPrimary)
+                        Icon(
+                            imageVector = if (vendor.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite Icon",
+                            modifier = Modifier.size(20.dp),
+                            tint = if (vendor.isFavorite) Color.Red else ContentInvPrimary
+                        )
                     }
                 }
 
@@ -155,7 +159,6 @@ fun VendorCardFull(
                 modifier = Modifier.height(190.dp).padding(vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header Row (Name + Rating)
                 Row(
                     modifier = Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -206,14 +209,13 @@ fun VendorCardFull(
 
                 DashedDivider(modifier = Modifier.padding(horizontal = 12.dp))
 
-                // Bottom Row (Price + Actions)
                 Row(
                     modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Starting at", style = JasnifyTheme.typography.labelMedium, color = ContentSecondary)
+                        Text("Starting at", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
                         Text(
                             text = vendor.priceStartsFrom,
                             style = JasnifyTheme.typography.displayMedium,
@@ -241,7 +243,6 @@ fun VendorCardFull(
                 }
             }
 
-            // Enquiry Badge
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -332,7 +333,6 @@ fun VendorCardCompact(
                     VendorImage(url = vendor.images.getOrNull(actualIndex) ?: "", modifier = Modifier.fillMaxSize())
                 }
 
-                // Rating Badge
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -345,20 +345,22 @@ fun VendorCardCompact(
                     }
                 }
 
-                // Heart Icon
-                IconButton(
+                Surface(
                     onClick = onFavoriteToggle,
-                    modifier = Modifier.align(Alignment.TopEnd)
+                    shape = CircleShape,
+                    color = if (vendor.isFavorite) Color.White else ContentPrimary.copy(alpha = 0.5f),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp)
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_heart),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = ContentInvPrimary.copy(alpha = 0.8f)
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (vendor.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                            contentDescription = "Favorite Icon",
+                            modifier = Modifier.size(18.dp),
+                            tint = if (vendor.isFavorite) Color.Red else ContentInvPrimary
+                        )
+                    }
                 }
 
-                // Bottom row for Offer and Dots
                 Row(
                     modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -531,7 +533,9 @@ fun PreviewVendorCards() {
             "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=800",
             "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800"
         ),
-        vendorType = "Photographer"
+        vendorType = "Photographer",
+        isFavorite = true,
+        timestamp = 1718000000000L // Updated mock timestamp
     )
 
     JasnifyTheme {
