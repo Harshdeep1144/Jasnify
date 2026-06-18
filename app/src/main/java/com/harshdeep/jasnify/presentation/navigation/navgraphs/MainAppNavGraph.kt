@@ -43,7 +43,5 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             }
             // Add BudgetCategoryDetail composable here later
         }
-
-        // Add more features like "Vendor Detail Graph" or "User Settings Graph" here
     }
 }
