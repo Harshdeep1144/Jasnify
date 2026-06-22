@@ -1,0 +1,1010 @@
+package com.harshdeep.jasnify.presentation.screens.catering
+
+import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.theme.*
+
+// Filter components and options sheet
+import com.harshdeep.jasnify.presentation.components.filter.FilterBottomSheet
+
+// Import elements directly from the custom chip component file
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import com.harshdeep.jasnify.presentation.components.chip.Dietary
+import com.harshdeep.jasnify.presentation.components.chip.FoodChip
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.inputfield.CornerType
+import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import sv.lib.squircleshape.SquircleShape
+
+data class MenuItem(
+    val name: String,
+    val dietary: Dietary,
+    val type: String,
+    val cuisine: String = "Indian"
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CateringMenuScreen(
+    onBackClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var searchText by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+    var selectedFilterTab by remember { mutableStateOf("All Items") }
+
+    // --- Bottom Sheet Details States ---
+    var selectedItemForDetails by remember { mutableStateOf<MenuItem?>(null) }
+    val detailsBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showDetailsBottomSheet by remember { mutableStateOf(false) }
+
+    // --- Delete Confirmation Bottom Sheet States ---
+    var showDeleteConfirmationSheet by remember { mutableStateOf(false) }
+    var itemToDelete by remember { mutableStateOf<MenuItem?>(null) }
+    val deleteBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // --- Filter Bottom Sheets States ---
+    val cuisineBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val typeBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showCuisineBottomSheet by remember { mutableStateOf(false) }
+    var showTypeBottomSheet by remember { mutableStateOf(false) }
+
+    // --- Add/Edit Catering Item Bottom Sheets States ---
+    var showAddItemSheet by remember { mutableStateOf(false) }
+    val addItemBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showSuccessSheet by remember { mutableStateOf(false) }
+    var successMessage by remember { mutableStateOf("") }
+
+    // Edit item tracker
+    var editingItem by remember { mutableStateOf<MenuItem?>(null) }
+
+    // Add/Edit item form state variables
+    var newItemName by remember { mutableStateOf("") }
+    var newItemCuisine by remember { mutableStateOf("Indian") }
+    var newItemType by remember { mutableStateOf("Starters") }
+    var newItemDietary by remember { mutableStateOf(Dietary.Veg) }
+
+    // Dedicated Add Form Bottom Sheets for Cuisine & Type selection
+    var showAddCuisineBottomSheet by remember { mutableStateOf(false) }
+    var showAddTypeBottomSheet by remember { mutableStateOf(false) }
+
+    // Selected state trackers for specific filters
+    var selectedCuisines by remember { mutableStateOf(emptySet<String>()) }
+    var selectedTypes by remember { mutableStateOf(emptySet<String>()) }
+
+    val allMenuItems = remember {
+        mutableStateListOf(
+            // Starters
+            MenuItem("Chicken Malai Tikka", Dietary.NonVeg, "Starters", "Mughlai"),
+            MenuItem("Crispy Chilli Potato", Dietary.Veg, "Starters", "Chinese"),
+            MenuItem("Mutton Seekh Kebab", Dietary.NonVeg, "Starters", "Mughlai"),
+            MenuItem("Amritsari Fish Fry", Dietary.NonVeg, "Starters", "Punjabi"),
+            MenuItem("Hara Bhara Kebab", Dietary.Veg, "Starters", "North Indian"),
+            MenuItem("Chicken 65", Dietary.NonVeg, "Starters", "South Indian"),
+            MenuItem("Cheese Corn Balls", Dietary.Veg, "Starters", "Continental"),
+            MenuItem("Garlic Butter Prawns", Dietary.NonVeg, "Starters", "Continental"),
+
+            // Beverages
+            MenuItem("Mango Lassi", Dietary.Veg, "Beverages", "Punjabi"),
+            MenuItem("Masala Lemonade", Dietary.Veg, "Beverages", "North Indian"),
+            MenuItem("Virgin Mojito", Dietary.Veg, "Beverages", "Italian"),
+            MenuItem("Cold Coffee with Ice Cream", Dietary.Veg, "Beverages", "Continental"),
+            MenuItem("Iced Peach Tea", Dietary.Veg, "Beverages", "Continental"),
+            MenuItem("Blue Lagoon Mocktail", Dietary.Veg, "Beverages", "Continental"),
+
+            // Desserts
+            MenuItem("Warm Chocolate Brownie", Dietary.Veg, "Desserts", "Continental"),
+            MenuItem("Kesari Phirni", Dietary.Veg, "Desserts", "North Indian"),
+            MenuItem("Tiramisu Cups", Dietary.Veg, "Desserts", "Italian"),
+            MenuItem("Fresh Fruit Cream", Dietary.Veg, "Desserts", "Continental"),
+            MenuItem("Shahi Tukda", Dietary.Veg, "Desserts", "Awadhi"),
+            MenuItem("Vanilla Bean Ice Cream", Dietary.Veg, "Desserts", "Continental")
+        )
+    }
+
+    val cuisineOptions by remember {
+        derivedStateOf {
+            (listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean") +
+                    allMenuItems.map { it.cuisine }).distinct().sorted()
+        }
+    }
+
+    val typeOptions by remember {
+        derivedStateOf {
+            (listOf("Starters", "Beverages", "Main Course", "Desserts") +
+                    allMenuItems.map { it.type }).distinct().sorted()
+        }
+    }
+
+    val filteredItems by remember {
+        derivedStateOf {
+            allMenuItems.filter { item ->
+                val matchesSearch = item.name.contains(searchText, ignoreCase = true) ||
+                        item.type.contains(searchText, ignoreCase = true) ||
+                        item.cuisine.contains(searchText, ignoreCase = true)
+
+                val matchesTab = when (selectedFilterTab) {
+                    "Veg" -> item.dietary == Dietary.Veg
+                    "Non-Veg" -> item.dietary == Dietary.NonVeg
+                    else -> true
+                }
+
+                val matchesCuisine = if (selectedCuisines.isEmpty()) true else selectedCuisines.contains(item.cuisine)
+                val matchesType = if (selectedTypes.isEmpty()) true else selectedTypes.contains(item.type)
+
+                matchesSearch && matchesTab && matchesCuisine && matchesType
+            }
+        }
+    }
+
+    val categorizedItems by remember {
+        derivedStateOf {
+            filteredItems.groupBy { it.type }
+        }
+    }
+
+    val searchBarParentBg by animateColorAsState(
+        targetValue = if (isSearchActive) SurfaceBrandPrimary else Color.Transparent,
+        animationSpec = tween(durationMillis = 250),
+        label = "SearchBarParentBg"
+    )
+
+    val searchTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 12.dp else 12.dp,
+        animationSpec = tween(durationMillis = 250),
+        label = "SearchTopPadding"
+    )
+    val searchBottomPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 12.dp else 0.dp,
+        animationSpec = tween(durationMillis = 250),
+        label = "SearchBottomPadding"
+    )
+
+    Scaffold(
+        topBar = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize(animationSpec = tween(durationMillis = 250))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceBrandPrimary)
+                        .animateContentSize(animationSpec = tween(durationMillis = 250))
+                ) {
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                    )
+
+                    AnimatedVisibility(
+                        visible = !isSearchActive,
+                        enter = fadeIn(animationSpec = tween(150)) + expandVertically(animationSpec = tween(250)),
+                        exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(animationSpec = tween(250))
+                    ) {
+                        CustomTopBar(
+                            title = "Catering Menu",
+                            onBackClick = { onBackClick() },
+                            onMenuClick = {},
+                            isLargeTitle = true,
+                            buttonStyle = ButtonBackground.TRANSLUCENT,
+                            textColor = ContentInvPrimary
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(searchBarParentBg)
+                        .padding(
+                            start = 12.dp,
+                            end = 12.dp,
+                            top = searchTopPadding,
+                            bottom = searchBottomPadding
+                        )
+                ) {
+                    CustomSearchBar(
+                        value = searchText,
+                        onValueChange = { searchText = it },
+                        onActiveChange = { isSearchActive = it }
+                    )
+                }
+            }
+        }
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Spacer(modifier = Modifier.height(12.dp))
+
+                LazyRow(
+                    state = rememberLazyListState(),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    item {
+                        FilterChip(
+                            label = "All Items",
+                            isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
+                            shapeStyle = ChipShapeStyle.Round,
+                            hasStroke = true,
+                            onClick = {
+                                selectedFilterTab = "All Items"
+                                selectedCuisines = emptySet()
+                                selectedTypes = emptySet()
+                            }
+                        )
+                    }
+                    item {
+                        FoodChip(
+                            foodType = Dietary.Veg,
+                            isSelected = selectedFilterTab == "Veg",
+                            shapeStyle = ChipShapeStyle.Round,
+                            onClick = { selectedFilterTab = "Veg" }
+                        )
+                    }
+                    item {
+                        FoodChip(
+                            foodType = Dietary.NonVeg,
+                            isSelected = selectedFilterTab == "Non-Veg",
+                            shapeStyle = ChipShapeStyle.Round,
+                            onClick = { selectedFilterTab = "Non-Veg" }
+                        )
+                    }
+
+                    item {
+                        val hasSelectedCuisines = selectedCuisines.isNotEmpty()
+                        val cuisineLabel = if (hasSelectedCuisines) {
+                            "Cuisine (${selectedCuisines.size})"
+                        } else {
+                            "Cuisine"
+                        }
+                        FilterChip(
+                            label = cuisineLabel,
+                            isSelected = hasSelectedCuisines,
+                            shapeStyle = ChipShapeStyle.Round,
+                            hasStroke = true,
+                            hasDropdown = true,
+                            onClick = {
+                                showCuisineBottomSheet = true
+                            }
+                        )
+                    }
+
+                    item {
+                        val hasSelectedTypes = selectedTypes.isNotEmpty()
+                        val typeLabel = if (hasSelectedTypes) {
+                            "Type (${selectedTypes.size})"
+                        } else {
+                            "Type"
+                        }
+                        FilterChip(
+                            label = typeLabel,
+                            isSelected = hasSelectedTypes,
+                            shapeStyle = ChipShapeStyle.Round,
+                            hasStroke = true,
+                            hasDropdown = true,
+                            onClick = {
+                                showTypeBottomSheet = true
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                if (categorizedItems.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(top = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "No items match your filters",
+                                style = JasnifyTheme.typography.headingMedium,
+                                color = ContentSecondary
+                            )
+                            Text(
+                                text = "Try adjusting your search query or categories.",
+                                style = JasnifyTheme.typography.bodyMedium,
+                                color = ContentTertiary
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentPadding = PaddingValues(
+                            start = 12.dp,
+                            end = 12.dp,
+                            top = 0.dp,
+                            bottom = 80.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        categorizedItems.forEach { (category, items) ->
+                            item {
+                                MenuCategoryCard(
+                                    categoryTitle = category,
+                                    items = items,
+                                    onItemClick = { item ->
+                                        selectedItemForDetails = item
+                                        showDetailsBottomSheet = true
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .background(
+                        brush = Brush.verticalGradient(     // Bottom buttons gradient background
+                            colorStops = arrayOf(
+                                0.0f to Color.Transparent,
+                                0.55f to Color.Transparent,
+                                0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
+                                1.0f to MaterialTheme.colorScheme.background
+                            )
+                        )
+                    )
+                    .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 16.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CustomTextButton(
+                        onClick = { /* Handle Suggestions */ },
+                        text = "AI Suggestions",
+                        type = ButtonType.Secondary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        leadingIcon = painterResource(id = R.drawable.ic_ai),
+                    )
+                    Spacer(Modifier.width(8.dp))
+
+                    CustomTextButton(
+                        onClick = {
+                            editingItem = null
+                            newItemName = ""
+                            newItemCuisine = "Indian"
+                            newItemType = "Starters"
+                            newItemDietary = Dietary.Veg
+                            showAddItemSheet = true
+                        },
+                        text = "Add an Item",
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+
+    // --- Detail Bottom Sheet ---
+    if (showDetailsBottomSheet && selectedItemForDetails != null) {
+        CustomBottomSheet(
+            heading = "Item Details",
+            sheetState = detailsBottomSheetState,
+            sheetHeight = 340.dp,
+            onDismiss = {
+                showDetailsBottomSheet = false
+                selectedItemForDetails = null
+            }
+        ) {
+            ItemDetailsSheetContent(
+                item = selectedItemForDetails!!,
+                onDeleteClick = {
+                    itemToDelete = selectedItemForDetails
+                    showDetailsBottomSheet = false
+                    showDeleteConfirmationSheet = true
+                },
+                onEditClick = {
+                    // Populate existing details into state variables
+                    editingItem = selectedItemForDetails
+                    newItemName = selectedItemForDetails?.name ?: ""
+                    newItemCuisine = selectedItemForDetails?.cuisine ?: "Indian"
+                    newItemType = selectedItemForDetails?.type ?: "Starters"
+                    newItemDietary = selectedItemForDetails?.dietary ?: Dietary.Veg
+
+                    // Close details view, open edit form directly
+                    showDetailsBottomSheet = false
+                    showAddItemSheet = true
+                }
+            )
+        }
+    }
+
+    // --- Delete Confirmation Bottom Sheet ---
+    if (showDeleteConfirmationSheet && itemToDelete != null) {
+        CustomDeleteSheet(
+            heading = "Remove item?",
+            subHeading = "The item will be removed from the Catering Menu.",
+            sheetState = deleteBottomSheetState,
+            onDismiss = {
+                showDeleteConfirmationSheet = false
+                itemToDelete = null
+            },
+            onConfirmRemove = {
+                allMenuItems.remove(itemToDelete)
+                showDeleteConfirmationSheet = false
+                itemToDelete = null
+            }
+        )
+    }
+
+    // --- Cuisine Filter Bottom Sheet ---
+    if (showCuisineBottomSheet) {
+        FilterBottomSheet(
+            title = "Select Cuisine",
+            sheetState = cuisineBottomSheetState,
+            options = cuisineOptions,
+            initialSelectedOptions = selectedCuisines,
+            showSearchBar = true,
+            onDismiss = { showCuisineBottomSheet = false },
+            onApply = { selectedOptions ->
+                selectedCuisines = selectedOptions
+                showCuisineBottomSheet = false
+            }
+        )
+    }
+
+    // --- Type Filter Bottom Sheet ---
+    if (showTypeBottomSheet) {
+        FilterBottomSheet(
+            title = "Select Type",
+            sheetState = typeBottomSheetState,
+            options = typeOptions,
+            initialSelectedOptions = selectedTypes,
+            showSearchBar = false,
+            onDismiss = { showTypeBottomSheet = false },
+            onApply = { selectedOptions ->
+                selectedTypes = selectedOptions
+                showTypeBottomSheet = false
+            }
+        )
+    }
+
+    // --- Add/Edit Catering Item Bottom Sheet (Form) ---
+    if (showAddItemSheet) {
+        // Animating the sheet height to match the internal content changes seamlessly
+        val formSheetHeight by animateDpAsState(
+            targetValue = if (newItemName.isNotBlank()) 448.dp else 266.dp,
+            animationSpec = tween(durationMillis = 300),
+            label = "FormSheetHeight"
+        )
+
+        CustomBottomSheet(
+            heading = if (editingItem != null) "Edit menu item" else "Add an item to menu",
+            sheetState = addItemBottomSheetState,
+            sheetHeight = formSheetHeight,
+            onDismiss = { showAddItemSheet = false }
+        ) {
+            AddItemSheetContent(
+                itemName = newItemName,
+                onItemNameChange = { newItemName = it },
+                cuisine = newItemCuisine,
+                onCuisineClick = { showAddCuisineBottomSheet = true },
+                type = newItemType,
+                onTypeClick = { showAddTypeBottomSheet = true },
+                dietary = newItemDietary,
+                onDietaryChange = { newItemDietary = it },
+                isEditMode = editingItem != null,
+                onSubmitClick = {
+                    if (newItemName.isNotBlank()) {
+                        val updatedOrNewItem = MenuItem(
+                            name = newItemName,
+                            dietary = newItemDietary,
+                            type = newItemType,
+                            cuisine = newItemCuisine
+                        )
+
+                        successMessage = if (editingItem != null) {
+                            "Item has been updated"
+                        } else {
+                            "Item added to menu"
+                        }
+
+                        if (editingItem != null) {
+                            // Find and update existing reference
+                            val editIndex = allMenuItems.indexOf(editingItem)
+                            if (editIndex != -1) {
+                                allMenuItems[editIndex] = updatedOrNewItem
+                            }
+                        } else {
+                            // Insert standard new reference
+                            allMenuItems.add(updatedOrNewItem)
+                        }
+
+                        // Close form sheet and launch custom success sheet
+                        showAddItemSheet = false
+                        showSuccessSheet = true
+
+                        // Clear form state variables
+                        newItemName = ""
+                        newItemCuisine = "Indian"
+                        newItemType = "Starters"
+                        newItemDietary = Dietary.Veg
+                        editingItem = null
+                    } else {
+                        Toast.makeText(context, "Please enter an item name!", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+    }
+
+    // --- Success Bottom Sheet ---
+    if (showSuccessSheet) {
+        CustomSuccessBottomSheet(
+            message = successMessage,
+            onDismiss = { showSuccessSheet = false }
+        )
+    }
+
+    // --- Dynamic Form Cuisine bottom selector sheet ---
+    if (showAddCuisineBottomSheet) {
+        FilterBottomSheet(
+            title = "Select Cuisine",
+            sheetState = cuisineBottomSheetState,
+            options = cuisineOptions,
+            initialSelectedOptions = if (newItemCuisine.isNotEmpty()) setOf(newItemCuisine) else emptySet(),
+            showSearchBar = true,
+            onDismiss = { showAddCuisineBottomSheet = false },
+            onApply = { selectedOptions ->
+                newItemCuisine = selectedOptions.firstOrNull() ?: "Indian"
+                showAddCuisineBottomSheet = false
+            },
+            isMultiSelect = false
+        )
+    }
+
+    // --- Dynamic Form Type bottom selector sheet ---
+    if (showAddTypeBottomSheet) {
+        FilterBottomSheet(
+            title = "Select Type",
+            sheetState = typeBottomSheetState,
+            options = typeOptions,
+            initialSelectedOptions = if (newItemType.isNotEmpty()) setOf(newItemType) else emptySet(),
+            showSearchBar = false,
+            onDismiss = { showAddTypeBottomSheet = false },
+            onApply = { selectedOptions ->
+                newItemType = selectedOptions.firstOrNull() ?: "Starters"
+                showAddTypeBottomSheet = false
+            },
+            isMultiSelect = false
+        )
+    }
+}
+
+
+// --------------- Category Card components & other helpers ---------------------
+
+@Composable
+fun MenuCategoryCard(
+    categoryTitle: String,
+    items: List<MenuItem>,
+    onItemClick: (MenuItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier.fillMaxWidth()
+            .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(28.dp)),
+        shape = SquircleShape(28.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = BackgroundBrand
+        ),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.bg_pattern_source_catering_menu),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.1f
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = categoryTitle,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    style = JasnifyTheme.typography.headingXLarge.copy(
+                        fontFamily = Pattaya,
+                        fontWeight = FontWeight.Normal,
+                        color = ContentBrandDark,
+                        textAlign = TextAlign.Center
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DashedDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                    dashLength = 15f,
+                    gapLength = 6f
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(0.0.dp)
+                ) {
+                    items.forEach { item ->
+                        CateringItemChip(
+                            label = item.name,
+                            foodType = item.dietary,
+                            isMultiSelect = false,
+                            onClick = { onItemClick(item) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ItemDetailsSheetContent(
+    item: MenuItem,
+    onDeleteClick: () -> Unit,
+    onEditClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), shape = SquircleShape(20.dp)),
+            shape = SquircleShape(20.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = Color.Transparent
+            ),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                val isVeg = item.dietary == Dietary.Veg
+                val drawableRes = if (isVeg) R.drawable.ic_veg else R.drawable.ic_non_veg
+
+                Image(
+                    painter = painterResource(id = drawableRes),
+                    contentDescription = if (isVeg) "Vegetarian" else "Non-Vegetarian",
+                    modifier = Modifier.size(20.dp)
+                )
+
+                Column {
+                    Text(
+                        text = "ITEM",
+                        style = JasnifyTheme.typography.labelSmall,
+                        color = ContentSecondary,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = item.name,
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentBrandDark,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+
+                DashedDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                    dashLength = 12f,
+                    gapLength = 6f
+                )
+
+                Column {
+                    Text(
+                        text = "CUISINE",
+                        style = JasnifyTheme.typography.labelSmall,
+                        color = ContentSecondary,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = item.cuisine,
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentPrimary,
+                    )
+                }
+
+                DashedDivider(
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                    dashLength = 12f,
+                    gapLength = 6f
+                )
+
+                Column {
+                    Text(
+                        text = "TYPE",
+                        style = JasnifyTheme.typography.labelSmall,
+                        color = ContentSecondary,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = 1.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = item.type,
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentPrimary,
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CustomIconButton(
+                onClick = onDeleteClick,
+                icon = painterResource(R.drawable.ic_delete),
+                containerColor = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.error,
+                shapeStyle = ButtonShapeStyle.Square
+            )
+
+            CustomTextButton(
+                onClick = onEditClick,
+                text = "Edit Details",
+                type = ButtonType.Secondary,
+                shapeStyle = ButtonShapeStyle.Square,
+                leadingIcon = painterResource(R.drawable.ic_edit),
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun AddItemSheetContent(
+    itemName: String,
+    onItemNameChange: (String) -> Unit,
+    cuisine: String,
+    onCuisineClick: () -> Unit,
+    type: String,
+    onTypeClick: () -> Unit,
+    dietary: Dietary,
+    onDietaryChange: (Dietary) -> Unit,
+    onSubmitClick: () -> Unit,
+    isEditMode: Boolean = false
+) {
+    val isNameEntered = itemName.isNotBlank()
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(durationMillis = 300)),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            // Item Name Input using custom PrimaryInput
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "ITEM",
+                    style = JasnifyTheme.typography.labelSmall,
+                    color = ContentSecondary,
+                    fontWeight = FontWeight.Medium,
+                    letterSpacing = 1.sp
+                )
+                Spacer(Modifier.height(8.dp))
+                PrimaryInput(
+                    value = itemName,
+                    onValueChange = onItemNameChange,
+                    placeholder = "Type or Search a dish",
+                    trailingIcon = painterResource(id = R.drawable.ic_ai),
+                    cornerType = CornerType.DEFAULT,
+                )
+            }
+
+            // Animating the entry/exit of Cuisine and Type sections to match height adjustments
+            AnimatedVisibility(
+                visible = isNameEntered,
+                enter = fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 300)),
+                exit = fadeOut(animationSpec = tween(durationMillis = 300)) + shrinkVertically(animationSpec = tween(durationMillis = 300))
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "CUISINE",
+                            style = JasnifyTheme.typography.labelSmall,
+                            color = ContentSecondary,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            PrimaryInput(
+                                value = "",
+                                onValueChange = {},
+                                placeholder = cuisine,
+                                trailingIcon = painterResource(R.drawable.ic_edit),
+                                cornerType = CornerType.DEFAULT,
+                                trailingIconEnabled = true
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(SquircleShape(CornerLarge))
+                                    .clickable { onCuisineClick() }
+                            )
+                        }
+                    }
+
+                    // Type Selection Block using PrimaryInput with overlay intercepts
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "TYPE",
+                            style = JasnifyTheme.typography.labelSmall,
+                            color = ContentSecondary,
+                            fontWeight = FontWeight.Medium,
+                            letterSpacing = 1.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            PrimaryInput(
+                                value = "",
+                                onValueChange = {},
+                                placeholder = type,
+                                trailingIcon = painterResource(R.drawable.ic_edit),
+                                cornerType = CornerType.DEFAULT,
+                                trailingIconEnabled = true
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .clip(SquircleShape(CornerLarge))
+                                    .clickable { onTypeClick() }
+                            )
+                        }
+                    }
+                }
+            }
+
+            DashedDivider(
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                dashLength = 12f,
+                gapLength = 6f
+            )
+
+            // Veg / Non-Veg Chip selector
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                FoodChip(
+                    foodType = Dietary.Veg,
+                    isSelected = dietary == Dietary.Veg,
+                    shapeStyle = ChipShapeStyle.Square,
+                    size = ChipSize.Large,
+                    onClick = { onDietaryChange(Dietary.Veg) }
+                )
+                FoodChip(
+                    foodType = Dietary.NonVeg,
+                    isSelected = dietary == Dietary.NonVeg,
+                    shapeStyle = ChipShapeStyle.Square,
+                    size = ChipSize.Large,
+                    onClick = { onDietaryChange(Dietary.NonVeg) }
+                )
+            }
+        }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+
+        Column(
+            modifier = Modifier.padding(12.dp)
+        ) {
+            CustomTextButton(
+                onClick = onSubmitClick,
+                text = if (isEditMode) "Save Changes" else "Add to Menu",
+                type = ButtonType.Primary,
+                shapeStyle = ButtonShapeStyle.Square,
+                size = ButtonSize.Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun CateringMenuScreenPreview() {
+    JasnifyTheme {
+        CateringMenuScreen(
+            onBackClick = {}
+        )
+    }
+}

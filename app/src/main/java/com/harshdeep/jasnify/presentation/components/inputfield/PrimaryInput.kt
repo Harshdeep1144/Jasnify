@@ -8,9 +8,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.rounded.MailOutline
-import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -55,6 +53,7 @@ fun PrimaryInput(
     textStyle: TextStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary),
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: Painter? = null,
+    trailingIconEnabled: Boolean = false, // Added disable/enable styling parameter
     cornerType: CornerType = CornerType.DEFAULT
 ) {
     val isPassword = keyboardType == KeyboardType.Password
@@ -89,6 +88,9 @@ fun PrimaryInput(
         else -> null
     }
 
+    // Determine trailing icon color based on the enabled state flag
+    val trailingIconTint = if (trailingIconEnabled) ContentPrimary else ContentSecondary
+
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -111,7 +113,16 @@ fun PrimaryInput(
             unfocusedContainerColor = SurfaceSecondary
         ),
         trailingIcon = {
-            if (showTrailingIcon) {
+            if (trailingIcon != null) {
+                // Show the custom trailing icon immediately and always
+                IconButton(onClick = { onValueChange("") }) {
+                    Icon(
+                        painter = trailingIcon,
+                        contentDescription = "Custom Icon",
+                        tint = trailingIconTint
+                    )
+                }
+            } else if (showTrailingIcon) {
                 if (isPassword) {
                     val image =
                         if (isPasswordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff
@@ -123,24 +134,16 @@ fun PrimaryInput(
                         Icon(
                             imageVector = image,
                             contentDescription = description,
-                            tint = ContentSecondary
+                            tint = trailingIconTint
                         )
                     }
                 } else {
                     IconButton(onClick = { onValueChange("") }) {
-                        if (trailingIcon != null) {
-                            Icon(
-                                painter = trailingIcon,
-                                contentDescription = "Custom Icon",
-                                tint = ContentSecondary
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear input",
-                                tint = ContentSecondary
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear input",
+                            tint = trailingIconTint
+                        )
                     }
                 }
             }

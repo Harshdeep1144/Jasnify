@@ -53,6 +53,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomRadioButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
+import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
@@ -384,7 +386,7 @@ fun VenueScreen(
     }
 
     if (showFilterDialog) {
-        FilterBottomSheet(
+        SortFilterBottomSheet(
             sheetState = filterSheetState,
             sortOptions = sortOptions,
             initialSortOption = appliedSortOption,
@@ -648,233 +650,6 @@ fun SaveListBottomSheet(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun FilterBottomSheet(
-    sheetState: SheetState,
-    sortOptions: List<String>,
-    initialSortOption: String,
-    filterByOptions: List<String>,
-    initialFilterOptions: Set<String>,
-    onDismiss: () -> Unit,
-    onApply: (String, Set<String>) -> Unit
-) {
-    var activeTab by remember { mutableStateOf(0) }
-    var filterSearchText by remember { mutableStateOf("") }
-
-    var tempSortOption by remember(initialSortOption) { mutableStateOf(initialSortOption) }
-    var tempFilterOptions by remember(initialFilterOptions) { mutableStateOf(initialFilterOptions) }
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color(0xFFF7F8F7),
-        scrimColor = Color.Black.copy(alpha = 0.5f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(48.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(Color.LightGray.copy(alpha = 0.6f))
-            )
-        },
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    listOf("Sort by", "Filter by").forEachIndexed { index, title ->
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { activeTab = index },
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = title,
-                                style = JasnifyTheme.typography.headingMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (activeTab == index) ContentPrimary else ContentTertiary,
-                                modifier = Modifier.padding(vertical = 16.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.9f)
-                                    .height(3.dp)
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
-                                    .background(if (activeTab == index) ContentBrandDark else Color.Transparent)
-                            )
-                        }
-                    }
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 300.dp, max = 450.dp)
-                        .padding(top = 16.dp),
-                    contentPadding = PaddingValues(bottom = 110.dp)
-                ) {
-                    if (activeTab == 0) {
-                        items(sortOptions) { option ->
-                            val isSelected = tempSortOption == option
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isSelected) ContentBrandDark.copy(alpha = 0.12f) else Color.Transparent)
-                                    .clickable { tempSortOption = option }
-                                    .padding(horizontal = 12.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CustomRadioButton(
-                                    selected = isSelected,
-                                    onClick = { tempSortOption = option }
-                                )
-                                Spacer(modifier = Modifier.width(16.dp))
-                                Text(
-                                    text = option,
-                                    style = JasnifyTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                    color = if (isSelected) ContentBrandDark else ContentTertiary,
-                                    fontSize = 17.sp
-                                )
-                            }
-                        }
-                    } else {
-                        item {
-                            TextField(
-                                value = filterSearchText,
-                                onValueChange = { filterSearchText = it },
-                                placeholder = { Text("Search", color = ContentTertiary) },
-                                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = ContentTertiary) },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                                    .height(56.dp)
-                                    .clip(RoundedCornerShape(28.dp)),
-                                colors = TextFieldDefaults.colors(
-                                    focusedContainerColor = Color(0xFFEBECEB),
-                                    unfocusedContainerColor = Color(0xFFEBECEB),
-                                    disabledContainerColor = Color(0xFFEBECEB),
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                ),
-                                singleLine = true
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-
-                        val dynamicFilterOptions = if (filterSearchText.isBlank()) {
-                            filterByOptions
-                        } else {
-                            filterByOptions.filter { it.contains(filterSearchText, ignoreCase = true) }
-                        }
-
-                        items(dynamicFilterOptions) { option ->
-                            val isSelected = tempFilterOptions.contains(option)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        tempFilterOptions = if (isSelected) {
-                                            tempFilterOptions - option
-                                        } else {
-                                            tempFilterOptions + option
-                                        }
-                                    }
-                                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = option,
-                                    style = JasnifyTheme.typography.bodyLarge,
-                                    color = if (isSelected) ContentPrimary else ContentTertiary,
-                                    fontSize = 17.sp
-                                )
-                                CustomChecker(
-                                    checked = isSelected,
-                                    onCheckedChange = { checked ->
-                                        tempFilterOptions = if (checked) {
-                                            tempFilterOptions + option
-                                        } else {
-                                            tempFilterOptions - option
-                                        }
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter),
-                color = Color(0xFFF7F8F7),
-                tonalElevation = 0.dp
-            ) {
-                Column {
-                    HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 24.dp, vertical = 20.dp),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            modifier = Modifier
-                                .weight(1f)
-                                .clickable { onDismiss() },
-                            style = JasnifyTheme.typography.headingSmall,
-                            fontWeight = FontWeight.SemiBold,
-                            color = ContentPrimary,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                        )
-
-                        Button(
-                            onClick = { onApply(tempSortOption, tempFilterOptions) },
-                            modifier = Modifier
-                                .weight(1.2f)
-                                .height(56.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = ContentBrandDark,
-                                contentColor = Color.White
-                            ),
-                            shape = RoundedCornerShape(16.dp)
-                        ) {
-                            Text(
-                                text = "Apply",
-                                style = JasnifyTheme.typography.headingSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
 @Composable
 fun TimelineSection(
     date: String,
@@ -927,32 +702,6 @@ fun TimelineSection(
     }
 }
 
-@Composable
-fun FilterButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(56.dp)
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(100, 0f)
-            )
-            .clip(SquircleShape(100, 0f))
-            .background(color = SurfaceSecondary)
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_filter),
-            contentDescription = "Filter Button",
-            tint = ContentSecondary,
-            modifier = Modifier.size(28.dp)
-        )
-    }
-}
 
 @Composable
 fun CarouselIndicator(

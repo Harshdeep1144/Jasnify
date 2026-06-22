@@ -10,8 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
@@ -21,14 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.LineHeightStyle
-import androidx.compose.ui.text.style.TextAlign
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -62,28 +61,44 @@ enum class ButtonShapeStyle {
 fun getButtonStyles(
     size: ButtonSize,
     type: ButtonType,
-    shapeStyle: ButtonShapeStyle
+    shapeStyle: ButtonShapeStyle,
+    customContainerColor: Color? = null,
+    customContentColor: Color? = null,
+    customDisabledContainerColor: Color? = null,
+    customDisabledContentColor: Color? = null
 ): Triple<ButtonColors, Dp, Shape> {
 
     // Colors
     val colors = when (type) {
         ButtonType.Primary -> ButtonDefaults.buttonColors(
-            containerColor = SurfaceBrandPrimary,
-            contentColor = ContentInvPrimary,
-            disabledContainerColor = ContentSecondary,
-            disabledContentColor = SurfaceInvSecondary
+            containerColor = customContainerColor ?: SurfaceBrandPrimary,
+            contentColor = customContentColor ?: ContentInvPrimary,
+            disabledContainerColor = customDisabledContainerColor
+                ?: customContainerColor?.copy(alpha = 0.38f)
+                ?: ContentSecondary,
+            disabledContentColor = customDisabledContentColor
+                ?: customContentColor?.copy(alpha = 0.38f)
+                ?: SurfaceInvSecondary
         )
         ButtonType.Secondary -> ButtonDefaults.buttonColors(
-            containerColor = SurfaceBrandSecondary,
-            contentColor = ContentBrandDark,
-            disabledContainerColor = SurfaceSecondary,
-            disabledContentColor = ContentTertiary
+            containerColor = customContainerColor ?: SurfaceBrandSecondary,
+            contentColor = customContentColor ?: ContentBrandDark,
+            disabledContainerColor = customDisabledContainerColor
+                ?: customContainerColor?.copy(alpha = 0.38f)
+                ?: SurfaceSecondary,
+            disabledContentColor = customDisabledContentColor
+                ?: customContentColor?.copy(alpha = 0.38f)
+                ?: ContentTertiary
         )
         ButtonType.Tertiary -> ButtonDefaults.buttonColors(
-            containerColor = SurfacePrimary,
-            contentColor = ContentPrimary,
-            disabledContainerColor = SurfacePrimary,
-            disabledContentColor = ContentTertiary
+            containerColor = customContainerColor ?: SurfacePrimary,
+            contentColor = customContentColor ?: ContentPrimary,
+            disabledContainerColor = customDisabledContainerColor
+                ?: customContainerColor?.copy(alpha = 0.38f)
+                ?: SurfacePrimary,
+            disabledContentColor = customDisabledContentColor
+                ?: customContentColor?.copy(alpha = 0.38f)
+                ?: ContentTertiary
         )
     }
 
@@ -121,8 +136,20 @@ fun CustomTextButton(
     customBorder: BorderStroke? = null,
     leadingIcon: Painter? = null,
     trailingIcon: Painter? = null,
-    ) {
-    val (colors, height, shape) = getButtonStyles(size, type, shapeStyle)
+    containerColor: Color? = null,
+    contentColor: Color? = null,
+    disabledContainerColor: Color? = null,
+    disabledContentColor: Color? = null,
+) {
+    val (colors, height, shape) = getButtonStyles(
+        size = size,
+        type = type,
+        shapeStyle = shapeStyle,
+        customContainerColor = containerColor,
+        customContentColor = contentColor,
+        customDisabledContainerColor = disabledContainerColor,
+        customDisabledContentColor = disabledContentColor
+    )
 
     // Calculate content padding and icon size based on the button height
     val contentPadding = when (size) {
@@ -148,13 +175,16 @@ fun CustomTextButton(
         colors = colors,
         contentPadding = contentPadding
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.wrapContentHeight(unbounded = true) // Allows the row to be outside bounds
+        ) {
 
             // Leading Icon
             if (leadingIcon != null) {
                 Icon(
                     painter = leadingIcon,
-                    contentDescription = null, // Content description handled by the button text
+                    contentDescription = null,
                     modifier = Modifier.size(iconSize),
                 )
                 // Spacer only if there is text to separate icon from text
@@ -197,8 +227,20 @@ fun CustomIconButton(
     type: ButtonType = ButtonType.Primary,
     shapeStyle: ButtonShapeStyle = ButtonShapeStyle.Round,
     enabled: Boolean = true,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
+    disabledContainerColor: Color? = null,
+    disabledContentColor: Color? = null,
 ) {
-    val (colors, height, _) = getButtonStyles(size, type, shapeStyle)
+    val (colors, height, _) = getButtonStyles(
+        size = size,
+        type = type,
+        shapeStyle = shapeStyle,
+        customContainerColor = containerColor,
+        customContentColor = contentColor,
+        customDisabledContainerColor = disabledContainerColor,
+        customDisabledContentColor = disabledContentColor
+    )
 
     // For icon buttons, the container size is determined by 'height', and the padding is adjusted
     val iconButtonSize = height
@@ -212,7 +254,7 @@ fun CustomIconButton(
 
     // Icon buttons often use a square or circle shape.
     val shape = when (shapeStyle) {
-        ButtonShapeStyle.Square -> RoundedCornerShape(8.dp)
+        ButtonShapeStyle.Square -> SquircleShape(16.dp)
         ButtonShapeStyle.Round -> CircleShape
     }
 
@@ -231,14 +273,6 @@ fun CustomIconButton(
         )
     }
 }
-
-
-
-
-
-
-
-
 
 // ---  Previews (Visualizing the Design System) ---
 
@@ -342,7 +376,7 @@ private fun IconButtonPreview() {
             Spacer(Modifier.width(8.dp))
 
 
-            CustomIconButton(onClick = {}, icon = icon, size = ButtonSize.Large, type = ButtonType.Tertiary, shapeStyle = ButtonShapeStyle.Round, enabled = false)
+            CustomIconButton(onClick = {}, icon = icon, size = ButtonSize.Large, type = ButtonType.Tertiary, shapeStyle = ButtonShapeStyle.Round, enabled = true, containerColor = Color.Red, contentColor = Color.Green, disabledContainerColor = Color.Yellow, disabledContentColor = Color.Blue)
         }
     }
 }

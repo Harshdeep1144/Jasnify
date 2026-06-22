@@ -20,16 +20,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
@@ -38,6 +35,7 @@ fun CustomTopBar(
     subtitle: String? = null,
     image: Painter? = null,
     isLargeTitle: Boolean = false,
+    textColor: Color = ContentPrimary,
     onBackClick: (() -> Unit)? = null,
     onMenuClick: (() -> Unit)? = null,
     onDropdownClick: (() -> Unit)? = null,
@@ -63,7 +61,8 @@ fun CustomTopBar(
                         onClick = onBackClick,
                         backgroundStyle = buttonStyle,
                         size = 40.dp,
-                        iconSize = 24.dp
+                        iconSize = 24.dp,
+                        iconColor = textColor
                     )
                 }
             }
@@ -80,6 +79,7 @@ fun CustomTopBar(
                             subtitle = subtitle,
                             image = image,
                             isLargeTitle = isLargeTitle,
+                            textColor = textColor,
                             onClick = onDropdownClick
                         )
                     }
@@ -88,6 +88,7 @@ fun CustomTopBar(
                             title = title,
                             subtitle = subtitle,
                             isLargeTitle = isLargeTitle,
+                            textColor = textColor,
                             isClickable = onDropdownClick != null,
                             onClick = onDropdownClick ?: {}
                         )
@@ -103,7 +104,8 @@ fun CustomTopBar(
                         onClick = onMenuClick,
                         backgroundStyle = buttonStyle,
                         size = 40.dp,
-                        iconSize = 24.dp
+                        iconSize = 24.dp,
+                        iconColor = textColor
                     )
                 }
             }
@@ -116,6 +118,7 @@ private fun TopBarTextLayout(
     title: String,
     subtitle: String?,
     isLargeTitle: Boolean,
+    textColor: Color, // <-- Added parameter
     isClickable: Boolean,
     onClick: () -> Unit
 ) {
@@ -137,7 +140,7 @@ private fun TopBarTextLayout(
             } else {
                 JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
             },
-            color = ContentPrimary
+            color = textColor
         )
         if (subtitle != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -166,6 +169,7 @@ private fun TopBarProfileLayout(
     subtitle: String?,
     image: Painter,
     isLargeTitle: Boolean,
+    textColor: Color,
     onClick: (() -> Unit)?
 ) {
     Row(
@@ -194,7 +198,7 @@ private fun TopBarProfileLayout(
                 } else {
                     JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
                 },
-                color = ContentPrimary
+                color = textColor
             )
             if (subtitle != null) {
                 Text(
@@ -208,7 +212,6 @@ private fun TopBarProfileLayout(
 }
 
 
-
 // ----- Preview -----
 
 @Preview(showBackground = true, backgroundColor = 0xFFF5F5F5)
@@ -220,14 +223,11 @@ fun CustomTopBarVariantsPreview() {
             .background(Color(0xFFF5F5F5)),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Menu Button Only
-        CustomTopBar(onMenuClick = {})
-
         // Back Button Only
         CustomTopBar(onBackClick = {})
 
         // Back + Menu Buttons
-        CustomTopBar(onBackClick = {}, onMenuClick = {})
+        CustomTopBar(title = "Label", onBackClick = {}, onMenuClick = {})
 
         // Label + Subtitle + Dropdown (Center)
         CustomTopBar(
@@ -283,6 +283,15 @@ fun CustomTopBarVariantsPreview() {
             title = "Label",
             subtitle = "Subtitle",
             image = painterResource(R.drawable.ic_profile),
+            onBackClick = {},
+            onMenuClick = {}
+        )
+
+        // Example with a custom color (e.g., Purple/Blue)
+        CustomTopBar(
+            title = "Custom Color",
+            subtitle = "Subtitle stays secondary",
+            textColor = Color(0xFF6200EE),
             onBackClick = {},
             onMenuClick = {}
         )

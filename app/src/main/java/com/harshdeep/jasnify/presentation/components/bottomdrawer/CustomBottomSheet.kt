@@ -38,7 +38,7 @@ fun CustomBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = SurfacePrimary,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.7f),
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
         dragHandle = null,
         sheetGesturesEnabled = sheetGesturesEnabled,
     ) {
@@ -46,14 +46,13 @@ fun CustomBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfacePrimary)
-                .padding(vertical = 12.dp, horizontal = 4.dp)
         ) {
             // Header Row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(64.dp)
-                    .padding(horizontal = 12.dp),
+                    .padding(12.dp, 12.dp, 12.dp, 0.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {

@@ -60,7 +60,7 @@ fun TopBarIconButton(
 ) {
     val backgroundColor = when (backgroundStyle) {
         ButtonBackground.TRANSPARENT -> Color.Transparent
-        ButtonBackground.TRANSLUCENT -> SurfaceSecondary.copy(alpha = 0.5f)
+        ButtonBackground.TRANSLUCENT -> SurfaceSecondary.copy(alpha = 0.3f)
         ButtonBackground.OPAQUE -> SurfaceSecondary
     }
 
@@ -83,8 +83,8 @@ fun TopBarIconButton(
             .then(
                 if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
                     Modifier.border(
-                        width = 0.5.dp,
-                        color = SurfaceSecondary.copy(alpha = 0.25f),
+                        width = 1.dp,
+                        color = SurfaceSecondary.copy(alpha = 0.15f),
                         shape = SquircleShape(100, CornerSmoothingDefault)
                     )
                 } else {
@@ -108,11 +108,7 @@ fun TopBarIconButton(
 
 
 
-
-
-
-
-
+// ------------ Preview ---------------
 
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable

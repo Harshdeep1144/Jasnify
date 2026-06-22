@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomRadioButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.util.toFlagEmoji
@@ -67,19 +68,16 @@ fun SelectableItemRow(
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
-
         ) {
-            RadioButton(
+            Spacer(modifier = Modifier.width(16.dp))
+
+            CustomRadioButton(
                 selected = isSelected,
                 onClick = { onSelect(item) },
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = ContentBrand,
-                    unselectedColor = ContentSecondary
-                ),
                 modifier = Modifier.padding(0.dp)
             )
 
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             // Display the Image/Icon using the resource ID
             Text(

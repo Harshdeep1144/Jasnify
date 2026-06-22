@@ -38,7 +38,8 @@ private const val PARALLAX_RATE = 0.5f
 @Composable
 fun HomeTab(
     onBudgetClick: () -> Unit,
-    onVenueClick: () -> Unit
+    onVenueClick: () -> Unit,
+    onCateringClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
@@ -109,7 +110,7 @@ fun HomeTab(
                             cardBgColor = Color(0xFFC4D4C2),
                             waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
                             insightColor = Color(0xFF47671A),
-                            onClick = {}
+                            onClick = onCateringClick
                         )
                         HomeCard(
                             insight = "Perfect Event Spaces",

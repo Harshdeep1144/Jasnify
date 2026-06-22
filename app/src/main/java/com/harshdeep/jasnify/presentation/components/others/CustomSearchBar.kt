@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -60,6 +61,7 @@ enum class SearchBarType {
 @Composable
 fun CustomSearchBar(
     value: String,
+    placeholder: String = "Search",
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     type: SearchBarType = SearchBarType.DEFAULT,
@@ -106,7 +108,7 @@ fun CustomSearchBar(
                     )
                     .border(
                         width = 1.dp,
-                        color = if (isFocused) ContentPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                        color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
                         shape = SquircleShape(100, 0f)
                     )
             ) {
@@ -119,7 +121,7 @@ fun CustomSearchBar(
                     singleLine = true,
                     placeholder = {
                         Text(
-                            text = "Search",
+                            text = placeholder,
                             style = JasnifyTheme.typography.labelXLarge,
                             color = ContentSecondary
                         )
@@ -237,6 +239,7 @@ fun CustomSearchBarPreview() {
 
             CustomSearchBar(
                 value = text,
+                placeholder = "Search Something",
                 onValueChange = { text = it },
                 onActiveChange = { isSearchActive = it }
             )
