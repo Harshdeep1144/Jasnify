@@ -22,6 +22,9 @@ fun NavGraphBuilder.homeNavGraph(
             onVenueClick = {
                 // Navigate to the Venue FEATURE GRAPH
                 mainNavController.navigate(Screen.VenueGraph.route)
+            },
+            onCateringClick = {
+                mainNavController.navigate((Screen.CateringRoot.route))
             }
         )
     }

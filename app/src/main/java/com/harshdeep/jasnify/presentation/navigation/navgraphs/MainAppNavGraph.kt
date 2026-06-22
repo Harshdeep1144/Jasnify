@@ -9,11 +9,11 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetDetail
-
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
     navigation(
         startDestination = Screen.MainAppScreen.route,
@@ -32,6 +32,22 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
 
         // Venue Feature Graph
         venueNavGraph(mainNavController)
+
+        // Catering Feature
+        composable(
+            route = Screen.CateringRoot.route,
+            enterTransition = { fadeIn(tween(500)) },
+            exitTransition = { fadeOut(tween(500)) }
+        ) {
+            CateringMenuScreen(
+                onBackClick = {
+                    if (mainNavController.previousBackStackEntry != null) {
+                        mainNavController.popBackStack()
+                    }
+                }
+            )
+        }
+
 
         // Budget Feature Graph
         navigation(

@@ -40,4 +40,8 @@ sealed class Screen(val route: String) {
 
     // Budget Feature
     data object BudgetRoot : Screen("budget_root_screen")
+
+    // Catering Feature
+
+    data object CateringRoot : Screen("catering_root_screen")
 }

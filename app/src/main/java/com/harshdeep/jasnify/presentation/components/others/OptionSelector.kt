@@ -1,24 +1,22 @@
 package com.harshdeep.jasnify.presentation.components.others
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf // Added for state management
-import androidx.compose.runtime.remember // Added for state management
-import androidx.compose.runtime.setValue // Added for state delegation
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.min
+import com.harshdeep.jasnify.presentation.components.buttons.CustomRadioButton
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -30,33 +28,25 @@ import sv.lib.squircleshape.SquircleShape
 @Composable
 fun OptionSelector(
     label: String,
-    bodyText: String,
     isSelected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    bodyText: String? = null
 ) {
-    // 1. Animate background color change for smooth transitions between selected/unselected states
     val backgroundColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            SurfaceAccent
-        } else {
-            BackgroundPrimary
-        }, label = "backgroundColor"
+        targetValue = if (isSelected) SurfaceAccent else BackgroundPrimary,
+        label = "backgroundColor"
     )
 
-    // 2. Animate content color (text, radio button) for contrast
     val contentColor by animateColorAsState(
-        targetValue = if (isSelected) {
-            ContentPrimary
-        } else {
-            ContentPrimary
-        }, label = "contentColor"
+        targetValue = ContentPrimary,
+        label = "contentColor"
     )
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(min (a = 78.dp, b = 100.dp))
+            .wrapContentHeight() // Changed from fixed height to wrapContentHeight
             .selectable(
                 selected = isSelected,
                 onClick = onClick,
@@ -72,50 +62,51 @@ fun OptionSelector(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            RadioButton(
+            CustomRadioButton(
                 selected = isSelected,
-                onClick = onClick,
-                colors = RadioButtonDefaults.colors(
-                    selectedColor = ContentBrand,
-                    unselectedColor = ContentSecondary
-                )
+                onClick = onClick
             )
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
             ) {
                 Text(
                     text = label,
                     style = JasnifyTheme.typography.headingLarge,
                     color = contentColor
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = bodyText,
-                    style = JasnifyTheme.typography.bodyMedium,
-                    color = ContentSecondary
-                )
+
+                // When bodyText is null, neither the Spacer nor the Text compile into the UI tree
+                if (!bodyText.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = bodyText,
+                        style = JasnifyTheme.typography.bodyMedium,
+                        color = ContentSecondary
+                    )
+                }
             }
         }
     }
 }
+
+
 
 // --- Preview ---
 
 @Preview(showBackground = true)
 @Composable
 fun OptionSelectorPreview() {
-    MaterialTheme { // Use a Material 3 theme for accurate visualization
-        // List of options to display
+    MaterialTheme {
         val options = listOf(
             Pair("Basic Plan", "The ideal choice for single users or small projects."),
-            Pair("Standard Plan", "Body Text for the default option."),
+            Pair("Standard Plan", null), // Testing the null body text case
             Pair("Premium Plan", "Includes all features and priority support.")
         )
 
-        // State to track which option is selected (default to the second option, index 1, to match the original image)
         var selectedOptionIndex by remember { mutableStateOf(1) }
 
         Column(
@@ -124,15 +115,13 @@ fun OptionSelectorPreview() {
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
-            // Loop through the options to create the interactive radio group
             options.forEachIndexed { index, option ->
                 OptionSelector(
                     label = option.first,
                     bodyText = option.second,
-                    isSelected = index == selectedOptionIndex, // Check if this option is currently selected
+                    isSelected = index == selectedOptionIndex,
                     onClick = {
-                        selectedOptionIndex = index // Update the state when clicked
+                        selectedOptionIndex = index
                     }
                 )
             }
