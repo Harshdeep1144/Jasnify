@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -29,12 +30,15 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.util.toFlagEmoji
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
@@ -58,16 +62,16 @@ fun SelectableItemRow(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
             .clickable { onSelect(item) }
-            .background(if (isSelected) SurfaceAccent else BackgroundPrimary)
+            .background(if (isSelected) SurfaceBrandSecondary else BackgroundPrimary)
             .padding(0.dp, 0.dp, 12.dp, 0.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+            modifier = Modifier.clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
         ) {
             Spacer(modifier = Modifier.width(16.dp))
 
@@ -89,17 +93,18 @@ fun SelectableItemRow(
             Spacer(modifier = Modifier.width(8.dp))
 
             Text(
-                text = item.name,
-                style = JasnifyTheme.typography.labelLarge,
-                color = ContentPrimary
+                text = item.code,
+                style = if (isSelected) JasnifyTheme.typography.labelXLarge else JasnifyTheme.typography.labelXLarge,
+                color = if (isSelected) ContentBrandDark else ContentSecondary,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
             )
         }
 
         Text(
-            text = item.code,
-            style = JasnifyTheme.typography.labelLarge.copy(
-                color = if (isSelected) ContentPrimary else ContentSecondary
-            ),
+            text = item.name,
+            style = if (isSelected) JasnifyTheme.typography.labelXLarge else JasnifyTheme.typography.labelXLarge,
+            color = if (isSelected) ContentBrandDark else ContentSecondary,
+            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal
         )
     }
 }
@@ -184,6 +189,7 @@ fun SelectableListBottomSheet(
     }
 }
 
+// --------- Preview ------------
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -34,6 +34,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -89,10 +90,6 @@ fun SortFilterBottomSheet(
     }
 }
 
-/**
- * Separated content representation of the Filter sheet.
- * Promotes ease of previews and clean state isolation.
- */
 @Composable
 fun SortFilterBottomSheetContent(
     sortOptions: List<String>,
@@ -103,7 +100,7 @@ fun SortFilterBottomSheetContent(
     onApply: (String, Set<String>) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var activeTab by remember { mutableStateOf(0) }
+    var activeTab by remember { mutableIntStateOf(0) }
     var filterSearchText by remember { mutableStateOf("") }
 
     var tempSortOption by remember(initialSortOption) { mutableStateOf(initialSortOption) }
