@@ -226,9 +226,12 @@ private fun CategoryCardPreview() {
                 amount = "₹12,45,000",
                 icons = listOf(
                     rememberVectorPainter(Icons.Outlined.Fastfood),
+                    rememberVectorPainter(Icons.Outlined.Restaurant),
+                    rememberVectorPainter(Icons.Outlined.Restaurant),
+                    rememberVectorPainter(Icons.Outlined.Restaurant),
                     rememberVectorPainter(Icons.Outlined.Restaurant)
                 ),
-                totalItemCount = 3
+                totalItemCount = 5
             )
 
             // Case 2: Multiple Icons with larger Badge (+3)

@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -44,13 +43,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.buttons.CustomRadioButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.others.CustomCheckbox
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.SearchBarType
+import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -205,27 +204,12 @@ fun SortFilterBottomSheetContent(
                 if (activeTab == 0) {
                     items(sortOptions) { option ->
                         val isSelected = tempSortOption == option
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
-                                .clip(SquircleShape(16.dp))
-                                .background(if (isSelected) SurfaceBrandSecondary else Color.Transparent)
-                                .clickable { tempSortOption = option }
-                                .padding(horizontal = 12.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CustomRadioButton(
-                                selected = isSelected,
-                                onClick = { tempSortOption = option }
-                            )
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Text(
-                                text = option,
-                                style = JasnifyTheme.typography.headingLarge,
-                                color = if (isSelected) ContentBrandDark else ContentSecondary,
-                            )
-                        }
+                        OptionSelector(
+                            label = option,
+                            isSelected = isSelected,
+                            onClick = { tempSortOption = option },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                        )
                     }
                 } else {
                     val dynamicFilterOptions = if (filterSearchText.isBlank()) {
