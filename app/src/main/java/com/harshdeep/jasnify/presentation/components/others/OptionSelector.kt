@@ -26,6 +26,7 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
@@ -36,7 +37,7 @@ fun OptionSelector(
     modifier: Modifier = Modifier,
     bodyText: String? = null
 ) {
-    val backgroundColor = if (isSelected) SurfaceBrandSecondary else Color.Transparent
+    val backgroundColor = if (isSelected) SurfaceBrandSecondary else SurfacePrimary
     val contentColor = if (isSelected) ContentBrandDark else ContentSecondary
     val bodyTextColor = if (isSelected) ContentPrimary else ContentSecondary
 

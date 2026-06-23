@@ -55,7 +55,13 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             route = Screen.BudgetGraph.route
         ) {
             composable(Screen.BudgetRoot.route) {
-                BudgetScreen()
+                BudgetScreen(
+                    onBackClick = {
+                        if (mainNavController.previousBackStackEntry != null) {
+                            mainNavController.popBackStack()
+                        }
+                    }
+                )
             }
             // Add BudgetCategoryDetail composable here later
         }
