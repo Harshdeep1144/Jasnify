@@ -12,7 +12,7 @@ import androidx.navigation.navigation
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
-import com.harshdeep.jasnify.presentation.screens.budget.BudgetDetail
+import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
     navigation(
@@ -55,7 +55,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             route = Screen.BudgetGraph.route
         ) {
             composable(Screen.BudgetRoot.route) {
-                BudgetDetail()
+                BudgetScreen()
             }
             // Add BudgetCategoryDetail composable here later
         }

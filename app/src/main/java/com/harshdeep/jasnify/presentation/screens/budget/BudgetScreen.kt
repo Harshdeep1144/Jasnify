@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import com.harshdeep.jasnify.theme.ContentPrimary
 
 @Composable
-fun BudgetDetail() {
+fun BudgetScreen() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
