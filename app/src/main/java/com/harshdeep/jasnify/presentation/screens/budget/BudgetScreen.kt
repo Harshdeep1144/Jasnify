@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -118,6 +119,7 @@ data class ExpenseItem(
 fun BudgetScreen(
     onBackClick: () -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -376,12 +378,26 @@ fun BudgetScreen(
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            },
         topBar = {
             Column(
                 modifier = Modifier
                     .background(SurfacePrimary)
                     .statusBarsPadding()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        // Dismiss keyboard if user clicks on TopBar header area
+                        focusManager.clearFocus()
+                    }
             ) {
                 if (currentView == BudgetScreenView.BUDGET_TRACKER) {
                     CustomTopBar(
@@ -423,7 +439,13 @@ fun BudgetScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(SurfaceSecondary),
+                    .background(SurfaceSecondary)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    },
             ) {
                 // Budget Summary Card Section
                 item {
@@ -614,6 +636,7 @@ fun BudgetScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
                             ) {
+                                focusManager.clearFocus()
                                 expandedCardId = if (expandedCardId == item.id) null else item.id
                             },
                         onDeleteClick = {
@@ -646,6 +669,12 @@ fun BudgetScreen(
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(SurfacePrimary)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
             ) {
                 Column(
                     modifier = Modifier
