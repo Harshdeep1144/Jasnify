@@ -32,6 +32,7 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -110,11 +111,10 @@ fun MenuBottomSheet(
                     onClick = onCancelClick,
                     text = "Cancel",
                     type = ButtonType.Tertiary,
+                    shapeStyle = ButtonShapeStyle.Square,
                     contentColor = ContentSecondary,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(color = SurfacePrimary, shape = SquircleShape(CornerLarge))
-                        .clip(SquircleShape(CornerLarge))
                 )
             }
         }
