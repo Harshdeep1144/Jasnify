@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -152,6 +153,17 @@ fun BudgetScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
+
+    // SYSTEM BACK BUTTON HANDLER
+    // It steps backward logically matching BudgetScreenView navigation flow.
+    BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER) {
+        currentView = when (currentView) {
+            BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
+            BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
+            BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
+            BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
+        }
+    }
 
     var searchQuery by remember { mutableStateOf("") }
     var categorySearchQuery by remember { mutableStateOf("") } // Separate state for categories

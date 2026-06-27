@@ -69,12 +69,15 @@ fun ExpenseCard(
     val leftButtonShape = RoundedCornerShape(CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerLarge)
     val rightButtonShape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge)
 
+    // Snappy animation timing config (reduced from 300ms to 150ms for hyper-responsiveness)
+    val animationDuration = 150
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .animateContentSize(
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = animationDuration,
                     easing = EaseInOut
                 )
             )
@@ -131,25 +134,25 @@ fun ExpenseCard(
             visible = showActions,
             enter = fadeIn(
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = animationDuration,
                     easing = EaseInOut
                 )
             ) + expandVertically(
                 expandFrom = Alignment.Top,
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = animationDuration,
                     easing = EaseInOut
                 )
             ),
             exit = fadeOut(
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = animationDuration,
                     easing = EaseInOut
                 )
             ) + shrinkVertically(
                 shrinkTowards = Alignment.Top,
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = animationDuration,
                     easing = EaseInOut
                 )
             )
