@@ -25,12 +25,13 @@ import sv.lib.squircleshape.SquircleShape
 fun CustomDeleteSheet(
     heading: String,
     subHeading: String,
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     onConfirmRemove: () -> Unit,
     modifier: Modifier = Modifier,
     confirmButtonText: String? = null
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -104,7 +105,6 @@ fun CustomDeleteSheetPreview() {
         CustomDeleteSheet(
             heading = "Remove item?",
             subHeading = "The item will be removed from the Catering Menu.",
-            sheetState = sheetState,
             onDismiss = {},
             onConfirmRemove = {}
         )

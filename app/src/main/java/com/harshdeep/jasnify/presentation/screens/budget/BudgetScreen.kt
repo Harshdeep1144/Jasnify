@@ -118,7 +118,6 @@ data class ExpenseItem(
 fun BudgetScreen(
     onBackClick: () -> Unit,
 ) {
-    // Top-level layout view state switcher
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -134,19 +133,17 @@ fun BudgetScreen(
     var expenseToEdit by remember { mutableStateOf<ExpenseItem?>(null) }
     val addExpenseSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var expenseToDelete by remember { mutableStateOf<ExpenseItem?>(null) }
-    val deleteSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
-    var budgetValue by remember { mutableStateOf("INR10000000") } // Default Budget to 1 Crore (10,000,000)
+    var budgetValue by remember { mutableStateOf("INR10000000") } // Default Budget to 10,000,000
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Menu Bottom Sheet visibility state integration
     var showMenuBottomSheet by remember { mutableStateOf(false) }
-    val menuBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val sortOptions = remember {
         listOf(
@@ -864,7 +861,7 @@ fun BudgetScreen(
 
     if (showBottomSheet) {
         SortFilterBottomSheet(
-            sheetState = sheetState,
+            sheetState = filterSheetState,
             sortOptions = sortOptions,
             initialSortOption = selectedSortOption,
             filterByOptions = filterOptions,
@@ -942,7 +939,6 @@ fun BudgetScreen(
         CustomDeleteSheet(
             heading = "Are you sure?",
             subHeading = "The expense amount will be added back to the total budget.",
-            sheetState = deleteSheetState,
             confirmButtonText = "Delete Expense",
             onDismiss = {
                 expenseToDelete = null

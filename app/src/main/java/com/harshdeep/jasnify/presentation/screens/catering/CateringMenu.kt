@@ -488,7 +488,6 @@ fun CateringMenuScreen(
         CustomDeleteSheet(
             heading = "Remove item?",
             subHeading = "The item will be removed from the Catering Menu.",
-            sheetState = deleteBottomSheetState,
             onDismiss = {
                 showDeleteConfirmationSheet = false
                 itemToDelete = null
