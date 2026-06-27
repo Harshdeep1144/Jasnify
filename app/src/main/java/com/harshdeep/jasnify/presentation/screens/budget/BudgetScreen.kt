@@ -12,6 +12,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,10 +57,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -69,6 +77,9 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSh
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -99,6 +110,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.theme.ContentTertiary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
@@ -108,7 +120,8 @@ import java.util.Locale
 enum class BudgetScreenView {
     BUDGET_TRACKER,
     EXPENSE_SUMMARY,
-    EXPENSE_CATEGORY
+    EXPENSE_CATEGORY,
+    CATEGORY_DETAIL
 }
 
 data class ExpenseItem(
@@ -169,6 +182,10 @@ fun BudgetScreen(
     var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
     var selectedCategoryForMenu by remember { mutableStateOf<String?>(null) }
 
+    // State holding selected category for dedicated detail card views
+    var selectedCategoryForDetails by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryChips by remember { mutableStateOf(setOf("Recent First")) }
+
     // State to hold the category queued for deletion confirmation
     var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
 
@@ -195,8 +212,8 @@ fun BudgetScreen(
                 ExpenseItem(id = "7", title = "Elite Invitations & Prints", category = "Stationery", amount = "₹12,500", emoji = "✉️"),
                 ExpenseItem(id = "8", title = "Classic Gowns & Tuxedos", category = "Apparel", amount = "₹85,000", emoji = "👔"),
                 ExpenseItem(id = "9", title = "Signature Mocktail Bar", category = "Beverages", amount = "₹18,000", emoji = "🍸"),
-                ExpenseItem(id = "10", title = "Prasad Travels", category = "Transportation", amount = "₹2,52,600", emoji = "🚗", lastUpdatedBy = "Meera J.", lastUpdatedDate = "Aug 26, 2025, 04:30pm"),
-                ExpenseItem(id = "11", title = "Royal Travels Bus", category = "Transportation", amount = "₹1,10,000", emoji = "🚌"),
+                ExpenseItem(id = "10", title = "Uber", category = "Transportation", amount = "₹68,000", emoji = "🚗", lastUpdatedBy = "Meera J.", lastUpdatedDate = "Aug 26, 2025, 04:30pm"),
+                ExpenseItem(id = "11", title = "Happy Travels", category = "Transportation", amount = "₹1,84,600", emoji = "🚌"),
                 ExpenseItem(id = "12", title = "Vikas Equipment Rentals", category = "Equipment Rentals", amount = "₹4,79,990", emoji = "⚙️", lastUpdatedBy = "Harsh Deep", lastUpdatedDate = "Aug 27, 2025, 11:15am"),
                 ExpenseItem(id = "13", title = "Audio Stage Setup", category = "Equipment Rentals", amount = "₹1,20,000", emoji = "🔊"),
                 ExpenseItem(id = "14", title = "LED Display Walls", category = "Equipment Rentals", amount = "₹2,40,000", emoji = "📺"),
@@ -372,7 +389,7 @@ fun BudgetScreen(
                 focusManager.clearFocus()
             },
         topBar = {
-            val topBarBg = if(currentView == BudgetScreenView.EXPENSE_CATEGORY) SurfaceSecondary else SurfacePrimary
+            val topBarBg = if(currentView == BudgetScreenView.EXPENSE_CATEGORY || currentView == BudgetScreenView.CATEGORY_DETAIL) SurfaceSecondary else SurfacePrimary
             Column(
                 modifier = Modifier
                     .background(topBarBg)
@@ -403,6 +420,13 @@ fun BudgetScreen(
                         CustomTopBar(
                             title = "Expense Category",
                             onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                            buttonStyle = ButtonBackground.TRANSLUCENT,
+                            translucentAlpha = 0.5f
+                        )
+                    }
+                    BudgetScreenView.CATEGORY_DETAIL -> {
+                        CustomTopBar(
+                            onBackClick = { currentView = BudgetScreenView.EXPENSE_CATEGORY },
                             buttonStyle = ButtonBackground.TRANSLUCENT,
                             translucentAlpha = 0.5f
                         )
@@ -957,17 +981,26 @@ fun BudgetScreen(
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
                         items(filteredCategorySummary, key = { it.name }) { categoryItem ->
-                            CategoryCard(
-                                title = categoryItem.name,
-                                amount = categoryItem.amountFormatted,
-                                emojis = categoryItem.emojis,
-                                totalItemCount = categoryItem.totalCount,
-                                onMenuClick = {
-                                    // Binds selected category context and triggers bottom sheet visibility
-                                    selectedCategoryForMenu = categoryItem.name
-                                    showCategoryMenuBottomSheet = true
-                                }
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedCategoryForDetails = categoryItem.name
+                                        currentView = BudgetScreenView.CATEGORY_DETAIL
+                                    }
+                            ) {
+                                CategoryCard(
+                                    title = categoryItem.name,
+                                    amount = categoryItem.amountFormatted,
+                                    emojis = categoryItem.emojis,
+                                    totalItemCount = categoryItem.totalCount,
+                                    onMenuClick = {
+                                        // Binds selected category context and triggers bottom sheet visibility
+                                        selectedCategoryForMenu = categoryItem.name
+                                        showCategoryMenuBottomSheet = true
+                                    }
+                                )
+                            }
                         }
 
                         item { Spacer(modifier = Modifier.height(12.dp)) }
@@ -1006,6 +1039,279 @@ fun BudgetScreen(
                                 .weight(1f)
                         )
                     }
+                }
+            }
+        }
+
+
+        // ============================================================================================================================================
+        // SCREEN 4: CATEGORY_DETAIL
+        // ============================================================================================================================================
+
+
+        AnimatedVisibility(
+            visible = (currentView == BudgetScreenView.CATEGORY_DETAIL),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            val selectedCategoryName = selectedCategoryForDetails ?: "Category"
+            val selectedCategoryExpenses = remember(allExpenses, selectedCategoryForDetails) {
+                allExpenses.filter { it.category == selectedCategoryName }
+            }
+            val selectedCategoryTotal = remember(selectedCategoryExpenses) {
+                selectedCategoryExpenses.sumOf { parseAmount(it.amount) }
+            }
+            val formattedCategoryTotal = "₹${formatter.format(selectedCategoryTotal.toLong())}"
+
+            // Multi-sorted implementation chaining comparator criteria depending on active selected set
+            val sortedCategoryExpenses = remember(selectedCategoryExpenses, selectedCategoryChips) {
+                selectedCategoryExpenses.sortedWith(
+                    Comparator { a, b ->
+                        val amtA = parseAmount(a.amount)
+                        val amtB = parseAmount(b.amount)
+                        val idA = a.id.toIntOrNull() ?: 0
+                        val idB = b.id.toIntOrNull() ?: 0
+
+                        val hasMostExpensive = selectedCategoryChips.contains("Most Expensive")
+                        val hasLeastExpensive = selectedCategoryChips.contains("Least Expensive")
+
+                        var result = 0
+
+                        if (hasMostExpensive && !hasLeastExpensive) {
+                            result = amtB.compareTo(amtA) // Amount descending
+                        } else if (hasLeastExpensive && !hasMostExpensive) {
+                            result = amtA.compareTo(amtB) // Amount ascending
+                        } else if (hasMostExpensive && hasLeastExpensive) {
+                            // Stable sorting fallback if both contradictory toggles remain active
+                            result = amtB.compareTo(amtA)
+                        }
+
+                        if (result == 0) {
+                            result = idB.compareTo(idA) // Secondary tie-breaker sort using newest IDs
+                        }
+                        result
+                    }
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(SurfaceSecondary)
+            ) {
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(
+                                text = selectedCategoryName,
+                                style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
+                                color = ContentPrimary
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .padding(8.dp),
+                                contentAlignment = Alignment.Center
+                            ){
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_edit),
+                                    contentDescription = "Rename Category",
+                                    tint = ContentPrimary,
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clickable {
+                                            categoryToRename = selectedCategoryName
+                                            showAddCustomCategorySheet = true
+                                        }
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Total Category Expenses",
+                                style = JasnifyTheme.typography.labelLarge,
+                                color = ContentSecondary
+                            )
+                            Text(
+                                text = formattedCategoryTotal,
+                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                                color = ContentPrimary
+                            )
+                        }
+                        Row{
+                            val categoryProgressRatio = if (totalBudget > 0) (selectedCategoryTotal / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
+                            LinearProgressIndicator(
+                                progress = { categoryProgressRatio },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(CircleShape),
+                                color = ContentBrand,
+                                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            )
+                        }
+                    }
+                }
+
+                item {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        contentPadding = PaddingValues(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        item {
+                            val isRecentActive = selectedCategoryChips.contains("Recent First")
+                            FilterChip(
+                                label = "Recent First",
+                                isSelected = isRecentActive,
+                                shapeStyle = ChipShapeStyle.Round,
+                                size = ChipSize.Small,
+                                hasStroke = true,
+                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_clock_forward),
+                                trailingIcon = if (isRecentActive) Icons.Default.Close else null,
+                                onClick = {
+                                    selectedCategoryChips = if (isRecentActive) {
+                                        selectedCategoryChips - "Recent First"
+                                    } else {
+                                        selectedCategoryChips + "Recent First"
+                                    }
+                                },
+                                onTrailingIconClick = {
+                                    selectedCategoryChips = selectedCategoryChips - "Recent First"
+                                }
+                            )
+                        }
+
+                        item {
+                            val isMostActive = selectedCategoryChips.contains("Most Expensive")
+                            FilterChip(
+                                label = "Most Expensive",
+                                isSelected = isMostActive,
+                                shapeStyle = ChipShapeStyle.Round,
+                                size = ChipSize.Small,
+                                hasStroke = true,
+                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_up),
+                                trailingIcon = if (isMostActive) Icons.Default.Close else null,
+                                onClick = {
+                                    selectedCategoryChips = if (isMostActive) {
+                                        selectedCategoryChips - "Most Expensive"
+                                    } else {
+                                        selectedCategoryChips + "Most Expensive"
+                                    }
+                                },
+                                onTrailingIconClick = {
+                                    selectedCategoryChips = selectedCategoryChips - "Most Expensive"
+                                }
+                            )
+                        }
+
+                        item {
+                            val isLeastActive = selectedCategoryChips.contains("Least Expensive")
+                            FilterChip(
+                                label = "Least Expensive",
+                                isSelected = isLeastActive,
+                                shapeStyle = ChipShapeStyle.Round,
+                                size = ChipSize.Small,
+                                hasStroke = true,
+                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_down),
+                                trailingIcon = if (isLeastActive) Icons.Default.Close else null,
+                                onClick = {
+                                    selectedCategoryChips = if (isLeastActive) {
+                                        selectedCategoryChips - "Least Expensive"
+                                    } else {
+                                        selectedCategoryChips + "Least Expensive"
+                                    }
+                                },
+                                onTrailingIconClick = {
+                                    selectedCategoryChips = selectedCategoryChips - "Least Expensive"
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Category Expense Cards / Empty lists
+                if (sortedCategoryExpenses.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 100.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_receipt),
+                                contentDescription = "No expenses",
+                                tint = ContentTertiary,
+                                modifier = Modifier.size(84.dp)
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "No expenses",
+                                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                                color = ContentTertiary
+                            )
+                        }
+                    }
+                } else {
+                    items(sortedCategoryExpenses, key = { it.id }) { item ->
+                        val isFirst = sortedCategoryExpenses.firstOrNull()?.id == item.id
+                        val isLast = sortedCategoryExpenses.lastOrNull()?.id == item.id
+
+                        val itemShape = when {
+                            isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
+                            isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
+                            else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+                        }
+
+                        ExpenseCard(
+                            title = item.title,
+                            category = item.category,
+                            amount = item.amount,
+                            emoji = item.emoji,
+                            lastUpdatedBy = item.lastUpdatedBy,
+                            lastUpdatedDate = item.lastUpdatedDate,
+                            showActions = (expandedCardId == item.id),
+                            cardShape = itemShape,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp, 1.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    focusManager.clearFocus()
+                                    expandedCardId = if (expandedCardId == item.id) null else item.id
+                                },
+                            onDeleteClick = {
+                                expenseToDelete = item
+                            },
+                            onModifyClick = {
+                                expenseToEdit = item
+                                showAddExpenseSheet = true
+                            }
+                        )
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(100.dp))
                 }
             }
         }
@@ -1119,6 +1425,11 @@ fun BudgetScreen(
                                     expense
                                 }
                             }
+
+                            // Keep Detail Screen active if we are currently inspecting the renamed category
+                            if (selectedCategoryForDetails == originalName) {
+                                selectedCategoryForDetails = inputName
+                            }
                         }
                     } else {
                         // NEW ADD ACTION FLOW
@@ -1211,7 +1522,8 @@ fun BudgetScreen(
                     icon = painterResource(R.drawable.ic_file),
                     onClick = {
                         showCategoryMenuBottomSheet = false
-                        // Handle editing for this particular category budget here
+                        selectedCategoryForDetails = selectedCategoryForMenu
+                        currentView = BudgetScreenView.CATEGORY_DETAIL
                     }
                 ),
                 MenuSheetActionItem(
@@ -1219,7 +1531,6 @@ fun BudgetScreen(
                     icon = painterResource(R.drawable.ic_edit),
                     onClick = {
                         showCategoryMenuBottomSheet = false
-                        // Open the custom category sheet pre-populated to trigger rename
                         categoryToRename = selectedCategoryForMenu
                         showAddCustomCategorySheet = true
                     }
@@ -1228,7 +1539,6 @@ fun BudgetScreen(
                     text = "Delete Category",
                     icon = painterResource(R.drawable.ic_delete),
                     onClick = {
-                        // Queue category for confirmation and close the category menu sheet
                         categoryToDeleteConfirm = selectedCategoryForMenu
                         showCategoryMenuBottomSheet = false
                         selectedCategoryForMenu = null
