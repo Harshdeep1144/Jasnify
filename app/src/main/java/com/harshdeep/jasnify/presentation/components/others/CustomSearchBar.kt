@@ -11,11 +11,13 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -43,6 +45,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -80,9 +83,12 @@ fun CustomSearchBar(
     var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT) }
     val duration = 300
 
-    // Sync the external 'active' state with the internal focus state
+    // Sync the external 'active' state and collapse COMPACT search bar when it loses focus
     LaunchedEffect(isFocused) {
         onActiveChange(isFocused)
+        if (!isFocused && type == SearchBarType.COMPACT) {
+            isExpanded = false
+        }
     }
 
     AnimatedContent(
@@ -237,14 +243,27 @@ fun CustomSearchBar(
     }
 }
 
+// ------ Preview -----------
+
 @Preview(showBackground = true)
 @Composable
 fun CustomSearchBarPreview() {
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
 
     JasnifyTheme {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                // Capture taps on the background container to clear active focus
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { focusManager.clearFocus() }
+                    )
+                }
+                .padding(16.dp)
+        ) {
             Text(
                 text = "Is Search Active: $isSearchActive",
                 color = if (isSearchActive) ContentBrand else ContentSecondary

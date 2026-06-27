@@ -282,7 +282,7 @@ fun BudgetScreen(
     // Convert dynamic total expenses into a clean adaptive display value (Cr, L, K, or raw units)
     val centerTextPrimaryValue = remember(totalSpent) {
         when {
-            totalSpent >= 10000000.0 -> { // >= 1 Crore (100 Lakhs)
+            totalSpent >= 10000000.0 -> { // >= 1 Crore
                 val spentInCrores = totalSpent / 10000000.0
                 "₹ ${String.format(Locale.ENGLISH, "%.1f", spentInCrores)} Cr"
             }
@@ -376,7 +376,7 @@ fun BudgetScreen(
                 } else {
                     CustomTopBar(
                         title = "Expense Summary",
-                        onBackClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                        onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
                     )
                 }
             }
