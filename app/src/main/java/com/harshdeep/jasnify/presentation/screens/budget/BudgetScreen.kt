@@ -142,7 +142,6 @@ fun BudgetScreen(
     var budgetValue by remember { mutableStateOf("INR10000000") } // Default Budget to 10,000,000
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Menu Bottom Sheet visibility state integration
     var showMenuBottomSheet by remember { mutableStateOf(false) }
 
     val sortOptions = remember {
@@ -283,15 +282,15 @@ fun BudgetScreen(
     // Convert dynamic total expenses into a clean adaptive display value (Cr, L, K, or raw units)
     val centerTextPrimaryValue = remember(totalSpent) {
         when {
-            totalSpent >= 10000000.0 -> { // >= 1 Crore
+            totalSpent >= 10000000.0 -> {
                 val spentInCrores = totalSpent / 10000000.0
                 "₹ ${String.format(Locale.ENGLISH, "%.1f", spentInCrores)} Cr"
             }
-            totalSpent >= 100000.0 -> { // >= 1 Lakh (100 Thousand)
+            totalSpent >= 100000.0 -> {
                 val spentInLakhs = totalSpent / 100000.0
                 "₹ ${String.format(Locale.ENGLISH, "%.1f", spentInLakhs)} L"
             }
-            totalSpent >= 1000.0 -> { // >= 1 Thousand
+            totalSpent >= 1000.0 -> {
                 val spentInThousands = totalSpent / 1000.0
                 "₹ ${String.format(Locale.ENGLISH, "%.1f", spentInThousands)} K"
             }
@@ -317,29 +316,46 @@ fun BudgetScreen(
         }
     }
 
-    // Design Tokens & Color mappings matching your high-fidelity screenshot
-    val categoryColors = remember {
-        mapOf(
-            "Vendors" to Color(0xFF1D5590),
-            "Catering" to Color(0xFFFF1E56),
-            "Equipment Rentals" to Color(0xFFE56B8F),
-            "Transport" to Color(0xFF0FAD48),
-            "Transportation" to Color(0xFF0FAD48),
-            "Beauty" to Color(0xFF2FA4C4),
-            "Stationery" to Color(0xFF8D16FF),
-            "Apparel" to Color(0xFFFFB020),
-            "Beverages" to Color(0xFF00C9A7)
+    // ----------------- DYNAMIC COLOR MAPPINGS -----------------
+    val colorPalette = remember {
+        listOf(
+            Color(0xFF1D5590), // Deep Blue
+            Color(0xFFFF1E56), // Crimson Red
+            Color(0xFFE56B8F), // Pink Rose
+            Color(0xFF0FAD48), // Emerald Green
+            Color(0xFF2FA4C4), // Ocean Teal
+            Color(0xFF8D16FF), // Neon Purple
+            Color(0xFFFFB020), // Honey Yellow
+            Color(0xFF00C9A7), // Mint Green
+            Color(0xFF6C5B7B), // Slate Violet
+            Color(0xFF355C7D), // Classic Indigo
+            Color(0xFFF67280), // Pastel Coral
+            Color(0xFFC06C84), // Crimson Grey
+            Color(0xFFFF8C94), // Soft Pink Rose
+            Color(0xFF45B6FE), // Electric Sky Blue
+            Color(0xFF50B498), // Sage Eucalyptus
+            Color(0xFF9B59B6), // Radiant Amethyst
+            Color(0xFFE67E22), // Pumpkin Orange
+            Color(0xFF16A085)  // Cool Pine Green
         )
     }
 
-    // Resolving dynamic category colors exclusively from the categoryColors map
+    // Extract all unique categories dynamically from both database lists to ensure proper mapping
+    val uniqueCategories = remember(allExpenses, defaultCategories) {
+        (allExpenses.map { it.category } + defaultCategories).distinct()
+    }
+
+    // Map each unique category dynamically with color
+    val categoryColors = remember(uniqueCategories, colorPalette) {
+        uniqueCategories.mapIndexed { index, category ->
+            category to colorPalette[index % colorPalette.size]
+        }.toMap()
+    }
+
+    // Dynamic resolution function keeping colors stable throughout the compose session lifecycle
     val getCategoryColor = remember(categoryColors) {
         { categoryName: String ->
-            categoryColors[categoryName] ?: run {
-                val colorValues = categoryColors.values.toList()
-                val index = kotlin.math.abs(categoryName.hashCode()) % colorValues.size
-                colorValues[index]
-            }
+            categoryColors[categoryName] ?: ContentSecondary // Safe fallback grey
         }
     }
 
@@ -713,7 +729,7 @@ fun BudgetScreen(
                         ) {
                             Row{
                                 Text(
-                                    text = "Remaining Funds",
+                                    text = "Total Spent",
                                     style = JasnifyTheme.typography.labelXLarge,
                                     color = ContentPrimary
                                 )
@@ -725,7 +741,7 @@ fun BudgetScreen(
                                 )
                             }
                             Text(
-                                text = formattedRemaining,
+                                text = formattedTotalSpent,
                                 style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
                                 color = Color(0xFFBF3C34)
                             )
@@ -1002,7 +1018,6 @@ fun BudgetScreen(
         )
     }
 }
-
 
 @Preview(name = "Budget Screen Preview", showBackground = true)
 @Composable
