@@ -248,8 +248,8 @@ fun CustomIconButton(
     // Icon size is slightly smaller than the container size for padding
     val iconSize = when (size) {
         ButtonSize.Small -> 20.dp
-        ButtonSize.Medium -> 24.dp
-        ButtonSize.Large -> 24.dp
+        ButtonSize.Medium -> 28.dp
+        ButtonSize.Large -> 36.dp
     }
 
     // Icon buttons often use a square or circle shape.

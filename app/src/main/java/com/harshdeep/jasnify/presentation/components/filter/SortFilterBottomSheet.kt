@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -41,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -52,10 +52,10 @@ import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
@@ -113,7 +113,9 @@ fun SortFilterBottomSheetContent(
             .navigationBarsPadding()
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(596.dp)
         ) {
             // Tab Header System with Adaptive Width & Smooth Slider Animation
             val horizontalPadding = 12.dp
@@ -153,7 +155,8 @@ fun SortFilterBottomSheetContent(
                                 Text(
                                     text = title,
                                     style = JasnifyTheme.typography.headingMedium,
-                                    color = if (activeTab == index) ContentPrimary else ContentTertiary
+                                    color = if (activeTab == index) ContentPrimary else ContentTertiary,
+                                    fontWeight = if (activeTab == index) FontWeight.Medium else FontWeight.Normal
                                 )
                             }
                         }
@@ -164,15 +167,19 @@ fun SortFilterBottomSheetContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = horizontalPadding)
-                            .height(3.dp)
+                            .height(4.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .width(tabWidth)
                                 .fillMaxHeight()
                                 .offset(x = indicatorOffset)
-                                .padding(horizontal = 12.dp) // Keeps original margins within the tab column
-                                .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                .padding(horizontal = 12.dp)
+                                .clip(SquircleShape(
+                                        CornerExtraLarge, CornerExtraLarge,
+                                        CornerExtraSmall, CornerExtraSmall
+                                    )
+                                )
                                 .background(ContentBrandDark)
                         )
                     }
@@ -194,11 +201,10 @@ fun SortFilterBottomSheetContent(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Selection Options Area
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 320.dp, max = 450.dp),
+                    .weight(1f),
                 contentPadding = PaddingValues(bottom = 110.dp)
             ) {
                 if (activeTab == 0) {

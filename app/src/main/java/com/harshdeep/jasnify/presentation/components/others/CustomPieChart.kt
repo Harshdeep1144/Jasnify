@@ -1,7 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.others
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.TweenSpec
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -25,13 +26,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -65,9 +63,14 @@ fun CustomPieChart(
     val animationProgress = remember { Animatable(0f) }
 
     LaunchedEffect(slices) {
+        // Reset and trigger a smooth Ease-In-Out linear circular sweep
+        animationProgress.snapTo(0f)
         animationProgress.animateTo(
             targetValue = 1f,
-            animationSpec = TweenSpec(durationMillis = animationDurationMillis)
+            animationSpec = tween(
+                durationMillis = animationDurationMillis,
+                easing = EaseInOut
+            )
         )
     }
 
@@ -119,24 +122,34 @@ fun CustomPieChart(
                 }
 
                 var currentAngle = -90f // Start at top 12 o'clock position
-                val animatedTotalProgress = animationProgress.value
+                val totalAnimatedAngle = animationProgress.value * 360f
+                var accumulatedAngle = 0f
 
                 slices.forEach { slice ->
                     val sweepAngle = (slice.value / totalValue) * 360f
-                    val animatedSweepAngle = sweepAngle * animatedTotalProgress
 
-                    // Draw the segment arc
-                    drawArc(
-                        color = slice.color,
-                        startAngle = currentAngle,
-                        sweepAngle = animatedSweepAngle,
-                        useCenter = false,
-                        topLeft = arcTopLeft,
-                        size = arcSize,
-                        style = Stroke(width = thicknessPx, cap = StrokeCap.Butt)
-                    )
+                    // Calculate how much of this specific segment is reached by the sweep progress
+                    val sliceAnimatedSweepAngle = when {
+                        totalAnimatedAngle <= accumulatedAngle -> 0f
+                        totalAnimatedAngle >= accumulatedAngle + sweepAngle -> sweepAngle
+                        else -> totalAnimatedAngle - accumulatedAngle
+                    }
+
+                    if (sliceAnimatedSweepAngle > 0f) {
+                        // Draw the partially/fully active segment arc
+                        drawArc(
+                            color = slice.color,
+                            startAngle = currentAngle,
+                            sweepAngle = sliceAnimatedSweepAngle,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = thicknessPx, cap = StrokeCap.Butt)
+                        )
+                    }
 
                     currentAngle += sweepAngle
+                    accumulatedAngle += sweepAngle
                 }
 
                 // Draw a beautiful outer white border to cleanly bound the segments
@@ -150,34 +163,40 @@ fun CustomPieChart(
                     )
                 }
 
-                // Draw beautiful, clean divider white strokes between slices to match design
+                // Draw beautiful, clean divider white strokes sequentially as the sweep builds
                 if (slices.size > 1) {
                     var dividerAngle = -90f
                     val dividerWidth = gapWidthDp.toPx()
                     val innerRadius = outerRadius - thicknessPx
+                    var accumulatedDividerAngle = 0f
 
                     slices.forEach { slice ->
-                        val angleRad = Math.toRadians(dividerAngle.toDouble())
-                        val cosAngle = cos(angleRad).toFloat()
-                        val sinAngle = sin(angleRad).toFloat()
+                        // Draw the divider stroke only if the sweep progress has crossed this junction
+                        if (totalAnimatedAngle >= accumulatedDividerAngle) {
+                            val angleRad = Math.toRadians(dividerAngle.toDouble())
+                            val cosAngle = cos(angleRad).toFloat()
+                            val sinAngle = sin(angleRad).toFloat()
 
-                        val startPoint = Offset(
-                            x = center.x + innerRadius * cosAngle,
-                            y = center.y + innerRadius * sinAngle
-                        )
-                        val endPoint = Offset(
-                            x = center.x + outerRadius * cosAngle,
-                            y = center.y + outerRadius * sinAngle
-                        )
+                            val startPoint = Offset(
+                                x = center.x + innerRadius * cosAngle,
+                                y = center.y + innerRadius * sinAngle
+                            )
+                            val endPoint = Offset(
+                                x = center.x + outerRadius * cosAngle,
+                                y = center.y + outerRadius * sinAngle
+                            )
 
-                        drawLine(
-                            color = Color.White,
-                            start = startPoint,
-                            end = endPoint,
-                            strokeWidth = dividerWidth
-                        )
+                            drawLine(
+                                color = Color.White,
+                                start = startPoint,
+                                end = endPoint,
+                                strokeWidth = dividerWidth
+                            )
+                        }
 
-                        dividerAngle += (slice.value / totalValue) * 360f
+                        val sweepAngle = (slice.value / totalValue) * 360f
+                        dividerAngle += sweepAngle
+                        accumulatedDividerAngle += sweepAngle
                     }
                 }
 

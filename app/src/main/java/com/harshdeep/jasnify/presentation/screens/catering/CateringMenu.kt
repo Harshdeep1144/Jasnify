@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -885,6 +886,7 @@ fun AddItemSheetContent(
                     placeholder = "Type or Search a dish",
                     trailingIcon = painterResource(id = R.drawable.ic_ai),
                     cornerType = CornerType.DEFAULT,
+                    textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
                 )
             }
 
@@ -914,7 +916,8 @@ fun AddItemSheetContent(
                                 placeholder = cuisine,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
                                 cornerType = CornerType.DEFAULT,
-                                trailingIconEnabled = true
+                                trailingIconEnabled = true,
+                                textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
                             )
                             Box(
                                 modifier = Modifier
@@ -942,6 +945,7 @@ fun AddItemSheetContent(
                                 placeholder = type,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
                                 cornerType = CornerType.DEFAULT,
+                                textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary),
                                 trailingIconEnabled = true
                             )
                             Box(

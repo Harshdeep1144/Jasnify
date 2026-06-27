@@ -56,6 +56,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSh
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
@@ -762,23 +763,37 @@ fun LocationSelectorPill(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Venues in ", style = JasnifyTheme.typography.bodyXLarge, color = ContentBrandDark)
+            Text(
+                text = "Venues in ",
+                style = JasnifyTheme.typography.bodyXLarge,
+                color = ContentBrandDark
+            )
 
-            // Replaced multiline wrap with premium marquee scrolls
             Text(
                 text = location,
                 style = JasnifyTheme.typography.headingMedium,
                 fontWeight = FontWeight.Medium,
                 color = ContentBrandDark,
                 maxLines = 1,
-                modifier = Modifier
-                    .weight(1f)
-                    .basicMarquee()
+                modifier = Modifier.basicMarquee()
             )
 
-            Icon(Icons.Outlined.LocationOn, null, tint = ContentBrandDark, modifier = Modifier.size(24.dp).padding(start = 4.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Icon(Icons.Outlined.KeyboardArrowRight, null, tint = ContentBrandDark)
+            Icon(
+                imageVector = Icons.Outlined.LocationOn,
+                contentDescription = null,
+                tint = ContentBrandDark,
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .size(24.dp)
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Icon(
+                imageVector = Icons.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = ContentBrandDark
+            )
         }
     }
 }

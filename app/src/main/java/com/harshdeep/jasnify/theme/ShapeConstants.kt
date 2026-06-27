@@ -8,7 +8,8 @@ val CornerExtraSmall: Dp = 4.dp
 val CornerSmall: Dp = 8.dp
 val CornerMedium: Dp = 12.dp
 val CornerLarge: Dp = 16.dp
-val CornerExtraLarge: Dp = 20.dp
+val CornerLargeIncrease: Dp = 20.dp
+val CornerExtraLarge: Dp = 28.dp
 
 // Corner smoothing constants
 

@@ -3,11 +3,10 @@ package com.harshdeep.jasnify.presentation.components.buttons
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -17,17 +16,17 @@ import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
@@ -37,6 +36,7 @@ enum class ButtonBackground {
     TRANSLUCENT,
     OPAQUE
 }
+
 sealed interface TopIcon {
     enum class Predefined : TopIcon {
         BACK,           // Chevron Left (<)
@@ -45,7 +45,7 @@ sealed interface TopIcon {
         MENU_VERTICAL,  // Vertical Dots (⋮)
         MENU_HORIZONTAL // Horizontal Dots (...)
     }
-    data class Custom(val imageVector: ImageVector) : TopIcon
+    data class CustomPainter(val painter: Painter) : TopIcon
 }
 
 @Composable
@@ -56,24 +56,24 @@ fun TopBarIconButton(
     backgroundStyle: ButtonBackground = ButtonBackground.TRANSPARENT,
     iconColor: Color = ContentPrimary,
     size: Dp = 40.dp,
-    iconSize: Dp = 30.dp
+    iconSize: Dp = 30.dp,
+    translucentAlpha: Float = 0.2f
 ) {
     val backgroundColor = when (backgroundStyle) {
         ButtonBackground.TRANSPARENT -> Color.Transparent
-        ButtonBackground.TRANSLUCENT -> SurfaceSecondary.copy(alpha = 0.3f)
+        ButtonBackground.TRANSLUCENT -> Color.White.copy(alpha = translucentAlpha)
         ButtonBackground.OPAQUE -> SurfaceSecondary
     }
 
-    val imageVector = when (icon) {
-        TopIcon.Predefined.BACK -> Icons.AutoMirrored.Rounded.KeyboardArrowLeft
-        TopIcon.Predefined.BACK_2 -> Icons.AutoMirrored.Rounded.ArrowBack
-        TopIcon.Predefined.CLOSE -> Icons.Rounded.Close
-        TopIcon.Predefined.MENU_VERTICAL -> Icons.Rounded.MoreVert
-        TopIcon.Predefined.MENU_HORIZONTAL -> Icons.Rounded.MoreHoriz
-        is TopIcon.Custom -> icon.imageVector
+    // Convert the TopIcon type into a Painter so either predefined vector graphics or custom Painters render
+    val painter: Painter = when (icon) {
+        TopIcon.Predefined.BACK -> rememberVectorPainter(Icons.AutoMirrored.Rounded.KeyboardArrowLeft)
+        TopIcon.Predefined.BACK_2 -> rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack)
+        TopIcon.Predefined.CLOSE -> rememberVectorPainter(Icons.Rounded.Close)
+        TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
+        TopIcon.Predefined.MENU_HORIZONTAL -> rememberVectorPainter(Icons.Rounded.MoreHoriz)
+        is TopIcon.CustomPainter -> icon.painter
     }
-
-    val tintColor = iconColor
 
     Box(
         modifier = modifier
@@ -84,7 +84,7 @@ fun TopBarIconButton(
                 if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
                     Modifier.border(
                         width = 1.dp,
-                        color = SurfaceSecondary.copy(alpha = 0.15f),
+                        color = SurfaceSecondary.copy(alpha = translucentAlpha * 0.5f),
                         shape = SquircleShape(100, CornerSmoothingDefault)
                     )
                 } else {
@@ -97,16 +97,13 @@ fun TopBarIconButton(
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = imageVector,
+            painter = painter,
             contentDescription = null,
-            tint = tintColor,
+            tint = iconColor,
             modifier = Modifier.size(iconSize)
         )
     }
 }
-
-
-
 
 // ------------ Preview ---------------
 
@@ -121,7 +118,6 @@ private fun TopBarIconButtonPreview() {
         TopIcon.Predefined.MENU_HORIZONTAL
     )
 
-    // Using a column layout for the preview to mimic the screenshot
     androidx.compose.foundation.layout.Column(
         modifier = Modifier.padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
