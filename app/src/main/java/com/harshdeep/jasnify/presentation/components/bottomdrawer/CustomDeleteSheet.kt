@@ -29,7 +29,7 @@ fun CustomDeleteSheet(
     onDismiss: () -> Unit,
     onConfirmRemove: () -> Unit,
     modifier: Modifier = Modifier,
-    confirmButtonText: String? = null // 1. Added nullable parameter with a default null value
+    confirmButtonText: String? = null
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -45,7 +45,7 @@ fun CustomDeleteSheet(
                     .background(ContentTertiary, shape = RoundedCornerShape(100))
             )
         },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(CornerExtraLarge, CornerExtraLarge),
         modifier = modifier
     ) {
         Column(
@@ -77,7 +77,7 @@ fun CustomDeleteSheet(
             // Primary red confirmation button
             CustomTextButton(
                 onClick = onConfirmRemove,
-                text = confirmButtonText ?: "Remove", // 2. Uses the Elvis operator to fall back to "Remove" if null
+                text = confirmButtonText ?: "Remove",
                 shapeStyle = ButtonShapeStyle.Square,
                 containerColor = MaterialTheme.colorScheme.error,
                 modifier = Modifier.fillMaxWidth()

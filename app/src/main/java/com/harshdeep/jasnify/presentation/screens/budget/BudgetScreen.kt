@@ -61,6 +61,8 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -96,8 +98,6 @@ import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
 import java.util.Locale
 
-
-// Enumeration to manage state transitions within the budget flows
 enum class BudgetScreenView {
     BUDGET_TRACKER,
     EXPENSE_SUMMARY
@@ -143,6 +143,10 @@ fun BudgetScreen(
     var showEditBudgetSheet by remember { mutableStateOf(false) }
     var budgetValue by remember { mutableStateOf("INR10000000") } // Default Budget to 1 Crore (10,000,000)
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // Menu Bottom Sheet visibility state integration
+    var showMenuBottomSheet by remember { mutableStateOf(false) }
+    val menuBottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val sortOptions = remember {
         listOf(
@@ -370,7 +374,7 @@ fun BudgetScreen(
                     CustomTopBar(
                         title = "Budget Tracker",
                         onBackClick = { onBackClick() },
-                        onMenuClick = { },
+                        onMenuClick = { showMenuBottomSheet = true },
                         isLargeTitle = true
                     )
                 } else {
@@ -825,7 +829,7 @@ fun BudgetScreen(
                         }
                     }
 
-                    // Action CTAs (AI Overview & Add Expense Row matches perfect alignment)
+                    // AI Overview & Add Expense Row matches perfect alignment
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -941,22 +945,14 @@ fun BudgetScreen(
             sheetState = deleteSheetState,
             confirmButtonText = "Delete Expense",
             onDismiss = {
-                coroutineScope.launch {
-                    deleteSheetState.hide()
-                }.invokeOnCompletion {
-                    expenseToDelete = null
-                }
+                expenseToDelete = null
             },
             onConfirmRemove = {
                 val currentExpenseId = expenseToDelete?.id
                 if (currentExpenseId != null) {
                     allExpenses = allExpenses.filter { it.id != currentExpenseId }
                 }
-                coroutineScope.launch {
-                    deleteSheetState.hide()
-                }.invokeOnCompletion {
-                    expenseToDelete = null
-                }
+                expenseToDelete = null
             }
         )
     }
@@ -967,19 +963,45 @@ fun BudgetScreen(
             initialBudgetValue = budgetValue,
             sheetState = editBudgetSheetState,
             onDismiss = {
-                coroutineScope.launch {
-                    editBudgetSheetState.hide()
-                }.invokeOnCompletion {
-                    showEditBudgetSheet = false
-                }
+                showEditBudgetSheet = false
             },
             onUpdateBudget = { updatedValue ->
                 budgetValue = updatedValue
-                coroutineScope.launch {
-                    editBudgetSheetState.hide()
-                }.invokeOnCompletion {
-                    showEditBudgetSheet = false
-                }
+                showEditBudgetSheet = false
+            }
+        )
+    }
+
+    // Custom Menu Bottom Sheet
+    if (showMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "Edit Budget",
+                    icon = painterResource(R.drawable.ic_edit),
+                    onClick = {
+                        showMenuBottomSheet = false
+                        showEditBudgetSheet = true
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Manage Room Access",
+                    icon = painterResource(R.drawable.ic_user_default),
+                    onClick = {
+                        showMenuBottomSheet = false
+                        // Handle Manage Room Access action flow here
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Manage Categories",
+                    icon = painterResource(R.drawable.ic_category),
+                    onClick = {
+                        showMenuBottomSheet = false
+                    }
+                )
+            ),
+            onCancelClick = {
+                showMenuBottomSheet = false
             }
         )
     }
