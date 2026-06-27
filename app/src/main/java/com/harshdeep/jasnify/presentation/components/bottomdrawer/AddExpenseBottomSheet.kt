@@ -45,18 +45,15 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
 import java.util.Locale
-
-enum class AddExpenseStep {
-    MAIN_FORM,
-    CUSTOM_CATEGORY
-}
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.TextRange
 
 /**
  * A custom visual transformation that formats raw numeric input into standard Indian style
@@ -122,87 +119,121 @@ fun AddExpenseBottomSheet(
     initialCategory: String = "",
     initialEmoji: String = ""
 ) {
-    var currentStep by remember { mutableStateOf(AddExpenseStep.MAIN_FORM) }
-    var dynamicCategories by remember(categories) { mutableStateOf(categories) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
-    // State keying using remember(initialValue) allows fields to properly update when changing edited items
-    var amountString by remember(initialAmount) { mutableStateOf(initialAmount) }
+    // Set up amount as TextFieldValue with selection pointing to the end of the initial amount
+    var amountTextFieldValue by remember(initialAmount) {
+        mutableStateOf(
+            TextFieldValue(
+                text = initialAmount,
+                selection = TextRange(initialAmount.length)
+            )
+        )
+    }
     var receiverName by remember(initialReceiver) { mutableStateOf(initialReceiver) }
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     var selectedEmoji by remember(initialEmoji) { mutableStateOf(initialEmoji) }
 
-    val headingTitle = if (currentStep == AddExpenseStep.MAIN_FORM) {
-        if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
-    } else {
-        "Add custom category"
-    }
+    var dynamicCategories by remember(categories) { mutableStateOf(categories) }
 
-    val dynamicHeight = if (currentStep == AddExpenseStep.MAIN_FORM) {
-        543.dp
-    } else {
-        161.dp
-    }
+    // Managing the sub-sheet's independent state internally
+    var showCustomCategorySheet by remember { mutableStateOf(false) }
+    val customCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val context = LocalContext.current
+    val headingTitle = if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
 
     CustomBottomSheet(
         heading = headingTitle,
         sheetState = sheetState,
-        onDismiss = {
-            if (currentStep == AddExpenseStep.CUSTOM_CATEGORY) {
-                currentStep = AddExpenseStep.MAIN_FORM
-            } else {
-                onDismiss()
-            }
-        },
-        sheetHeight = dynamicHeight,
+        onDismiss = onDismiss,
+        sheetHeight = 543.dp,
         sheetGesturesEnabled = true
     ) {
-        when (currentStep) {
-            AddExpenseStep.MAIN_FORM -> {
-                AddExpenseSheetContent(
-                    amountString = amountString,
-                    onAmountChange = { amountString = it },
-                    receiverName = receiverName,
-                    onReceiverChange = { receiverName = it },
-                    selectedCategory = selectedCategory,
-                    onCategorySelect = { selectedCategory = it },
-                    dynamicCategories = dynamicCategories,
-                    selectedEmoji = selectedEmoji,
-                    onEmojiChange = { selectedEmoji = it },
-                    onCustomCategoryClick = {
-                        currentStep = AddExpenseStep.CUSTOM_CATEGORY
-                    },
-                    onDismiss = onDismiss,
-                    onSave = { amt, rec, cat ->
-                        if (amountString.isBlank() || receiverName.isBlank() || selectedCategory.isBlank()) {
-                            Toast.makeText(context, "Please enter Amount, Paid to, and select a Category!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            onSave(amt, rec, cat, selectedEmoji)
+        AddExpenseSheetContent(
+            amountTextFieldValue = amountTextFieldValue,
+            onAmountChange = { amountTextFieldValue = it },
+            receiverName = receiverName,
+            onReceiverChange = { receiverName = it },
+            selectedCategory = selectedCategory,
+            onCategorySelect = { selectedCategory = it },
+            dynamicCategories = dynamicCategories,
+            selectedEmoji = selectedEmoji,
+            onEmojiChange = { selectedEmoji = it },
+            onCustomCategoryClick = {
+                showCustomCategorySheet = true
+            },
+            onDismiss = onDismiss,
+            onSave = { amt, rec, cat ->
+                if (amountTextFieldValue.text.isBlank() || receiverName.isBlank() || selectedCategory.isBlank()) {
+                    Toast.makeText(context, "Please enter Amount, Paid to, and select a Category!", Toast.LENGTH_SHORT).show()
+                } else {
+                    onSave(amt, rec, cat, selectedEmoji)
+                }
+            }
+        )
+    }
+
+    if (showCustomCategorySheet) {
+        AddCustomCategoryBottomSheet(
+            sheetState = customCategorySheetState,
+            onDismiss = {
+                coroutineScope.launch {
+                    customCategorySheetState.hide()
+                }.invokeOnCompletion {
+                    if (!customCategorySheetState.isVisible) {
+                        showCustomCategorySheet = false
+                    }
+                }
+            },
+            onAddCategory = { newCategory ->
+                if (newCategory.isBlank()) {
+                    Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
+                } else {
+                    onAddCategory(newCategory)
+                    dynamicCategories = dynamicCategories + newCategory
+                    selectedCategory = newCategory
+                    coroutineScope.launch {
+                        customCategorySheetState.hide()
+                    }.invokeOnCompletion {
+                        if (!customCategorySheetState.isVisible) {
+                            showCustomCategorySheet = false
                         }
                     }
-                )
+                }
             }
-            AddExpenseStep.CUSTOM_CATEGORY -> {
-                AddCustomCategorySheetContent(
-                    onDismiss = {
-                        currentStep = AddExpenseStep.MAIN_FORM
-                    },
-                    onAddCategory = { newCategory ->
-                        if (newCategory.isBlank()) {
-                            Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            onAddCategory(newCategory)
-                            dynamicCategories = dynamicCategories + newCategory
-                            selectedCategory = newCategory
-                            currentStep = AddExpenseStep.MAIN_FORM
-                        }
-                    }
-                )
-            }
-        }
+        )
     }
 }
+
+/**
+ * Reusable Custom Category Bottom Sheet configured to support both Adding & Renaming categories.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AddCustomCategoryBottomSheet(
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+    onAddCategory: (String) -> Unit,
+    initialCategoryName: String = "",
+    heading: String = "Add custom category"
+) {
+    CustomBottomSheet(
+        heading = heading,
+        sheetState = sheetState,
+        onDismiss = onDismiss,
+        sheetHeight = 161.dp,
+        sheetGesturesEnabled = true
+    ) {
+        AddCustomCategorySheetContent(
+            onDismiss = onDismiss,
+            onAddCategory = onAddCategory,
+            initialCategoryName = initialCategoryName
+        )
+    }
+}
+
+// ----------- Helper Functions and Content of the above bottom sheets ---------------------
 
 fun getEmojiFromString(text: String): String? {
     if (text.isEmpty()) return null
@@ -216,8 +247,8 @@ fun getEmojiFromString(text: String): String? {
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseSheetContent(
-    amountString: String,
-    onAmountChange: (String) -> Unit,
+    amountTextFieldValue: TextFieldValue,
+    onAmountChange: (TextFieldValue) -> Unit,
     receiverName: String,
     onReceiverChange: (String) -> Unit,
     selectedCategory: String,
@@ -276,15 +307,15 @@ fun AddExpenseSheetContent(
 
                         Spacer(modifier = Modifier.width(4.dp))
 
-                        val displayAmountText = remember(amountString) {
-                            if (amountString.isEmpty()) {
+                        val displayAmountText = remember(amountTextFieldValue.text) {
+                            if (amountTextFieldValue.text.isEmpty()) {
                                 "0"
                             } else {
                                 try {
-                                    val parsed = amountString.toLong()
+                                    val parsed = amountTextFieldValue.text.toLong()
                                     NumberFormat.getNumberInstance(Locale("en", "IN")).format(parsed)
                                 } catch (e: Exception) {
-                                    amountString
+                                    amountTextFieldValue.text
                                 }
                             }
                         }
@@ -303,10 +334,10 @@ fun AddExpenseSheetContent(
                         val textWidthDp = with(LocalDensity.current) { textLayoutResult.size.width.toDp() }
 
                         BasicTextField(
-                            value = amountString,
-                            onValueChange = { input ->
-                                if (input.all { it.isDigit() } && input.length <= 9) {
-                                    onAmountChange(input)
+                            value = amountTextFieldValue,
+                            onValueChange = { newValue ->
+                                if (newValue.text.all { it.isDigit() } && newValue.text.length <= 9) {
+                                    onAmountChange(newValue)
                                 }
                             },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -317,7 +348,7 @@ fun AddExpenseSheetContent(
                             modifier = Modifier
                                 .width(textWidthDp + 6.dp),
                             decorationBox = { innerTextField ->
-                                if (amountString.isEmpty()) {
+                                if (amountTextFieldValue.text.isEmpty()) {
                                     Text(
                                         text = "0",
                                         style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
@@ -559,7 +590,7 @@ fun AddExpenseSheetContent(
         ) {
             CustomTextButton(
                 onClick = {
-                    val finalAmount = amountString.toLongOrNull() ?: 0L
+                    val finalAmount = amountTextFieldValue.text.toLongOrNull() ?: 0L
                     onSave(finalAmount, receiverName, selectedCategory)
                 },
                 text = "Save Details",
@@ -584,12 +615,22 @@ fun AddExpenseSheetContent(
 @Composable
 fun AddCustomCategorySheetContent(
     onDismiss: () -> Unit,
-    onAddCategory: (String) -> Unit
+    onAddCategory: (String) -> Unit,
+    initialCategoryName: String = ""
 ) {
-    var categoryInput by remember { mutableStateOf("") }
+    // Utilize TextFieldValue state wrapper to manually enforce end-of-word selection ranges
+    var categoryInput by remember(initialCategoryName) {
+        mutableStateOf(
+            TextFieldValue(
+                text = initialCategoryName,
+                selection = TextRange(initialCategoryName.length)
+            )
+        )
+    }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(focusRequester) {
+        delay(50) // Small delay ensures focus and soft-keyboard interactions bind flawlessly
         focusRequester.requestFocus()
     }
 
@@ -600,11 +641,40 @@ fun AddCustomCategorySheetContent(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        PrimaryInput(
+        // Styled directly using OutlinedTextField to safely inject robust TextFieldValue mappings
+        OutlinedTextField(
             value = categoryInput,
             onValueChange = { categoryInput = it },
-            modifier = Modifier.focusRequester(focusRequester),
-            placeholder = "Enter a category of your choice"
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .focusRequester(focusRequester)
+                .background(
+                    SurfaceSecondary,
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                )
+                .border(
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                ),
+            shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+            singleLine = true,
+            placeholder = {
+                Text(
+                    text = "Enter a category of your choice",
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentSecondary
+                )
+            },
+            textStyle = JasnifyTheme.typography.labelXLarge,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                disabledBorderColor = Color.Transparent,
+                errorBorderColor = Color.Transparent
+            )
         )
 
         DashedDivider(
@@ -615,7 +685,7 @@ fun AddCustomCategorySheetContent(
 
         CustomTextButton(
             onClick = {
-                onAddCategory(categoryInput.trim())
+                onAddCategory(categoryInput.text.trim())
             },
             text = "Save",
             size = ButtonSize.Medium,
@@ -640,7 +710,7 @@ fun AddExpenseSheetContentPreview() {
     var selectedCategory by remember { mutableStateOf("") }
 
     AddExpenseSheetContent(
-        amountString = "45000",
+        amountTextFieldValue = TextFieldValue("45000"),
         onAmountChange = {},
         receiverName = "GenX Entertainment",
         onReceiverChange = {},

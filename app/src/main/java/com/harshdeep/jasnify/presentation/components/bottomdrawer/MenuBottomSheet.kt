@@ -33,6 +33,7 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -40,6 +41,8 @@ import com.harshdeep.jasnify.theme.CornerLarge
 data class MenuSheetActionItem(
     val text: String,
     val icon: Painter,
+    val containerColor: Color = SurfacePrimary,
+    val contentColor: Color = ContentPrimary,
     val onClick: () -> Unit
 )
 
@@ -96,9 +99,10 @@ fun MenuBottomSheet(
                         text = item.text,
                         leadingIcon = item.icon,
                         type = ButtonType.Tertiary,
+                        contentColor = item.contentColor,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(color = SurfacePrimary, shape = roundedShape)
+                            .background(color = item.containerColor, shape = roundedShape)
                             .clip(roundedShape)
                     )
                 }
@@ -120,7 +124,6 @@ fun MenuBottomSheet(
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable
