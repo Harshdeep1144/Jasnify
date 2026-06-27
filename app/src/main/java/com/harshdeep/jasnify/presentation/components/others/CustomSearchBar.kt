@@ -42,9 +42,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -65,6 +68,8 @@ fun CustomSearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     type: SearchBarType = SearchBarType.DEFAULT,
+    isAiSearch: Boolean = false, // Dynamic flag to toggle search background style/icon
+    backgroundColor: Color = SurfaceSecondary,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -103,7 +108,7 @@ fun CustomSearchBar(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
                     .background(
-                        color = SurfaceSecondary,
+                        color = backgroundColor,
                         shape = SquircleShape(100, 0f)
                     )
                     .border(
@@ -147,9 +152,14 @@ fun CustomSearchBar(
                                 )
                             }
                         } else {
+                            val iconPainter = if (isAiSearch) {
+                                painterResource(id = R.drawable.ic_ai)
+                            } else {
+                                rememberVectorPainter(image = Icons.Rounded.Search)
+                            }
                             Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Search",
+                                painter = iconPainter,
+                                contentDescription = if (isAiSearch) "AI Search" else "Search",
                                 tint = ContentSecondary
                             )
                         }
@@ -212,9 +222,14 @@ fun CustomSearchBar(
                     ),
                 contentAlignment = Alignment.Center
             ) {
+                val iconPainter = if (isAiSearch) {
+                    painterResource(id = R.drawable.ic_ai)
+                } else {
+                    rememberVectorPainter(image = Icons.Rounded.Search)
+                }
                 Icon(
-                    imageVector = Icons.Rounded.Search,
-                    contentDescription = "Search",
+                    painter = iconPainter,
+                    contentDescription = if (isAiSearch) "AI Search" else "Search",
                     tint = ContentSecondary
                 )
             }
@@ -237,19 +252,43 @@ fun CustomSearchBarPreview() {
 
             Spacer(Modifier.height(10.dp))
 
+            // 1. Default Standard Search
             CustomSearchBar(
                 value = text,
-                placeholder = "Search Something",
+                placeholder = "Standard Search",
                 onValueChange = { text = it },
+                onActiveChange = { isSearchActive = it }
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // 2. Default AI Search (isAiSearch = true)
+            CustomSearchBar(
+                value = text,
+                placeholder = "AI Sparkle Search",
+                onValueChange = { text = it },
+                isAiSearch = true,
                 onActiveChange = { isSearchActive = it }
             )
 
             Spacer(Modifier.height(20.dp))
 
+            // 3. Compact Standard Search
             CustomSearchBar(
                 value = text,
                 onValueChange = { text = it },
                 type = SearchBarType.COMPACT,
+                onActiveChange = { isSearchActive = it }
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // 4. Compact AI Search (isAiSearch = true)
+            CustomSearchBar(
+                value = text,
+                onValueChange = { text = it },
+                type = SearchBarType.COMPACT,
+                isAiSearch = true,
                 onActiveChange = { isSearchActive = it }
             )
         }

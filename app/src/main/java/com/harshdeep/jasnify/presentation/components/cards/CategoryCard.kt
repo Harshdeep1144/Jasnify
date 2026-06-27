@@ -55,7 +55,6 @@ import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
-
 @Composable
 fun CategoryCard(
     title: String,
