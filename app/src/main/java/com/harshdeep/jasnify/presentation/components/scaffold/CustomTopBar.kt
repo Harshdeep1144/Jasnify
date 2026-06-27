@@ -42,6 +42,7 @@ fun CustomTopBar(
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
+    translucentAlpha: Float = 0.2f
 ) {
     Surface(
         color = Color.Transparent,
@@ -62,7 +63,8 @@ fun CustomTopBar(
                         backgroundStyle = buttonStyle,
                         size = 40.dp,
                         iconSize = 24.dp,
-                        iconColor = textColor
+                        iconColor = textColor,
+                        translucentAlpha = translucentAlpha
                     )
                 }
             }
@@ -105,7 +107,8 @@ fun CustomTopBar(
                         backgroundStyle = buttonStyle,
                         size = 40.dp,
                         iconSize = 24.dp,
-                        iconColor = textColor
+                        iconColor = textColor,
+                        translucentAlpha = translucentAlpha
                     )
                 }
             }

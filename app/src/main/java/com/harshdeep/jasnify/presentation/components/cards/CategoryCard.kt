@@ -15,25 +15,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.CreditCard
-import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.EmojiPeople
-import androidx.compose.material.icons.outlined.Fastfood
-import androidx.compose.material.icons.outlined.LocalActivity
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Restaurant
-import androidx.compose.material.icons.outlined.Videocam
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,11 +33,8 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.JasnifyTypography
-import com.harshdeep.jasnify.theme.Outfit
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
@@ -60,8 +44,8 @@ fun CategoryCard(
     title: String,
     amount: String,
     modifier: Modifier = Modifier,
-    icons: List<Painter> = emptyList(),
-    totalItemCount: Int = icons.size,
+    emojis: List<String> = emptyList(),
+    totalItemCount: Int = emojis.size,
     onMenuClick: () -> Unit = {},
     menuIconPainter: Painter? = null
 ) {
@@ -96,16 +80,15 @@ fun CategoryCard(
         Row(
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Overlapping icon stack component
+            // Overlapping emoji stack component
             if (totalItemCount > 0) {
-                IconStack(
-                    icons = icons,
+                EmojiStack(
+                    emojis = emojis,
                     totalCount = totalItemCount,
                 )
             }
             Spacer(Modifier.width(12.dp))
 
-            // Custom small icon square tertiary default button
             CustomIconButton(
                 onClick = onMenuClick,
                 icon = menuIconPainter ?: rememberVectorPainter(Icons.Default.MoreVert),
@@ -119,23 +102,23 @@ fun CategoryCard(
 
 
 @Composable
-private fun IconStack(
-    icons: List<Painter>,
+private fun EmojiStack(
+    emojis: List<String>,
     totalCount: Int,
     modifier: Modifier = Modifier
 ) {
     val maxVisibleIcons = 2
-    val displayedIcons = icons.take(maxVisibleIcons)
+    val displayedEmojis = emojis.take(maxVisibleIcons)
     val showBadge = totalCount > maxVisibleIcons
     val badgeValue = totalCount - maxVisibleIcons
 
-    // Negative horizontal layout spacing creates standard UI overlap sequence (right elements layered on top)
+    // Negative horizontal layout spacing creates standard UI overlap sequence
     Row(
         horizontalArrangement = Arrangement.spacedBy((-14).dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
     ) {
-        displayedIcons.forEach { painter ->
+        displayedEmojis.forEach { emoji ->
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
@@ -143,10 +126,9 @@ private fun IconStack(
                     .background(color = SurfaceBrandSecondary, shape = CircleShape)
                     .border(width = 0.5.dp, color = ContentBrand, shape = CircleShape)
             ) {
-                Icon(
-                    painter = painter,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
+                Text(
+                    text = emoji,
+                    fontSize = 20.sp
                 )
             }
         }
@@ -170,72 +152,57 @@ private fun IconStack(
     }
 }
 
-// --- Preview Layers matching Mockup Sheets ---
+// --- Preview  ---
 
 @Preview(showBackground = true, name = "Category Cards Stack Preview")
 @Composable
 private fun CategoryCardPreview() {
-    Column {
-        // Case 1: Multiple Icons with Badge (+1)
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Case 1: Multiple Emojis with Badge (+3)
         CategoryCard(
             title = "Catering",
             amount = "₹12,45,000",
-            icons = listOf(
-                rememberVectorPainter(Icons.Outlined.Fastfood),
-                rememberVectorPainter(Icons.Outlined.Restaurant),
-                rememberVectorPainter(Icons.Outlined.Restaurant),
-                rememberVectorPainter(Icons.Outlined.Restaurant),
-                rememberVectorPainter(Icons.Outlined.Restaurant)
-            ),
+            emojis = listOf("🍔", "🍕", "🍰", "🍩", "🍣"),
             totalItemCount = 5
         )
 
-        // Case 2: Multiple Icons with larger Badge (+3)
+        // Case 2: Multiple Emojis with larger Badge (+3)
         CategoryCard(
             title = "Equipment Rentals",
             amount = "₹4,79,990",
-            icons = listOf(
-                rememberVectorPainter(Icons.Outlined.Videocam),
-                rememberVectorPainter(Icons.Outlined.Mic)
-            ),
+            emojis = listOf("📹", "🎙️"),
             totalItemCount = 5
         )
 
-        // Case 3: Exactly Two Icons (No badge)
+        // Case 3: Exactly Two Emojis (No badge)
         CategoryCard(
             title = "Transportation",
             amount = "₹2,52,600",
-            icons = listOf(
-                rememberVectorPainter(Icons.Outlined.DirectionsCar),
-                rememberVectorPainter(Icons.Outlined.LocalActivity)
-            ),
+            emojis = listOf("🚗", "🎫"),
             totalItemCount = 2
         )
 
-        // Case 4: Exactly Two Icons (No badge - Staff / Crew alternative)
+        // Case 4: Exactly Two Emojis (No badge - Staff / Crew alternative)
         CategoryCard(
             title = "Staff & Crew",
             amount = "₹38,000",
-            icons = listOf(
-                rememberVectorPainter(Icons.Outlined.Person),
-                rememberVectorPainter(Icons.Outlined.EmojiPeople)
-            ),
+            emojis = listOf("🧑", "🙌"),
             totalItemCount = 2
         )
 
-        // Case 5: Single Icon
+        // Case 5: Single Emoji
         CategoryCard(
             title = "Unplanned Costs",
             amount = "₹24,650",
-            icons = listOf(rememberVectorPainter(Icons.Outlined.CreditCard)),
+            emojis = listOf("💳"),
             totalItemCount = 1
         )
 
-        // Case 6: No Icons
+        // Case 6: No Emojis
         CategoryCard(
             title = "Gifts",
             amount = "₹0",
-            icons = emptyList(),
+            emojis = emptyList(),
             totalItemCount = 0
         )
     }

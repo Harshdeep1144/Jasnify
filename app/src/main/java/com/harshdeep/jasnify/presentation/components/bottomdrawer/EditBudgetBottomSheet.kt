@@ -16,7 +16,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -36,7 +35,7 @@ fun EditBudgetBottomSheet(
     onUpdateBudget: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Local state tracking the current budget string (e.g. "INR10000000")
+    // Reverted back to simple String state to match BudgetInput's clean signature
     var budgetValue by remember { mutableStateOf(initialBudgetValue) }
 
     // Derive currency prefix (e.g. "INR", "USD", "JPY") and raw numeric parts
@@ -82,14 +81,10 @@ fun EditBudgetBottomSheet(
         sheetHeight = 226.dp
     ) {
         // --- INSTANT KEYBOARD & FOCUS FLOW ---
-        // By declaring focus management directly inside the bottom sheet content scope,
-        // these states are only created and executed when the sheet actually starts rendering.
         val focusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
 
         LaunchedEffect(Unit) {
-            // yield() pauses execution for exactly one frame pass to ensure
-            // the BudgetInput text node is fully measured and attached.
             yield()
             focusRequester.requestFocus()
             keyboardController?.show()
@@ -127,7 +122,7 @@ fun EditBudgetBottomSheet(
                             fontWeight = FontWeight.Light,
                             color = ContentSecondary,
                         ),
-                        modifier = Modifier.wrapContentSize() // Keep label tightly sized
+                        modifier = Modifier.wrapContentSize()
                     )
                     Text(
                         text = budgetInWords,
@@ -136,7 +131,7 @@ fun EditBudgetBottomSheet(
                             color = ContentPrimary,
                         ),
                         textAlign = TextAlign.Start,
-                        modifier = Modifier.weight(1f, fill = false) // Centered when small, shifts left & wraps when content grows
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                 }
 
@@ -158,7 +153,6 @@ fun EditBudgetBottomSheet(
                             size = ChipSize.Small,
                             hasStroke = true,
                             onClick = {
-                                // Clamp the maximum budget sum strictly to 99,999 Crores (999,999,999,999) to keep calculations stable
                                 val updatedValue = (numericValue + amountToAdd).coerceAtMost(999999999999.0)
                                 val formattedValue = if (updatedValue % 1 == 0.0) {
                                     updatedValue.toLong().toString()
@@ -192,23 +186,15 @@ fun EditBudgetBottomSheet(
 
 /**
  * Utility function to convert double amounts to Indian currency verbal notation.
- * Matches standard Indian layout naming units (Lakhs, Crores).
- * Dynamically suffixes currency types based on selection (INR, JPY, USD, etc.).
  */
 private fun convertToIndianCurrencyInWords(amount: Double, currencyCode: String): String {
-    // Safeguard against NaN, Infinite, or Negative float values
     if (amount.isNaN() || amount.isInfinite() || amount < 0.0) return "Zero Only"
-
-    // Fallback gracefully if an extraordinarily huge number escapes past input boundaries
-    if (amount > 999999999999.0) {
-        return "Amount Too Large"
-    }
+    if (amount > 999999999999.0) return "Amount Too Large"
 
     val num = amount.toLong()
     if (num == 0L) return "Zero Only"
 
     val result = StringBuilder()
-
     val crores = num / 10000000L
     var rem = num % 10000000L
 
@@ -244,7 +230,6 @@ private fun convertToIndianCurrencyInWords(amount: Double, currencyCode: String)
         word.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
     }
 
-    // Map common currency symbols to standard readable codes
     val cleanCode = when (currencyCode.trim()) {
         "₹", "INR" -> "Rupee"
         "$", "USD" -> "USD"
@@ -269,9 +254,6 @@ private val tens = arrayOf(
     "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
 )
 
-/**
- * Safely parses numbers up to 999,999 by utilizing thousand steps.
- */
 private fun convertThousandsAndBelow(number: Long): String {
     val result = StringBuilder()
     val thousands = number / 1000L
@@ -285,9 +267,6 @@ private fun convertThousandsAndBelow(number: Long): String {
     return result.toString().trim()
 }
 
-/**
- * Parses numbers less than 1000 with defensive index out of bounds validation.
- */
 private fun convertLessThanThousand(number: Long): String {
     var n = number
     val result = StringBuilder()

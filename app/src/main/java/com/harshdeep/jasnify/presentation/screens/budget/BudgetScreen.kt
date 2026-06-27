@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,9 +14,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -52,6 +55,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -59,27 +63,12 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
-import com.harshdeep.jasnify.presentation.components.filter.FilterButton
-import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
-import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
-import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.others.DashedDivider
-import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -93,6 +82,23 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CategoryCard
+import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
+import com.harshdeep.jasnify.presentation.components.filter.FilterButton
+import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
+import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
@@ -101,7 +107,8 @@ import java.util.Locale
 
 enum class BudgetScreenView {
     BUDGET_TRACKER,
-    EXPENSE_SUMMARY
+    EXPENSE_SUMMARY,
+    EXPENSE_CATEGORY
 }
 
 data class ExpenseItem(
@@ -114,15 +121,27 @@ data class ExpenseItem(
     val lastUpdatedDate: String? = null
 )
 
+// Helper structure to hold dynamically computed category values
+data class CategorySummaryData(
+    val name: String,
+    val amountFormatted: String,
+    val amountRaw: Double,
+    val emojis: List<String>,
+    val totalCount: Int
+)
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
     var searchQuery by remember { mutableStateOf("") }
+    var categorySearchQuery by remember { mutableStateOf("") } // Separate state for categories
     var expandedCardId by remember { mutableStateOf<String?>("0") }
     var isSearchBarFocused by remember { mutableStateOf(false) }
 
@@ -146,27 +165,20 @@ fun BudgetScreen(
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
 
-    val sortOptions = remember {
-        listOf(
-            "Newest First",
-            "Oldest First",
-            "Highest Amount",
-            "Lowest Amount"
-        )
-    }
+    // States added to support dynamically launching a menu specific to a chosen Category Card
+    var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
+    var selectedCategoryForMenu by remember { mutableStateOf<String?>(null) }
 
-    val filterOptions = remember {
-        listOf(
-            "Vendors",
-            "Catering",
-            "Beauty",
-            "Stationery",
-            "Apparel",
-            "Beverages",
-            "Transport",
-            "Equipment Rentals"
-        )
-    }
+    // State to hold the category queued for deletion confirmation
+    var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
+
+    // Category Screen Add / Rename Bottom Sheet integration
+    var showAddCustomCategorySheet by remember { mutableStateOf(false) }
+    var categoryToRename by remember { mutableStateOf<String?>(null) }
+    val addCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val sortOptions = remember { listOf("Newest First", "Oldest First", "Highest Amount", "Lowest Amount") }
+    val filterOptions = remember { listOf("Vendors", "Catering", "Beauty", "Stationery", "Apparel", "Beverages", "Transport", "Equipment Rentals") }
 
     var selectedSortOption by remember { mutableStateOf("Newest First") }
     var selectedFilterOptions by remember { mutableStateOf(emptySet<String>()) }
@@ -174,75 +186,23 @@ fun BudgetScreen(
     var allExpenses by remember {
         mutableStateOf(
             listOf(
-                ExpenseItem(
-                    id = "1",
-                    title = "The Divine Frames",
-                    category = "Vendors",
-                    amount = "₹26,10,660",
-                    emoji = "📸",
-                    lastUpdatedBy = "Anand K.",
-                    lastUpdatedDate = "Aug 24, 2025, 01:04pm"
-                ),
-                ExpenseItem(
-                    id = "2",
-                    title = "Varun Catering",
-                    category = "Catering",
-                    amount = "₹12,45,000",
-                    emoji = "🍔"
-                ),
-                ExpenseItem(
-                    id = "3",
-                    title = "GenX Entertainment",
-                    category = "Vendors",
-                    amount = "₹45,000",
-                    emoji = "🥂"
-                ),
-                ExpenseItem(
-                    id = "6",
-                    title = "Shine & Glow Makeup Studio",
-                    category = "Beauty",
-                    amount = "₹15,000",
-                    emoji = "💄"
-                ),
-                ExpenseItem(
-                    id = "7",
-                    title = "Elite Invitations & Prints",
-                    category = "Stationery",
-                    amount = "₹12,500",
-                    emoji = "✉️"
-                ),
-                ExpenseItem(
-                    id = "8",
-                    title = "Classic Gowns & Tuxedos",
-                    category = "Apparel",
-                    amount = "₹85,000",
-                    emoji = "👔"
-                ),
-                ExpenseItem(
-                    id = "9",
-                    title = "Signature Mocktail Bar",
-                    category = "Beverages",
-                    amount = "₹18,000",
-                    emoji = "🍸"
-                ),
-                ExpenseItem(
-                    id = "10",
-                    title = "Prasad Travels",
-                    category = "Transport",
-                    amount = "₹2,52,600",
-                    emoji = "🚗",
-                    lastUpdatedBy = "Meera J.",
-                    lastUpdatedDate = "Aug 26, 2025, 04:30pm"
-                ),
-                ExpenseItem(
-                    id = "11",
-                    title = "Vikas Equipment Rentals",
-                    category = "Equipment Rentals",
-                    amount = "₹4,79,990",
-                    emoji = "⚙️",
-                    lastUpdatedBy = "Harsh Deep",
-                    lastUpdatedDate = "Aug 27, 2025, 11:15am"
-                )
+                ExpenseItem(id = "1", title = "The Divine Frames", category = "Vendors", amount = "₹26,10,660", emoji = "📸", lastUpdatedBy = "Anand K.", lastUpdatedDate = "Aug 24, 2025, 01:04pm"),
+                ExpenseItem(id = "2", title = "Varun Catering", category = "Catering", amount = "₹12,45,000", emoji = "🍔"),
+                ExpenseItem(id = "3", title = "GenX Entertainment", category = "Vendors", amount = "₹45,000", emoji = "🥂"),
+                ExpenseItem(id = "4", title = "Nupur Makeup Artist", category = "Vendors", amount = "₹35,000", emoji = "🧑"),
+                ExpenseItem(id = "5", title = "Decor Elements", category = "Vendors", amount = "₹1,50,000", emoji = "🎈"),
+                ExpenseItem(id = "6", title = "Shine & Glow Makeup Studio", category = "Beauty", amount = "₹15,000", emoji = "💄"),
+                ExpenseItem(id = "7", title = "Elite Invitations & Prints", category = "Stationery", amount = "₹12,500", emoji = "✉️"),
+                ExpenseItem(id = "8", title = "Classic Gowns & Tuxedos", category = "Apparel", amount = "₹85,000", emoji = "👔"),
+                ExpenseItem(id = "9", title = "Signature Mocktail Bar", category = "Beverages", amount = "₹18,000", emoji = "🍸"),
+                ExpenseItem(id = "10", title = "Prasad Travels", category = "Transportation", amount = "₹2,52,600", emoji = "🚗", lastUpdatedBy = "Meera J.", lastUpdatedDate = "Aug 26, 2025, 04:30pm"),
+                ExpenseItem(id = "11", title = "Royal Travels Bus", category = "Transportation", amount = "₹1,10,000", emoji = "🚌"),
+                ExpenseItem(id = "12", title = "Vikas Equipment Rentals", category = "Equipment Rentals", amount = "₹4,79,990", emoji = "⚙️", lastUpdatedBy = "Harsh Deep", lastUpdatedDate = "Aug 27, 2025, 11:15am"),
+                ExpenseItem(id = "13", title = "Audio Stage Setup", category = "Equipment Rentals", amount = "₹1,20,000", emoji = "🔊"),
+                ExpenseItem(id = "14", title = "LED Display Walls", category = "Equipment Rentals", amount = "₹2,40,000", emoji = "📺"),
+                ExpenseItem(id = "15", title = "Main Cook & Chef", category = "Staff & Crew", amount = "₹25,000", emoji = "🧑‍🍳"),
+                ExpenseItem(id = "16", title = "Event Coordinators", category = "Staff & Crew", amount = "₹13,000", emoji = "🙋‍♂️"),
+                ExpenseItem(id = "17", title = "Sundry Unplanned", category = "Unplanned Costs", amount = "₹24,650", emoji = "💳")
             )
         )
     }
@@ -252,7 +212,7 @@ fun BudgetScreen(
             listOf(
                 "Venue", "Catering", "Gifts", "Staff & Crew",
                 "Costumes", "Vendors", "Transportation",
-                "Entertainment", "Equipment Rentals"
+                "Entertainment", "Equipment Rentals", "Unplanned Costs"
             )
         )
     }
@@ -281,7 +241,7 @@ fun BudgetScreen(
     val formattedTotalSpent = "₹${formatter.format(totalSpent.toLong())}"
     val formattedTotalBudget = formatter.format(totalBudget.toLong())
 
-    // Convert dynamic total expenses into a clean adaptive display value (Cr, L, K, or raw units)
+    // Convert dynamic total expenses into (Cr, L, K, or raw units)
     val centerTextPrimaryValue = remember(totalSpent) {
         when {
             totalSpent >= 10000000.0 -> {
@@ -316,6 +276,30 @@ fun BudgetScreen(
             "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
             else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 } // "Newest First" (Default)
         }
+    }
+
+    // Dynamic extraction & grouping of Categories to feed Category view
+    val computedCategories = remember(allExpenses, defaultCategories) {
+        val grouped = allExpenses.groupBy { it.category }
+        val finalCategories = (grouped.keys + defaultCategories).distinct()
+
+        finalCategories.map { catName ->
+            val items = grouped[catName] ?: emptyList()
+            val totalAmt = items.sumOf { parseAmount(it.amount) }
+            val emojis = items.map { it.emoji }
+            CategorySummaryData(
+                name = catName,
+                amountFormatted = "₹${formatter.format(totalAmt.toLong())}",
+                amountRaw = totalAmt,
+                emojis = emojis,
+                totalCount = items.size
+            )
+        }.sortedByDescending { it.amountRaw }
+    }
+
+    // Filtered categories for the search logic on Category Screen
+    val filteredCategorySummary = computedCategories.filter {
+        it.name.contains(categorySearchQuery, ignoreCase = true)
     }
 
     // ----------------- DYNAMIC COLOR MAPPINGS -----------------
@@ -378,6 +362,7 @@ fun BudgetScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = Modifier
             .fillMaxSize()
             .clickable(
@@ -387,30 +372,41 @@ fun BudgetScreen(
                 focusManager.clearFocus()
             },
         topBar = {
+            val topBarBg = if(currentView == BudgetScreenView.EXPENSE_CATEGORY) SurfaceSecondary else SurfacePrimary
             Column(
                 modifier = Modifier
-                    .background(SurfacePrimary)
+                    .background(topBarBg)
                     .statusBarsPadding()
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
                     ) {
-                        // Dismiss keyboard if user clicks on TopBar header area
                         focusManager.clearFocus()
                     }
             ) {
-                if (currentView == BudgetScreenView.BUDGET_TRACKER) {
-                    CustomTopBar(
-                        title = "Budget Tracker",
-                        onBackClick = { onBackClick() },
-                        onMenuClick = { showMenuBottomSheet = true },
-                        isLargeTitle = true
-                    )
-                } else {
-                    CustomTopBar(
-                        title = "Expense Summary",
-                        onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
-                    )
+                when (currentView) {
+                    BudgetScreenView.BUDGET_TRACKER -> {
+                        CustomTopBar(
+                            title = "Budget Tracker",
+                            onBackClick = { onBackClick() },
+                            onMenuClick = { showMenuBottomSheet = true },
+                            isLargeTitle = true
+                        )
+                    }
+                    BudgetScreenView.EXPENSE_SUMMARY -> {
+                        CustomTopBar(
+                            title = "Expense Summary",
+                            onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                        )
+                    }
+                    BudgetScreenView.EXPENSE_CATEGORY -> {
+                        CustomTopBar(
+                            title = "Expense Category",
+                            onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                            buttonStyle = ButtonBackground.TRANSLUCENT,
+                            translucentAlpha = 0.5f
+                        )
+                    }
                 }
             }
         },
@@ -428,6 +424,12 @@ fun BudgetScreen(
             }
         },
     ) { paddingValues ->
+
+
+        // ============================================================================================================================================
+        // SCREEN 1: BUDGET_TRACKER
+        // ============================================================================================================================================
+
 
         AnimatedVisibility(
             visible = (currentView == BudgetScreenView.BUDGET_TRACKER),
@@ -655,7 +657,14 @@ fun BudgetScreen(
             }
         }
 
-        // Expanded Expense Summary View
+
+
+        // ============================================================================================================================================
+        // SCREEN 2: EXPENSE_SUMMARY (Visual Breakdown & Pie Slices)
+        // ============================================================================================================================================
+
+
+
         AnimatedVisibility(
             visible = (currentView == BudgetScreenView.EXPENSE_SUMMARY),
             enter = fadeIn(),
@@ -871,7 +880,7 @@ fun BudgetScreen(
                         }
                     }
 
-                    // AI Overview & Add Expense Row matches perfect alignment
+                    // AI Overview & Back to Categories Row matches perfect alignment
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -880,12 +889,12 @@ fun BudgetScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         CustomTextButton(
-                            onClick = { },
+                            onClick = {  },
                             text = "AI Overview",
-                            leadingIcon = painterResource(R.drawable.ic_ai),
                             shapeStyle = ButtonShapeStyle.Square,
                             type = ButtonType.Secondary,
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            leadingIcon = painterResource(R.drawable.ic_ai)
                         )
 
                         CustomTextButton(
@@ -897,6 +906,104 @@ fun BudgetScreen(
                             shapeStyle = ButtonShapeStyle.Square,
                             type = ButtonType.Primary,
                             modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+
+        // ============================================================================================================================================
+        // SCREEN 3: EXPENSE_CATEGORY
+        // ============================================================================================================================================
+
+
+        AnimatedVisibility(
+            visible = (currentView == BudgetScreenView.EXPENSE_CATEGORY),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(SurfaceSecondary)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Search bar section
+                    CustomSearchBar(
+                        value = categorySearchQuery,
+                        placeholder = "Search",
+                        onValueChange = { categorySearchQuery = it },
+                        backgroundColor = SurfacePrimary,
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(12.dp)
+                    )
+
+                    // Dynamically compiled list of category summaries
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        items(filteredCategorySummary, key = { it.name }) { categoryItem ->
+                            CategoryCard(
+                                title = categoryItem.name,
+                                amount = categoryItem.amountFormatted,
+                                emojis = categoryItem.emojis,
+                                totalItemCount = categoryItem.totalCount,
+                                onMenuClick = {
+                                    // Binds selected category context and triggers bottom sheet visibility
+                                    selectedCategoryForMenu = categoryItem.name
+                                    showCategoryMenuBottomSheet = true
+                                }
+                            )
+                        }
+
+                        item { Spacer(modifier = Modifier.height(12.dp)) }
+                    }
+
+                    // Bottom Navigation Button Sticky Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(elevation = 12.dp, spotColor = ContentPrimary, ambientColor = ContentPrimary)
+                            .background(SurfacePrimary)
+                            .padding(12.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomTextButton(
+                            onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                            text = "View Summary",
+                            type = ButtonType.Secondary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            modifier = Modifier
+                                .weight(1f)
+                        )
+
+                        CustomTextButton(
+                            onClick = {
+                                // Clear rename queue, and open the category-only bottom sheet directly
+                                categoryToRename = null
+                                showAddCustomCategorySheet = true
+                            },
+                            text = "Add Category",
+                            type = ButtonType.Primary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            modifier = Modifier
+                                .weight(1f)
                         )
                     }
                 }
@@ -946,7 +1053,7 @@ fun BudgetScreen(
                                 category = category.ifBlank { "Misc" },
                                 amount = formattedAmount,
                                 emoji = emoji.ifBlank { "💸" },
-                                lastUpdatedBy = "Harsh Deep",
+                                lastUpdatedBy = "Anonymous",
                                 lastUpdatedDate = "Just now"
                             )
                         } else {
@@ -962,7 +1069,7 @@ fun BudgetScreen(
                         category = category.ifBlank { "Misc" },
                         amount = formattedAmount,
                         emoji = emoji.ifBlank { "💸" },
-                        lastUpdatedBy = "Harsh Deep",
+                        lastUpdatedBy = "Anonymous",
                         lastUpdatedDate = "Just now"
                     )
                     allExpenses = listOf(newItem) + allExpenses
@@ -974,6 +1081,53 @@ fun BudgetScreen(
             onAddCategory = { newCategory ->
                 if (!defaultCategories.contains(newCategory)) {
                     defaultCategories = defaultCategories + newCategory
+                }
+            }
+        )
+    }
+
+    // Dynamic Category Add / Rename Screen Level Sheet Setup
+    if (showAddCustomCategorySheet) {
+        AddCustomCategoryBottomSheet(
+            sheetState = addCustomCategorySheetState,
+            initialCategoryName = categoryToRename ?: "",
+            heading = if (categoryToRename != null) "Rename category" else "Add custom category",
+            onDismiss = {
+                showAddCustomCategorySheet = false
+                categoryToRename = null
+            },
+            onAddCategory = { inputName ->
+                if (inputName.isBlank()) {
+                    Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
+                } else {
+                    val originalName = categoryToRename
+                    if (originalName != null) {
+                        // RENAME ACTION FLOW
+                        if (originalName != inputName) {
+                            // Update our core template lists
+                            if (defaultCategories.contains(originalName)) {
+                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
+                            } else if (!defaultCategories.contains(inputName)) {
+                                defaultCategories = defaultCategories + inputName
+                            }
+
+                            // Ripple category rename changes across all matching physical expenses
+                            allExpenses = allExpenses.map { expense ->
+                                if (expense.category == originalName) {
+                                    expense.copy(category = inputName)
+                                } else {
+                                    expense
+                                }
+                            }
+                        }
+                    } else {
+                        // NEW ADD ACTION FLOW
+                        if (!defaultCategories.contains(inputName)) {
+                            defaultCategories = defaultCategories + inputName
+                        }
+                    }
+                    showAddCustomCategorySheet = false
+                    categoryToRename = null
                 }
             }
         )
@@ -1038,11 +1192,74 @@ fun BudgetScreen(
                     icon = painterResource(R.drawable.ic_category),
                     onClick = {
                         showMenuBottomSheet = false
-                    }
+                        currentView = BudgetScreenView.EXPENSE_CATEGORY
+                    },
                 )
             ),
             onCancelClick = {
                 showMenuBottomSheet = false
+            }
+        )
+    }
+
+    // Custom Category-specific Menu Bottom Sheet
+    if (showCategoryMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "View Expenses",
+                    icon = painterResource(R.drawable.ic_file),
+                    onClick = {
+                        showCategoryMenuBottomSheet = false
+                        // Handle editing for this particular category budget here
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Rename Category",
+                    icon = painterResource(R.drawable.ic_edit),
+                    onClick = {
+                        showCategoryMenuBottomSheet = false
+                        // Open the custom category sheet pre-populated to trigger rename
+                        categoryToRename = selectedCategoryForMenu
+                        showAddCustomCategorySheet = true
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Delete Category",
+                    icon = painterResource(R.drawable.ic_delete),
+                    onClick = {
+                        // Queue category for confirmation and close the category menu sheet
+                        categoryToDeleteConfirm = selectedCategoryForMenu
+                        showCategoryMenuBottomSheet = false
+                        selectedCategoryForMenu = null
+                    },
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ),
+            onCancelClick = {
+                showCategoryMenuBottomSheet = false
+                selectedCategoryForMenu = null
+            }
+        )
+    }
+
+    // Modal Sheet integration for Category Delete confirmation flow
+    if (categoryToDeleteConfirm != null) {
+        CustomDeleteSheet(
+            heading = "Are you sure?",
+            subHeading = "The category will be deleted permanently.",
+            confirmButtonText = "Delete Category",
+            onDismiss = {
+                categoryToDeleteConfirm = null
+            },
+            onConfirmRemove = {
+                val categoryToDelete = categoryToDeleteConfirm
+                if (categoryToDelete != null) {
+                    // Filter out both physical category templates & all associated transactions
+                    allExpenses = allExpenses.filter { it.category != categoryToDelete }
+                    defaultCategories = defaultCategories.filter { it != categoryToDelete }
+                }
+                categoryToDeleteConfirm = null
             }
         )
     }
