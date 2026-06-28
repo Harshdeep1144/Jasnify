@@ -51,6 +51,7 @@ fun CustomTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .height(64.dp)
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -121,7 +122,7 @@ private fun TopBarTextLayout(
     title: String,
     subtitle: String?,
     isLargeTitle: Boolean,
-    textColor: Color, // <-- Added parameter
+    textColor: Color,
     isClickable: Boolean,
     onClick: () -> Unit
 ) {

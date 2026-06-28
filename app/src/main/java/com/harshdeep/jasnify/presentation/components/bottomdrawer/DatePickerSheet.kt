@@ -24,12 +24,13 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceAccent
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import sv.lib.squircleshape.SquircleShape
 import java.time.LocalDate
 import java.time.Month
@@ -113,7 +114,7 @@ fun <T> DatePickerColumn(
                     ) {
                         val textStyle = if (isSelected) {
                             JasnifyTheme.typography.displayMedium.copy(
-                                color = ContentPrimary,
+                                color = ContentBrandDark,
                             )
                         } else {
                             JasnifyTheme.typography.displaySmall.copy(
@@ -259,7 +260,7 @@ fun DatePickerSheet(
                                 .height(itemHeight)
                                 .align(Alignment.Center)
                                 .background(
-                                    color = SurfaceAccent,
+                                    color = SurfaceBrandSecondary,
                                     shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                                 )
                         )
