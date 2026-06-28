@@ -39,7 +39,7 @@ fun OptionSelector(
 ) {
     val backgroundColor = if (isSelected) SurfaceBrandSecondary else SurfacePrimary
     val contentColor = if (isSelected) ContentBrandDark else ContentSecondary
-    val bodyTextColor = if (isSelected) ContentPrimary else ContentSecondary
+    val bodyTextColor = if (isSelected) ContentSecondary else ContentSecondary   // Same for both
 
     Surface(
         modifier = modifier

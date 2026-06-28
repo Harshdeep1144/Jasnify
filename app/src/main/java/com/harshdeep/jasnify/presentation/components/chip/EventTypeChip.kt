@@ -33,8 +33,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.BlurredEdgeTreatment
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +54,8 @@ import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
@@ -60,23 +66,9 @@ fun EventTypeChip(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
-    val containerColor = if (isSelected) {
-        SurfaceAccent
-    } else {
-        BackgroundSecondary
-    }
-
-    val borderColor = if (isSelected) {
-        ContentBrand
-    } else {
-        Color.Transparent
-    }
-
-    val contentColor = if (isSelected) {
-        ContentPrimary
-    } else {
-        ContentSecondary
-    }
+    val containerColor = if (isSelected) SurfaceBrandSecondary else SurfaceSecondary
+    val borderColor = if (isSelected) ContentBrand else Color.Transparent
+    val contentColor = if (isSelected) ContentPrimary else ContentSecondary
 
     // Define the size of the checkmark badge
     val badgeSize = 24.dp
@@ -116,11 +108,27 @@ fun EventTypeChip(
                         .wrapContentWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Image(
-                        painter = iconPainter,
-                        contentDescription = "$label Icon",
-                        modifier = Modifier.size(56.dp)
-                    )
+                    Box(modifier = Modifier.size(56.dp)) {
+                        // 1. The Shadow Layer (Offset, Tinted, and Blurred)
+                        Image(
+                            painter = iconPainter,
+                            contentDescription = null,
+                            colorFilter = ColorFilter.tint(ContentPrimary.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .matchParentSize()
+                                .offset(x = 2.dp, y = 4.dp)
+                                .graphicsLayer {
+                                    clip = false
+                                }
+                                .blur(radius = 10.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                        )
+
+                        Image(
+                            painter = iconPainter,
+                            contentDescription = "$label Icon",
+                            modifier = Modifier.matchParentSize()
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

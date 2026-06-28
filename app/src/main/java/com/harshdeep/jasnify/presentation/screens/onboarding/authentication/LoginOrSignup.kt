@@ -172,9 +172,11 @@ fun LoginOrSignup(
 
     Scaffold(
         topBar = {
-            CustomTopBar(
-                onBackClick = { navController.popBackStack() },
-            )
+            Box(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    onBackClick = { navController.popBackStack() },
+                )
+            }
         },
         content = { paddingValues ->
             Box(

@@ -9,7 +9,7 @@ data class EventTypeData(
 )
 
 val eventTypes = listOf(
-    EventTypeData(1, "Wedding", R.drawable.img_3d_illustration_12),
+    EventTypeData(1, "Wedding", R.drawable.img_3d_illustration_11),
     EventTypeData(2, "Birthday Party", R.drawable.img_3d_illustration_11),
     EventTypeData(3, "Engagement",R.drawable.img_3d_illustration_8 ),
     EventTypeData(4, "Family Gathering", R.drawable.img_3d_illustration_7),

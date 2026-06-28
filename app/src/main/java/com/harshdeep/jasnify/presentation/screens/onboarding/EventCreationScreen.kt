@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.onboarding
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -9,19 +10,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -43,7 +41,6 @@ import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.*
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.ToastData
 import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
@@ -63,12 +60,10 @@ private val DisplayDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
 @RequiresApi(Build.VERSION_CODES.O)
 private val PersistenceDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE // e.g., "2025-10-18"
 
-
 enum class NavigationDirection {
     FORWARD,
     BACKWARD
 }
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -82,15 +77,17 @@ fun EventCreation(
         statusBarColor = BackgroundPrimary
     )
 
-
     var eventData by remember {
         mutableStateOf(
-            // Initialize with one editable sub-event for multi-day flow
-            EventData(isMultiDay = true, subEvents = listOf(
-                SubEventItem(
-                    id = UUID.randomUUID().toString(), isEditing = true
+            EventData(
+                isMultiDay = true,
+                subEvents = listOf(
+                    SubEventItem(
+                        id = UUID.randomUUID().toString(),
+                        isEditing = false
+                    )
                 )
-            ))
+            )
         )
     }
     var currentStep by remember { mutableStateOf(EventCreationStep.EVENT_TYPE) }
@@ -146,13 +143,6 @@ fun EventCreation(
             }
         }
     }
-
-
-    // --- Keyboard/IME State for bottom padding ---
-    val imePadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-    val density = LocalDensity.current
-    val isKeyboardOpen = WindowInsets.ime.getBottom(density) > 0
-    val bottomPadding = if (isKeyboardOpen) imePadding + 12.dp else 32.dp
 
     // --- Navigation Logic ---
 
@@ -233,6 +223,13 @@ fun EventCreation(
         }
     }
 
+    // SYSTEM BACK BUTTON HANDLER
+    // Intercepts physical system back gestures to transition backwards step-by-step
+    // with correct screen animations, only exiting the flow once back at the first step (EVENT_TYPE).
+    BackHandler(enabled = currentStep != EventCreationStep.EVENT_TYPE) {
+        onBack()
+    }
+
     // Determine back button visibility and progress bar step
     val showBackButton = currentStep != EventCreationStep.EVENT_TYPE
     val currentProgressStep = when (currentStep) {
@@ -240,33 +237,29 @@ fun EventCreation(
         else -> currentStep.stepNumber
     }
 
-
     Scaffold(
         topBar = {
-            CustomTopBar(
-                onBackClick = if (showBackButton) onBack else null,
-                title = currentStep.title
-            )
+            Surface(
+                color = BackgroundPrimary,
+                modifier = Modifier.fillMaxWidth()
+                    .statusBarsPadding()
+            ) {
+                CustomTopBar(
+                    onBackClick = if (showBackButton) onBack else null,
+                    title = currentStep.title,
+                    isLargeTitle = true
+                )
+            }
         },
         bottomBar = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(BackgroundPrimary)
-                    .padding(12.dp, 8.dp, 12.dp, bottomPadding)
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(12.dp)
             ) {
-                if (currentStep == EventCreationStep.EVENT_TYPE) {
-                    Text(
-                        text = "Event Type can’t be changed later.",
-                        textAlign = TextAlign.Center,
-                        color = Color.DarkGray,
-                        style = JasnifyTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp, top = 0.dp)
-                    )
-                }
-
                 val buttonText = if (currentStep == EventCreationStep.EVENT_BUDGET) "Finish Event Creation" else "Continue"
 
                 CustomTextButton(
@@ -278,6 +271,19 @@ fun EventCreation(
                     shapeStyle = ButtonShapeStyle.Square,
                     enabled = eventState !is EventCreationState.Loading
                 )
+
+                if (currentStep == EventCreationStep.EVENT_TYPE) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "Event Type can’t be changed later.",
+                        textAlign = TextAlign.Center,
+                        color = ContentSecondary,
+                        style = JasnifyTheme.typography.bodyMedium,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp)
+                    )
+                }
             }
         },
         content = { paddingValues ->
@@ -286,7 +292,7 @@ fun EventCreation(
                     .fillMaxSize()
                     .background(BackgroundPrimary)
                     .padding(paddingValues)
-                    .padding(horizontal = 16.dp, vertical = 0.dp)
+                    .padding(horizontal = 12.dp, vertical = 0.dp)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -294,7 +300,7 @@ fun EventCreation(
                 ) {
                     StepperProgressBar(
                         currentStep = currentProgressStep,
-                        totalSteps = EventCreationStep.Companion.totalSteps,
+                        totalSteps = EventCreationStep.totalSteps,
                     )
 
                     // --- Main Content Switcher ( for directional animation) ---
@@ -337,9 +343,7 @@ fun EventCreation(
                 // --- CustomToast Display  ---
                 AnimatedVisibility(
                     visible = toastData.message != null,
-                    // Slides down from the top edge
                     enter = slideInVertically(initialOffsetY = { -it }),
-                    // Slides up and off the top edge
                     exit = slideOutVertically(targetOffsetY = { -it }),
                     modifier = Modifier
                         .align(Alignment.TopCenter)
@@ -359,10 +363,7 @@ fun EventCreation(
 
 // ---------------------   Step Content Components -------------------------------------
 
-
 // ---------------------   Event Type Content -------------------------------------
-
-
 @Composable
 fun EventTypeContent(
     eventData: EventData,
@@ -408,8 +409,6 @@ fun EventTypeContent(
 }
 
 // ---------------------   Event Name Content -------------------------------------
-
-
 @Composable
 fun EventNameContent(
     eventData: EventData,
@@ -449,10 +448,7 @@ fun EventNameContent(
     }
 }
 
-
 // ---------------------   Event Days Content -------------------------------------
-
-
 @Composable
 fun EventDaysContent(
     eventData: EventData,
@@ -478,8 +474,8 @@ fun EventDaysContent(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier = Modifier.fillMaxSize()
+                .padding(vertical = 16.dp),
         ) {
             options.forEachIndexed { index, option ->
                 val isMultiDayOption = index == 0
@@ -496,10 +492,7 @@ fun EventDaysContent(
     }
 }
 
-
 // ---------------------   Event Single Day Content -------------------------------------
-
-
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -510,13 +503,12 @@ fun EventSingleDayContent(
 ) {
     var isDatePickerVisible by remember { mutableStateOf(false) }
 
-    // Convert the persistent String back to LocalDate for UI use
     val selectedDate = remember(eventData.singleDayDateString) {
         eventData.singleDayDateString?.let {
             try {
                 LocalDate.parse(it, PersistenceDateFormatter)
             } catch (e: Exception) {
-                null // Handle case where saved string is invalid
+                null
             }
         }
     }
@@ -530,11 +522,10 @@ fun EventSingleDayContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text(
-            text = "When is this event?",
+            text = "When is this happening?",
             style = JasnifyTheme.typography.displayLarge
         )
         Spacer(Modifier.height(16.dp))
-        // --- Input Field UI ---
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -544,12 +535,11 @@ fun EventSingleDayContent(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                     shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
                 )
-                .clip(SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)                )
+                .clip(SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault))
                 .background(SurfaceSecondary)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(Modifier.width(5.dp))
             Text(
                 text = displayDateText,
                 style = JasnifyTheme.typography.labelXLarge.copy(
@@ -564,51 +554,49 @@ fun EventSingleDayContent(
                     )
             )
 
-            Spacer(Modifier.width(8.dp))
             Icon(
-                imageVector = Icons.Default.CalendarToday,
+                painter = painterResource(R.drawable.ic_calendar),
                 contentDescription = "Date Picker",
-                tint = ContentPrimary,
+                tint = ContentSecondary,
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(24.dp)
                     .clickable(onClick = { isDatePickerVisible = true })
-            )
-            Spacer(Modifier.width(5.dp))
-        }
-        Column {
-            OrDivider()
-            CustomTextButton(
-                text = "Not decided yet",
-                type = ButtonType.Secondary,
-                size = ButtonSize.Medium,
-                shapeStyle = ButtonShapeStyle.Square,
-                onClick = onSkip,
-                enabled = true,
-                modifier = Modifier.fillMaxWidth()
             )
         }
 
-        // --- Date Picker Bottom Sheet ---
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+        ) {
+            Text(
+                text = "Not yet decided?",
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentSecondary
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "Skip for later",
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentPrimary,
+                modifier = Modifier.clickable(onClick = onSkip)
+            )
+        }
+
         if (isDatePickerVisible) {
             DatePickerSheet(
                 onDismiss = { isDatePickerVisible = false },
                 onDateSelected = { date ->
-                    // Convert LocalDate to String before updating EventData
                     val dateString = date.format(PersistenceDateFormatter)
-                    updateEventData(eventData.copy(singleDayDateString = dateString)) // <-- Update the String property
+                    updateEventData(eventData.copy(singleDayDateString = dateString))
                     isDatePickerVisible = false
                 },
-                // Preselect the current date if available
                 initialDate = selectedDate ?: LocalDate.now()
             )
         }
     }
 }
 
-
 // ---------------------   Event Multi Day Content -------------------------------------
-
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EventMultiDayContent(
@@ -616,18 +604,15 @@ fun EventMultiDayContent(
     updateEventData: (EventData) -> Unit,
     onSkip: () -> Unit
 ) {
-    // We use a mutableStateList derived from the EventData list for local, in-place manipulation
     val subEventsList = remember {
         mutableStateListOf<SubEventItem>().apply { addAll(eventData.subEvents) }
     }
 
-    // Update EventData when the local list changes
     DisposableEffect(subEventsList.toList()) {
         updateEventData(eventData.copy(subEvents = subEventsList.toList()))
         onDispose {}
     }
 
-    // Check if any item is currently unsaved and being edited
     val hasUnsavedEditingItem by remember {
         derivedStateOf {
             subEventsList.any { it.isEditing }
@@ -654,12 +639,10 @@ fun EventMultiDayContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-
             itemsIndexed(subEventsList, key = { _, item -> item.id }) { index, item ->
                 TimeLineInput(
                     item = item,
                     onUpdate = { updatedItem ->
-                        // Find and update the item in the list
                         val foundIndex = subEventsList.indexOfFirst { it.id == updatedItem.id }
                         if (foundIndex != -1) {
                             subEventsList[foundIndex] = updatedItem
@@ -667,7 +650,6 @@ fun EventMultiDayContent(
                     },
                     onDelete = { itemToDelete ->
                         subEventsList.remove(itemToDelete)
-                        // If the list is empty, re-initialize with one empty item for the flow
                         if (subEventsList.isEmpty()) {
                             subEventsList.add(SubEventItem(id = UUID.randomUUID().toString(), isEditing = true))
                         }
@@ -679,16 +661,24 @@ fun EventMultiDayContent(
                 val hasAnyExistingItem = eventData.subEvents.any { it.isExisting }
 
                 if (!hasAnyExistingItem){
-                    OrDivider()
-                    CustomTextButton(
-                        text = "Not decided yet",
-                        type = ButtonType.Secondary,
-                        size = ButtonSize.Medium,
-                        shapeStyle = ButtonShapeStyle.Square,
-                        onClick = onSkip,
-                        enabled = true,
+                    Row(
                         modifier = Modifier.fillMaxWidth()
-                    )
+                            .padding(top = 16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            text = "Not yet decided?",
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentSecondary
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Skip for later",
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentPrimary,
+                            modifier = Modifier.clickable(onClick = onSkip)
+                        )
+                    }
                 }
                 else {
                     Spacer(Modifier.width(16.dp))
@@ -714,15 +704,10 @@ fun EventMultiDayContent(
                 }
             }
         }
-
     }
 }
 
-
 // ---------------------   Event Budget Content -------------------------------------
-
-
-
 @Composable
 fun EventBudgetContent(
     eventData: EventData,
@@ -732,47 +717,57 @@ fun EventBudgetContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "What is the expected budget?",
-            style = JasnifyTheme.typography.displayLarge
-        )
-
-        Spacer(Modifier.height(4.dp))
+        Column {
+            Text(
+                text = "What is the estimate budget?",
+                style = JasnifyTheme.typography.displayLarge
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "This figure will be used to manage your budget.",
+                style = JasnifyTheme.typography.bodyLarge,
+                color = ContentSecondary
+            )
+        }
+        Spacer(Modifier.height(16.dp))
 
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             BudgetInput(
                 value = eventData.budget,
                 onValueChange = { updateEventData(eventData.copy(budget = it)) }
             )
 
-            OrDivider()
-
-            CustomTextButton(
-                onClick = { updateEventData(eventData.copy(budget = "0")) },
-                type = ButtonType.Secondary,
-                size = ButtonSize.Medium,
-                shapeStyle = ButtonShapeStyle.Square,
-                text = "Not Decided yet",
-                modifier = Modifier.fillMaxWidth()
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = "Not yet decided?",
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentSecondary
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = "Skip for later",
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentPrimary,
+                    modifier = Modifier.clickable(onClick = { updateEventData(eventData.copy(budget = "0")) })
+                )
+            }
         }
     }
 }
 
-
 // ---------------------   Preview -------------------------------------
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun EventCreationPreview() {
     JasnifyTheme {
-        // Note: Previewing requires mocking the ViewModel dependencies
-        // This is a minimal mock for UI preview purposes only
         EventCreation(navController = rememberNavController())
     }
 }
