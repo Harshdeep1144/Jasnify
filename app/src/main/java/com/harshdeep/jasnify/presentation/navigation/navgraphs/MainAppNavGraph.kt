@@ -13,6 +13,8 @@ import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
+import com.harshdeep.jasnify.presentation.screens.home.EventDetailsScreen
+
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
     navigation(
@@ -28,7 +30,20 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             HomeScreen(mainNavController = mainNavController)
         }
 
-        // --- Modular Feature Graphs ---
+        // --- Event Details Graphs ---
+        composable(
+            route = Screen.EventDetail.route,
+            enterTransition = { fadeIn(tween(500)) },
+            exitTransition = { fadeOut(tween(500)) }
+        ) {
+            EventDetailsScreen(
+                onBackClick = {
+                    if (mainNavController.previousBackStackEntry != null) {
+                        mainNavController.popBackStack()
+                    }
+                }
+            )
+        }
 
         // Venue Feature Graph
         venueNavGraph(mainNavController)
@@ -48,22 +63,15 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             )
         }
 
-
-        // Budget Feature Graph
-        navigation(
-            startDestination = Screen.BudgetRoot.route,
-            route = Screen.BudgetGraph.route
-        ) {
-            composable(Screen.BudgetRoot.route) {
-                BudgetScreen(
-                    onBackClick = {
-                        if (mainNavController.previousBackStackEntry != null) {
-                            mainNavController.popBackStack()
-                        }
+        // Budget Feature
+        composable(Screen.BudgetRoot.route) {
+            BudgetScreen(
+                onBackClick = {
+                    if (mainNavController.previousBackStackEntry != null) {
+                        mainNavController.popBackStack()
                     }
-                )
-            }
-            // Add BudgetCategoryDetail composable here later
+                }
+            )
         }
     }
 }

@@ -12,7 +12,6 @@ sealed class Screen(val route: String) {
 
     // --- Feature Graph Routes ---
     data object VenueGraph : Screen("venue_graph")
-    data object BudgetGraph : Screen("budget_graph")
 
     // --- Onboarding Screens ---
     data object OnboardingType : Screen("onboarding_type_screen")
@@ -34,6 +33,9 @@ sealed class Screen(val route: String) {
 
     // --- Feature Specific Screens (Inside their respective graphs) ---
 
+    // Event Details Screen
+    data object EventDetail : Screen("even_detail_screen")
+
     // Venue Feature
     data object VenueRoot : Screen("venue_root_screen")
     data object LocationSelector : Screen("location_selector_screen")
@@ -42,6 +44,5 @@ sealed class Screen(val route: String) {
     data object BudgetRoot : Screen("budget_root_screen")
 
     // Catering Feature
-
     data object CateringRoot : Screen("catering_root_screen")
 }
