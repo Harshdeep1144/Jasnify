@@ -37,13 +37,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeTopBar(
     modifier: Modifier = Modifier,
     title: String,
     dateString: String,
+    onMenuClick: () -> Unit = {},
     alpha: Float = 1f
 ) {
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
@@ -72,9 +72,9 @@ fun HomeTopBar(
                 }
                 // Logic for events in the past or currently happening
                 else -> {
-                    when {
-                        eventDay == today -> "Happening"
-                        eventDay == today.minusDays(1) -> "Happened yesterday"
+                    when (eventDay) {
+                        today -> "Happening"
+                        today.minusDays(1) -> "Happened yesterday"
                         else -> {
                             val daysAgo = ChronoUnit.DAYS.between(eventDay, today)
                             "Happened $daysAgo days ago"
@@ -126,7 +126,7 @@ fun HomeTopBar(
 
         TopBarIconButton(
             icon = TopIcon.Predefined.MENU_HORIZONTAL,
-            onClick = { /* Handle Menu Click */ },
+            onClick = onMenuClick,
             backgroundStyle = buttonBackground
         )
     }

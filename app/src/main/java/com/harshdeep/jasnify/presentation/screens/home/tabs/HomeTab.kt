@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -27,19 +28,20 @@ import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.VendorsCarousel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BackgroundSecondary
 import kotlin.math.roundToInt
 
 private val FADE_DISTANCE_DP = 160.dp
 private val HEADER_HEIGHT = 350.dp
 private const val PARALLAX_RATE = 0.5f
 
+@SuppressLint("FrequentlyChangingValue")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeTab(
     onBudgetClick: () -> Unit,
     onVenueClick: () -> Unit,
-    onCateringClick: () -> Unit
+    onCateringClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
@@ -68,7 +70,12 @@ fun HomeTab(
 
         Scaffold(
             topBar = {
-                HomeTopBar(title = "Taylor & Travis’s Wedding", dateString = "2026-11-21", alpha = topBarAlpha)
+                HomeTopBar(
+                    title = "Taylor & Travis’s Wedding",
+                    dateString = "2026-11-21",
+                    alpha = topBarAlpha,
+                    onMenuClick = onMenuClick
+                )
             },
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
