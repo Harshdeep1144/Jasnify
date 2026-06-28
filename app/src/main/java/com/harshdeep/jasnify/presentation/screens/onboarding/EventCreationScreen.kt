@@ -224,8 +224,6 @@ fun EventCreation(
     }
 
     // SYSTEM BACK BUTTON HANDLER
-    // Intercepts physical system back gestures to transition backwards step-by-step
-    // with correct screen animations, only exiting the flow once back at the first step (EVENT_TYPE).
     BackHandler(enabled = currentStep != EventCreationStep.EVENT_TYPE) {
         onBack()
     }
