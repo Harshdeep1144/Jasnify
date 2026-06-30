@@ -149,7 +149,7 @@ fun EventDetailsScreen(
     // Tracks if calendar tab sheet was opened directly via the Event Date widget
     var isDirectDateEdit by remember { mutableStateOf(false) }
 
-    var pickerActiveTab by remember { mutableStateOf(0) } // 0: Saved Timelines, 1: Custom Date
+    var pickerActiveTab by remember { mutableIntStateOf(0) } // 0: Saved Timelines, 1: Custom Date
 
     // Primary Event Name State
     var isEditingEventName by remember { mutableStateOf(false) }
