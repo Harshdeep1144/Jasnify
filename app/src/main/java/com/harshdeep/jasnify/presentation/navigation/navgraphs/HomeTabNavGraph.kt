@@ -16,15 +16,16 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
             onBudgetClick = {
-                // Navigate to the Budget FEATURE GRAPH
-                mainNavController.navigate(Screen.BudgetGraph.route)
+                mainNavController.navigate(Screen.BudgetRoot.route)
             },
             onVenueClick = {
-                // Navigate to the Venue FEATURE GRAPH
                 mainNavController.navigate(Screen.VenueGraph.route)
             },
             onCateringClick = {
                 mainNavController.navigate((Screen.CateringRoot.route))
+            },
+            onMenuClick = {
+                mainNavController.navigate((Screen.EventDetail.route))
             }
         )
     }

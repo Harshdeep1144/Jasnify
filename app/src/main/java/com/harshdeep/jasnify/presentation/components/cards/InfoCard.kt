@@ -61,13 +61,14 @@ fun getButtonColors(nature: InfoCardNature): InfoCardColors {
 @Composable
 fun InfoCard(
     message: String,
-    nature: InfoCardNature
+    nature: InfoCardNature,
+    modifier: Modifier = Modifier
 ) {
 
     val currentColors = getButtonColors(nature = nature)
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
             .border(
                 width = 1.dp,
