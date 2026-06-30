@@ -35,6 +35,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -65,7 +66,9 @@ fun TimeLineInput(
     item: SubEventItem,
     onUpdate: (SubEventItem) -> Unit,
     onDelete: (SubEventItem) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = SurfaceSecondary,
+    hasBorder: Boolean = true
 ) {
     var tempItemState by remember { mutableStateOf(item) }
 
@@ -125,6 +128,8 @@ fun TimeLineInput(
                 EditableTimeLineCard(
                     item = tempItemState,
                     isExisting = item.isExisting,
+                    backgroundColor = backgroundColor,
+                    hasBorder = hasBorder,
                     onValueChange = { newItem -> tempItemState = newItem },
                     onDone = {
                         // When done, mark it as existing and exit editing mode
@@ -144,6 +149,8 @@ fun TimeLineInput(
             }
             TimelineState.EMPTY -> {
                 EmptyDisplayTimeLine(
+                    backgroundColor = backgroundColor,
+                    hasBorder = hasBorder,
                     onEdit = {
                         onUpdate(item.copy(isEditing = true))
                     },
@@ -153,6 +160,8 @@ fun TimeLineInput(
             TimelineState.DISPLAY -> {
                 DisplayTimeLine(
                     item = tempItemState,
+                    backgroundColor = backgroundColor,
+                    hasBorder = hasBorder,
                     onEdit = {
                         onUpdate(item.copy(isEditing = true))
                     },
@@ -181,11 +190,23 @@ fun TimeLineInput(
 // ---- Empty Display Card (Matching uploaded design mockup) ----
 @Composable
 private fun EmptyDisplayTimeLine(
+    backgroundColor: Color,
+    hasBorder: Boolean,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val borderModifier = if (hasBorder) {
+        Modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        )
+    } else {
+        Modifier
+    }
+
     Surface(
-        color = SurfaceSecondary,
+        color = backgroundColor,
         modifier = modifier
             .fillMaxWidth()
             .clickable(
@@ -193,11 +214,7 @@ private fun EmptyDisplayTimeLine(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             )
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-            ),
+            .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     ) {
         Column(
@@ -258,6 +275,8 @@ private fun EmptyDisplayTimeLine(
 private fun EditableTimeLineCard(
     item: SubEventItem,
     isExisting: Boolean,
+    backgroundColor: Color,
+    hasBorder: Boolean,
     onValueChange: (SubEventItem) -> Unit,
     onDone: () -> Unit,
     onCancel: () -> Unit,
@@ -265,14 +284,20 @@ private fun EditableTimeLineCard(
     onShowDatePicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val borderModifier = if (hasBorder) {
+        Modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        )
+    } else {
+        Modifier
+    }
+
     Surface(
-        color = SurfaceSecondary,
+        color = backgroundColor,
         modifier = modifier.fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-            ),
+            .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     ) {
         Column(
@@ -416,19 +441,26 @@ private fun InputTextField(
 @Composable
 private fun DisplayTimeLine(
     item: SubEventItem,
+    backgroundColor: Color,
+    hasBorder: Boolean,
     onEdit: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val borderModifier = if (hasBorder) {
+        Modifier.border(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        )
+    } else {
+        Modifier
+    }
+
     Card(
         modifier = modifier.fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-            ),
+            .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-
-        colors = CardDefaults.cardColors(containerColor = SurfaceSecondary),
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -453,20 +485,13 @@ private fun DisplayTimeLine(
                 )
             }
 
-            Box(
-                modifier = Modifier.size(50.dp),
-                contentAlignment = Alignment.Center
-            ){
-                // NOTE: painterResource will use the mock R.drawable.ic_edit value
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_edit),
-                    contentDescription = "Edit",
-                    tint = Color.DarkGray,
-                    modifier = Modifier.size(20.dp)
-                        .clickable(onClick = onEdit)
-                )
-            }
-
+            CustomIconButton(
+                onClick = onEdit,
+                icon = painterResource(R.drawable.ic_edit),
+                containerColor = backgroundColor,
+                contentColor = ContentPrimary,
+                size = ButtonSize.Small
+            )
         }
     }
 }
@@ -530,6 +555,9 @@ fun TimeLineInputPreview() {
             items(items.size) { index ->
                 TimeLineInput(
                     item = items[index],
+                    // Showcasing parameter overrides if needed (e.g., custom background and optional border)
+                    backgroundColor = SurfaceSecondary,
+                    hasBorder = true,
                     onUpdate = { updatedItem ->
                         // Only update if the ID matches to prevent concurrent modification issues
                         val foundIndex = items.indexOfFirst { it.id == updatedItem.id }

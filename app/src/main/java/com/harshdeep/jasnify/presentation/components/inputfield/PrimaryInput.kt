@@ -54,7 +54,8 @@ fun PrimaryInput(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: Painter? = null,
     trailingIconEnabled: Boolean = false, // Added disable/enable styling parameter
-    cornerType: CornerType = CornerType.DEFAULT
+    cornerType: CornerType = CornerType.DEFAULT,
+    readOnly: Boolean = false // Expose readOnly configuration parameter
 ) {
     val isPassword = keyboardType == KeyboardType.Password
 
@@ -95,6 +96,7 @@ fun PrimaryInput(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
+        readOnly = readOnly, // Apply readOnly state to disable caret and block physical typing
         placeholder = {
             Text(
                 text = placeholder,

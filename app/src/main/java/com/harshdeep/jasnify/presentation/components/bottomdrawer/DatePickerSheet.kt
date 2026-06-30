@@ -75,7 +75,7 @@ fun <T> DatePickerColumn(
         }
     }
 
-    //  Determine the actual centered item object
+    // Determine the actual centered item object
     val centeredItem: T? = remember(centeredItemIndex, items) {
         centeredItemIndex.takeIf { it in items.indices }?.let { items[it] }
     }
@@ -135,38 +135,21 @@ fun <T> DatePickerColumn(
 }
 
 
-
-
-
-
-
-
-
-
-
-
-// ---  DATE PICKER SHEET ---
+// ---  STANDALONE DATE PICKER SLIDER ---
 @RequiresApi(Build.VERSION_CODES.O)
-@SuppressLint("FrequentlyChangingValue")
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DatePickerSheet(
-    onDismiss: () -> Unit,
-    onDateSelected: (LocalDate) -> Unit,
-    initialDate: LocalDate = LocalDate.now()
+fun DatePickerSlider(
+    selectedDate: LocalDate,
+    onDateChanged: (LocalDate) -> Unit,
+    modifier: Modifier = Modifier,
+    yearRange: IntRange = LocalDate.now().year..(LocalDate.now().year + 5),
+    itemHeight: Dp = 60.dp,
+    visibleItems: Int = 3
 ) {
-    val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var selectedDate by remember { mutableStateOf(initialDate) }
-
-    val coroutineScope = rememberCoroutineScope()
-
-    val itemHeight = 60.dp
-    val visibleItems = 3
     val halfVisibleItems = visibleItems / 2
 
-    val currentYear = initialDate.year
-    val years = remember { (currentYear..currentYear + 5).toList() }
+    val years = remember(yearRange) { yearRange.toList() }
     val months = remember { Month.entries.toList() }
 
     val daysInMonth by remember(selectedDate.year, selectedDate.month) {
@@ -180,44 +163,160 @@ fun DatePickerSheet(
     val monthScrollState = rememberLazyListState()
     val dayScrollState = rememberLazyListState()
 
-    // Function to scroll to center (using original list indices)
-    fun LazyListState.scrollToItemCenter(index: Int) {
-        coroutineScope.launch {
-            val target = index + halfVisibleItems
-            animateScrollToItem(target)
-        }
-    }
+    // track the last date reported to prevent infinite loops/scroll fight when syncing state
+    var lastScrollReportedDate by remember { mutableStateOf(selectedDate) }
 
-    // Initial scroll to center
+    // Initial scroll to center based on initial values
     LaunchedEffect(Unit) {
-        yearScrollState.scrollToItemCenter(years.indexOf(initialDate.year))
-        monthScrollState.scrollToItemCenter(months.indexOf(initialDate.month))
-        // Ensure initial day is within bounds for the initial month/year
-        val initialDayIndex = days.indexOf(initialDate.dayOfMonth.coerceAtMost(daysInMonth))
-        dayScrollState.scrollToItemCenter(initialDayIndex)
+        yearScrollState.scrollToItem(years.indexOf(selectedDate.year) + halfVisibleItems)
+        monthScrollState.scrollToItem(months.indexOf(selectedDate.month) + halfVisibleItems)
+        val initialDayIndex = days.indexOf(selectedDate.dayOfMonth.coerceAtMost(daysInMonth))
+        dayScrollState.scrollToItem(initialDayIndex + halfVisibleItems)
     }
 
-    // New centralized function to update the date safely
-    fun updateSelectedDate(
-        newYear: Int? = null,
-        newMonth: Month? = null,
-        newDay: Int? = null
-    ) {
-        selectedDate = try {
-            val year = newYear ?: selectedDate.year
-            val month = newMonth ?: selectedDate.month
-            val day = newDay ?: selectedDate.dayOfMonth
+    // Sync scroll states if selectedDate changes from outside (e.g. external reset, calendar sync)
+    LaunchedEffect(selectedDate, years, days) {
+        if (selectedDate != lastScrollReportedDate) {
+            lastScrollReportedDate = selectedDate
 
-            val maxDay = LocalDate.of(year, month, 1).lengthOfMonth()
-            val finalDay = day.coerceAtMost(maxDay)
+            val yearIndex = years.indexOf(selectedDate.year)
+            if (yearIndex != -1 && !yearScrollState.isScrollInProgress) {
+                yearScrollState.scrollToItem(yearIndex + halfVisibleItems)
+            }
 
-            LocalDate.of(year, month, finalDay)
-        } catch (e: Exception) {
-            selectedDate
+            val monthIndex = months.indexOf(selectedDate.month)
+            if (monthIndex != -1 && !monthScrollState.isScrollInProgress) {
+                monthScrollState.scrollToItem(monthIndex + halfVisibleItems)
+            }
+
+            val dayIndex = days.indexOf(selectedDate.dayOfMonth)
+            if (dayIndex != -1 && !dayScrollState.isScrollInProgress) {
+                dayScrollState.scrollToItem(dayIndex + halfVisibleItems)
+            }
         }
     }
 
-    // --- UI ---
+    // Helper to safely build dates and push updates back up
+    val updateDateValue = remember(selectedDate, onDateChanged) {
+        { newYear: Int?, newMonth: Month?, newDay: Int? ->
+            try {
+                val year = newYear ?: selectedDate.year
+                val month = newMonth ?: selectedDate.month
+                val day = newDay ?: selectedDate.dayOfMonth
+
+                val maxDay = LocalDate.of(year, month, 1).lengthOfMonth()
+                val finalDay = day.coerceAtMost(maxDay)
+
+                val calculatedDate = LocalDate.of(year, month, finalDay)
+                if (calculatedDate != selectedDate) {
+                    lastScrollReportedDate = calculatedDate
+                    onDateChanged(calculatedDate)
+                }
+            } catch (e: Exception) {
+                // Ignore unexpected exceptions
+            }
+        }
+    }
+
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(1.dp)
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = "Previous",
+            tint = ContentPrimary,
+            modifier = Modifier.size(32.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .height(itemHeight * visibleItems),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(itemHeight)
+                    .align(Alignment.Center)
+                    .background(
+                        color = SurfaceBrandSecondary,
+                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+            )
+
+            // Date Columns Selector
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Year Column
+                DatePickerColumn(
+                    items = years,
+                    scrollState = yearScrollState,
+                    itemHeight = itemHeight,
+                    visibleItems = visibleItems,
+                    onCenteredItemChanged = { newYear ->
+                        updateDateValue(newYear, null, null)
+                    }
+                ) { year -> Text(text = year.toString()) }
+
+                Spacer(Modifier.width(24.dp))
+
+                // Month Column
+                DatePickerColumn(
+                    items = months,
+                    scrollState = monthScrollState,
+                    itemHeight = itemHeight,
+                    visibleItems = visibleItems,
+                    onCenteredItemChanged = { newMonth ->
+                        updateDateValue(null, newMonth, null)
+                    }
+                ) { month -> Text(month.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())) }
+
+                Spacer(Modifier.width(16.dp))
+
+                // Day Column
+                DatePickerColumn(
+                    items = days,
+                    scrollState = dayScrollState,
+                    itemHeight = itemHeight,
+                    visibleItems = visibleItems,
+                    onCenteredItemChanged = { newDay ->
+                        updateDateValue(null, null, newDay)
+                    }
+                ) { day -> Text(text = day.toString().padStart(2, '0')) }
+            }
+        }
+
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+            contentDescription = "Next",
+            tint = ContentPrimary,
+            modifier = Modifier.size(32.dp)
+        )
+    }
+}
+
+
+// ---  DATE PICKER SHEET ---
+@RequiresApi(Build.VERSION_CODES.O)
+@SuppressLint("FrequentlyChangingValue")
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DatePickerSheet(
+    onDismiss: () -> Unit,
+    onDateSelected: (LocalDate) -> Unit,
+    initialDate: LocalDate = LocalDate.now()
+) {
+    val context = LocalContext.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var selectedDate by remember { mutableStateOf(initialDate) }
+
+    // Custom Bottom Sheet Container
     CustomBottomSheet(
         heading = "Pick a date",
         sheetState = sheetState,
@@ -226,99 +325,23 @@ fun DatePickerSheet(
         sheetGesturesEnabled = false
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(12.dp, 0.dp)
         ) {
+            // Reusable Standalone DatePickerSlider View
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(1.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = "Previous",
-                        tint = ContentPrimary,
-                        modifier = Modifier
-                            .size(32.dp)
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .height(itemHeight * visibleItems),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(itemHeight)
-                                .align(Alignment.Center)
-                                .background(
-                                    color = SurfaceBrandSecondary,
-                                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                                )
-                        )
-
-                        // Date columns
-                        Row(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Year Column
-                            DatePickerColumn(
-                                items = years,
-                                scrollState = yearScrollState,
-                                itemHeight = itemHeight,
-                                visibleItems = visibleItems,
-                                onCenteredItemChanged = { newYear ->
-                                    updateSelectedDate(newYear = newYear)
-                                }
-                            ) { year -> Text(text = year.toString()) }
-
-                            Spacer(Modifier.width(24.dp))
-
-                            // Month Column
-                            DatePickerColumn(
-                                items = months,
-                                scrollState = monthScrollState,
-                                itemHeight = itemHeight,
-                                visibleItems = visibleItems,
-                                // Instantaneous update on centered item change
-                                onCenteredItemChanged = { newMonth ->
-                                    updateSelectedDate(newMonth = newMonth)
-                                }
-                            ) { month -> Text(month.getDisplayName(JavaTextStyle.SHORT, Locale.getDefault())) }
-
-                            Spacer(Modifier.width(16.dp))
-
-                            DatePickerColumn(
-                                items = days,
-                                scrollState = dayScrollState,
-                                itemHeight = itemHeight,
-                                visibleItems = visibleItems,
-                                // Instantaneous update on centered item change
-                                onCenteredItemChanged = { newDay ->
-                                    updateSelectedDate(newDay = newDay)
-                                }
-                            ) { day -> Text(text = day.toString().padStart(2, '0')) }
-                        }
-                    }
-
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                        contentDescription = "Next",
-                        tint = ContentPrimary,
-                        modifier = Modifier
-                            .size(32.dp)
-                    )
-                }
+                DatePickerSlider(
+                    selectedDate = selectedDate,
+                    onDateChanged = { newDate ->
+                        selectedDate = newDate
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // Done button section
@@ -330,8 +353,7 @@ fun DatePickerSheet(
                 },
                 text = "Done",
                 size = ButtonSize.Medium,
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 type = ButtonType.Primary,
                 shapeStyle = ButtonShapeStyle.Square,
             )
