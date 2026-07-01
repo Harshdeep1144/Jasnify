@@ -46,6 +46,7 @@ fun <T> DatePickerColumn(
     scrollState: LazyListState,
     itemHeight: Dp,
     visibleItems: Int,
+    reportUpdates: Boolean = true, // Guard updates during programmatic scrolls
     // Callback to report the item currently centered (real-time)
     onCenteredItemChanged: (T) -> Unit,
     content: @Composable (T) -> Unit
@@ -80,10 +81,10 @@ fun <T> DatePickerColumn(
         centeredItemIndex.takeIf { it in items.indices }?.let { items[it] }
     }
 
-    // Report the centered item up instantly
-    LaunchedEffect(centeredItem) {
-        centeredItem?.let {
-            onCenteredItemChanged(it)
+    // Report the centered item up instantly if reporting is enabled
+    LaunchedEffect(centeredItem, reportUpdates) {
+        if (reportUpdates && centeredItem != null) {
+            onCenteredItemChanged(centeredItem)
         }
     }
 
@@ -147,8 +148,6 @@ fun DatePickerSlider(
     itemHeight: Dp = 60.dp,
     visibleItems: Int = 3
 ) {
-    val halfVisibleItems = visibleItems / 2
-
     val years = remember(yearRange) { yearRange.toList() }
     val months = remember { Month.entries.toList() }
 
@@ -159,40 +158,53 @@ fun DatePickerSlider(
         derivedStateOf { (1..daysInMonth).toList() }
     }
 
-    val yearScrollState = rememberLazyListState()
-    val monthScrollState = rememberLazyListState()
-    val dayScrollState = rememberLazyListState()
+    // Instantly derive correct starting index corresponding to the current state
+    val initialYearIndex = remember { years.indexOf(selectedDate.year).coerceAtLeast(0) }
+    val initialMonthIndex = remember { months.indexOf(selectedDate.month).coerceAtLeast(0) }
+    val initialDayIndex = remember { (selectedDate.dayOfMonth - 1).coerceIn(0, daysInMonth - 1) }
 
-    // track the last date reported to prevent infinite loops/scroll fight when syncing state
+    // Initialize the states directly at the correct indexes to avoid incorrect early layout measurements
+    val yearScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialYearIndex)
+    val monthScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMonthIndex)
+    val dayScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialDayIndex)
+
+    // Tracks if a scroll is programmatic to stop loop updates
+    var isProgrammaticScroll by remember { mutableStateOf(false) }
     var lastScrollReportedDate by remember { mutableStateOf(selectedDate) }
-
-    // Initial scroll to center based on initial values
-    LaunchedEffect(Unit) {
-        yearScrollState.scrollToItem(years.indexOf(selectedDate.year) + halfVisibleItems)
-        monthScrollState.scrollToItem(months.indexOf(selectedDate.month) + halfVisibleItems)
-        val initialDayIndex = days.indexOf(selectedDate.dayOfMonth.coerceAtMost(daysInMonth))
-        dayScrollState.scrollToItem(initialDayIndex + halfVisibleItems)
-    }
 
     // Sync scroll states if selectedDate changes from outside (e.g. external reset, calendar sync)
     LaunchedEffect(selectedDate, years, days) {
         if (selectedDate != lastScrollReportedDate) {
+            isProgrammaticScroll = true
             lastScrollReportedDate = selectedDate
 
             val yearIndex = years.indexOf(selectedDate.year)
             if (yearIndex != -1 && !yearScrollState.isScrollInProgress) {
-                yearScrollState.scrollToItem(yearIndex + halfVisibleItems)
+                yearScrollState.scrollToItem(yearIndex)
             }
 
             val monthIndex = months.indexOf(selectedDate.month)
             if (monthIndex != -1 && !monthScrollState.isScrollInProgress) {
-                monthScrollState.scrollToItem(monthIndex + halfVisibleItems)
+                monthScrollState.scrollToItem(monthIndex)
             }
 
             val dayIndex = days.indexOf(selectedDate.dayOfMonth)
             if (dayIndex != -1 && !dayScrollState.isScrollInProgress) {
-                dayScrollState.scrollToItem(dayIndex + halfVisibleItems)
+                dayScrollState.scrollToItem(dayIndex)
             }
+
+            isProgrammaticScroll = false
+        }
+    }
+
+    // Coerce the scroll position if the maximum available days list changes size
+    LaunchedEffect(days) {
+        val currentDayIndex = dayScrollState.firstVisibleItemIndex
+        val maxDayIndex = days.size - 1
+        if (currentDayIndex > maxDayIndex) {
+            isProgrammaticScroll = true
+            dayScrollState.scrollToItem(maxDayIndex)
+            isProgrammaticScroll = false
         }
     }
 
@@ -259,6 +271,7 @@ fun DatePickerSlider(
                     scrollState = yearScrollState,
                     itemHeight = itemHeight,
                     visibleItems = visibleItems,
+                    reportUpdates = !isProgrammaticScroll,
                     onCenteredItemChanged = { newYear ->
                         updateDateValue(newYear, null, null)
                     }
@@ -272,6 +285,7 @@ fun DatePickerSlider(
                     scrollState = monthScrollState,
                     itemHeight = itemHeight,
                     visibleItems = visibleItems,
+                    reportUpdates = !isProgrammaticScroll,
                     onCenteredItemChanged = { newMonth ->
                         updateDateValue(null, newMonth, null)
                     }
@@ -285,6 +299,7 @@ fun DatePickerSlider(
                     scrollState = dayScrollState,
                     itemHeight = itemHeight,
                     visibleItems = visibleItems,
+                    reportUpdates = !isProgrammaticScroll,
                     onCenteredItemChanged = { newDay ->
                         updateDateValue(null, null, newDay)
                     }

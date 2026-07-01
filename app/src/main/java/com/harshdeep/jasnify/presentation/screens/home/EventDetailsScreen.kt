@@ -844,6 +844,9 @@ fun EventDetailsScreen(
                                             // Sync the saved selection over to custom date so the slider coordinates starting point
                                             if (draftSavedDateString != null) {
                                                 draftCustomDateString = draftSavedDateString
+                                            } else if (draftCustomDateString == null) {
+                                                // Fallback to today's date if no custom date was selected yet
+                                                draftCustomDateString = formatToOrdinalDate(LocalDate.now())
                                             }
                                             // Clear the draftSavedDateString selection so it resets completely when they slide/come back
                                             draftSavedDateString = null
@@ -1030,20 +1033,26 @@ fun EventDetailsScreen(
                                 // Updated to CustomTextButton for Done Action
                                 CustomTextButton(
                                     onClick = {
+                                        val resolvedDate = if (pickerActiveTab == 0) {
+                                            draftSavedDateString
+                                        } else {
+                                            draftCustomDateString ?: formatToOrdinalDate(LocalDate.now())
+                                        }
+
                                         if (isDirectDateEdit) {
-                                            singleDaySelectedDate = if (pickerActiveTab == 0) draftSavedDateString else draftCustomDateString
+                                            singleDaySelectedDate = resolvedDate
                                             coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                 showBottomSheet = false
                                             }
                                         } else {
-                                            tempSelectedDateString = if (pickerActiveTab == 0) draftSavedDateString else draftCustomDateString
+                                            tempSelectedDateString = resolvedDate
                                             bottomSheetStep = 1
                                         }
                                     },
                                     text = "Done",
                                     modifier = Modifier.weight(1f),
                                     shapeStyle = ButtonShapeStyle.Square,
-                                    enabled = if (pickerActiveTab == 0) draftSavedDateString != null else draftCustomDateString != null,
+                                    enabled = if (pickerActiveTab == 0) draftSavedDateString != null else true,
                                     disabledContainerColor = SurfaceInvSecondary,
                                     disabledContentColor = ContentInvPrimary,
                                 )
