@@ -99,6 +99,7 @@ import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceInvPrimary
 import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
@@ -826,7 +827,7 @@ fun EventDetailsScreen(
                                     Text(
                                         text = "Saved Timelines",
                                         style = JasnifyTheme.typography.displaySmall,
-                                        fontWeight = if (pickerActiveTab == 1) FontWeight.Medium else FontWeight.Normal,
+                                        fontWeight = if (pickerActiveTab == 0) FontWeight.Medium else FontWeight.Normal,
                                         color = if (pickerActiveTab == 0) ContentPrimary else ContentSecondary,
                                         textAlign = TextAlign.Center
                                     )
@@ -867,7 +868,7 @@ fun EventDetailsScreen(
                                     .padding(horizontal = 12.dp)
                             ) {
                                 val containerWidth = maxWidth
-                                val indicatorWidth = 160.dp
+                                val indicatorWidth = 170.dp
 
                                 val targetOffset = if (pickerActiveTab == 0) {
                                     (containerWidth / 4) - (indicatorWidth / 2)
@@ -934,7 +935,7 @@ fun EventDetailsScreen(
                                                 val buttonContentColor = ContentInvPrimary
 
                                                 // Dynamic container background based on selection
-                                                val rowBgColor = if (isDateSelected) SurfaceSecondary else SurfaceSecondary
+                                                val rowBgColor = if (isDateSelected) SurfaceBrandSecondary else SurfaceSecondary
 
                                                 Row(
                                                     modifier = Modifier
