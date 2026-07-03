@@ -1,8 +1,9 @@
 [versions]
 
-kotlin = "2.0.21"
+kotlin = "2.2.10"
+hilt = "2.54"
 composeBom = "2024.09.00"
-agp = "8.12.3"
+agp = "9.2.1"
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
@@ -62,6 +63,8 @@ androidx-animation = { group = "androidx.compose.animation", name = "animation",
 androidx-compose-material = { group = "androidx.wear.compose", name = "compose-material", version.ref = "composeMaterial" }
 androidx-compose-foundation-foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "androidxFoundation" }
 animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCoreVersion" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
 
 
 [plugins]
@@ -70,3 +73,4 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
