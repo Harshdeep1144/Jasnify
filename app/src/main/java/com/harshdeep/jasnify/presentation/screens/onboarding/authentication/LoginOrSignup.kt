@@ -306,25 +306,27 @@ fun LoginOrSignup(
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    if(isPhoneMode){
-                        AuthButton(
-                            onClick = {
-                                isPhoneMode = false
-                                viewModel.resetAuthState()
-                            },
-                            text = "Sign in with Email",
-                            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
-                        )
-                    } else {
-                        AuthButton(
-                            onClick = {
-                                isPhoneMode = true
-                                viewModel.resetAuthState()
-                            },
-                            text = "Sign in with Phone",
-                            icon = rememberVectorPainter(Icons.Outlined.Phone),
-                        )
-                    }
+                    // Temporarily remove the phone number with otp login feature
+
+//                    if(isPhoneMode){
+//                        AuthButton(
+//                            onClick = {
+//                                isPhoneMode = false
+//                                viewModel.resetAuthState()
+//                            },
+//                            text = "Sign in with Email",
+//                            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
+//                        )
+//                    } else {
+//                        AuthButton(
+//                            onClick = {
+//                                isPhoneMode = true
+//                                viewModel.resetAuthState()
+//                            },
+//                            text = "Sign in with Phone",
+//                            icon = rememberVectorPainter(Icons.Outlined.Phone),
+//                        )
+//                    }
 
                 }
 

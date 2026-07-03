@@ -67,6 +67,8 @@
 //import com.harshdeep.jasnify.theme.ContentSecondary
 //import com.harshdeep.jasnify.theme.SurfaceSecondary
 //import kotlinx.coroutines.delay
+//import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+//
 //
 //// --- Utility Constants and Colors ---
 //val CustomGreen = Color(0xFF1B5735)
@@ -177,9 +179,6 @@
 //        topBar = {
 //            CustomTopBar(
 //                onBackClick = { navController.popBackStack() },
-//                navigationIcon = painterResource(R.drawable.ic_left),
-//                actionIcon = null,
-//                navigationShape = ButtonShapeStyle.Round
 //            )
 //        },
 //        content = { paddingValues ->
