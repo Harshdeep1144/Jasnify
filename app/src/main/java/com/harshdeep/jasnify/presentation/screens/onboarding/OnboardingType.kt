@@ -1,459 +1,504 @@
 package com.harshdeep.jasnify.presentation.screens.onboarding
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import kotlinx.coroutines.launch
+
 import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.theme.*
-import kotlinx.coroutines.launch
+import com.harshdeep.jasnify.theme.BackgroundBrand
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
-fun OnboardingType(navController: NavController) {
-    val coroutineScope = rememberCoroutineScope()
-    val pageState = rememberPagerState(pageCount = { 3 })
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundBrand) // Fits the beige brand color from your layout system
-            .padding(horizontal = 24.dp)
-            .padding(top = 16.dp, bottom = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // --- Top Header Area (Contains conditional back button) ---
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (pageState.currentPage > 0) {
-                CustomIconButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            pageState.animateScrollToPage(pageState.currentPage - 1)
-                        }
-                    },
-                    icon = rememberVectorPainter(Icons.Default.ArrowBack),
-                    size = ButtonSize.Small,
-                    type = ButtonType.Tertiary,
-                    shapeStyle = ButtonShapeStyle.Round,
-                    containerColor = SurfacePrimary, // Off-white/white circular button base
-                    contentColor = ContentPrimary
-                )
-            }
-        }
-
-        // --- Main Presentation Pager ---
-        HorizontalPager(
-            state = pageState,
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-        ) { page ->
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                // Customized dynamic Illustration
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(340.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    when (page) {
-                        0 -> OnboardingIllustrationPage0()
-                        1 -> OnboardingIllustrationPage1()
-                        2 -> OnboardingIllustrationPage2()
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                // Heading matching screenshots' colors
-                Text(
-                    text = when (page) {
-                        0 -> "Track Expenses using AI"
-                        1 -> "Manage Catering Menu"
-                        else -> "Explore Vendors & Venues"
-                    },
-                    style = JasnifyTheme.typography.displaySmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F4D4A) // Elegant dark teal/forest green shade
-                    ),
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Explanatory Body text
-                Text(
-                    text = when (page) {
-                        0 -> "Set your budget, add expenses, and AI keeps track of all your event spends smartly."
-                        1 -> "Add favourite items to the menu, so you don't miss out anything."
-                        else -> "Connect with reliable vendors who offer top-notch services."
-                    },
-                    style = JasnifyTheme.typography.bodyLarge,
-                    color = ContentSecondary,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-        }
-
-        // --- Active Page Progress Dots (First active expands to pill) ---
-        Row(
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(vertical = 12.dp)
-        ) {
-            repeat(3) { index ->
-                val isActive = pageState.currentPage == index
-                val widthAnimated by animateDpAsState(
-                    targetValue = if (isActive) 24.dp else 8.dp,
-                    label = "IndicatorWidth"
-                )
-                val dotColor = if (isActive) Color(0xFF38665B) else Color(0xFFC0BEB4)
-
-                Box(
-                    modifier = Modifier
-                        .padding(horizontal = 4.dp)
-                        .size(width = widthAnimated, height = 8.dp)
-                        .clip(CircleShape)
-                        .background(dotColor)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --- Dynamic Navigation & CTA Controls ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            if (pageState.currentPage < 2) {
-                // "Next" Pill Button
-                CustomTextButton(
-                    onClick = {
-                        coroutineScope.launch {
-                            pageState.animateScrollToPage(pageState.currentPage + 1)
-                        }
-                    },
-                    text = "Next",
-                    size = ButtonSize.Medium,
-                    type = ButtonType.Primary,
-                    shapeStyle = ButtonShapeStyle.Round,
-                    trailingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowForward),
-                    containerColor = Color(0xFF4C7368), // Dark teal/green color as in screenshots
-                    contentColor = Color.White
-                )
-            } else {
-                // Final onboarding CTA layout
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CustomTextButton(
-                        onClick = {
-                            navController.navigate(Screen.LoginOrSignUp.route)
-                        },
-                        text = "Create a new event",
-                        size = ButtonSize.Medium,
-                        type = ButtonType.Primary,
-                        shapeStyle = ButtonShapeStyle.Square, // Premium squircle look
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = Color(0xFF4C7368),
-                        contentColor = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Text(
-                        text = "OR",
-                        style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = ContentSecondary
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    CustomTextButton(
-                        onClick = {
-                            navController.navigate(Screen.LoginOrSignUp.route)
-                        },
-                        text = "Have an Event ID?",
-                        size = ButtonSize.Small,
-                        type = ButtonType.Secondary,
-                        shapeStyle = ButtonShapeStyle.Round,
-                        containerColor = Color(0xFFD3E5DE), // Light blue-teal tint
-                        contentColor = Color(0xFF2B4D43) // Matching dark teal text
-                    )
-                }
-            }
-        }
-    }
-}
-
-// --- Stylized Reusable Phone Mockup Frame ---
-@Composable
-private fun PhoneMockupShell(
-    content: @Composable BoxScope.() -> Unit
+fun OnboardingType(
+    navController: NavController
 ) {
-    Box(
-        modifier = Modifier
-            .width(220.dp)
-            .height(300.dp)
-            .background(Color.Transparent)
-            .border(width = 3.dp, color = Color(0xFFD4D2C9), shape = RoundedCornerShape(32.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        // Stylized screen interior canvas
-        Box(
+    val pageState = rememberPagerState(pageCount = { 3 })
+    val coroutineScope = rememberCoroutineScope()
+
+    Scaffold(
+        topBar = {
+            if (pageState.currentPage > 0) {
+                Column(
+                    modifier = Modifier
+                        .background(Color.Transparent)
+                        .statusBarsPadding()
+                ) {
+                    CustomTopBar(
+                        onBackClick = {
+                            coroutineScope.launch {
+                                pageState.animateScrollToPage(pageState.currentPage - 1)
+                            }
+                        },
+                        buttonStyle = ButtonBackground.OPAQUE,
+                        backIcon = TopIcon.Predefined.BACK_2
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.statusBarsPadding().height(64.dp))
+            }
+        },
+        modifier = Modifier.fillMaxSize(),
+        containerColor = BackgroundBrand
+    ) { paddingValues ->
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(6.dp)
-                .background(Color(0xFFE8E6DF), shape = RoundedCornerShape(26.dp))
+                .padding(paddingValues),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Front camera dot mockup
+            Spacer(Modifier.height(12.dp))
+
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 10.dp)
-                    .size(8.dp)
-                    .background(Color(0xFFBCB9B0), shape = CircleShape)
-            )
+                    .fillMaxWidth()
+                    .height(320.dp),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                HorizontalPager(
+                    state = pageState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        contentAlignment = Alignment.TopCenter
+                    ) {
+                        val deviceFrameRes = when (page) {
+                            0 -> R.drawable.device_frame_1
+                            1 -> R.drawable.device_frame_2
+                            else -> R.drawable.device_frame_3
+                        }
 
-            // Faux system details inside phone structure
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.85f)
+                                .clipToBounds(),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            Image(
+                                painter = painterResource(id = deviceFrameRes),
+                                contentDescription = "Mock Device",
+                                contentScale = ContentScale.FillWidth,
+                                alignment = Alignment.TopCenter,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+
+                            // Bottom fade-out overlay
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(1f)
+                                    .align(Alignment.BottomCenter)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Transparent,
+                                                BackgroundBrand
+                                            )
+                                        )
+                                    )
+                            )
+                        }
+
+                        // Foreground container
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.TopCenter
+                        ) {
+                            when (page) {
+                                0 -> SlideOneContent()
+                                1 -> SlideTwoContent()
+                                2 -> SlideThreeContent()
+                            }
+                        }
+                    }
+                }
+            }
+
+            val (titleText, descText) = when (pageState.currentPage) {
+                0 -> Pair(
+                    "Track Expenses using AI",
+                    "Set your budget, add expenses, and AI keeps track of all your event spends smartly."
+                )
+                1 -> Pair(
+                    "Manage Catering Menu",
+                    "Add favourite items to the menu, so you don't miss out anything."
+                )
+                else -> Pair(
+                    "Explore Vendors & Venues",
+                    "Connect with reliable vendors who offer top-notch services."
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 36.dp, start = 16.dp, end = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(32.dp, 0.dp, 32.dp, 32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(modifier = Modifier.fillMaxWidth().height(16.dp).background(Color(0xFFDFDDD4), RoundedCornerShape(4.dp)))
-                Box(modifier = Modifier.fillMaxWidth(0.7f).height(12.dp).background(Color(0xFFDFDDD4), RoundedCornerShape(4.dp)))
-                Box(modifier = Modifier.fillMaxWidth(0.9f).height(12.dp).background(Color(0xFFDFDDD4), RoundedCornerShape(4.dp)))
+                Text(
+                    text = titleText,
+                    style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                    color = ContentBrandDark,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = descText,
+                    style = JasnifyTheme.typography.bodyLarge,
+                    color = ContentSecondary,
+                    textAlign = TextAlign.Center
+                )
             }
 
-            // Overlay actual components smoothly
-            content()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Slide Indicators (Dots)
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                for (i in 0 until 3) {
+                    val isActive = pageState.currentPage == i
+                    val dotWidth = animateDpAsState(targetValue = if (isActive) 18.dp else 6.dp, label = "dot")
+                    Box(
+                        modifier = Modifier
+                            .padding(horizontal = 4.dp)
+                            .height(6.dp)
+                            .width(dotWidth.value)
+                            .clip(RoundedCornerShape(100))
+                            .background(if (isActive) ContentBrand else ContentTertiary)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp, horizontal = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (pageState.currentPage < 2) {
+                    Box(
+                        modifier = Modifier.height(174.dp),
+                        contentAlignment = Alignment.Center
+                    ){
+                        CustomTextButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    pageState.animateScrollToPage(pageState.currentPage + 1)
+                                }
+                            },
+                            text = "Next",
+                            trailingIcon = painterResource(R.drawable.ic_right),
+                        )
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CustomTextButton(
+                            onClick = {
+                                navController.navigate(Screen.LoginOrSignUp.route)
+                            },
+                            text = "Create a new event",
+                            trailingIcon = painterResource(R.drawable.ic_right),
+                            size = ButtonSize.Large,
+                            modifier = Modifier.fillMaxWidth(),
+                            shapeStyle = ButtonShapeStyle.Square
+                        )
+
+                        Text(
+                            text = "OR",
+                            color = ContentSecondary,
+                            style = JasnifyTheme.typography.labelMedium,
+                            modifier = Modifier.padding(16.dp)
+                        )
+
+                        CustomTextButton(
+                            onClick = {
+                                navController.navigate(Screen.LoginOrSignUp.route)
+                            },
+                            text = "Have an Event ID?",
+                            shapeStyle = ButtonShapeStyle.Square,
+                            type = ButtonType.Secondary
+                        )
+
+                    }
+                }
+            }
         }
     }
 }
 
-// --- Page 1 Spends Illustration (Deck Stack) ---
+
+// ----------------------------------------------------------------  Slides Content ----------------------------------------------------------
+
+
 @Composable
-private fun OnboardingIllustrationPage0() {
-    PhoneMockupShell {
+fun SlideOneContent() {
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .padding(top = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Deepest Layer 3 Background Card
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth(0.94f)
-                .offset(y = 12.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            // Simulated visual card shadows / layers underneath (mimicking stack layout)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.85f)
-                    .height(60.dp)
-                    .offset(y = 16.dp)
-                    .graphicsLayer(alpha = 0.4f, shadowElevation = 2f)
-                    .background(SurfacePrimary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.90f)
-                    .height(68.dp)
-                    .offset(y = 8.dp)
-                    .graphicsLayer(alpha = 0.7f, shadowElevation = 4f)
-                    .background(SurfacePrimary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-            )
+                .fillMaxWidth(0.82f)
+                .height(82.dp)
+                .offset(y = 29.6.dp)
+                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
+        )
 
-            // Foreground ExpenseCard
+        // Middle Layer 2 Background Card
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.88f)
+                .height(82.dp)
+                .offset(y = 15.2.dp)
+                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .border(2.dp, ContentBrand.copy(alpha = 0.6f), SquircleShape(CornerLargeIncrease))
+                .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
+        ) {
             ExpenseCard(
                 title = "R. Sound Studio",
                 category = "Equipment Rentals",
                 amount = "₹68,000",
                 emoji = "🎼",
-                showActions = false,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer(shadowElevation = 8f)
+                showActions = false
             )
         }
     }
 }
 
-// --- Page 2 Catering Menu Illustration ---
 @Composable
-private fun OnboardingIllustrationPage1() {
-    PhoneMockupShell {
-        Box(
+fun SlideTwoContent() {
+    Box(
+        modifier = Modifier.fillMaxSize()
+            .padding(top = 54.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
             modifier = Modifier
-                .align(Alignment.Center)
+                .background(SurfacePrimary.copy(alpha = 0.5f), SquircleShape(CornerExtraLarge))
                 .fillMaxWidth(0.95f)
-                .offset(y = 12.dp)
-                .graphicsLayer(shadowElevation = 8f, shape = SquircleShape(CornerLarge, CornerSmoothingDefault), clip = true)
-                .background(SurfacePrimary)
-                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                .padding(12.dp)
+                .border(2.dp, Color(0x55737399), SquircleShape(CornerExtraLarge))
+                .padding(16.dp)
         ) {
-            Column {
-                CateringItemChip(
-                    label = "Cheese Corn Balls",
-                    foodType = Dietary.Veg,
-                    isMultiSelect = true,
-                    checked = true,
-                    onCheckedChange = {}
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                CateringItemChip(
-                    label = "Chicken Malai Tikka",
-                    foodType = Dietary.NonVeg,
-                    isMultiSelect = true,
-                    checked = true,
-                    onCheckedChange = {}
-                )
-            }
-        }
-    }
-}
-
-// --- Page 3 Scattered Floating Vendor Cards ---
-@Composable
-private fun OnboardingIllustrationPage2() {
-    PhoneMockupShell {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            // Chef profile (Top Center-Left)
-            FloatingVendorAvatar(
-                emoji = "🍳",
-                rating = "4.6",
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(x = (-35).dp, y = 30.dp)
+            CateringItemChip(
+                label = "Cheese Corn Balls",
+                foodType = Dietary.Veg,
+                isMultiSelect = false,
             )
-
-            // Photographer profile (Center Right)
-            FloatingVendorAvatar(
-                emoji = "📸",
-                rating = "4.9",
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .offset(x = (-10).dp, y = (-25).dp)
-            )
-
-            // DJ profile (Center Left)
-            FloatingVendorAvatar(
-                emoji = "🎧",
-                rating = "4.4",
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = 10.dp, y = 25.dp)
-            )
-
-            // Luxury Cars profile (Bottom Center-Right)
-            FloatingVendorAvatar(
-                emoji = "🚗",
-                rating = "4.8",
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(x = 25.dp, y = (-35).dp)
+            CateringItemChip(
+                label = "Chicken Malai Tikka",
+                foodType = Dietary.NonVeg,
+                isMultiSelect = false,
             )
         }
     }
 }
 
-// --- Staggered Vendor Avatar Card Helper ---
 @Composable
-private fun FloatingVendorAvatar(
-    emoji: String,
+fun SlideThreeContent() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Vendor Bubble 1: Chef
+        VendorAvatarWithRating(
+            painter = painterResource(id = R.drawable.img_onboarding_2),
+            rating = "4.6",
+            size = 98.dp,
+            modifier = Modifier.offset(x = (-35).dp, y = (-60).dp)
+        )
+
+        // Vendor Bubble 2: Photographer
+        VendorAvatarWithRating(
+            painter = painterResource(id = R.drawable.img_onboarding_3),
+            rating = "4.9",
+            size = 128.dp,
+            modifier = Modifier.offset(x = 115.dp, y = (-30).dp)
+        )
+
+        // Vendor Bubble 3: DJ
+        VendorAvatarWithRating(
+            painter = painterResource(id = R.drawable.img_onboarding_1),
+            rating = "4.4",
+            size = 108.dp,
+            modifier = Modifier.offset(x = (-120).dp, y = 40.dp)
+        )
+
+        // Vendor Bubble 4: Cars
+        VendorAvatarWithRating(
+            painter = painterResource(id = R.drawable.img_onboarding_4),
+            rating = "4.8",
+            size = 80.dp,
+            modifier = Modifier.offset(x = 20.dp, y = 80.dp)
+        )
+    }
+}
+
+
+//--------------------------------- Helper function ------------------------------------------
+
+@Composable
+fun VendorAvatarWithRating(
+    painter: Painter,
     rating: String,
+    size: Dp,
     modifier: Modifier = Modifier
 ) {
+    // Treat 100.dp as the reference baseline
+    val sizeValue = size.value
+
+    // Proportional dimensions based on the baseline
+    val badgeOffset = -(sizeValue * 0.03f).dp           // 100dp size -> -3dp offset
+    val badgeShadow = (sizeValue * 0.04f).dp            // 100dp size -> 4dp shadow
+    val horizontalPadding = (sizeValue * 0.0665f).dp    // 100dp size -> 6.65dp padding
+    val verticalPadding = (sizeValue * 0.0333f).dp      // 100dp size -> 3.33dp padding
+    val badgeSpacing = (sizeValue * 0.0333f).dp         // 100dp size -> 3.33dp item spacing
+    val starIconSize = (sizeValue * 0.12f).dp           // 100dp size -> 12dp star size
+    val ratingFontSize = (sizeValue * 0.11f).sp         // 100dp size -> 11sp text size
+
+    // Proportional modifications for Avatar decoration boundaries
+    val avatarShadow = (sizeValue * 0.06f).dp
+    val avatarBorder = (sizeValue * 0.02f).dp
+
     Box(
-        modifier = modifier
-            .size(72.dp)
-            .graphicsLayer(shadowElevation = 8f, shape = CircleShape)
+        modifier = modifier.size(size)
     ) {
-        // Base Circle Container
+        // High fidelity circular cropped real vendor photo
         Box(
-            contentAlignment = Alignment.Center,
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.White, shape = CircleShape)
-                .border(1.dp, Color(0xFFE3E1D7), CircleShape)
+                .shadow(avatarShadow, CircleShape)
+                .border(avatarBorder, Color(0x55737380), CircleShape)
+                .clip(CircleShape)
+                .background(ContentSecondary)
         ) {
-            Text(text = emoji, fontSize = 28.sp)
+            Image(
+                painter = painter,
+                contentDescription = "Vendor Image",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
-        // Mini Green Rating Capsule
+        // Dynamically scaled ratings badge
         Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .offset(y = 2.dp)
-                .background(Color(0xFF00AA44), shape = RoundedCornerShape(10.dp))
-                .padding(horizontal = 6.dp, vertical = 2.dp)
+                .align(Alignment.BottomEnd)
+                .offset(x = badgeOffset, y = badgeOffset)
+                .shadow(badgeShadow, RoundedCornerShape(100))
+                .background(Color(0xFF009B0A), RoundedCornerShape(100))
+                .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(badgeSpacing)
         ) {
-            Text(
-                text = "★",
-                color = Color.White,
-                fontSize = 9.sp,
-                fontWeight = FontWeight.Bold
+            Icon(
+                imageVector = Icons.Rounded.Star,
+                contentDescription = "Star",
+                tint = ContentInvPrimary,
+                modifier = Modifier.size(starIconSize)
             )
             Text(
                 text = rating,
-                color = Color.White,
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Outfit
+                color = ContentInvPrimary,
+                fontSize = ratingFontSize,
+                fontWeight = FontWeight.Medium,
+                style = JasnifyTheme.typography.labelSmall.copy(
+                    fontSize = ratingFontSize,
+                    lineHeight = ratingFontSize * 1.2f
+                )
             )
         }
     }
 }
 
-// --- Live Layout Preview System ---
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun OnboardingTypePreview() {

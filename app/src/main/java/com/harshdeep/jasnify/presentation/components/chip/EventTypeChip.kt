@@ -170,7 +170,7 @@ fun EventTypeChip(
 @Composable
 fun EventTypeChipPreview() {
     // Using a simple Android resource for the preview icon
-    val WeddingIconPlaceholder = painterResource(id = R.drawable.carousel_img4)
+    val WeddingIconPlaceholder = painterResource(id = R.drawable.img_onboarding_1)
 
     var isSelectedWedding by remember { mutableStateOf(false) }
     var isSelectedBirthday by remember { mutableStateOf(true) }

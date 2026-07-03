@@ -414,8 +414,8 @@ private fun VendorImage(url: String, modifier: Modifier = Modifier) {
         contentDescription = "Vendor Image",
         modifier = modifier,
         contentScale = ContentScale.Crop,
-        placeholder = painterResource(id = R.drawable.carousel_img1),
-        error = painterResource(id = R.drawable.carousel_img1)
+        placeholder = painterResource(id = R.drawable.img_onboarding_4),
+        error = painterResource(id = R.drawable.img_onboarding_3)
     )
 }
 
