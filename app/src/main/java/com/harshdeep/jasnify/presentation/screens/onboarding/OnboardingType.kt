@@ -123,7 +123,6 @@ fun OnboardingType(
     val coroutineScope = rememberCoroutineScope()
 
     // --- CUSTOM BACK HANDLER ---
-    // Enable the back handler as long as we aren't at the very first slide of the carousel
     val isBackHandlerEnabled = currentScreenState != OnboardingState.CAROUSEL || pageState.currentPage > 0
 
     BackHandler(enabled = isBackHandlerEnabled) {
