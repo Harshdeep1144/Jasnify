@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -170,7 +171,7 @@ fun BudgetTrackerCard(
 
 
 
-val ProgressColor = ContentBrand.copy(alpha = 0.8f)
+val ProgressColor = ContentBrandDark.copy(0.8f)
 val TrackColor = ContentTertiary
 
 @Composable

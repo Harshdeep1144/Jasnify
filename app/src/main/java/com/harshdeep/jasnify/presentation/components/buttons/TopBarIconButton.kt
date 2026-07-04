@@ -30,6 +30,7 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+import com.harshdeep.jasnify.R
 
 enum class ButtonBackground {
     TRANSPARENT,
@@ -43,7 +44,8 @@ sealed interface TopIcon {
         BACK_2,         // Arrow Left (←)
         CLOSE,          // Cross (X)
         MENU_VERTICAL,  // Vertical Dots (⋮)
-        MENU_HORIZONTAL // Horizontal Dots (...)
+        MENU_HORIZONTAL, // Horizontal Dots (...)
+        MENU_MODERN
     }
     data class CustomPainter(val painter: Painter) : TopIcon
 }
@@ -72,6 +74,7 @@ fun TopBarIconButton(
         TopIcon.Predefined.CLOSE -> rememberVectorPainter(Icons.Rounded.Close)
         TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
         TopIcon.Predefined.MENU_HORIZONTAL -> rememberVectorPainter(Icons.Rounded.MoreHoriz)
+        TopIcon.Predefined.MENU_MODERN -> painterResource(id = R.drawable.ic_menu_modern)
         is TopIcon.CustomPainter -> icon.painter
     }
 
@@ -115,7 +118,8 @@ private fun TopBarIconButtonPreview() {
         TopIcon.Predefined.BACK_2,
         TopIcon.Predefined.CLOSE,
         TopIcon.Predefined.MENU_VERTICAL,
-        TopIcon.Predefined.MENU_HORIZONTAL
+        TopIcon.Predefined.MENU_HORIZONTAL,
+        TopIcon.Predefined.MENU_MODERN
     )
 
     androidx.compose.foundation.layout.Column(

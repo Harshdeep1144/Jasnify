@@ -271,6 +271,7 @@ fun CateringMenuScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BackgroundPrimary)
                 .padding(paddingValues)
         ) {
             Column(
@@ -417,8 +418,8 @@ fun CateringMenuScreen(
                             colorStops = arrayOf(
                                 0.0f to Color.Transparent,
                                 0.55f to Color.Transparent,
-                                0.85f to MaterialTheme.colorScheme.background.copy(alpha = 0.85f),
-                                1.0f to MaterialTheme.colorScheme.background
+                                0.85f to BackgroundPrimary.copy(alpha = 0.85f),
+                                1.0f to BackgroundPrimary
                             )
                         )
                     )
@@ -672,19 +673,19 @@ fun MenuCategoryCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
         ) {
             Image(
                 painter = painterResource(id = R.drawable.bg_pattern_source_catering_menu),
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
-                alpha = 0.1f
+                alpha = 0.2f
             )
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(16.dp)
             ) {
                 Text(
                     text = categoryTitle,
@@ -701,7 +702,7 @@ fun MenuCategoryCard(
 
                 DashedDivider(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    dashLength = 15f,
+                    dashLength = 20f,
                     gapLength = 6f
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -778,7 +779,7 @@ fun ItemDetailsSheetContent(
 
                 DashedDivider(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    dashLength = 12f,
+                    dashLength = 20f,
                     gapLength = 6f
                 )
 

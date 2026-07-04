@@ -47,7 +47,7 @@ fun HomeTopBar(
     alpha: Float = 1f
 ) {
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
-    val contentColor = if (alpha < 0.5f) ContentPrimary else ContentPrimary
+    val contentColor =  ContentPrimary
     val buttonBackground = if (alpha > 0.5f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
 
     // Calculate the status subtitle based on the event date relative to now
@@ -125,9 +125,10 @@ fun HomeTopBar(
         }
 
         TopBarIconButton(
-            icon = TopIcon.Predefined.MENU_HORIZONTAL,
+            icon = TopIcon.Predefined.MENU_MODERN,
             onClick = onMenuClick,
-            backgroundStyle = buttonBackground
+            backgroundStyle = buttonBackground,
+            iconSize = 24.dp,
         )
     }
 }
@@ -141,7 +142,7 @@ fun HomeTopBarPreview() {
 
     JasnifyTheme {
         Column(
-            modifier = Modifier.background(Color.White).padding(8.dp),
+            modifier = Modifier.background(BackgroundPrimary).padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Example: 2026-11-21 format
