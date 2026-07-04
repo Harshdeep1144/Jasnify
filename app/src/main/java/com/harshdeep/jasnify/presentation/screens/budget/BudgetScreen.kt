@@ -706,7 +706,6 @@ fun BudgetScreen(
         // ============================================================================================================================================
 
 
-
         AnimatedVisibility(
             visible = (currentView == BudgetScreenView.EXPENSE_SUMMARY),
             enter = fadeIn(),
@@ -727,11 +726,13 @@ fun BudgetScreen(
                         focusManager.clearFocus()
                     }
             ) {
+                // 1. SCROLLABLE CONTENT AREA
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(scrollState)
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp)
+                        .padding(top = 12.dp, bottom = 100.dp), // Extra bottom padding so content doesn't get hidden behind the sticky buttons
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -766,7 +767,7 @@ fun BudgetScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row{
+                            Row {
                                 Text(
                                     text = "Remaining Funds",
                                     style = JasnifyTheme.typography.labelXLarge,
@@ -807,7 +808,7 @@ fun BudgetScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row{
+                            Row {
                                 Text(
                                     text = "Total Spent",
                                     style = JasnifyTheme.typography.labelXLarge,
@@ -921,142 +922,43 @@ fun BudgetScreen(
                             }
                         }
                     }
-
-                    // AI Overview & Back to Categories Row matches perfect alignment
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CustomTextButton(
-                            onClick = {  },
-                            text = "AI Overview",
-                            shapeStyle = ButtonShapeStyle.Square,
-                            type = ButtonType.Secondary,
-                            modifier = Modifier.weight(1f),
-                            leadingIcon = painterResource(R.drawable.ic_ai)
-                        )
-
-                        CustomTextButton(
-                            onClick = {
-                                expenseToEdit = null
-                                showAddExpenseSheet = true
-                            },
-                            text = "Add Expense",
-                            shapeStyle = ButtonShapeStyle.Square,
-                            type = ButtonType.Primary,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
                 }
-            }
-        }
 
-
-        // ============================================================================================================================================
-        // SCREEN 3: EXPENSE_CATEGORY
-        // ============================================================================================================================================
-
-
-        AnimatedVisibility(
-            visible = (currentView == BudgetScreenView.EXPENSE_CATEGORY),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(SurfaceSecondary)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
+                // STICKY BOTTOM BUTTONS ROW
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .shadow(
+                            elevation = 16.dp,
+                            spotColor = ContentPrimary.copy(alpha = 0.1f),
+                            ambientColor = ContentPrimary.copy(alpha = 0.05f)
+                        )
+                        .background(SurfacePrimary)
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .navigationBarsPadding(), // Ensures safe-insets layout styling for gestures
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Search bar section
-                    CustomSearchBar(
-                        value = categorySearchQuery,
-                        placeholder = "Search",
-                        onValueChange = { categorySearchQuery = it },
-                        backgroundColor = SurfacePrimary,
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(12.dp)
+                    CustomTextButton(
+                        onClick = { /* Handle AI action flow */ },
+                        text = "AI Overview",
+                        shapeStyle = ButtonShapeStyle.Square,
+                        type = ButtonType.Secondary,
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = painterResource(R.drawable.ic_ai)
                     )
 
-                    // Dynamically compiled list of category summaries
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        items(filteredCategorySummary, key = { it.name }) { categoryItem ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedCategoryForDetails = categoryItem.name
-                                        currentView = BudgetScreenView.CATEGORY_DETAIL
-                                    }
-                            ) {
-                                CategoryCard(
-                                    title = categoryItem.name,
-                                    amount = categoryItem.amountFormatted,
-                                    emojis = categoryItem.emojis,
-                                    totalItemCount = categoryItem.totalCount,
-                                    onMenuClick = {
-                                        // Binds selected category context and triggers bottom sheet visibility
-                                        selectedCategoryForMenu = categoryItem.name
-                                        showCategoryMenuBottomSheet = true
-                                    }
-                                )
-                            }
-                        }
-
-                        item { Spacer(modifier = Modifier.height(12.dp)) }
-                    }
-
-                    // Bottom Navigation Button Sticky Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 12.dp, spotColor = ContentPrimary, ambientColor = ContentPrimary)
-                            .background(SurfacePrimary)
-                            .padding(12.dp)
-                            .navigationBarsPadding(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CustomTextButton(
-                            onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
-                            text = "View Summary",
-                            type = ButtonType.Secondary,
-                            shapeStyle = ButtonShapeStyle.Square,
-                            modifier = Modifier
-                                .weight(1f)
-                        )
-
-                        CustomTextButton(
-                            onClick = {
-                                // Clear rename queue, and open the category-only bottom sheet directly
-                                categoryToRename = null
-                                showAddCustomCategorySheet = true
-                            },
-                            text = "Add Category",
-                            type = ButtonType.Primary,
-                            shapeStyle = ButtonShapeStyle.Square,
-                            modifier = Modifier
-                                .weight(1f)
-                        )
-                    }
+                    CustomTextButton(
+                        onClick = {
+                            expenseToEdit = null
+                            showAddExpenseSheet = true
+                        },
+                        text = "Add Expense",
+                        shapeStyle = ButtonShapeStyle.Square,
+                        type = ButtonType.Primary,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }

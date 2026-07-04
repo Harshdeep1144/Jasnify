@@ -367,13 +367,10 @@ private fun EditableTimeLineCard(
                     CustomIconButton(
                         onClick = onDelete,
                         icon = painterResource(R.drawable.ic_delete),
-                        modifier = Modifier.size(40.dp)
-                            .border(
-                                1.dp, MaterialTheme.colorScheme.error.copy(0.08f), SquircleShape(CornerMedium)
-                            ),
-                        shapeStyle = ButtonShapeStyle.Square,
-                        contentColor = MaterialTheme.colorScheme.error,
                         containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        shapeStyle = ButtonShapeStyle.Square,
+                        size = ButtonSize.Small
                     )
                 } else {
                     Spacer(modifier = Modifier.width(40.dp))
