@@ -62,6 +62,7 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -340,7 +341,10 @@ fun LocationScreen(
                     }
 
                     if (recentSearches.isNotEmpty()) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(
+                            modifier = Modifier.background(BackgroundPrimary),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -442,7 +446,7 @@ fun LocationScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background)
+                            .background(BackgroundPrimary)
                             // Clear focus if tapping on the blank space in the overlay list
                             .pointerInput(Unit) {
                                 detectTapGestures(onTap = {
@@ -456,7 +460,10 @@ fun LocationScreen(
                                 leadingContent = { Icon(Icons.Default.LocationOn, contentDescription = null) },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { handleLocationSelected(text) }
+                                    .clickable { handleLocationSelected(text) },
+                                colors = ListItemDefaults.colors(
+                                    containerColor = BackgroundPrimary
+                                ),
                             )
                         } else {
                             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -471,9 +478,12 @@ fun LocationScreen(
                                         },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clickable { handleLocationSelected(suggestion) }
+                                            .clickable { handleLocationSelected(suggestion) },
+                                        colors = ListItemDefaults.colors(
+                                            containerColor = BackgroundPrimary
+                                        ),
                                     )
-                                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                                 }
                             }
                         }

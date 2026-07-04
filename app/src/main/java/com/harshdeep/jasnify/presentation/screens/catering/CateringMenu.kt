@@ -17,6 +17,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -28,10 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,11 +52,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.*
-
-// Filter components and options sheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterBottomSheet
-
-// Import elements directly from the custom chip component file
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
@@ -81,6 +79,8 @@ fun CateringMenuScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
     var searchText by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var selectedFilterTab by remember { mutableStateOf("All Items") }
@@ -198,18 +198,7 @@ fun CateringMenuScreen(
     val searchBarParentBg by animateColorAsState(
         targetValue = if (isSearchActive) SurfaceBrandPrimary else Color.Transparent,
         animationSpec = tween(durationMillis = 250),
-        label = "SearchBarParentBg"
-    )
-
-    val searchTopPadding by animateDpAsState(
-        targetValue = if (isSearchActive) 12.dp else 12.dp,
-        animationSpec = tween(durationMillis = 250),
-        label = "SearchTopPadding"
-    )
-    val searchBottomPadding by animateDpAsState(
-        targetValue = if (isSearchActive) 12.dp else 0.dp,
-        animationSpec = tween(durationMillis = 250),
-        label = "SearchBottomPadding"
+        label = "SearchBarParent_Bg"
     )
 
     Scaffold(
@@ -238,8 +227,11 @@ fun CateringMenuScreen(
                     ) {
                         CustomTopBar(
                             title = "Catering Menu",
-                            onBackClick = { onBackClick() },
-                            onMenuClick = {},
+                            onBackClick = {
+                                focusManager.clearFocus()
+                                onBackClick()
+                            },
+                            onMenuClick = { focusManager.clearFocus() },
                             isLargeTitle = true,
                             buttonStyle = ButtonBackground.TRANSLUCENT,
                             textColor = ContentInvPrimary,
@@ -253,10 +245,10 @@ fun CateringMenuScreen(
                         .fillMaxWidth()
                         .background(searchBarParentBg)
                         .padding(
+                            top = 12.dp,
+                            bottom = if(isSearchActive) 12.dp else 0.dp,
                             start = 12.dp,
-                            end = 12.dp,
-                            top = searchTopPadding,
-                            bottom = searchBottomPadding
+                            end = 12.dp
                         )
                 ) {
                     CustomSearchBar(
@@ -272,6 +264,10 @@ fun CateringMenuScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundPrimary)
+                // Clear focus when tapping anywhere on the main empty background
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
                 .padding(paddingValues)
         ) {
             Column(
@@ -292,6 +288,7 @@ fun CateringMenuScreen(
                             shapeStyle = ChipShapeStyle.Round,
                             hasStroke = true,
                             onClick = {
+                                focusManager.clearFocus()
                                 selectedFilterTab = "All Items"
                                 selectedCuisines = emptySet()
                                 selectedTypes = emptySet()
@@ -303,7 +300,10 @@ fun CateringMenuScreen(
                             foodType = Dietary.Veg,
                             isSelected = selectedFilterTab == "Veg",
                             shapeStyle = ChipShapeStyle.Round,
-                            onClick = { selectedFilterTab = "Veg" }
+                            onClick = {
+                                focusManager.clearFocus()
+                                selectedFilterTab = "Veg"
+                            }
                         )
                     }
                     item {
@@ -311,7 +311,10 @@ fun CateringMenuScreen(
                             foodType = Dietary.NonVeg,
                             isSelected = selectedFilterTab == "Non-Veg",
                             shapeStyle = ChipShapeStyle.Round,
-                            onClick = { selectedFilterTab = "Non-Veg" }
+                            onClick = {
+                                focusManager.clearFocus()
+                                selectedFilterTab = "Non-Veg"
+                            }
                         )
                     }
 
@@ -329,6 +332,7 @@ fun CateringMenuScreen(
                             hasStroke = true,
                             hasDropdown = true,
                             onClick = {
+                                focusManager.clearFocus()
                                 showCuisineBottomSheet = true
                             }
                         )
@@ -348,6 +352,7 @@ fun CateringMenuScreen(
                             hasStroke = true,
                             hasDropdown = true,
                             onClick = {
+                                focusManager.clearFocus()
                                 showTypeBottomSheet = true
                             }
                         )
@@ -399,6 +404,7 @@ fun CateringMenuScreen(
                                     categoryTitle = category,
                                     items = items,
                                     onItemClick = { item ->
+                                        focusManager.clearFocus() // Clear focus when selecting an item
                                         selectedItemForDetails = item
                                         showDetailsBottomSheet = true
                                     }
@@ -430,7 +436,10 @@ fun CateringMenuScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CustomTextButton(
-                        onClick = { /* Handle Suggestions */ },
+                        onClick = {
+                            focusManager.clearFocus()
+                            /* Handle Suggestions */
+                        },
                         text = "AI Suggestions",
                         type = ButtonType.Secondary,
                         shapeStyle = ButtonShapeStyle.Round,
@@ -440,6 +449,7 @@ fun CateringMenuScreen(
 
                     CustomTextButton(
                         onClick = {
+                            focusManager.clearFocus()
                             editingItem = null
                             newItemName = ""
                             newItemCuisine = "Indian"
@@ -464,6 +474,7 @@ fun CateringMenuScreen(
             sheetState = detailsBottomSheetState,
             sheetHeight = 340.dp,
             onDismiss = {
+                focusManager.clearFocus()
                 showDetailsBottomSheet = false
                 selectedItemForDetails = null
             }
@@ -471,11 +482,13 @@ fun CateringMenuScreen(
             ItemDetailsSheetContent(
                 item = selectedItemForDetails!!,
                 onDeleteClick = {
+                    focusManager.clearFocus()
                     itemToDelete = selectedItemForDetails
                     showDetailsBottomSheet = false
                     showDeleteConfirmationSheet = true
                 },
                 onEditClick = {
+                    focusManager.clearFocus()
                     // Populate existing details into state variables
                     editingItem = selectedItemForDetails
                     newItemName = selectedItemForDetails?.name ?: ""
@@ -497,10 +510,12 @@ fun CateringMenuScreen(
             heading = "Remove item?",
             subHeading = "The item will be removed from the Catering Menu.",
             onDismiss = {
+                focusManager.clearFocus()
                 showDeleteConfirmationSheet = false
                 itemToDelete = null
             },
             onConfirmRemove = {
+                focusManager.clearFocus()
                 allMenuItems.remove(itemToDelete)
                 showDeleteConfirmationSheet = false
                 itemToDelete = null
@@ -516,8 +531,12 @@ fun CateringMenuScreen(
             options = cuisineOptions,
             initialSelectedOptions = selectedCuisines,
             showSearchBar = true,
-            onDismiss = { showCuisineBottomSheet = false },
+            onDismiss = {
+                focusManager.clearFocus()
+                showCuisineBottomSheet = false
+            },
             onApply = { selectedOptions ->
+                focusManager.clearFocus()
                 selectedCuisines = selectedOptions
                 showCuisineBottomSheet = false
             }
@@ -532,8 +551,12 @@ fun CateringMenuScreen(
             options = typeOptions,
             initialSelectedOptions = selectedTypes,
             showSearchBar = false,
-            onDismiss = { showTypeBottomSheet = false },
+            onDismiss = {
+                focusManager.clearFocus()
+                showTypeBottomSheet = false
+            },
             onApply = { selectedOptions ->
+                focusManager.clearFocus()
                 selectedTypes = selectedOptions
                 showTypeBottomSheet = false
             }
@@ -553,19 +576,32 @@ fun CateringMenuScreen(
             heading = if (editingItem != null) "Edit menu item" else "Add an item to menu",
             sheetState = addItemBottomSheetState,
             sheetHeight = formSheetHeight,
-            onDismiss = { showAddItemSheet = false }
+            onDismiss = {
+                focusManager.clearFocus()
+                showAddItemSheet = false
+            }
         ) {
             AddItemSheetContent(
                 itemName = newItemName,
                 onItemNameChange = { newItemName = it },
                 cuisine = newItemCuisine,
-                onCuisineClick = { showAddCuisineBottomSheet = true },
+                onCuisineClick = {
+                    focusManager.clearFocus()
+                    showAddCuisineBottomSheet = true
+                },
                 type = newItemType,
-                onTypeClick = { showAddTypeBottomSheet = true },
+                onTypeClick = {
+                    focusManager.clearFocus()
+                    showAddTypeBottomSheet = true
+                },
                 dietary = newItemDietary,
-                onDietaryChange = { newItemDietary = it },
+                onDietaryChange = {
+                    focusManager.clearFocus()
+                    newItemDietary = it
+                },
                 isEditMode = editingItem != null,
                 onSubmitClick = {
+                    focusManager.clearFocus()
                     if (newItemName.isNotBlank()) {
                         val updatedOrNewItem = MenuItem(
                             name = newItemName,
@@ -613,7 +649,10 @@ fun CateringMenuScreen(
     if (showSuccessSheet) {
         CustomSuccessBottomSheet(
             message = successMessage,
-            onDismiss = { showSuccessSheet = false }
+            onDismiss = {
+                focusManager.clearFocus()
+                showSuccessSheet = false
+            }
         )
     }
 
@@ -625,8 +664,12 @@ fun CateringMenuScreen(
             options = cuisineOptions,
             initialSelectedOptions = if (newItemCuisine.isNotEmpty()) setOf(newItemCuisine) else emptySet(),
             showSearchBar = true,
-            onDismiss = { showAddCuisineBottomSheet = false },
+            onDismiss = {
+                focusManager.clearFocus()
+                showAddCuisineBottomSheet = false
+            },
             onApply = { selectedOptions ->
+                focusManager.clearFocus()
                 newItemCuisine = selectedOptions.firstOrNull() ?: "Indian"
                 showAddCuisineBottomSheet = false
             },
@@ -642,8 +685,12 @@ fun CateringMenuScreen(
             options = typeOptions,
             initialSelectedOptions = if (newItemType.isNotEmpty()) setOf(newItemType) else emptySet(),
             showSearchBar = false,
-            onDismiss = { showAddTypeBottomSheet = false },
+            onDismiss = {
+                focusManager.clearFocus()
+                showAddTypeBottomSheet = false
+            },
             onApply = { selectedOptions ->
+                focusManager.clearFocus()
                 newItemType = selectedOptions.firstOrNull() ?: "Starters"
                 showAddTypeBottomSheet = false
             },
@@ -662,6 +709,8 @@ fun MenuCategoryCard(
     onItemClick: (MenuItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+
     Card(
         modifier = modifier.fillMaxWidth()
             .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(28.dp)),
@@ -673,6 +722,10 @@ fun MenuCategoryCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                // Clear focus when tapping empty areas of the category card
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
         ) {
             Image(
                 painter = painterResource(id = R.drawable.bg_pattern_source_catering_menu),
@@ -715,7 +768,10 @@ fun MenuCategoryCard(
                             label = item.name,
                             foodType = item.dietary,
                             isMultiSelect = false,
-                            onClick = { onItemClick(item) },
+                            onClick = {
+                                focusManager.clearFocus()
+                                onItemClick(item)
+                            },
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -731,10 +787,15 @@ fun ItemDetailsSheetContent(
     onDeleteClick: () -> Unit,
     onEditClick: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(12.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            }
     ) {
         Card(
             modifier = Modifier
@@ -832,7 +893,10 @@ fun ItemDetailsSheetContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             CustomIconButton(
-                onClick = onDeleteClick,
+                onClick = {
+                    focusManager.clearFocus()
+                    onDeleteClick()
+                },
                 icon = painterResource(R.drawable.ic_delete),
                 containerColor = MaterialTheme.colorScheme.errorContainer,
                 contentColor = MaterialTheme.colorScheme.error,
@@ -840,7 +904,10 @@ fun ItemDetailsSheetContent(
             )
 
             CustomTextButton(
-                onClick = onEditClick,
+                onClick = {
+                    focusManager.clearFocus()
+                    onEditClick()
+                },
                 text = "Edit Details",
                 type = ButtonType.Secondary,
                 shapeStyle = ButtonShapeStyle.Square,
@@ -865,11 +932,15 @@ fun AddItemSheetContent(
     isEditMode: Boolean = false
 ) {
     val isNameEntered = itemName.isNotBlank()
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .animateContentSize(animationSpec = tween(durationMillis = 300)),
+            .animateContentSize(animationSpec = tween(durationMillis = 300))
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = { focusManager.clearFocus() })
+            }
     ) {
         Column(
             modifier = Modifier
@@ -930,7 +1001,10 @@ fun AddItemSheetContent(
                                 modifier = Modifier
                                     .matchParentSize()
                                     .clip(SquircleShape(CornerLarge))
-                                    .clickable { onCuisineClick() }
+                                    .clickable {
+                                        focusManager.clearFocus()
+                                        onCuisineClick()
+                                    }
                             )
                         }
                     }
@@ -959,7 +1033,10 @@ fun AddItemSheetContent(
                                 modifier = Modifier
                                     .matchParentSize()
                                     .clip(SquircleShape(CornerLarge))
-                                    .clickable { onTypeClick() }
+                                    .clickable {
+                                        focusManager.clearFocus()
+                                        onTypeClick()
+                                    }
                             )
                         }
                     }
@@ -982,14 +1059,20 @@ fun AddItemSheetContent(
                     isSelected = dietary == Dietary.Veg,
                     shapeStyle = ChipShapeStyle.Square,
                     size = ChipSize.Large,
-                    onClick = { onDietaryChange(Dietary.Veg) }
+                    onClick = {
+                        focusManager.clearFocus()
+                        onDietaryChange(Dietary.Veg)
+                    }
                 )
                 FoodChip(
                     foodType = Dietary.NonVeg,
                     isSelected = dietary == Dietary.NonVeg,
                     shapeStyle = ChipShapeStyle.Square,
                     size = ChipSize.Large,
-                    onClick = { onDietaryChange(Dietary.NonVeg) }
+                    onClick = {
+                        focusManager.clearFocus()
+                        onDietaryChange(Dietary.NonVeg)
+                    }
                 )
             }
         }
@@ -999,7 +1082,10 @@ fun AddItemSheetContent(
             modifier = Modifier.padding(12.dp)
         ) {
             CustomTextButton(
-                onClick = onSubmitClick,
+                onClick = {
+                    focusManager.clearFocus()
+                    onSubmitClick()
+                },
                 text = if (isEditMode) "Save Changes" else "Add to Menu",
                 type = ButtonType.Primary,
                 shapeStyle = ButtonShapeStyle.Square,

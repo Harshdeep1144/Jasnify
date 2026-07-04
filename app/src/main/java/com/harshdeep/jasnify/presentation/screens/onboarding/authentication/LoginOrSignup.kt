@@ -286,10 +286,9 @@ fun LoginOrSignup(
                             }
                         },
                         text = if (authState is AuthState.Loading) "Loading..." else "Continue",
-                        size = ButtonSize.Medium,
                         modifier = Modifier.fillMaxWidth(),
-                        type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Square,
+                        containerColor = ContentPrimary,
                     )
 
                     OrDivider()
@@ -301,7 +300,8 @@ fun LoginOrSignup(
                             googleSignInLauncher.launch(signInIntent)
                         },
                         text = "Sign in with Google",
-                        icon = painterResource(id = R.drawable.ic_google)
+                        icon = painterResource(id = R.drawable.ic_google),
+                        badgeText = "Fastest & Most Used"
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
