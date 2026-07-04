@@ -2,6 +2,9 @@ package com.harshdeep.jasnify.presentation.screens.budget
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -145,17 +148,18 @@ data class CategorySummaryData(
 )
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
     // SYSTEM BACK BUTTON HANDLER
-    // It steps backward logically matching BudgetScreenView navigation flow.
     BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER) {
         currentView = when (currentView) {
             BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
@@ -419,7 +423,9 @@ fun BudgetScreen(
                             title = "Budget Tracker",
                             onBackClick = { onBackClick() },
                             onMenuClick = { showMenuBottomSheet = true },
-                            isLargeTitle = true
+                            isLargeTitle = true,
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                     BudgetScreenView.EXPENSE_SUMMARY -> {
