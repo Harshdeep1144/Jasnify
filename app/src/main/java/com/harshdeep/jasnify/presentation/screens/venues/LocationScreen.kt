@@ -11,11 +11,15 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -34,7 +38,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,6 +53,9 @@ import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentBrandDark
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
@@ -56,15 +65,19 @@ import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
 import java.util.Locale
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
     currentAddress: String, // Hoisted global state
     onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
     var text by remember { mutableStateOf("") }
@@ -102,36 +115,11 @@ fun LocationScreen(
         context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     }
 
-    // Comprehensive list of location suggestions for search autofill
     val searchDatabase = remember {
         listOf(
             "Hajipur, Bihar",
             "Patna, Bihar",
             "Muzaffarpur, Bihar",
-            "Gaya, Bihar",
-            "Bhagalpur, Bihar",
-            "Noida, Uttar Pradesh",
-            "Greater Noida, Uttar Pradesh",
-            "Ghaziabad, Uttar Pradesh",
-            "Delhi NCR",
-            "New Delhi, Delhi",
-            "Connaught Place, New Delhi",
-            "Indiranagar, Bengaluru",
-            "Koramangala, Bengaluru",
-            "Whitefield, Bengaluru",
-            "HSR Layout, Bengaluru",
-            "Andheri West, Mumbai",
-            "Bandra, Mumbai",
-            "Colaba, Mumbai",
-            "Gachibowli, Hyderabad",
-            "Jubilee Hills, Hyderabad",
-            "Adyar, Chennai",
-            "T. Nagar, Chennai",
-            "C-Scheme, Jaipur",
-            "Malviya Nagar, Jaipur",
-            "Taj Ganj, Agra",
-            "Salt Lake, Kolkata",
-            "Park Street, Kolkata"
         )
     }
 
@@ -144,9 +132,7 @@ fun LocationScreen(
         }
     }
 
-    // Save and finalize selected address selection
     val handleLocationSelected: (String) -> Unit = { selectedAddress ->
-        // Add to recent searches (move to top if exists)
         recentSearches.remove(selectedAddress)
         recentSearches.add(0, selectedAddress)
 
@@ -158,9 +144,10 @@ fun LocationScreen(
         // Persist to local SharedPreferences storage
         saveRecentSearchesToStorage(recentSearches)
 
-        // Clear search inputs and bubble up selections
+        // Clear search inputs, close active search state, dismiss focus and bubble up selections
         text = ""
         isSearchActive = false
+        focusManager.clearFocus()
         onAddressSelected(selectedAddress)
     }
 
@@ -255,19 +242,42 @@ fun LocationScreen(
         City("Patna", R.drawable.ic_city_ptn, "patna")
     )
 
-    Scaffold { paddingValues ->
+    val contentModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedBounds(
+                rememberSharedContentState(key = "location_picker"),
+                animatedVisibilityScope = animatedVisibilityScope
+            )
+        }
+    } else Modifier
+
+    Scaffold(modifier = contentModifier) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                // Clear focus and hide the keyboard when tapping anywhere outside the SearchBar
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
         ) {
-            CustomTopBar(
-                title = "Location",
-                onBackClick = onBackClick,
-                isLargeTitle = true
-            )
+            // Smoothly collapse / show TopBar based on Search Bar active state
+            AnimatedVisibility(
+                visible = !isSearchActive,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                CustomTopBar(
+                    title = "Location",
+                    onBackClick = onBackClick,
+                    isLargeTitle = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
 
-            // Fixed non-scrollable Search Bar (Always visible)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -280,7 +290,6 @@ fun LocationScreen(
                 )
             }
 
-            // Layout Split Container
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -415,7 +424,6 @@ fun LocationScreen(
                     }
                 }
 
-                // Explicit top-level AnimatedVisibility overlay to prevent compiler scope mismatch
                 androidx.compose.animation.AnimatedVisibility(
                     visible = isSearchActive,
                     enter = fadeIn(),
@@ -425,6 +433,12 @@ fun LocationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background)
+                            // Clear focus if tapping on the blank space in the overlay list
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = {
+                                    focusManager.clearFocus()
+                                })
+                            }
                     ) {
                         if (filteredSuggestions.isEmpty() && text.isNotBlank()) {
                             ListItem(
@@ -494,7 +508,7 @@ fun LocationPicker(
             Text(
                 text = "Use Current Location",
                 color = ContentBrandDark,
-                style = JasnifyTheme.typography.bodyLarge,
+                style = JasnifyTheme.typography.bodyXLarge,
                 fontWeight = FontWeight.Medium
             )
             Text(

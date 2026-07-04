@@ -2,11 +2,12 @@ package com.harshdeep.jasnify.presentation.screens.home
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -26,10 +27,13 @@ fun HomeScreen(
     SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
 
     val internalNavController = rememberNavController()
+    var showBottomBar by remember { mutableStateOf(true) }
 
     Scaffold(
         bottomBar = {
-            BottomNavBar(navController = internalNavController)
+            if (showBottomBar) {
+                BottomNavBar(navController = internalNavController)
+            }
         },
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
     ) { paddingValues ->
@@ -38,12 +42,12 @@ fun HomeScreen(
             startDestination = Screen.HomeTabScreen.Home.route,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(if (showBottomBar) paddingValues else PaddingValues(0.dp))
         ) {
             // All tab routes are now managed in this extension function
             homeNavGraph(
                 mainNavController = mainNavController,
-                internalNavController = internalNavController
+                onBottomBarVisibilityChange = { showBottomBar = it }
             )
         }
     }
