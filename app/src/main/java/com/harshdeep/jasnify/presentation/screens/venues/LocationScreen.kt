@@ -8,6 +8,7 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Build
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -151,6 +152,12 @@ fun LocationScreen(
         isSearchActive = false
         focusManager.clearFocus()
         onAddressSelected(selectedAddress)
+    }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        text = ""
+        focusManager.clearFocus()
     }
 
     fun fetchLocationAndResolveAddress() {

@@ -14,7 +14,6 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -42,7 +41,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
@@ -57,13 +55,11 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.CustomRadioButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
-import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
@@ -88,6 +84,7 @@ fun VenueScreen(
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
 
+    // Intercept back actions when the location picker is active to close it gracefully
     BackHandler(enabled = isLocationPickerVisible) {
         isLocationPickerVisible = false
     }
@@ -162,6 +159,13 @@ fun VenueMainContent(
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+
+    // Intercept back clicks if the local explore search mode is currently active
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        text = ""
+        focusManager.clearFocus()
+    }
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showFilterDialog by remember { mutableStateOf(false) }
