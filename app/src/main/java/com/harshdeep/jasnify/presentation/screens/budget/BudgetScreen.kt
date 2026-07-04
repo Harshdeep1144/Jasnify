@@ -144,6 +144,7 @@ data class CategorySummaryData(
     val totalCount: Int
 )
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(
@@ -154,6 +155,7 @@ fun BudgetScreen(
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
     // SYSTEM BACK BUTTON HANDLER
+    // It steps backward logically matching BudgetScreenView navigation flow.
     BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER) {
         currentView = when (currentView) {
             BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
@@ -417,7 +419,7 @@ fun BudgetScreen(
                             title = "Budget Tracker",
                             onBackClick = { onBackClick() },
                             onMenuClick = { showMenuBottomSheet = true },
-                            isLargeTitle = true,
+                            isLargeTitle = true
                         )
                     }
                     BudgetScreenView.EXPENSE_SUMMARY -> {
@@ -698,6 +700,7 @@ fun BudgetScreen(
         // ============================================================================================================================================
 
 
+
         AnimatedVisibility(
             visible = (currentView == BudgetScreenView.EXPENSE_SUMMARY),
             enter = fadeIn(),
@@ -718,7 +721,6 @@ fun BudgetScreen(
                         focusManager.clearFocus()
                     }
             ) {
-                // 1. SCROLLABLE CONTENT AREA
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -951,6 +953,113 @@ fun BudgetScreen(
                         type = ButtonType.Primary,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+
+        // ============================================================================================================================================
+        // SCREEN 3: EXPENSE_CATEGORY
+        // ============================================================================================================================================
+
+
+        AnimatedVisibility(
+            visible = (currentView == BudgetScreenView.EXPENSE_CATEGORY),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(SurfaceSecondary)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    // Search bar section
+                    CustomSearchBar(
+                        value = categorySearchQuery,
+                        placeholder = "Search",
+                        onValueChange = { categorySearchQuery = it },
+                        backgroundColor = SurfacePrimary,
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(12.dp)
+                    )
+
+                    // Dynamically compiled list of category summaries
+                    LazyColumn(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        items(filteredCategorySummary, key = { it.name }) { categoryItem ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        selectedCategoryForDetails = categoryItem.name
+                                        currentView = BudgetScreenView.CATEGORY_DETAIL
+                                    }
+                            ) {
+                                CategoryCard(
+                                    title = categoryItem.name,
+                                    amount = categoryItem.amountFormatted,
+                                    emojis = categoryItem.emojis,
+                                    totalItemCount = categoryItem.totalCount,
+                                    onMenuClick = {
+                                        // Binds selected category context and triggers bottom sheet visibility
+                                        selectedCategoryForMenu = categoryItem.name
+                                        showCategoryMenuBottomSheet = true
+                                    }
+                                )
+                            }
+                        }
+
+                        item { Spacer(modifier = Modifier.height(12.dp)) }
+                    }
+
+                    // Bottom Navigation Button Sticky Row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .shadow(elevation = 12.dp, spotColor = ContentPrimary, ambientColor = ContentPrimary)
+                            .background(SurfacePrimary)
+                            .padding(12.dp)
+                            .navigationBarsPadding(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomTextButton(
+                            onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                            text = "View Summary",
+                            type = ButtonType.Secondary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            modifier = Modifier
+                                .weight(1f)
+                        )
+
+                        CustomTextButton(
+                            onClick = {
+                                // Clear rename queue, and open the category-only bottom sheet directly
+                                categoryToRename = null
+                                showAddCustomCategorySheet = true
+                            },
+                            text = "Add Category",
+                            type = ButtonType.Primary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            modifier = Modifier
+                                .weight(1f)
+                        )
+                    }
                 }
             }
         }
