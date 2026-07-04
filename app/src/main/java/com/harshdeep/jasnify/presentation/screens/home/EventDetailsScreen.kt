@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -860,7 +861,7 @@ fun EventDetailsScreen(
                             BoxWithConstraints(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(12.dp)
+                                    .height(4.dp)
                                     .padding(horizontal = 12.dp)
                             ) {
                                 val containerWidth = maxWidth
@@ -890,13 +891,13 @@ fun EventDetailsScreen(
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp)
                                     .height(250.dp)
                             ) {
                                 if (pickerActiveTab == 0) {
                                     if (timelineItems.isEmpty()) {
                                         Box(
-                                            modifier = Modifier.fillMaxSize(),
+                                            modifier = Modifier.fillMaxSize()
+                                                .padding(12.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
@@ -908,6 +909,7 @@ fun EventDetailsScreen(
                                     } else {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(12.dp),
                                             verticalArrangement = Arrangement.spacedBy(2.dp)
                                         ) {
                                             itemsIndexed(timelineItems) { index, item ->
