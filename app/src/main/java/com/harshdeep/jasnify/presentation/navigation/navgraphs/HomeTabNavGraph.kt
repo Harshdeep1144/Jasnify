@@ -5,44 +5,41 @@ import androidx.annotation.RequiresApi
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
+import androidx.compose.runtime.LaunchedEffect
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.tabs.*
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.homeNavGraph(
     mainNavController: NavHostController,
-    internalNavController: NavHostController
+    onBottomBarVisibilityChange: (Boolean) -> Unit
 ) {
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
-            onBudgetClick = {
-                mainNavController.navigate(Screen.BudgetRoot.route)
-            },
-            onVenueClick = {
-                mainNavController.navigate(Screen.VenueGraph.route)
-            },
-            onCateringClick = {
-                mainNavController.navigate((Screen.CateringRoot.route))
-            },
             onMenuClick = {
                 mainNavController.navigate((Screen.EventDetail.route))
-            }
+            },
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange
         )
     }
 
     composable(route = Screen.HomeTabScreen.Checklists.route) {
+        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
         ChecklistsTab()
     }
 
     composable(route = Screen.HomeTabScreen.Vendors.route) {
+        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
         VendorsTab()
     }
 
     composable(route = Screen.HomeTabScreen.Inspirations.route) {
+        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
         InspirationsTab()
     }
 
     composable(route = Screen.HomeTabScreen.Profile.route) {
+        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
         ProfileTab(mainNavController = mainNavController)
     }
 }

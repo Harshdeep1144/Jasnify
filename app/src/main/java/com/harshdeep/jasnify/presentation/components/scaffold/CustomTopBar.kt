@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,11 +19,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -29,6 +30,7 @@ import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CustomTopBar(
     title: String? = null,
@@ -42,7 +44,9 @@ fun CustomTopBar(
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
-    translucentAlpha: Float = 0.2f
+    translucentAlpha: Float = 0.2f,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     Surface(
         color = Color.Transparent,
@@ -93,7 +97,9 @@ fun CustomTopBar(
                             isLargeTitle = isLargeTitle,
                             textColor = textColor,
                             isClickable = onDropdownClick != null,
-                            onClick = onDropdownClick ?: {}
+                            onClick = onDropdownClick ?: {},
+                            sharedTransitionScope = sharedTransitionScope,
+                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                 }
@@ -117,6 +123,7 @@ fun CustomTopBar(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun TopBarTextLayout(
     title: String,
@@ -124,7 +131,9 @@ private fun TopBarTextLayout(
     isLargeTitle: Boolean,
     textColor: Color,
     isClickable: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     Column(
         modifier = Modifier
@@ -137,6 +146,15 @@ private fun TopBarTextLayout(
             ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val sharedModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+            with(sharedTransitionScope) {
+                Modifier.sharedElement(
+                    rememberSharedContentState(key = "text_$title"),
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
+        } else Modifier
+
         Text(
             text = title,
             style = if (isLargeTitle) {
@@ -144,7 +162,8 @@ private fun TopBarTextLayout(
             } else {
                 JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
             },
-            color = textColor
+            color = textColor,
+            modifier = sharedModifier
         )
         if (subtitle != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -216,8 +235,6 @@ private fun TopBarProfileLayout(
 }
 
 
-// ----- Preview -----
-
 @Preview(showBackground = true, backgroundColor = 0xFFF5F5F5)
 @Composable
 fun CustomTopBarVariantsPreview() {
@@ -248,56 +265,18 @@ fun CustomTopBarVariantsPreview() {
             onDropdownClick = {}
         )
 
-        // Back + Label + Subtitle + Dropdown + Menu
+        // Back + Title + Action
         CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onBackClick = {},
-            onMenuClick = {},
-            onDropdownClick = {}
-        )
-
-        // Simple Center Label + Subtitle (Duplicate of 4)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onDropdownClick = {}
-        )
-
-        // Back + Simple Center Label + Subtitle (Duplicate of 5)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onBackClick = {},
-            onDropdownClick = {}
-        )
-
-        // Back + Simple Center Label + Subtitle + Menu (Duplicate of 6)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onBackClick = {},
-            onMenuClick = {},
-            onDropdownClick = {},
-            isLargeTitle = true
-        )
-
-        // Back + Profile Variant + Menu
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            image = painterResource(R.drawable.ic_profile),
+            title = "Title",
             onBackClick = {},
             onMenuClick = {}
         )
 
-        // Example with a custom color (e.g., Purple/Blue)
+        // Large Title
         CustomTopBar(
-            title = "Custom Color",
-            subtitle = "Subtitle stays secondary",
-            textColor = Color(0xFF6200EE),
-            onBackClick = {},
-            onMenuClick = {}
+            title = "Large Title",
+            isLargeTitle = true,
+            onBackClick = {}
         )
     }
 }
