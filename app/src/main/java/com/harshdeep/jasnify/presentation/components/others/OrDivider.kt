@@ -44,7 +44,7 @@ fun OrDivider(
                     modifier = Modifier
                         .weight(0.5f)
                         .height(0.9.dp),
-                    color = ContentTertiary
+                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
                 )
             }
 
@@ -60,7 +60,7 @@ fun OrDivider(
                     modifier = Modifier
                         .weight(0.5f)
                         .height(0.9.dp),
-                    color = ContentTertiary
+                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
                 )
             }
         }
