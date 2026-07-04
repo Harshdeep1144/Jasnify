@@ -2,9 +2,6 @@ package com.harshdeep.jasnify.presentation.screens.budget
 
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -147,13 +144,10 @@ data class CategorySummaryData(
     val totalCount: Int
 )
 
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -424,8 +418,6 @@ fun BudgetScreen(
                             onBackClick = { onBackClick() },
                             onMenuClick = { showMenuBottomSheet = true },
                             isLargeTitle = true,
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope
                         )
                     }
                     BudgetScreenView.EXPENSE_SUMMARY -> {

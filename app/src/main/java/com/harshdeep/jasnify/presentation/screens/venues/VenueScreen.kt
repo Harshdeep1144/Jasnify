@@ -4,8 +4,6 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import com.harshdeep.jasnify.R
 import androidx.compose.animation.*
-import androidx.compose.animation.SharedTransitionScope.ResizeMode
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -24,12 +22,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
@@ -91,8 +85,6 @@ fun VenueScreen(
     selectedLocation: String = "City, State",
     onVenueClick: (VendorCardData) -> Unit,
     onBackClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     isScreenActive: Boolean = true
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
@@ -118,8 +110,6 @@ fun VenueScreen(
                     isLocationPickerVisible = false
                 },
                 onBackClick = { isLocationPickerVisible = false },
-                sharedTransitionScope = sharedTransitionScope,
-                animatedVisibilityScope = this
             )
         } else {
             VenueMainContent(
@@ -127,9 +117,6 @@ fun VenueScreen(
                 onVenueClick = onVenueClick,
                 onLocationSelectorClick = { isLocationPickerVisible = true },
                 onBackClick = onBackClick,
-                sharedTransitionScope = sharedTransitionScope,
-                outerAnimatedVisibilityScope = animatedVisibilityScope,
-                innerAnimatedVisibilityScope = this,
                 isScreenActive = isScreenActive
             )
         }
@@ -137,16 +124,13 @@ fun VenueScreen(
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VenueMainContent(
     selectedLocation: String,
     onVenueClick: (VendorCardData) -> Unit,
     onLocationSelectorClick: () -> Unit,
     onBackClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    outerAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
-    innerAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
     isScreenActive: Boolean = true
 ) {
     val focusManager = LocalFocusManager.current
@@ -307,8 +291,6 @@ fun VenueMainContent(
                         onBackClick = { onBackClick() },
                         onMenuClick = if (!isSearchActive) { { } } else null,
                         isLargeTitle = true,
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = outerAnimatedVisibilityScope
                     )
                 }
             },
@@ -353,26 +335,11 @@ fun VenueMainContent(
                         item {
                             if (!isSearchActive) {
                                 Spacer(Modifier.height(12.dp))
-                                with(sharedTransitionScope) {
-                                    LocationSelectorPill(
-                                        location = selectedLocation,
-                                        onLocationSelectorClick = onLocationSelectorClick,
-                                        modifier = if (this != null && innerAnimatedVisibilityScope != null) {
-                                            Modifier.sharedBounds(
-                                                rememberSharedContentState(key = "location_picker"),
-                                                animatedVisibilityScope = innerAnimatedVisibilityScope,
-                                                boundsTransform = { _, _ ->
-                                                    spring(
-                                                        dampingRatio = 0.85f,
-                                                        stiffness = 380f
-                                                    )
-                                                },
-                                                resizeMode = ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center),
-                                                renderInOverlayDuringTransition = isScreenActive
-                                            )
-                                        } else Modifier
-                                    )
-                                }
+                                LocationSelectorPill(
+                                    location = selectedLocation,
+                                    onLocationSelectorClick = onLocationSelectorClick,
+                                    modifier = Modifier
+                                )
                             }
                         }
 
