@@ -11,10 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.theme.*
 
@@ -32,7 +34,7 @@ fun BottomNavBar(navController: NavHostController) {
         containerColor = SurfacePrimary,
         modifier = Modifier
             .fillMaxWidth()
-            .height(85.dp)
+            .height(93.dp)
             .shadow(elevation = 20.dp)
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -53,6 +55,7 @@ fun BottomNavBar(navController: NavHostController) {
                     Text(text = screen.title, style = JasnifyTheme.typography.labelSmall)
                 },
                 selected = isSelected,
+                alwaysShowLabel = true,
                 onClick = {
                     if (!isSelected) {
                         navController.navigate(screen.route) {
@@ -71,5 +74,15 @@ fun BottomNavBar(navController: NavHostController) {
                 )
             )
         }
+    }
+}
+
+
+
+@Preview(showBackground = true)
+@Composable
+fun BottomNavBarPreview() {
+    JasnifyTheme {
+        BottomNavBar(navController = rememberNavController())
     }
 }
