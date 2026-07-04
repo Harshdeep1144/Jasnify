@@ -1,13 +1,18 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import com.harshdeep.jasnify.R
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
+import androidx.compose.animation.SharedTransitionScope.ResizeMode
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -18,11 +23,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
@@ -31,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -67,13 +70,73 @@ data class TimelineEvent(
     val venues: List<VendorCardData>
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueScreen(
-    selectedLocation: String = "Patna, Bihar",
+    selectedLocation: String = "City, State",
+    onVenueClick: (VendorCardData) -> Unit,
+    onBackClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null,
+    isScreenActive: Boolean = true // FIX: Accept active screen state
+) {
+    var currentAddress by remember { mutableStateOf(selectedLocation) }
+    var isLocationPickerVisible by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = isLocationPickerVisible) {
+        isLocationPickerVisible = false
+    }
+
+    // Snappy transitions
+    AnimatedContent(
+        targetState = isLocationPickerVisible,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+        },
+        label = "venue_location_transition"
+    ) { showPicker ->
+        if (showPicker) {
+            LocationScreen(
+                initialSearches = listOf("Patna", "Delhi", "Mumbai"),
+                currentAddress = currentAddress,
+                onAddressSelected = {
+                    currentAddress = it
+                    isLocationPickerVisible = false
+                },
+                onBackClick = { isLocationPickerVisible = false },
+                sharedTransitionScope = sharedTransitionScope,
+                // Pass this nested AnimatedVisibilityScope for local shared element transitions!
+                animatedVisibilityScope = this
+            )
+        } else {
+            VenueMainContent(
+                selectedLocation = currentAddress,
+                onVenueClick = onVenueClick,
+                onLocationSelectorClick = { isLocationPickerVisible = true },
+                onBackClick = onBackClick,
+                sharedTransitionScope = sharedTransitionScope,
+                outerAnimatedVisibilityScope = animatedVisibilityScope,
+                // Pass this nested AnimatedVisibilityScope for local shared element transitions!
+                innerAnimatedVisibilityScope = this,
+                isScreenActive = isScreenActive // FIX: Pass down screen active state
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@Composable
+fun VenueMainContent(
+    selectedLocation: String,
     onVenueClick: (VendorCardData) -> Unit,
     onLocationSelectorClick: () -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    outerAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
+    innerAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
+    isScreenActive: Boolean = true // FIX: Parameter added
 ) {
     var selectedTab by remember { mutableStateOf("explore") }
 
@@ -214,7 +277,9 @@ fun VenueScreen(
                     title = "Venue",
                     onBackClick = { onBackClick() },
                     onMenuClick = if (!isSearchActive) { { } } else null,
-                    isLargeTitle = true
+                    isLargeTitle = true,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = outerAnimatedVisibilityScope
                 )
 
                 if (selectedTab == "saved") {
@@ -250,7 +315,28 @@ fun VenueScreen(
                 item {
                     if(!isSearchActive){
                         Spacer(Modifier.height(12.dp))
-                        LocationSelectorPill(location = selectedLocation, onLocationSelectorClick)
+                        // Custom ScaleToBounds and Spring animations for seamlessly expand from top & bottom sides into the location screen container.
+                        with(sharedTransitionScope) {
+                            LocationSelectorPill(
+                                location = selectedLocation,
+                                onLocationSelectorClick = onLocationSelectorClick,
+                                modifier = if (this != null && innerAnimatedVisibilityScope != null) {
+                                    Modifier.sharedBounds(
+                                        rememberSharedContentState(key = "location_picker"),
+                                        animatedVisibilityScope = innerAnimatedVisibilityScope,
+                                        boundsTransform = { _, _ ->
+                                            spring(
+                                                dampingRatio = 0.85f, // premium, snug elastic feel
+                                                stiffness = 380f      // fast and highly responsive
+                                            )
+                                        },
+                                        resizeMode = ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center),
+                                        // FIX: Bypass overlay promotion when navigating back to home screen.
+                                        renderInOverlayDuringTransition = isScreenActive
+                                    )
+                                } else Modifier
+                            )
+                        }
                     }
                 }
 
@@ -823,10 +909,11 @@ private fun parsePrice(priceString: String): Int {
     return clean.toIntOrNull() ?: 0
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)
 @Composable
 fun PreviewVenueScreen() {
     JasnifyTheme {
-        VenueScreen(selectedLocation = "Patna, Bihar", onVenueClick = {}, onLocationSelectorClick = {}, onBackClick = {})
+        VenueScreen(selectedLocation = "Patna, Bihar", onVenueClick = {}, onBackClick = {})
     }
 }
