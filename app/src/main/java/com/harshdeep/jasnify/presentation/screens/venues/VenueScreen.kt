@@ -13,6 +13,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -33,7 +35,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -125,6 +129,7 @@ fun VenueScreen(
     }
 }
 
+
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -138,6 +143,7 @@ fun VenueMainContent(
     innerAnimatedVisibilityScope: AnimatedVisibilityScope? = null,
     isScreenActive: Boolean = true // FIX: Parameter added
 ) {
+    val focusManager = LocalFocusManager.current
     var selectedTab by remember { mutableStateOf("explore") }
 
     val viewOptions = listOf("By Timeline", "By List")
@@ -266,208 +272,254 @@ fun VenueMainContent(
         list
     }
 
-    Scaffold(
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .background(Color.Transparent)
-                    .statusBarsPadding()
-            ) {
-                CustomTopBar(
-                    title = "Venue",
-                    onBackClick = { onBackClick() },
-                    onMenuClick = if (!isSearchActive) { { } } else null,
-                    isLargeTitle = true,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = outerAnimatedVisibilityScope
+    // Outer wrapper intercepting non-focused taps to release focus from elements like SearchBar.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        focusManager.clearFocus()
+                    }
                 )
-
-                if (selectedTab == "saved") {
-                    IosSegmentedControl(
-                        options = viewOptions,
-                        selectedOption = selectedViewType,
-                        onOptionSelected = { selectedViewType = it },
-                        modifier = Modifier.padding(12.dp)
+            }
+    ) {
+        Scaffold(
+            topBar = {
+                Column(
+                    modifier = Modifier
+                        .background(Color.Transparent)
+                        .statusBarsPadding()
+                ) {
+                    CustomTopBar(
+                        title = "Venue",
+                        onBackClick = { onBackClick() },
+                        onMenuClick = if (!isSearchActive) { { } } else null,
+                        isLargeTitle = true,
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = outerAnimatedVisibilityScope
                     )
                 }
-            }
-        },
-        bottomBar = {
-            if(!isSearchActive){
-                BottomTab(
-                    items = bottomTabs,
-                    selectedValue = selectedTab,
-                    onItemSelected = { selectedTab = it }
-                )
-            }
-        },
-    ) { paddingValues ->
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 12.dp)
-                .background(Color.Transparent),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            if (selectedTab == "explore") {
-                item {
-                    if(!isSearchActive){
-                        Spacer(Modifier.height(12.dp))
-                        // Custom ScaleToBounds and Spring animations for seamlessly expand from top & bottom sides into the location screen container.
-                        with(sharedTransitionScope) {
-                            LocationSelectorPill(
-                                location = selectedLocation,
-                                onLocationSelectorClick = onLocationSelectorClick,
-                                modifier = if (this != null && innerAnimatedVisibilityScope != null) {
-                                    Modifier.sharedBounds(
-                                        rememberSharedContentState(key = "location_picker"),
-                                        animatedVisibilityScope = innerAnimatedVisibilityScope,
-                                        boundsTransform = { _, _ ->
-                                            spring(
-                                                dampingRatio = 0.85f, // premium, snug elastic feel
-                                                stiffness = 380f      // fast and highly responsive
-                                            )
-                                        },
-                                        resizeMode = ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center),
-                                        // FIX: Bypass overlay promotion when navigating back to home screen.
-                                        renderInOverlayDuringTransition = isScreenActive
-                                    )
-                                } else Modifier
-                            )
-                        }
-                    }
+            },
+            bottomBar = {
+                if (!isSearchActive) {
+                    BottomTab(
+                        items = bottomTabs,
+                        selectedValue = selectedTab,
+                        onItemSelected = { selectedTab = it }
+                    )
                 }
+            },
+        ) { paddingValues ->
 
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+            // Smooth horizontal slider animation transition spec for navigating between explore and saved tabs
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    val isSaved = targetState == "saved"
+                    slideInHorizontally(
+                        animationSpec = tween(300),
+                        initialOffsetX = { fullWidth -> if (isSaved) fullWidth else -fullWidth }
+                    ) + fadeIn(animationSpec = tween(300)) togetherWith
+                            slideOutHorizontally(
+                                animationSpec = tween(300),
+                                targetOffsetX = { fullWidth -> if (isSaved) -fullWidth else fullWidth }
+                            ) + fadeOut(animationSpec = tween(300))
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BackgroundPrimary)
+                    .padding(paddingValues),
+                label = "explore_saved_slide_transition"
+            ) { currentTab ->
+                if (currentTab == "explore") {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp)
+                            .background(Color.Transparent),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        CustomSearchBar(
-                            value = text,
-                            onValueChange = { text = it },
-                            onActiveChange = { active -> isSearchActive = active },
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        if(!isSearchActive){
-                            Spacer(Modifier.width(8.dp))
-                            FilterButton(onClick = { showFilterDialog = true })
-                        }
-                    }
-                }
-
-                if(!isSearchActive){
-                    items(filteredAndSortedExploreVenues) { venue ->
-                        VendorCardFull(
-                            vendor = venue,
-                            onBookCallClick = {},
-                            onFavoriteToggle = {
-                                if (venueSavedDestinations.containsKey(venue.vendorName)) {
-                                    venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                } else {
-                                    activeTargetVenue = venue
-                                    isMySavedListChecked = true
-                                    selectedSaveEventId = null
-                                    showSaveListBottomSheet = true
+                        item {
+                            if (!isSearchActive) {
+                                Spacer(Modifier.height(12.dp))
+                                // Custom ScaleToBounds and Spring animations for seamlessly expand from top & bottom sides into the location screen container.
+                                with(sharedTransitionScope) {
+                                    LocationSelectorPill(
+                                        location = selectedLocation,
+                                        onLocationSelectorClick = onLocationSelectorClick,
+                                        modifier = if (this != null && innerAnimatedVisibilityScope != null) {
+                                            Modifier.sharedBounds(
+                                                rememberSharedContentState(key = "location_picker"),
+                                                animatedVisibilityScope = innerAnimatedVisibilityScope,
+                                                boundsTransform = { _, _ ->
+                                                    spring(
+                                                        dampingRatio = 0.85f, // premium, snug elastic feel
+                                                        stiffness = 380f      // fast and highly responsive
+                                                    )
+                                                },
+                                                resizeMode = ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center),
+                                                // FIX: Bypass overlay promotion when navigating back to home screen.
+                                                renderInOverlayDuringTransition = isScreenActive
+                                            )
+                                        } else Modifier
+                                    )
                                 }
-                            },
-                            onCardClick = {},
-                            onChatClick = {},
-                        )
-                    }
-                } else {
-                    item {
-                        RecentSearchesSection(
-                            onVenueClick = {},
-                            recentVenues = MockData.sampleVenues1,
-                            onClearAll = {}
-                        )
-                    }
-                }
-                item{Spacer(Modifier.height(6.dp))}
-            } else {
-                if (savedVenuesList.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            }
+                        }
+
+                        item {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_filter),
-                                    contentDescription = "Empty States",
-                                    tint = ContentTertiary,
-                                    modifier = Modifier.size(56.dp)
+                                CustomSearchBar(
+                                    value = text,
+                                    onValueChange = { text = it },
+                                    onActiveChange = { active -> isSearchActive = active },
+                                    modifier = Modifier.weight(1f),
+                                    isAiSearch = true,
+                                    placeholder = "Type your choices"
                                 )
-                                Text(
-                                    text = "Your Saved List is empty",
-                                    style = JasnifyTheme.typography.headingMedium,
-                                    color = ContentSecondary,
-                                    fontWeight = FontWeight.SemiBold
+
+                                if (!isSearchActive) {
+                                    Spacer(Modifier.width(8.dp))
+                                    FilterButton(onClick = { showFilterDialog = true })
+                                }
+                            }
+                        }
+
+                        if (!isSearchActive) {
+                            items(filteredAndSortedExploreVenues) { venue ->
+                                VendorCardFull(
+                                    vendor = venue,
+                                    onBookCallClick = {},
+                                    onFavoriteToggle = {
+                                        if (venueSavedDestinations.containsKey(venue.vendorName)) {
+                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                        } else {
+                                            activeTargetVenue = venue
+                                            isMySavedListChecked = true
+                                            selectedSaveEventId = null
+                                            showSaveListBottomSheet = true
+                                        }
+                                    },
+                                    onCardClick = {},
+                                    onChatClick = {},
                                 )
-                                Text(
-                                    text = "Tap the heart on venues to organize them for events.",
-                                    style = JasnifyTheme.typography.bodyMedium,
-                                    color = ContentTertiary,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            }
+                        } else {
+                            item {
+                                RecentSearchesSection(
+                                    onVenueClick = {},
+                                    recentVenues = MockData.sampleVenues1,
+                                    onClearAll = {}
                                 )
                             }
                         }
+                        item { Spacer(Modifier.height(6.dp)) }
                     }
                 } else {
-                    if (selectedViewType == "By Timeline") {
-                        if (savedTimelineEvents.isEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp)
+                            .background(Color.Transparent),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (savedVenuesList.isEmpty()) {
                             item {
                                 Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .fillMaxSize()
                                         .padding(vertical = 80.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Text(
-                                        text = "No events configured yet. Items saved to 'My Saved List'.",
-                                        style = JasnifyTheme.typography.bodyLarge,
-                                        color = ContentTertiary,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize(),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_filter),
+                                            contentDescription = "Empty States",
+                                            tint = ContentTertiary,
+                                            modifier = Modifier.size(56.dp)
+                                        )
+                                        Text(
+                                            text = "Your Saved List is empty",
+                                            style = JasnifyTheme.typography.headingMedium,
+                                            color = ContentSecondary,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                        Text(
+                                            text = "Tap the heart on venues to organize them for events.",
+                                            style = JasnifyTheme.typography.bodyMedium,
+                                            color = ContentTertiary,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
+                                    }
                                 }
                             }
                         } else {
-                            items(savedTimelineEvents) { timelineItem ->
-                                TimelineSection(
-                                    date = timelineItem.date,
-                                    event = timelineItem.event,
-                                    venues = timelineItem.venues,
-                                    onVenueClick = { },
-                                    onFavoriteToggle = { venue ->
-                                        venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                    }
+                            item{
+                                IosSegmentedControl(
+                                    options = viewOptions,
+                                    selectedOption = selectedViewType,
+                                    onOptionSelected = { selectedViewType = it },
+                                    modifier = Modifier.padding(vertical = 12.dp)
+                                        .height(44.dp)
                                 )
                             }
+
+                            if (selectedViewType == "By Timeline") {
+                                if (savedTimelineEvents.isEmpty()) {
+                                    item {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 80.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Text(
+                                                text = "No events configured yet. Items saved to 'My Saved List'.",
+                                                style = JasnifyTheme.typography.bodyLarge,
+                                                color = ContentTertiary,
+                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(savedTimelineEvents) { timelineItem ->
+                                        TimelineSection(
+                                            date = timelineItem.date,
+                                            event = timelineItem.event,
+                                            venues = timelineItem.venues,
+                                            onVenueClick = { },
+                                            onFavoriteToggle = { venue ->
+                                                venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                            }
+                                        )
+                                    }
+                                }
+                            } else {
+                                items(savedVenuesList) { venue ->
+                                    VendorCardFull(
+                                        vendor = venue,
+                                        onBookCallClick = {},
+                                        onFavoriteToggle = {
+                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                        },
+                                        onCardClick = {},
+                                        onChatClick = {},
+                                    )
+                                }
+                            }
                         }
-                    } else {
-                        items(savedVenuesList) { venue ->
-                            VendorCardFull(
-                                vendor = venue,
-                                onBookCallClick = {},
-                                onFavoriteToggle = {
-                                    venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                },
-                                onCardClick = {},
-                                onChatClick = {},
-                            )
-                        }
+                        item { Spacer(Modifier.height(6.dp)) }
                     }
                 }
-                item{Spacer(Modifier.height(6.dp))}
             }
         }
     }

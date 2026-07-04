@@ -18,6 +18,38 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+
+object NavAnimations {
+    private const val DURATION = 500
+
+    val slideInFromRight: EnterTransition =
+        slideInHorizontally(
+            initialOffsetX = { fullWidth -> fullWidth },
+            animationSpec = tween(DURATION)
+        ) + fadeIn(animationSpec = tween(DURATION))
+
+    val slideOutToLeft: ExitTransition =
+        slideOutHorizontally(
+            targetOffsetX = { fullWidth -> -fullWidth },
+            animationSpec = tween(DURATION)
+        )
+
+    val slideInFromLeft: EnterTransition =
+        slideInHorizontally(
+            initialOffsetX = { fullWidth -> -fullWidth },
+            animationSpec = tween(DURATION)
+        ) + fadeIn(animationSpec = tween(DURATION))
+
+    val slideOutToRight: ExitTransition =
+        slideOutHorizontally(
+            targetOffsetX = { fullWidth -> fullWidth },
+            animationSpec = tween(DURATION)
+        )
+}
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
@@ -37,8 +69,10 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // --- Event Details Graphs ---
         composable(
             route = Screen.EventDetail.route,
-            enterTransition = { fadeIn(tween(500)) },
-            exitTransition = { fadeOut(tween(500)) }
+            enterTransition = { NavAnimations.slideInFromRight },
+            exitTransition = { NavAnimations.slideOutToLeft },
+            popEnterTransition = { NavAnimations.slideInFromLeft },
+            popExitTransition = { NavAnimations.slideOutToRight }
         ) {
             EventDetailsScreen(
                 onBackClick = {
@@ -52,8 +86,6 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // Venue Feature
         composable(
             route = Screen.VenueRoot.route,
-            enterTransition = { fadeIn(tween(500)) },
-            exitTransition = { fadeOut(tween(500)) }
         ) { entry ->
             val savedStateHandle = entry.savedStateHandle
             val selectedLocation by savedStateHandle.getStateFlow("selected_location", "City, State").collectAsState()
@@ -72,8 +104,6 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // Location Selector Feature
         composable(
             route = Screen.LocationSelector.route,
-            enterTransition = { fadeIn(tween(500)) },
-            exitTransition = { fadeOut(tween(500)) }
         ) {
             val previousBackStackEntry = mainNavController.previousBackStackEntry
 
@@ -95,8 +125,6 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // Catering Feature
         composable(
             route = Screen.CateringRoot.route,
-            enterTransition = { fadeIn(tween(500)) },
-            exitTransition = { fadeOut(tween(500)) }
         ) {
             CateringMenuScreen(
                 onBackClick = {
