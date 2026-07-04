@@ -1,11 +1,15 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -26,8 +30,10 @@ fun BottomNavBar(navController: NavHostController) {
 
     BottomAppBar(
         containerColor = SurfacePrimary,
-        tonalElevation = 4.dp,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(85.dp)
+            .shadow(elevation = 20.dp)
     ) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentDestination = navBackStackEntry?.destination
@@ -61,7 +67,7 @@ fun BottomNavBar(navController: NavHostController) {
                     selectedTextColor = ContentBrandDark,
                     unselectedIconColor = ContentSecondary,
                     unselectedTextColor = ContentSecondary,
-                    indicatorColor = ContentBrandDark.copy(alpha = 0.1f)
+                    indicatorColor = SurfaceBrandSecondary
                 )
             )
         }
