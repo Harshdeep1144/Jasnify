@@ -56,6 +56,8 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
@@ -255,6 +257,7 @@ fun LocationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BackgroundPrimary)
                 .padding(paddingValues)
                 // Clear focus and hide the keyboard when tapping anywhere outside the SearchBar
                 .pointerInput(Unit) {

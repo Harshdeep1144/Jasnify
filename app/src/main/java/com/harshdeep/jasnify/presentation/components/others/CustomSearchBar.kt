@@ -119,7 +119,7 @@ fun CustomSearchBar(
                     )
                     .border(
                         width = 1.dp,
-                        color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+                        color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                         shape = SquircleShape(100, 0f)
                     )
             ) {
@@ -128,18 +128,21 @@ fun CustomSearchBar(
                     onValueChange = onValueChange,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(horizontal = 4.dp)
+                        .background(Color.Transparent)
                         .focusRequester(focusRequester),
                     singleLine = true,
                     placeholder = {
                         Text(
                             text = placeholder,
-                            style = JasnifyTheme.typography.labelXLarge,
+                            style = JasnifyTheme.typography.headingLarge,
                             color = ContentSecondary
                         )
                     },
+                    textStyle = JasnifyTheme.typography.headingLarge,
                     shape = SquircleShape(100, 0f),
                     leadingIcon = {
-                        if (isFocused) {
+                        if (isFocused && !isAiSearch) {
                             IconButton(
                                 onClick = {
                                     if (type == SearchBarType.COMPACT) {
@@ -152,9 +155,10 @@ fun CustomSearchBar(
                                 }
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.ArrowBack,
+                                    painter = painterResource(R.drawable.ic_left),
                                     contentDescription = "Back",
-                                    tint = ContentPrimary
+                                    tint = ContentPrimary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         } else {
@@ -166,7 +170,8 @@ fun CustomSearchBar(
                             Icon(
                                 painter = iconPainter,
                                 contentDescription = if (isAiSearch) "AI Search" else "Search",
-                                tint = ContentSecondary
+                                tint = if(isFocused) ContentBrandDark else ContentSecondary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     },
@@ -178,7 +183,8 @@ fun CustomSearchBar(
                                 Icon(
                                     imageVector = Icons.Rounded.Close,
                                     contentDescription = "Clear search",
-                                    tint = ContentPrimary
+                                    tint = ContentPrimary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
@@ -196,7 +202,7 @@ fun CustomSearchBar(
                 )
             }
 
-            // Auto-focus when expanding from COMPACT mode
+            // Autofocus when expanding from COMPACT mode
             LaunchedEffect(Unit) {
                 if (type == SearchBarType.COMPACT) {
                     focusRequester.requestFocus()
@@ -210,7 +216,7 @@ fun CustomSearchBar(
                     .size(56.dp)
                     .border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                         shape = SquircleShape(100, 0f)
                     )
                     .background(
@@ -236,7 +242,8 @@ fun CustomSearchBar(
                 Icon(
                     painter = iconPainter,
                     contentDescription = if (isAiSearch) "AI Search" else "Search",
-                    tint = ContentSecondary
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
