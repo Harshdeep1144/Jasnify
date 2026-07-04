@@ -284,20 +284,14 @@ fun HomeTab(
                     when (screen) {
                         "budget" -> BudgetScreen(
                             onBackClick = { currentScreen = "home" },
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this@AnimatedContent
                         )
                         "venue" -> VenueScreen(
                             onVenueClick = {},
                             onBackClick = { currentScreen = "home" },
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this@AnimatedContent,
                             isScreenActive = currentScreen == "venue" // FIX: Track screen activity state
                         )
                         "catering" -> CateringMenuScreen(
                             onBackClick = { currentScreen = "home" },
-                            sharedTransitionScope = this@SharedTransitionLayout,
-                            animatedVisibilityScope = this@AnimatedContent
                         )
                     }
                 }

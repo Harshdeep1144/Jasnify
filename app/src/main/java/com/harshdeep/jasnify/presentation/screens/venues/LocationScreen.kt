@@ -12,11 +12,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,7 +37,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -54,23 +55,18 @@ import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
 import java.util.Locale
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
@@ -252,16 +248,8 @@ fun LocationScreen(
         City("Patna", R.drawable.ic_city_ptn, "patna")
     )
 
-    val contentModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-        with(sharedTransitionScope) {
-            Modifier.sharedBounds(
-                rememberSharedContentState(key = "location_picker"),
-                animatedVisibilityScope = animatedVisibilityScope
-            )
-        }
-    } else Modifier
 
-    Scaffold(modifier = contentModifier) { paddingValues ->
+    Scaffold(modifier = Modifier) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -284,8 +272,6 @@ fun LocationScreen(
                     title = "Location",
                     onBackClick = onBackClick,
                     isLargeTitle = true,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
                 )
             }
 
@@ -294,11 +280,26 @@ fun LocationScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                CustomSearchBar(
-                    value = text,
-                    onValueChange = { text = it },
-                    onActiveChange = { isSearchActive = it }
-                )
+                with(sharedTransitionScope) {
+                    CustomSearchBar(
+                        value = text,
+                        onValueChange = { text = it },
+                        onActiveChange = { isSearchActive = it },
+                        modifier = if (this != null && animatedVisibilityScope != null) {
+                            Modifier.sharedBounds(
+                                rememberSharedContentState(key = "location_picker"),
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                boundsTransform = { _, _ ->
+                                    spring(
+                                        dampingRatio = 0.85f,
+                                        stiffness = 380f
+                                    )
+                                },
+                                resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center)
+                            )
+                        } else Modifier
+                    )
+                }
             }
 
             Box(
