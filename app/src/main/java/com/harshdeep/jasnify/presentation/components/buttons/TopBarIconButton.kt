@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,15 +40,20 @@ enum class ButtonBackground {
 
 sealed interface TopIcon {
     enum class Predefined : TopIcon {
-        BACK,           // Chevron Left (<)
-        BACK_2,         // Arrow Left (←)
-        CLOSE,          // Cross (X)
-        MENU_VERTICAL,  // Vertical Dots (⋮)
+        BACK,            // Chevron Left (<)
+        BACK_2,          // Arrow Left (←)
+        CLOSE,           // Cross (X)
+        MENU_VERTICAL,   // Vertical Dots (⋮)
         MENU_HORIZONTAL, // Horizontal Dots (...)
-        MENU_MODERN
+        MENU_MODERN,
+        SEARCH,          // Magnifying Glass
+        PIN,             // Pushpin/Thumbtack
+        PIN_FILLED,
+        CHECKLIST        // Document with Checklist
     }
     data class CustomPainter(val painter: Painter) : TopIcon
 }
+
 
 @Composable
 fun TopBarIconButton(
@@ -58,7 +63,7 @@ fun TopBarIconButton(
     backgroundStyle: ButtonBackground = ButtonBackground.TRANSPARENT,
     iconColor: Color = ContentPrimary,
     size: Dp = 40.dp,
-    iconSize: Dp = 30.dp,
+    iconSize: Dp = 24.dp,
     translucentAlpha: Float = 0.2f
 ) {
     val backgroundColor = when (backgroundStyle) {
@@ -67,14 +72,18 @@ fun TopBarIconButton(
         ButtonBackground.OPAQUE -> SurfaceSecondary
     }
 
-    // Convert the TopIcon type into a Painter so either predefined vector graphics or custom Painters render
+    // Convert the Custom / Predefined TopIcon into a Painter
     val painter: Painter = when (icon) {
-        TopIcon.Predefined.BACK -> rememberVectorPainter(Icons.AutoMirrored.Rounded.KeyboardArrowLeft)
+        TopIcon.Predefined.BACK -> painterResource(R.drawable.ic_back)
         TopIcon.Predefined.BACK_2 -> rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack)
-        TopIcon.Predefined.CLOSE -> rememberVectorPainter(Icons.Rounded.Close)
+        TopIcon.Predefined.CLOSE -> painterResource(R.drawable.ic_cross)
         TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
         TopIcon.Predefined.MENU_HORIZONTAL -> rememberVectorPainter(Icons.Rounded.MoreHoriz)
-        TopIcon.Predefined.MENU_MODERN -> painterResource(id = R.drawable.ic_menu_modern)
+        TopIcon.Predefined.MENU_MODERN -> painterResource(R.drawable.ic_menu_modern)
+        TopIcon.Predefined.SEARCH -> rememberVectorPainter(Icons.Rounded.Search)
+        TopIcon.Predefined.PIN -> painterResource(R.drawable.ic_pin)
+        TopIcon.Predefined.PIN_FILLED -> painterResource(R.drawable.ic_pin_filled)
+        TopIcon.Predefined.CHECKLIST -> painterResource(R.drawable.ic_checklists)
         is TopIcon.CustomPainter -> icon.painter
     }
 
@@ -94,9 +103,7 @@ fun TopBarIconButton(
                     Modifier
                 }
             )
-            .clickable(
-                onClick = onClick
-            ),
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -108,8 +115,6 @@ fun TopBarIconButton(
     }
 }
 
-// ------------ Preview ---------------
-
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun TopBarIconButtonPreview() {
@@ -118,8 +123,11 @@ private fun TopBarIconButtonPreview() {
         TopIcon.Predefined.BACK_2,
         TopIcon.Predefined.CLOSE,
         TopIcon.Predefined.MENU_VERTICAL,
-        TopIcon.Predefined.MENU_HORIZONTAL,
-        TopIcon.Predefined.MENU_MODERN
+        TopIcon.Predefined.MENU_MODERN,
+        TopIcon.Predefined.SEARCH,
+        TopIcon.Predefined.PIN,
+        TopIcon.Predefined.PIN_FILLED,
+        TopIcon.Predefined.CHECKLIST
     )
 
     androidx.compose.foundation.layout.Column(
@@ -131,30 +139,27 @@ private fun TopBarIconButtonPreview() {
                 modifier = Modifier.padding(vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Column 1: TRANSPARENT (just icon)
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { /* Handle click */ },
+                    onClick = { },
                     backgroundStyle = ButtonBackground.TRANSPARENT,
                     iconColor = Color.White
                 )
 
                 Spacer(Modifier.size(16.dp))
 
-                // Column 2: TRANSLUCENT (semi-transparent background)
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { /* Handle click */ },
+                    onClick = { },
                     backgroundStyle = ButtonBackground.TRANSLUCENT,
                     iconColor = Color.White
                 )
 
                 Spacer(Modifier.size(16.dp))
 
-                // Column 3: OPAQUE (solid background, black icon for contrast)
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { /* Handle click */ },
+                    onClick = { },
                     backgroundStyle = ButtonBackground.OPAQUE,
                 )
             }
