@@ -308,6 +308,7 @@ private fun EditableTimeLineCard(
             Row(
                 modifier = Modifier.fillMaxWidth().
                 heightIn(min = 56.dp)
+                    .clickable(onClick = onShowDatePicker)
                     .padding(all = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -326,11 +327,10 @@ private fun EditableTimeLineCard(
 
                 Spacer(Modifier.width(8.dp))
                 Icon(
-                    imageVector = Icons.Default.CalendarToday,
+                    painter = painterResource(R.drawable.ic_calendar),
                     contentDescription = "Date Picker",
                     tint = ContentPrimary,
                     modifier = Modifier.size(20.dp)
-                        .clickable(onClick = onShowDatePicker)
                 )
             }
 
