@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -242,16 +243,15 @@ fun VenueMainContent(
             venue.copy(isFavorite = true)
         }
 
-        if (defaultSavedVenues.isNotEmpty()) {
-            list.add(
-                TimelineEvent(
-                    id = "mysaved",
-                    date = "Default List",
-                    event = "My Saved List",
-                    venues = defaultSavedVenues
-                )
+        // Always show "My Saved List" by default, even if it has 0 items
+        list.add(
+            TimelineEvent(
+                id = "mysaved",
+                date = "Default List",
+                event = "My Saved List",
+                venues = defaultSavedVenues
             )
-        }
+        )
 
         val eventSections = timelineEvents.map { event ->
             val eventVenues = exploreVenues.filter { venue ->
@@ -422,79 +422,43 @@ fun VenueMainContent(
                             .background(Color.Transparent),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (savedVenuesList.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(vertical = 80.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_filter),
-                                            contentDescription = "Empty States",
-                                            tint = ContentTertiary,
-                                            modifier = Modifier.size(56.dp)
-                                        )
-                                        Text(
-                                            text = "Your Saved List is empty",
-                                            style = JasnifyTheme.typography.headingMedium,
-                                            color = ContentSecondary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Text(
-                                            text = "Tap the heart on venues to organize them for events.",
-                                            style = JasnifyTheme.typography.bodyMedium,
-                                            color = ContentTertiary,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
+                        item {
+                            IosSegmentedControl(
+                                options = viewOptions,
+                                selectedOption = selectedViewType,
+                                onOptionSelected = { selectedViewType = it },
+                                modifier = Modifier
+                                    .padding(top = 12.dp)
+                                    .height(44.dp)
+                            )
+                        }
+
+                        if (selectedViewType == "By Timeline") {
+                            items(savedTimelineEvents) { timelineItem ->
+                                TimelineSection(
+                                    date = timelineItem.date,
+                                    event = timelineItem.event,
+                                    venues = timelineItem.venues,
+                                    onVenueClick = { },
+                                    onFavoriteToggle = { venue ->
+                                        venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                     }
-                                }
-                            }
-                        } else {
-                            item {
-                                IosSegmentedControl(
-                                    options = viewOptions,
-                                    selectedOption = selectedViewType,
-                                    onOptionSelected = { selectedViewType = it },
-                                    modifier = Modifier
-                                        .padding(vertical = 12.dp)
-                                        .height(44.dp)
                                 )
                             }
-
-                            if (selectedViewType == "By Timeline") {
-                                if (savedTimelineEvents.isEmpty()) {
-                                    item {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 80.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "No events configured yet. Items saved to 'My Saved List'.",
-                                                style = JasnifyTheme.typography.bodyLarge,
-                                                color = ContentTertiary,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    items(savedTimelineEvents) { timelineItem ->
-                                        TimelineSection(
-                                            date = timelineItem.date,
-                                            event = timelineItem.event,
-                                            venues = timelineItem.venues,
-                                            onVenueClick = { },
-                                            onFavoriteToggle = { venue ->
-                                                venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                            }
+                        } else {
+                            if (savedVenuesList.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No saved venues yet.",
+                                            style = JasnifyTheme.typography.bodyLarge,
+                                            color = ContentSecondary,
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
@@ -859,31 +823,47 @@ fun TimelineSection(
     ) {
         TimelineHeader(date = date, event = event)
 
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            items(venues) { venue ->
-                VendorCardCompact(
-                    vendor = venue,
-                    removeBg = true,
-                    onCardClick = { onVenueClick(venue) },
-                    onFavoriteToggle = { onFavoriteToggle(venue) }
+        if (venues.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No venues saved yet.",
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentSecondary,
+                    textAlign = TextAlign.Center
                 )
             }
-        }
+        } else {
+            LazyRow(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                items(venues) { venue ->
+                    VendorCardCompact(
+                        vendor = venue,
+                        removeBg = true,
+                        onCardClick = { onVenueClick(venue) },
+                        onFavoriteToggle = { onFavoriteToggle(venue) }
+                    )
+                }
+            }
 
-        CarouselIndicator(
-            listState = listState,
-            totalItems = venues.size,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(bottom = 16.dp)
-        )
+            CarouselIndicator(
+                listState = listState,
+                totalItems = venues.size,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 16.dp)
+            )
+        }
     }
 }
 
