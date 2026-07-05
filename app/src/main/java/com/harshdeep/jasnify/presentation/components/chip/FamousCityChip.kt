@@ -38,6 +38,7 @@ import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
@@ -67,17 +68,15 @@ fun FamousCityChip(
         modifier = modifier
             .fillMaxWidth()
             .height(120.dp)
-            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
+            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
             .background(containerColor)
             .border(
                 width = 1.dp,
                 color = borderColor,
-                shape = SquircleShape(20.dp, CornerSmoothingDefault)
+                shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
             )
             .clickable(
                 onClick = onClick,
-                indication = null, // Removing ripple
-                interactionSource = remember { MutableInteractionSource() }
             ),
         contentAlignment = Alignment.Center
     ) {

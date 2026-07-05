@@ -77,8 +77,8 @@ fun CustomToast(
             Icon(
                 painter = leadingIcon,
                 contentDescription = type.name,
-                tint = contentColor,
-                modifier = iconModifier
+                modifier = iconModifier,
+                tint = Color.Unspecified
             )
         } else {
             val defaultIcon = when (type) {
@@ -113,7 +113,7 @@ fun CustomToast(
                     contentColor = contentColor
                 ),
                 shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 11.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
                 modifier = Modifier
                     .height(40.dp)
                     .align(alignment = Alignment.CenterVertically)

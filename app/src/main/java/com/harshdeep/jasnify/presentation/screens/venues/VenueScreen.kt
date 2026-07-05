@@ -33,20 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.filled.CalendarToday
-import java.time.LocalDate
-import java.time.Month
-import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
+import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
@@ -60,15 +53,17 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.*
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 
 data class TimelineEvent(
@@ -171,6 +166,10 @@ fun VenueMainContent(
 
     var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
 
+    // --- Toast & Undo Action States ---
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
+
     val exploreVenues = remember { MockData.sampleVenues1 }
 
     val savedVenuesList = remember(venueSavedDestinations) {
@@ -244,16 +243,15 @@ fun VenueMainContent(
             venue.copy(isFavorite = true)
         }
 
-        if (defaultSavedVenues.isNotEmpty()) {
-            list.add(
-                TimelineEvent(
-                    id = "mysaved",
-                    date = "Default List",
-                    event = "My Saved List",
-                    venues = defaultSavedVenues
-                )
+        // Always show "My Saved List" by default, even if it has 0 items
+        list.add(
+            TimelineEvent(
+                id = "mysaved",
+                date = "Default List",
+                event = "My Saved List",
+                venues = defaultSavedVenues
             )
-        }
+        )
 
         val eventSections = timelineEvents.map { event ->
             val eventVenues = exploreVenues.filter { venue ->
@@ -266,6 +264,14 @@ fun VenueMainContent(
 
         list.addAll(eventSections)
         list
+    }
+
+    // --- LaunchedEffect to auto-dismiss Toast ---
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000L)
+            toastData = null
+        }
     }
 
     Box(
@@ -333,13 +339,19 @@ fun VenueMainContent(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
-                            if (!isSearchActive) {
-                                Spacer(Modifier.height(12.dp))
-                                LocationSelectorPill(
-                                    location = selectedLocation,
-                                    onLocationSelectorClick = onLocationSelectorClick,
-                                    modifier = Modifier
-                                )
+                            AnimatedVisibility(
+                                visible = !isSearchActive,
+                                enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
+                                exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(250))
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(12.dp))
+                                    LocationSelectorPill(
+                                        location = selectedLocation,
+                                        onLocationSelectorClick = onLocationSelectorClick,
+                                        modifier = Modifier
+                                    )
+                                }
                             }
                         }
 
@@ -357,9 +369,17 @@ fun VenueMainContent(
                                     placeholder = "Type your choices"
                                 )
 
-                                if (!isSearchActive) {
-                                    Spacer(Modifier.width(8.dp))
-                                    FilterButton(onClick = { showFilterDialog = true })
+                                AnimatedVisibility(
+                                    visible = !isSearchActive,
+                                    enter = fadeIn(animationSpec = tween(200)) +
+                                            expandHorizontally(expandFrom = Alignment.End, animationSpec = tween(250)),
+                                    exit = fadeOut(animationSpec = tween(150)) +
+                                            shrinkHorizontally(shrinkTowards = Alignment.End, animationSpec = tween(250))
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Spacer(Modifier.width(8.dp))
+                                        FilterButton(onClick = { showFilterDialog = true })
+                                    }
                                 }
                             }
                         }
@@ -402,79 +422,43 @@ fun VenueMainContent(
                             .background(Color.Transparent),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (savedVenuesList.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(vertical = 80.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize(),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_filter),
-                                            contentDescription = "Empty States",
-                                            tint = ContentTertiary,
-                                            modifier = Modifier.size(56.dp)
-                                        )
-                                        Text(
-                                            text = "Your Saved List is empty",
-                                            style = JasnifyTheme.typography.headingMedium,
-                                            color = ContentSecondary,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                        Text(
-                                            text = "Tap the heart on venues to organize them for events.",
-                                            style = JasnifyTheme.typography.bodyMedium,
-                                            color = ContentTertiary,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                        )
+                        item {
+                            IosSegmentedControl(
+                                options = viewOptions,
+                                selectedOption = selectedViewType,
+                                onOptionSelected = { selectedViewType = it },
+                                modifier = Modifier
+                                    .padding(top = 12.dp)
+                                    .height(44.dp)
+                            )
+                        }
+
+                        if (selectedViewType == "By Timeline") {
+                            items(savedTimelineEvents) { timelineItem ->
+                                TimelineSection(
+                                    date = timelineItem.date,
+                                    event = timelineItem.event,
+                                    venues = timelineItem.venues,
+                                    onVenueClick = { },
+                                    onFavoriteToggle = { venue ->
+                                        venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                     }
-                                }
-                            }
-                        } else {
-                            item{
-                                IosSegmentedControl(
-                                    options = viewOptions,
-                                    selectedOption = selectedViewType,
-                                    onOptionSelected = { selectedViewType = it },
-                                    modifier = Modifier.padding(vertical = 12.dp)
-                                        .height(44.dp)
                                 )
                             }
-
-                            if (selectedViewType == "By Timeline") {
-                                if (savedTimelineEvents.isEmpty()) {
-                                    item {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 80.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = "No events configured yet. Items saved to 'My Saved List'.",
-                                                style = JasnifyTheme.typography.bodyLarge,
-                                                color = ContentTertiary,
-                                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    items(savedTimelineEvents) { timelineItem ->
-                                        TimelineSection(
-                                            date = timelineItem.date,
-                                            event = timelineItem.event,
-                                            venues = timelineItem.venues,
-                                            onVenueClick = { },
-                                            onFavoriteToggle = { venue ->
-                                                venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                            }
+                        } else {
+                            if (savedVenuesList.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No saved venues yet.",
+                                            style = JasnifyTheme.typography.bodyLarge,
+                                            color = ContentSecondary,
+                                            textAlign = TextAlign.Center
                                         )
                                     }
                                 }
@@ -495,6 +479,39 @@ fun VenueMainContent(
                         item { Spacer(Modifier.height(6.dp)) }
                     }
                 }
+            }
+        }
+
+        // --- CustomToast Display positioned at the bottom of the screen above the tab bar ---
+        AnimatedVisibility(
+            visible = toastData?.message != null,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(12.dp, 80.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = "Change",
+                    onButtonClick = {
+                        // Dismiss toast & open bottom sheet immediately for editing
+                        toastData = null
+                        lastSavedVenue?.let { venue ->
+                            activeTargetVenue = venue
+                            val currentDest = venueSavedDestinations[venue.vendorName]
+                            isMySavedListChecked = currentDest == "mysaved"
+                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                            showSaveListBottomSheet = true
+                        }
+                    }
+                )
             }
         }
     }
@@ -545,40 +562,15 @@ fun VenueMainContent(
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
                         venueSavedDestinations = venueSavedDestinations + (venue.vendorName to destination)
+                        lastSavedVenue = venue
+                        // Trigger custom toast with heart icon & "Change" action
+                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                     }
                 }
                 showSaveListBottomSheet = false
                 activeTargetVenue = null
             }
         )
-    }
-}
-
-@Composable
-fun CustomCircleIndicator(
-    checked: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(if (checked) ContentBrandDark else Color.Transparent)
-            .border(
-                width = if (checked) 0.dp else 1.5.dp,
-                color = if (checked) Color.Transparent else ContentTertiary,
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (checked) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
-            )
-        }
     }
 }
 
@@ -596,7 +588,6 @@ fun SaveListBottomSheet(
     onDismiss: () -> Unit,
     onDone: () -> Unit
 ) {
-    // Hold a dynamic draft SubEventItem inside our SaveListBottomSheet to directly integrate TimeLineInput
     var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
 
     CustomBottomSheet(
@@ -641,7 +632,10 @@ fun SaveListBottomSheet(
                             color = ContentPrimary
                         )
 
-                        CustomCircleIndicator(checked = isMySavedListChecked)
+                        CustomChecker(
+                            checked = isMySavedListChecked,
+                            onCheckedChange = null
+                        )
                     }
                 }
 
@@ -678,7 +672,6 @@ fun SaveListBottomSheet(
 
                         Row(
                             modifier = Modifier.clickable {
-                                // Directly initialize our unified SubEventItem to trigger the editing mode
                                 draftNewEvent = SubEventItem(
                                     id = "temp-new-item",
                                     date = "",
@@ -705,7 +698,6 @@ fun SaveListBottomSheet(
                     }
                 }
 
-                // Render the unified TimeLineInput component when adding a new event
                 if (draftNewEvent != null) {
                     item {
                         TimeLineInput(
@@ -713,7 +705,6 @@ fun SaveListBottomSheet(
                             onUpdate = { updatedItem ->
                                 if (!updatedItem.isEditing) {
                                     if (updatedItem.isExisting) {
-                                        // Save standard event when "Done" clicked
                                         onAddNewEvent(updatedItem.name, updatedItem.date)
                                     }
                                     draftNewEvent = null
@@ -764,10 +755,12 @@ fun SaveListBottomSheet(
                             )
                         }
 
-                        CustomCircleIndicator(checked = isSelected)
+                        CustomChecker(
+                            checked = isSelected,
+                            onCheckedChange = null
+                        )
                     }
 
-                    // To inject a 2.dp gap between timeline cards
                     if (index < timelineEvents.lastIndex) {
                         Spacer(modifier = Modifier.height(2.dp))
                     }
@@ -830,31 +823,47 @@ fun TimelineSection(
     ) {
         TimelineHeader(date = date, event = event)
 
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        ) {
-            items(venues) { venue ->
-                VendorCardCompact(
-                    vendor = venue,
-                    removeBg = true,
-                    onCardClick = { onVenueClick(venue) },
-                    onFavoriteToggle = { onFavoriteToggle(venue) }
+        if (venues.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No venues saved yet.",
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentSecondary,
+                    textAlign = TextAlign.Center
                 )
             }
-        }
+        } else {
+            LazyRow(
+                state = listState,
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                items(venues) { venue ->
+                    VendorCardCompact(
+                        vendor = venue,
+                        removeBg = true,
+                        onCardClick = { onVenueClick(venue) },
+                        onFavoriteToggle = { onFavoriteToggle(venue) }
+                    )
+                }
+            }
 
-        CarouselIndicator(
-            listState = listState,
-            totalItems = venues.size,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(bottom = 16.dp)
-        )
+            CarouselIndicator(
+                listState = listState,
+                totalItems = venues.size,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .padding(bottom = 16.dp)
+            )
+        }
     }
 }
 
@@ -978,7 +987,6 @@ private fun parsePrice(priceString: String): Int {
         .trim()
     return clean.toIntOrNull() ?: 0
 }
-
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)
