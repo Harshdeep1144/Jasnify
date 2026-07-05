@@ -153,7 +153,7 @@ fun VendorCardFull(
                         painter = iconRes,
                         contentDescription = "Favorite Icon",
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(30.dp),
                     )
                 }
 
@@ -398,7 +398,7 @@ fun VendorCardCompact(
                         painter = iconRes,
                         contentDescription = "Favorite Icon",
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
 

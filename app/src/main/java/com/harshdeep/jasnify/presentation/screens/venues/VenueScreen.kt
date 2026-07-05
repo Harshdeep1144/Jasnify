@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
@@ -57,7 +58,11 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSh
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.*
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 
 data class TimelineEvent(
@@ -160,6 +165,10 @@ fun VenueMainContent(
 
     var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
 
+    // --- Toast & Undo Action States ---
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
+
     val exploreVenues = remember { MockData.sampleVenues1 }
 
     val savedVenuesList = remember(venueSavedDestinations) {
@@ -255,6 +264,14 @@ fun VenueMainContent(
 
         list.addAll(eventSections)
         list
+    }
+
+    // --- LaunchedEffect to auto-dismiss Toast ---
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000L)
+            toastData = null
+        }
     }
 
     Box(
@@ -500,6 +517,39 @@ fun VenueMainContent(
                 }
             }
         }
+
+        // --- CustomToast Display positioned at the bottom of the screen above the tab bar ---
+        AnimatedVisibility(
+            visible = toastData?.message != null,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(12.dp, 80.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = "Change",
+                    onButtonClick = {
+                        // Dismiss toast & open bottom sheet immediately for editing
+                        toastData = null
+                        lastSavedVenue?.let { venue ->
+                            activeTargetVenue = venue
+                            val currentDest = venueSavedDestinations[venue.vendorName]
+                            isMySavedListChecked = currentDest == "mysaved"
+                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                            showSaveListBottomSheet = true
+                        }
+                    }
+                )
+            }
+        }
     }
 
     if (showFilterDialog) {
@@ -548,6 +598,9 @@ fun VenueMainContent(
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
                         venueSavedDestinations = venueSavedDestinations + (venue.vendorName to destination)
+                        lastSavedVenue = venue
+                        // Trigger custom toast with heart icon & "Change" action
+                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                     }
                 }
                 showSaveListBottomSheet = false
@@ -615,10 +668,9 @@ fun SaveListBottomSheet(
                             color = ContentPrimary
                         )
 
-                        // Replaced the old CustomCircleIndicator with CustomChecker
                         CustomChecker(
                             checked = isMySavedListChecked,
-                            onCheckedChange = null // Touch action handled directly on outer Row layout
+                            onCheckedChange = null
                         )
                     }
                 }
@@ -739,10 +791,9 @@ fun SaveListBottomSheet(
                             )
                         }
 
-                        // Replaced the old CustomCircleIndicator with CustomChecker
                         CustomChecker(
                             checked = isSelected,
-                            onCheckedChange = null // Touch action handled directly on outer Row layout
+                            onCheckedChange = null
                         )
                     }
 
