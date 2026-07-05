@@ -61,6 +61,8 @@ fun ChecklistCard(
                     style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
                     color = ContentSecondary
                 )
+                Spacer(Modifier.width(4.dp))
+
                 if (checklist.isPinned) {
                     Icon(
                         painter = painterResource(R.drawable.ic_pin),

@@ -58,7 +58,8 @@ fun ChecklistItem(
     var isFocused by remember { mutableStateOf(false) }
 
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth()
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Drag Handle
@@ -114,7 +115,7 @@ fun ChecklistItem(
         }
 
         // Delete icon
-        if (item.text.isNotEmpty() || isFocused) {
+        if (isFocused) {
             IconButton(
                 onClick = onRemove,
                 modifier = Modifier.size(24.dp)
@@ -154,8 +155,6 @@ private fun CheckListBarPreview() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
 
         items.forEach { item ->

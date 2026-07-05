@@ -6,25 +6,19 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,10 +29,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -69,7 +66,6 @@ fun ChecklistsTab() {
     var selectedChecklist by remember { mutableStateOf<Checklist?>(null) }
     var isAddingNew by remember { mutableStateOf(false) }
     
-    // Manage checklists state
     val checklists = remember {
         mutableStateListOf(
             Checklist(
@@ -108,8 +104,8 @@ fun ChecklistsTab() {
             )
         )
     }
-//    selectedChecklist != null || isAddingNew
-    if (true) {
+
+    if (selectedChecklist != null || isAddingNew) {
         ChecklistDetailScreen(
             checklist = selectedChecklist,
             onBackClick = { updatedChecklist ->
@@ -171,7 +167,6 @@ fun ChecklistsTab() {
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Filter Chips
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -202,8 +197,8 @@ fun ChecklistsTab() {
                 }
 
                 val sortedChecklists = when (selectedFilter) {
-                    "Recent First" -> checklists.sortedByDescending { it.dateTime } // Simplified sorting
-                    "Oldest First" -> checklists.sortedBy { it.dateTime }
+                    "Recent First" -> checklists.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenByDescending { it.dateTime })
+                    "Oldest First" -> checklists.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenBy { it.dateTime })
                     else -> checklists.sortedByDescending { it.isPinned }
                 }
 
@@ -215,7 +210,7 @@ fun ChecklistsTab() {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = sortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
                                 onClick = { selectedChecklist = checklist }
@@ -228,7 +223,7 @@ fun ChecklistsTab() {
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = sortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
                                 onClick = { selectedChecklist = checklist }
@@ -272,7 +267,7 @@ fun ChecklistsTab() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ChecklistDetailScreen(
     checklist: Checklist? = null,
@@ -290,9 +285,11 @@ fun ChecklistDetailScreen(
     var isPinned by remember { mutableStateOf(checklist?.isPinned ?: false) }
     var showColorPicker by remember { mutableStateOf(false) }
 
-    // Drag and drop state
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    val focusManager = LocalFocusManager.current
+    val isKeyboardVisible = WindowInsets.isImeVisible
 
     Scaffold(
         topBar = {
@@ -314,7 +311,7 @@ fun ChecklistDetailScreen(
                         onBackClick(result)
                     },
                     backIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_check)),
-                    secondaryIcon = TopIcon.Predefined.PIN,
+                    secondaryIcon =  if(isPinned) TopIcon.Predefined.PIN_FILLED else TopIcon.Predefined.PIN,
                     onSecondaryClick = {
                         isPinned = !isPinned
                         checklist?.id?.let { onTogglePin(it) }
@@ -330,137 +327,133 @@ fun ChecklistDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(12.dp)
         ) {
-            Text(
-                text = checklist?.dateTime ?: "Today, 09:30 PM",
-                style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                color = ContentSecondary,
-            )
-            Spacer(Modifier.height(8.dp))
-
-            BasicTextField(
-                value = title,
-                onValueChange = { title = it },
-                textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    if (title.isEmpty()) {
-                        Text(
-                            "Title",
-                            style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                            color = ContentSecondary
-                        )
-                    }
-                    innerTextField()
-                }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            val listState = rememberLazyListState()
-
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(12.dp)
             ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    val focusRequester = remember { FocusRequester() }
-                    val isDragging = draggedItemIndex == index
-                    
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                translationY = if (isDragging) dragOffset else 0f
-                                scaleX = if (isDragging) 1.05f else 1f
-                                scaleY = if (isDragging) 1.05f else 1f
-                                alpha = if (isDragging) 0.8f else 1f
-                            }
-                            .zIndex(if (isDragging) 1f else 0f)
-                    ) {
-                        ChecklistItem(
-                            item = item,
-                            focusRequester = focusRequester,
-                            onTextChanged = { newText ->
-                                items = items.map { if (it.id == item.id) it.copy(text = newText) else it }
-                            },
-                            onCheckedChange = { isChecked ->
-                                items = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
-                            },
-                            onRemove = {
-                                items = items.filter { it.id != item.id }
-                            },
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { draggedItemIndex = index },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffset += dragAmount.y
-                                        
-                                        // Simple reordering logic
-                                        val targetIndex = (index + (dragOffset / 60f).toInt()).coerceIn(0, items.size - 1)
-                                        if (targetIndex != index && draggedItemIndex != null) {
-                                            val newList = items.toMutableList()
-                                            val movingItem = newList.removeAt(index)
-                                            newList.add(targetIndex, movingItem)
-                                            items = newList
-                                            draggedItemIndex = targetIndex
+                Text(
+                    text = checklist?.dateTime ?: "Today, 09:30 PM",
+                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = ContentSecondary,
+                )
+                Spacer(Modifier.height(8.dp))
+
+                BasicTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { innerTextField ->
+                        if (title.isEmpty()) {
+                            Text(
+                                "Title",
+                                style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
+                                color = ContentSecondary
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                val listState = rememberLazyListState()
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                        val focusRequester = remember { FocusRequester() }
+                        val isDragging = draggedItemIndex == index
+                        
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    translationY = if (isDragging) dragOffset else 0f
+                                    scaleX = if (isDragging) 1.05f else 1f
+                                    scaleY = if (isDragging) 1.05f else 1f
+                                    alpha = if (isDragging) 0.8f else 1f
+                                }
+                                .zIndex(if (isDragging) 1f else 0f)
+                        ) {
+                            ChecklistItem(
+                                item = item,
+                                focusRequester = focusRequester,
+                                onTextChanged = { newText ->
+                                    items = items.map { if (it.id == item.id) it.copy(text = newText) else it }
+                                },
+                                onCheckedChange = { isChecked ->
+                                    items = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
+                                },
+                                onRemove = {
+                                    items = items.filter { it.id != item.id }
+                                },
+                                modifier = Modifier.pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = { draggedItemIndex = index },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragOffset += dragAmount.y
+                                            
+                                            val targetIndex = (index + (dragOffset / 60f).toInt()).coerceIn(0, items.size - 1)
+                                            if (targetIndex != index && draggedItemIndex != null) {
+                                                val newList = items.toMutableList()
+                                                val movingItem = newList.removeAt(index)
+                                                newList.add(targetIndex, movingItem)
+                                                items = newList
+                                                draggedItemIndex = targetIndex
+                                                dragOffset = 0f
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            draggedItemIndex = null
+                                            dragOffset = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggedItemIndex = null
                                             dragOffset = 0f
                                         }
-                                    },
-                                    onDragEnd = {
-                                        draggedItemIndex = null
-                                        dragOffset = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggedItemIndex = null
-                                        dragOffset = 0f
-                                    }
-                                )
-                            }
-                        )
+                                    )
+                                }
+                            )
+                        }
                     }
-                }
-                
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                items = items + ChecklistItem(id = UUID.randomUUID().toString())
-                            }
-                            .padding(start = 32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint = ContentPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Add item",
-                            style = JasnifyTheme.typography.headingMedium,
-                            color = ContentSecondary
-                        )
+                    
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    items = items + ChecklistItem(id = UUID.randomUUID().toString())
+                                }
+                                .padding(start = 32.dp, 8.dp, 8.dp, 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                tint = ContentPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Add item",
+                                style = JasnifyTheme.typography.headingMedium,
+                                color = ContentSecondary
+                            )
+                        }
                     }
                 }
             }
             
-            // Bottom bar icons for color picker
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .navigationBarsPadding(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                IconButton(onClick = { showColorPicker = true }) {
-                    Icon(painter = painterResource(id = R.drawable.ic_ai), contentDescription = "Change color", tint = ContentPrimary)
-                }
-            }
+            ChecklistDetailToolbar(
+                isKeyboardVisible = isKeyboardVisible,
+                onColorClick = { showColorPicker = true },
+                onCloseKeyboard = { focusManager.clearFocus() }
+            )
         }
     }
 
@@ -473,6 +466,79 @@ fun ChecklistDetailScreen(
             },
             onDismiss = { showColorPicker = false }
         )
+    }
+}
+
+
+// ======================================================== Helper Functions ========================================================
+
+
+@Composable
+fun ChecklistDetailToolbar(
+    isKeyboardVisible: Boolean,
+    onColorClick: () -> Unit,
+    onCloseKeyboard: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        if (isKeyboardVisible) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ToolbarIcon(text = "B", fontWeight = FontWeight.Bold)
+                ToolbarIcon(text = "I", fontStyle = FontStyle.Italic)
+                ToolbarIcon(text = "U", textDecoration = TextDecoration.Underline)
+            }
+            ToolbarIcon(icon = Icons.Default.Close, onClick = onCloseKeyboard)
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ToolbarIcon(iconRes = R.drawable.ic_ai, onClick = onColorClick)
+                ToolbarIcon(text = "A")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ToolbarIcon(icon = Icons.AutoMirrored.Filled.Undo)
+                ToolbarIcon(icon = Icons.AutoMirrored.Filled.Redo)
+            }
+        }
+    }
+}
+
+@Composable
+fun ToolbarIcon(
+    text: String? = null,
+    icon: ImageVector? = null,
+    iconRes: Int? = null,
+    fontWeight: FontWeight = FontWeight.Normal,
+    fontStyle: FontStyle = FontStyle.Normal,
+    textDecoration: TextDecoration = TextDecoration.None,
+    onClick: () -> Unit = {}
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(ContentPrimary.copy(alpha = 0.06f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (text != null) {
+            Text(
+                text = text,
+                style = JasnifyTheme.typography.bodyLarge.copy(
+                    fontWeight = fontWeight,
+                    fontStyle = fontStyle,
+                    textDecoration = textDecoration
+                ),
+                color = ContentPrimary
+            )
+        } else if (icon != null) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = ContentPrimary)
+        } else if (iconRes != null) {
+            Icon(painter = painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(20.dp), tint = ContentPrimary)
+        }
     }
 }
 
