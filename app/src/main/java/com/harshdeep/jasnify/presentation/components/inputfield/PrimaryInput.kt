@@ -1,5 +1,7 @@
 package com.harshdeep.jasnify.presentation.components.inputfield
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -29,6 +31,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
@@ -109,10 +112,12 @@ fun PrimaryInput(
         shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
             unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-            focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
-            errorBorderColor = Color.Red,
+            focusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
+            errorBorderColor = MaterialTheme.colorScheme.error,
             focusedContainerColor = SurfaceSecondary,
-            unfocusedContainerColor = SurfaceSecondary
+            unfocusedContainerColor = SurfaceSecondary,
+            errorContainerColor = SurfaceSecondary,
+            cursorColor = ContentPrimary
         ),
         trailingIcon = {
             if (trailingIcon != null) {
@@ -166,55 +171,47 @@ fun PrimaryInput(
 }
 
 
+// ----------------------------------------------- Preview -------------------------------------------------
+
+
 @Preview(showBackground = true)
 @Composable
 fun PrimaryInputPreview() {
     var email by remember { mutableStateOf("") }
-
-    PrimaryInput(
-        value = email,
-        onValueChange = { email = it },
-        placeholder = "Enter email address",
-        keyboardType = KeyboardType.Email
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PrimaryInputPasswordPreview() {
     var password by remember { mutableStateOf("mysecretpass") }
-
-    PrimaryInput(
-        value = password,
-        onValueChange = { password = it },
-        placeholder = "Enter password",
-        keyboardType = KeyboardType.Password
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PrimaryInputCustomPreview() {
-    var email by remember { mutableStateOf("") }
-
-    PrimaryInput(
-        value = email,
-        onValueChange = { email = it },
-        placeholder = "Enter email address",
-        keyboardType = KeyboardType.Password,
-        cornerType = CornerType.MESSAGE
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PrimaryInputTextNoIconPreview() {
     var text by remember { mutableStateOf("Some text") }
 
-    PrimaryInput(
-        value = text,
-        onValueChange = { text = it },
-        placeholder = "Enter regular text",
-        keyboardType = KeyboardType.Text // KeyboardType.Text has a null defaultLeadingIcon
-    )
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        PrimaryInput(
+            value = email,
+            onValueChange = { email = it },
+            placeholder = "Enter email address",
+            keyboardType = KeyboardType.Email
+        )
+
+        PrimaryInput(
+            value = password,
+            onValueChange = { password = it },
+            placeholder = "Enter password",
+            keyboardType = KeyboardType.Password
+        )
+
+        PrimaryInput(
+            value = email,
+            onValueChange = { email = it },
+            placeholder = "Enter email address",
+            keyboardType = KeyboardType.Password,
+            cornerType = CornerType.MESSAGE
+        )
+
+        PrimaryInput(
+            value = text,
+            onValueChange = { text = it },
+            placeholder = "Enter regular text",
+            keyboardType = KeyboardType.Text // KeyboardType.Text has a null defaultLeadingIcon
+        )
+    }
 }
+
