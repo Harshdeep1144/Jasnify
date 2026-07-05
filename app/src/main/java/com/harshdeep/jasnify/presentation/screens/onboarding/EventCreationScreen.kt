@@ -25,6 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -42,7 +43,6 @@ import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.*
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.screens.onboarding.authentication.ToastData
 import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.EventCreationState
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -52,6 +52,7 @@ import sv.lib.squircleshape.SquircleShape
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 
 @RequiresApi(Build.VERSION_CODES.O)
 private val DisplayDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
@@ -148,12 +149,19 @@ fun EventCreation(
 
     val onSkip: () -> Unit = {
         navigationDirection = NavigationDirection.FORWARD
-        // Force the step change without validation
-        if(currentStep == EventCreationStep.EVENT_TIMELINE) {
-            currentStep = EventCreationStep.EVENT_BUDGET
-        }
-        if(currentStep == EventCreationStep.EVENT_DATE) {
-            currentStep = EventCreationStep.EVENT_BUDGET
+        // Clear any existing toast message when skipping
+        toastData = toastData.copy(message = null)
+
+        when (currentStep) {
+            EventCreationStep.EVENT_TIMELINE, EventCreationStep.EVENT_DATE -> {
+                currentStep = EventCreationStep.EVENT_BUDGET
+            }
+            EventCreationStep.EVENT_BUDGET -> {
+                val updatedData = eventData.copy(budget = "0")
+                eventData = updatedData
+                eventViewModel.saveEventData(updatedData)
+            }
+            else -> {}
         }
     }
 
@@ -163,14 +171,14 @@ fun EventCreation(
         when (currentStep) {
             EventCreationStep.EVENT_TYPE -> {
                 if (eventData.selectedEventTypeId == null) {
-                    toastData = ToastData("Please select an event type", ToastType.ERROR)
+                    toastData = ToastData("Please select an event type!", ToastType.ERROR)
                 } else {
                     currentStep = EventCreationStep.EVENT_NAME
                 }
             }
             EventCreationStep.EVENT_NAME -> {
                 if (eventData.eventName.isBlank()) {
-                    toastData = ToastData("Please enter an event name", ToastType.ERROR)
+                    toastData = ToastData("Please enter the event name!", ToastType.ERROR)
                 } else {
                     currentStep = EventCreationStep.EVENT_DAYS
                 }
@@ -187,21 +195,25 @@ fun EventCreation(
                 if (eventData.singleDayDateString != null) {
                     currentStep = EventCreationStep.EVENT_BUDGET
                 } else {
-                    toastData = ToastData("Please select a date for the event", ToastType.ERROR)
+                    toastData = ToastData("Please select a date!", ToastType.ERROR)
                 }
             }
             EventCreationStep.EVENT_TIMELINE -> {
-                // Multi-day validation: All sub-events must be 'saved' (not in editing mode)
-                val allSaved = eventData.subEvents.all { !it.isEditing }
-                if (allSaved && eventData.subEvents.isNotEmpty()) {
-                    currentStep = EventCreationStep.EVENT_BUDGET
-                } else {
+                // Multi-day validation: All sub-events must be 'saved' and not empty
+                val allValid = eventData.subEvents.all { !it.isEditing && it.name.isNotBlank() && it.date.isNotBlank() }
+                if (!allValid) {
                     toastData = ToastData("Please save all event timeline details.", ToastType.ERROR)
+                } else {
+                    currentStep = EventCreationStep.EVENT_BUDGET
                 }
             }
             EventCreationStep.EVENT_BUDGET -> {
-                // CALL THE VIEWMODEL to save the data
-                eventViewModel.saveEventData(eventData)
+                if (eventData.budget.isBlank()) {
+                    toastData = ToastData("Please enter your budget!", ToastType.ERROR)
+                } else {
+                    // CALL THE VIEWMODEL to save the data
+                    eventViewModel.saveEventData(eventData)
+                }
             }
         }
     }
@@ -235,128 +247,163 @@ fun EventCreation(
         else -> currentStep.stepNumber
     }
 
-    Scaffold(
-        topBar = {
-            Surface(
-                color = BackgroundPrimary,
-                modifier = Modifier.fillMaxWidth()
-                    .statusBarsPadding()
-            ) {
-                CustomTopBar(
-                    onBackClick = if (showBackButton) onBack else null,
-                    title = currentStep.title,
-                    isLargeTitle = true
-                )
-            }
-        },
-        bottomBar = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(BackgroundPrimary)
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(12.dp)
-            ) {
-                val buttonText = if (currentStep == EventCreationStep.EVENT_BUDGET) "Finish Event Creation" else "Continue"
-
-                CustomTextButton(
-                    onClick = onNext,
-                    text = buttonText,
-                    size = ButtonSize.Medium,
-                    modifier = Modifier.fillMaxWidth(),
-                    type = ButtonType.Primary,
-                    shapeStyle = ButtonShapeStyle.Square,
-                    enabled = eventState !is EventCreationState.Loading
-                )
-
-                if (currentStep == EventCreationStep.EVENT_TYPE) {
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = "Event Type can’t be changed later.",
-                        textAlign = TextAlign.Center,
-                        color = ContentSecondary,
-                        style = JasnifyTheme.typography.bodyMedium,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp)
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
+                Surface(
+                    color = BackgroundPrimary,
+                    modifier = Modifier.fillMaxWidth()
+                        .statusBarsPadding()
+                ) {
+                    CustomTopBar(
+                        onBackClick = if (showBackButton) onBack else null,
+                        title = currentStep.title,
+                        isLargeTitle = true
                     )
                 }
-            }
-        },
-        content = { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(BackgroundPrimary)
-                    .padding(paddingValues)
-                    .padding(horizontal = 12.dp, vertical = 0.dp)
-            ) {
+            },
+            bottomBar = {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BackgroundPrimary)
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(12.dp)
                 ) {
-                    StepperProgressBar(
-                        currentStep = currentProgressStep,
-                        totalSteps = EventCreationStep.totalSteps,
+                    val buttonText =
+                        if (currentStep == EventCreationStep.EVENT_BUDGET) "Finish Event Creation" else "Continue"
+
+                    CustomTextButton(
+                        onClick = onNext,
+                        text = buttonText,
+                        size = ButtonSize.Medium,
+                        modifier = Modifier.fillMaxWidth(),
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Square,
+                        enabled = eventState !is EventCreationState.Loading
                     )
 
-                    // --- Main Content Switcher ( for directional animation) ---
-                    AnimatedContent(
-                        targetState = stepState.value,
-                        transitionSpec = {
-                            val (_, direction) = targetState
+                    if (currentStep == EventCreationStep.EVENT_TYPE) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Event Type can’t be changed later.",
+                            textAlign = TextAlign.Center,
+                            color = ContentSecondary,
+                            style = JasnifyTheme.typography.bodyMedium,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        )
+                    }
+                }
+            },
+            content = { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(BackgroundPrimary)
+                        .padding(paddingValues)
+                        .padding(horizontal = 12.dp, vertical = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        StepperProgressBar(
+                            currentStep = currentProgressStep,
+                            totalSteps = EventCreationStep.totalSteps,
+                        )
 
-                            val slideIn = slideInHorizontally(animationSpec = tween(300)) { fullWidth ->
-                                when (direction) {
-                                    NavigationDirection.FORWARD -> fullWidth // Slide in from right
-                                    NavigationDirection.BACKWARD -> -fullWidth // Slide in from left
-                                }
+                        // --- Main Content Switcher ( for directional animation) ---
+                        AnimatedContent(
+                            targetState = stepState.value,
+                            transitionSpec = {
+                                val (_, direction) = targetState
+
+                                val slideIn =
+                                    slideInHorizontally(animationSpec = tween(300)) { fullWidth ->
+                                        when (direction) {
+                                            NavigationDirection.FORWARD -> fullWidth // Slide in from right
+                                            NavigationDirection.BACKWARD -> -fullWidth // Slide in from left
+                                        }
+                                    }
+                                val slideOut =
+                                    slideOutHorizontally(animationSpec = tween(300)) { fullWidth ->
+                                        when (direction) {
+                                            NavigationDirection.FORWARD -> -fullWidth // Slide out to left
+                                            NavigationDirection.BACKWARD -> fullWidth // Slide out to right
+                                        }
+                                    }
+
+                                (slideIn + fadeIn(animationSpec = tween(300)))
+                                    .togetherWith(slideOut + fadeOut(animationSpec = tween(300)))
+                                    .using(SizeTransform(clip = false))
+                            }, label = "Step Transition"
+                        ) { (targetStep, _) ->
+                            val updateEventData: (EventData) -> Unit =
+                                { updatedData -> eventData = updatedData }
+
+                            when (targetStep) {
+                                EventCreationStep.EVENT_TYPE -> EventTypeContent(
+                                    eventData,
+                                    updateEventData
+                                )
+
+                                EventCreationStep.EVENT_NAME -> EventNameContent(
+                                    eventData,
+                                    updateEventData
+                                )
+
+                                EventCreationStep.EVENT_DAYS -> EventDaysContent(
+                                    eventData,
+                                    updateEventData
+                                )
+
+                                EventCreationStep.EVENT_DATE -> EventSingleDayContent(
+                                    eventData,
+                                    updateEventData,
+                                    onSkip
+                                )
+
+                                EventCreationStep.EVENT_TIMELINE -> EventMultiDayContent(
+                                    eventData,
+                                    updateEventData,
+                                    onSkip
+                                )
+
+                                EventCreationStep.EVENT_BUDGET -> EventBudgetContent(
+                                    eventData,
+                                    updateEventData,
+                                    onSkip
+                                )
                             }
-                            val slideOut = slideOutHorizontally(animationSpec = tween(300)) { fullWidth ->
-                                when (direction) {
-                                    NavigationDirection.FORWARD -> -fullWidth // Slide out to left
-                                    NavigationDirection.BACKWARD -> fullWidth // Slide out to right
-                                }
-                            }
-
-                            (slideIn + fadeIn(animationSpec = tween(300)))
-                                .togetherWith(slideOut + fadeOut(animationSpec = tween(300)))
-                                .using(SizeTransform(clip = false))
-                        }, label = "Step Transition"
-                    ) { (targetStep, _) ->
-                        val updateEventData: (EventData) -> Unit = { updatedData -> eventData = updatedData }
-
-                        when (targetStep) {
-                            EventCreationStep.EVENT_TYPE -> EventTypeContent(eventData, updateEventData)
-                            EventCreationStep.EVENT_NAME -> EventNameContent(eventData, updateEventData)
-                            EventCreationStep.EVENT_DAYS -> EventDaysContent(eventData, updateEventData)
-                            EventCreationStep.EVENT_DATE -> EventSingleDayContent(eventData, updateEventData, onSkip)
-                            EventCreationStep.EVENT_TIMELINE -> EventMultiDayContent(eventData, updateEventData, onSkip)
-                            EventCreationStep.EVENT_BUDGET -> EventBudgetContent(eventData, updateEventData)
                         }
                     }
                 }
-
-                // --- CustomToast Display  ---
-                AnimatedVisibility(
-                    visible = toastData.message != null,
-                    enter = slideInVertically(initialOffsetY = { -it }),
-                    exit = slideOutVertically(targetOffsetY = { -it }),
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
-                ) {
-                    CustomToast(
-                        message = toastData.message ?: "",
-                        type = toastData.type,
-                        buttonText = null,
-                        onButtonClick = null,
-                    )
-                }
             }
+        )
+
+        // --- CustomToast Display  ---
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(
+                message = toastData.message ?: "",
+                type = toastData.type,
+                buttonText = null,
+                onButtonClick = null,
+            )
         }
-    )
+    }
 }
 
 // ---------------------   Step Content Components -------------------------------------
@@ -602,18 +649,9 @@ fun EventMultiDayContent(
     updateEventData: (EventData) -> Unit,
     onSkip: () -> Unit
 ) {
-    val subEventsList = remember {
-        mutableStateListOf<SubEventItem>().apply { addAll(eventData.subEvents) }
-    }
-
-    DisposableEffect(subEventsList.toList()) {
-        updateEventData(eventData.copy(subEvents = subEventsList.toList()))
-        onDispose {}
-    }
-
-    val hasUnsavedEditingItem by remember {
+    val hasUnsavedEditingItem by remember(eventData.subEvents) {
         derivedStateOf {
-            subEventsList.any { it.isEditing }
+            eventData.subEvents.any { it.isEditing }
         }
     }
 
@@ -637,20 +675,23 @@ fun EventMultiDayContent(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            itemsIndexed(subEventsList, key = { _, item -> item.id }) { index, item ->
+            itemsIndexed(eventData.subEvents, key = { _, item -> item.id }) { index, item ->
                 TimeLineInput(
                     item = item,
                     onUpdate = { updatedItem ->
-                        val foundIndex = subEventsList.indexOfFirst { it.id == updatedItem.id }
-                        if (foundIndex != -1) {
-                            subEventsList[foundIndex] = updatedItem
+                        val newList = eventData.subEvents.map {
+                            if (it.id == updatedItem.id) updatedItem else it
                         }
+                        updateEventData(eventData.copy(subEvents = newList))
                     },
                     onDelete = { itemToDelete ->
-                        subEventsList.remove(itemToDelete)
-                        if (subEventsList.isEmpty()) {
-                            subEventsList.add(SubEventItem(id = UUID.randomUUID().toString(), isEditing = true))
+                        val newList = eventData.subEvents.filter { it.id != itemToDelete.id }
+                        val finalNewList = if (newList.isEmpty()) {
+                            listOf(SubEventItem(id = UUID.randomUUID().toString(), isEditing = true))
+                        } else {
+                            newList
                         }
+                        updateEventData(eventData.copy(subEvents = finalNewList))
                     }
                 )
             }
@@ -686,13 +727,13 @@ fun EventMultiDayContent(
                         size = ButtonSize.Medium,
                         shapeStyle = ButtonShapeStyle.Square,
                         onClick = {
-                            subEventsList.add(
-                                0, SubEventItem(
-                                    id = UUID.randomUUID().toString(),
-                                    isEditing = true,
-                                    isExisting = false
-                                )
-                            )
+                            val newList = eventData.subEvents.toMutableList()
+                            newList.add(0, SubEventItem(
+                                id = UUID.randomUUID().toString(),
+                                isEditing = true,
+                                isExisting = false
+                            ))
+                            updateEventData(eventData.copy(subEvents = newList))
                         },
                         enabled = !hasUnsavedEditingItem,
                         leadingIcon = painterResource(R.drawable.ic_plus),
@@ -709,7 +750,8 @@ fun EventMultiDayContent(
 @Composable
 fun EventBudgetContent(
     eventData: EventData,
-    updateEventData: (EventData) -> Unit
+    updateEventData: (EventData) -> Unit,
+    onSkip: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -752,7 +794,7 @@ fun EventBudgetContent(
                     text = "Skip for later",
                     style = JasnifyTheme.typography.labelXLarge,
                     color = ContentPrimary,
-                    modifier = Modifier.clickable(onClick = { updateEventData(eventData.copy(budget = "0")) })
+                    modifier = Modifier.clickable(onClick = onSkip)
                 )
             }
         }

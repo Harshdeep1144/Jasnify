@@ -1,17 +1,17 @@
 package com.harshdeep.jasnify.presentation.screens.onboarding
 
-import android.content.Context
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,6 +45,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +72,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
@@ -85,6 +87,8 @@ import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
 import com.harshdeep.jasnify.presentation.components.inputfield.CornerType
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.theme.BackgroundBrand
@@ -101,8 +105,11 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 
 enum class OnboardingState {
     CAROUSEL,
@@ -118,6 +125,17 @@ fun OnboardingType(
     // Current screen navigation state
     var currentScreenState by remember { mutableStateOf(OnboardingState.CAROUSEL) }
     var eventIdValue by remember { mutableStateOf("") }
+
+    // State for Custom Toast
+    var toastData by remember { mutableStateOf(ToastData()) }
+
+    // LaunchedEffect to dismiss CustomToast automatically
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000L.milliseconds) // Wait for 3 seconds
+            toastData = toastData.copy(message = null) // Clear message to dismiss toast
+        }
+    }
 
     val pageState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
@@ -150,106 +168,130 @@ fun OnboardingType(
         OnboardingState.EVENT_DETAILS -> BackgroundPrimary
     }
 
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = containerColor,
-        topBar = {
-            // Check dynamically if the top bar back button should be visible
-            val showTopBar = when (currentScreenState) {
-                OnboardingState.CAROUSEL -> pageState.currentPage > 0
-                OnboardingState.ENTER_EVENT_ID -> true
-                OnboardingState.EVENT_DETAILS -> true
-            }
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = containerColor,
+            topBar = {
+                // Check dynamically if the top bar back button should be visible
+                val showTopBar = when (currentScreenState) {
+                    OnboardingState.CAROUSEL -> pageState.currentPage > 0
+                    OnboardingState.ENTER_EVENT_ID -> true
+                    OnboardingState.EVENT_DETAILS -> true
+                }
 
-            if (showTopBar) {
-                Column(
-                    modifier = Modifier
-                        .background(Color.Transparent)
-                        .statusBarsPadding()
-                ) {
-                    CustomTopBar(
-                        onBackClick = {
-                            when (currentScreenState) {
-                                OnboardingState.CAROUSEL -> {
-                                    if (pageState.currentPage > 0) {
-                                        coroutineScope.launch {
-                                            pageState.animateScrollToPage(pageState.currentPage - 1)
+                if (showTopBar) {
+                    Column(
+                        modifier = Modifier
+                            .background(Color.Transparent)
+                            .statusBarsPadding()
+                    ) {
+                        CustomTopBar(
+                            onBackClick = {
+                                when (currentScreenState) {
+                                    OnboardingState.CAROUSEL -> {
+                                        if (pageState.currentPage > 0) {
+                                            coroutineScope.launch {
+                                                pageState.animateScrollToPage(pageState.currentPage - 1)
+                                            }
                                         }
                                     }
+                                    OnboardingState.ENTER_EVENT_ID -> {
+                                        currentScreenState = OnboardingState.CAROUSEL
+                                    }
+                                    OnboardingState.EVENT_DETAILS -> {
+                                        currentScreenState = OnboardingState.ENTER_EVENT_ID
+                                    }
                                 }
-                                OnboardingState.ENTER_EVENT_ID -> {
-                                    currentScreenState = OnboardingState.CAROUSEL
-                                }
-                                OnboardingState.EVENT_DETAILS -> {
-                                    currentScreenState = OnboardingState.ENTER_EVENT_ID
-                                }
-                            }
-                        },
-                        buttonStyle = ButtonBackground.OPAQUE,
-                        backIcon = TopIcon.Predefined.BACK_2
+                            },
+                            buttonStyle = ButtonBackground.OPAQUE,
+                            backIcon = TopIcon.Predefined.BACK_2
+                        )
+                    }
+                } else {
+                    Spacer(
+                        modifier = Modifier
+                            .statusBarsPadding()
+                            .height(64.dp)
                     )
                 }
-            } else {
-                Spacer(
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .height(64.dp)
-                )
+            }
+        ) { paddingValues ->
+            AnimatedContent(
+                targetState = currentScreenState,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                transitionSpec = {
+                    // Check if the state transition is moving forward or backward in the sequence
+                    val isForward = targetState.ordinal > initialState.ordinal
+                    if (isForward) {
+                        (slideInHorizontally(initialOffsetX = { it }) + fadeIn()).togetherWith(
+                            slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
+                        )
+                    } else {
+                        (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()).togetherWith(
+                            slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
+                        )
+                    }
+                },
+                label = "OnboardingFlowTransitions"
+            ) { state ->
+                when (state) {
+                    OnboardingState.CAROUSEL -> {
+                        CarouselOnboardingScreen(
+                            pageState = pageState,
+                            coroutineScope = coroutineScope,
+                            onNavigateToEventId = {
+                                currentScreenState = OnboardingState.ENTER_EVENT_ID
+                            },
+                            navController = navController
+                        )
+                    }
+                    OnboardingState.ENTER_EVENT_ID -> {
+                        EnterEventIdScreen(
+                            eventId = eventIdValue,
+                            onEventIdChange = { eventIdValue = it },
+                            onVerifyClick = {
+                                if (eventIdValue.isNotEmpty()) {
+                                    currentScreenState = OnboardingState.EVENT_DETAILS
+                                } else {
+                                    toastData = ToastData("Please enter a valid Event ID", ToastType.ERROR)
+                                }
+                            }
+                        )
+                    }
+                    OnboardingState.EVENT_DETAILS -> {
+                        EventDetailsScreen(
+                            eventId = eventIdValue,
+                            onEditClick = { currentScreenState = OnboardingState.ENTER_EVENT_ID },
+                            onLoginSignupClick = {
+                                navController.navigate(Screen.LoginOrSignUp.route)
+                            }
+                        )
+                    }
+                }
             }
         }
-    ) { paddingValues ->
-        AnimatedContent(
-            targetState = currentScreenState,
+
+        // --- CustomToast Display  ---
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            transitionSpec = {
-                // Check if the state transition is moving forward or backward in the sequence
-                val isForward = targetState.ordinal > initialState.ordinal
-                if (isForward) {
-                    (slideInHorizontally(initialOffsetX = { it }) + fadeIn()).togetherWith(
-                        slideOutHorizontally(targetOffsetX = { -it }) + fadeOut()
-                    )
-                } else {
-                    (slideInHorizontally(initialOffsetX = { -it }) + fadeIn()).togetherWith(
-                        slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
-                    )
-                }
-            },
-            label = "OnboardingFlowTransitions"
-        ) { state ->
-            when (state) {
-                OnboardingState.CAROUSEL -> {
-                    CarouselOnboardingScreen(
-                        pageState = pageState,
-                        coroutineScope = coroutineScope,
-                        onNavigateToEventId = {
-                            currentScreenState = OnboardingState.ENTER_EVENT_ID
-                        },
-                        navController = navController
-                    )
-                }
-                OnboardingState.ENTER_EVENT_ID -> {
-                    EnterEventIdScreen(
-                        eventId = eventIdValue,
-                        onEventIdChange = { eventIdValue = it },
-                        onVerifyClick = {
-                            if (eventIdValue.isNotEmpty()) {
-                                currentScreenState = OnboardingState.EVENT_DETAILS
-                            }
-                        }
-                    )
-                }
-                OnboardingState.EVENT_DETAILS -> {
-                    EventDetailsScreen(
-                        eventId = eventIdValue,
-                        onEditClick = { currentScreenState = OnboardingState.ENTER_EVENT_ID },
-                        onLoginSignupClick = {
-                            navController.navigate(Screen.LoginOrSignUp.route)
-                        }
-                    )
-                }
-            }
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(
+                message = toastData.message ?: "",
+                type = toastData.type,
+                buttonText = null,
+                onButtonClick = null,
+            )
         }
     }
 }
@@ -498,13 +540,7 @@ fun EnterEventIdScreen(
             contentAlignment = Alignment.BottomCenter
         ){
             CustomTextButton(
-                onClick = {
-                    if (eventId.isEmpty()) {
-                        Toast.makeText(context, "Please enter a valid Event ID", Toast.LENGTH_SHORT).show()
-                    } else {
-                        onVerifyClick()
-                    }
-                },
+                onClick = onVerifyClick,
                 text = "Verify & Continue",
                 modifier = Modifier.fillMaxWidth()
                     .padding(12.dp),

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -14,20 +15,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerLarge
-import com.harshdeep.jasnify.theme.CornerSmall
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
-
-val DefaultToastBackground = Color(0xFF555555).copy(alpha = 0.9f)
-val SuccessToastBackground = Color(0xFF26843D).copy(alpha = 0.9f)
-val ErrorToastBackground = Color(0xFFA32626).copy(alpha = 0.9f)
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.theme.CornerMedium
 
 enum class ToastType {
     DEFAULT,
@@ -35,75 +35,70 @@ enum class ToastType {
     ERROR
 }
 
-data class ToastStyle(
-    val backgroundColor: Color,
-    val contentColor: Color,
-    val icon: ImageVector? = null,
-    val buttonColor: Color
+// --- Toast State Management ---
+data class ToastData(
+    val message: String? = null,
+    val type: ToastType = ToastType.DEFAULT
 )
-
-@Composable
-fun getToastStyle(type: ToastType, customIcon: ImageVector? = null): ToastStyle {
-    val baseStyle = when (type) {
-        ToastType.DEFAULT -> ToastStyle(
-            backgroundColor = DefaultToastBackground,
-            contentColor = ContentInvPrimary,
-            icon = null,
-            buttonColor = ContentInvPrimary.copy(alpha = 0.16f)
-        )
-        ToastType.SUCCESS -> ToastStyle(
-            backgroundColor = SuccessToastBackground,
-            contentColor = ContentInvPrimary,
-            icon = Icons.Default.CheckCircle,
-            buttonColor = ContentInvPrimary.copy(alpha = 0.16f)
-        )
-        ToastType.ERROR -> ToastStyle(
-            backgroundColor = ErrorToastBackground,
-            contentColor = ContentInvPrimary,
-            icon = Icons.Default.Warning,
-            buttonColor = ContentInvPrimary.copy(alpha = 0.16f)
-        )
-    }
-
-    return baseStyle.copy(icon = customIcon ?: baseStyle.icon)
-}
 
 @Composable
 fun CustomToast(
     message: String,
     type: ToastType,
-    leadingIcon: ImageVector? = null,
-    buttonText: String? = "Button",
+    leadingIcon: Painter? = null,
+    buttonText: String? = null,
     onButtonClick: (() -> Unit)? = null
 ) {
-    val style = getToastStyle(type, leadingIcon)
+    val backgroundColor = when (type) {
+        ToastType.DEFAULT -> Color(0xFF555555)
+        ToastType.SUCCESS -> Color(0xFF26843D)
+        ToastType.ERROR -> Color(0xFFA32626)
+    }
 
+    val contentColor = ContentInvPrimary
+    val buttonColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f)
     val showButton = buttonText != null && onButtonClick != null
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 56.dp)
             .background(
-                color = style.backgroundColor,
-                shape = SquircleShape(16.dp, CornerSmoothingDefault)
+                color = backgroundColor,
+                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
             )
             .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        style.icon?.let { icon ->
+        val iconModifier = Modifier
+            .size(24.dp)
+
+        if (leadingIcon != null) {
             Icon(
-                imageVector = icon,
+                painter = leadingIcon,
                 contentDescription = type.name,
-                tint = style.contentColor,
-                modifier = Modifier
-                    .size(24.dp)
-                    .padding(end = 8.dp)
+                tint = contentColor,
+                modifier = iconModifier
+            )
+        } else {
+            val defaultIcon = when (type) {
+                ToastType.DEFAULT -> painterResource(R.drawable.ic_tick2)
+                ToastType.SUCCESS -> painterResource(R.drawable.ic_tick2)
+                ToastType.ERROR -> painterResource(R.drawable.ic_info)
+            }
+            Icon(
+                painter = defaultIcon,
+                contentDescription = type.name,
+                tint = contentColor,
+                modifier = iconModifier
             )
         }
 
+        Spacer(Modifier.width(8.dp))
+
         Text(
             text = message,
-            color = style.contentColor,
+            color = contentColor,
             modifier = Modifier.weight(1f),
             style = JasnifyTheme.typography.labelXLarge
         )
@@ -114,14 +109,21 @@ fun CustomToast(
             Button(
                 onClick = onButtonClick,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = style.buttonColor,
-                    contentColor = style.contentColor
+                    containerColor = buttonColor,
+                    contentColor = contentColor
                 ),
-                shape = SquircleShape(12.dp, CornerSmoothingDefault),
+                shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 11.dp),
-                modifier = Modifier.height(40.dp).align(alignment = Alignment.CenterVertically)
+                modifier = Modifier
+                    .height(40.dp)
+                    .align(alignment = Alignment.CenterVertically)
             ) {
-                Text(text = buttonText, style = JasnifyTheme.typography.labelLarge, textAlign = TextAlign.Center)
+                Text(
+                    text = buttonText,
+                    style = JasnifyTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
             }
         }
     }
@@ -133,38 +135,34 @@ fun ToastComponentPreview() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("Toast Examples", color = Color.White)
 
         CustomToast(
-            message = "Toast Message",
+            message = "Toast Message (Default Icon)",
             type = ToastType.DEFAULT,
             buttonText = "Button",
             onButtonClick = {}
         )
 
         CustomToast(
-            message = "Success Toast (Icon, No button)",
-            type = ToastType.SUCCESS,
-            buttonText = null,
-            onButtonClick = null
+            message = "Success Toast (Default Icon, No button)",
+            type = ToastType.SUCCESS
         )
 
         CustomToast(
-            message = "Error Toast with Custom Icon",
+            message = "Error Toast with a custom painter resource icon override",
             type = ToastType.ERROR,
-            leadingIcon = Icons.Default.CheckCircle,
+            leadingIcon = painterResource(R.drawable.ic_info),
+            buttonText = "Retry",
+            onButtonClick = {}
         )
 
         CustomToast(
             message = "Toast (No Icon, No Button)",
             type = ToastType.DEFAULT,
-            leadingIcon = null,
-            buttonText = null,
-            onButtonClick = null
+            leadingIcon = painterResource(R.drawable.ic_tick2)
         )
     }
 }
