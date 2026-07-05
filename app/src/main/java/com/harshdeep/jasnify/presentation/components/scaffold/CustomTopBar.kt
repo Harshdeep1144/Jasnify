@@ -24,6 +24,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -42,7 +43,12 @@ fun CustomTopBar(
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
-    translucentAlpha: Float = 0.2f
+    translucentAlpha: Float = 0.2f,
+    // Support parameters for Left-Aligned variants (image_47b3e9.png) & Double Action variants (Screenshot 2026-07-05 213115.png)
+    isLeftAligned: Boolean = false,
+    titleIcon: TopIcon? = null,
+    secondaryIcon: TopIcon? = null,
+    onSecondaryClick: (() -> Unit)? = null
 ) {
     Surface(
         color = Color.Transparent,
@@ -55,8 +61,9 @@ fun CustomTopBar(
                 .padding(horizontal = 12.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Left Action Slot
-            Box(modifier = Modifier.width(40.dp)) {
+
+            if (isLeftAligned) {
+                // Leftmost Element: Back button (if present)
                 if (onBackClick != null) {
                     TopBarIconButton(
                         icon = backIcon,
@@ -67,50 +74,153 @@ fun CustomTopBar(
                         iconColor = textColor,
                         translucentAlpha = translucentAlpha
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                 }
-            }
 
-            // Center Content Slot
-            Box(
-                modifier = Modifier.weight(1f),
-                contentAlignment = if (image != null) Alignment.CenterStart else Alignment.Center
-            ) {
-                when {
-                    image != null -> {
-                        TopBarProfileLayout(
-                            title = title.orEmpty(),
-                            subtitle = subtitle,
-                            image = image,
-                            isLargeTitle = isLargeTitle,
-                            textColor = textColor,
-                            onClick = onDropdownClick
+                // Left Aligned Container: Icon + Title + Subtitle
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (titleIcon != null) {
+                        TopBarIconButton(
+                            icon = titleIcon,
+                            onClick = {},
+                            backgroundStyle = ButtonBackground.TRANSPARENT,
+                            size = 32.dp,
+                            iconSize = 24.dp,
+                            iconColor = textColor
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
+                    Column {
+                        if (title != null) {
+                            Text(
+                                text = title,
+                                style = if (isLargeTitle) {
+                                    JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium)
+                                } else {
+                                    JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
+                                },
+                                color = textColor
+                            )
+                        }
+                        if (subtitle != null) {
+                            Text(
+                                text = subtitle,
+                                style = JasnifyTheme.typography.labelMedium,
+                                color = ContentSecondary
+                            )
+                        }
+                    }
+                }
+
+                // Right Side Multi-Actions (Supports up to 2 icons horizontally)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (secondaryIcon != null && onSecondaryClick != null) {
+                        TopBarIconButton(
+                            icon = secondaryIcon,
+                            onClick = onSecondaryClick,
+                            backgroundStyle = buttonStyle,
+                            size = 40.dp,
+                            iconSize = 24.dp,
+                            iconColor = textColor,
+                            translucentAlpha = translucentAlpha
                         )
                     }
-                    title != null -> {
-                        TopBarTextLayout(
-                            title = title,
-                            subtitle = subtitle,
-                            isLargeTitle = isLargeTitle,
-                            textColor = textColor,
-                            isClickable = onDropdownClick != null,
-                            onClick = onDropdownClick ?: {}
+                    if (onMenuClick != null) {
+                        TopBarIconButton(
+                            icon = menuIcon,
+                            onClick = onMenuClick,
+                            backgroundStyle = buttonStyle,
+                            size = 40.dp,
+                            iconSize = 24.dp,
+                            iconColor = textColor,
+                            translucentAlpha = translucentAlpha
                         )
                     }
                 }
-            }
 
-            // Right Action Slot
-            Box(modifier = Modifier.width(40.dp), contentAlignment = Alignment.CenterEnd) {
-                if (onMenuClick != null) {
-                    TopBarIconButton(
-                        icon = menuIcon,
-                        onClick = onMenuClick,
-                        backgroundStyle = buttonStyle,
-                        size = 40.dp,
-                        iconSize = 24.dp,
-                        iconColor = textColor,
-                        translucentAlpha = translucentAlpha
-                    )
+            } else {
+                // Standard Center-Aligned Layout
+                // Back Button Box (Width locked for centered alignment calculations)
+                Box(modifier = Modifier.width(40.dp)) {
+                    if (onBackClick != null) {
+                        TopBarIconButton(
+                            icon = backIcon,
+                            onClick = onBackClick,
+                            backgroundStyle = buttonStyle,
+                            size = 40.dp,
+                            iconSize = 18.dp,
+                            iconColor = textColor,
+                            translucentAlpha = translucentAlpha
+                        )
+                    }
+                }
+
+                // Center Title Container
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = if (image != null) Alignment.CenterStart else Alignment.Center
+                ) {
+                    when {
+                        image != null -> {
+                            TopBarProfileLayout(
+                                title = title.orEmpty(),
+                                subtitle = subtitle,
+                                image = image,
+                                isLargeTitle = isLargeTitle,
+                                textColor = textColor,
+                                onClick = onDropdownClick
+                            )
+                        }
+                        title != null -> {
+                            TopBarTextLayout(
+                                title = title,
+                                subtitle = subtitle,
+                                isLargeTitle = isLargeTitle,
+                                textColor = textColor,
+                                isClickable = onDropdownClick != null,
+                                onClick = onDropdownClick ?: {}
+                            )
+                        }
+                    }
+                }
+
+                // Right Actions box (Matches width dynamically to support double or single actions gracefully)
+                val actionWidth = if (secondaryIcon != null && onSecondaryClick != null) 88.dp else 40.dp
+                Box(modifier = Modifier.width(actionWidth), contentAlignment = Alignment.CenterEnd) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (secondaryIcon != null && onSecondaryClick != null) {
+                            TopBarIconButton(
+                                icon = secondaryIcon,
+                                onClick = onSecondaryClick,
+                                backgroundStyle = buttonStyle,
+                                size = 40.dp,
+                                iconSize = 24.dp,
+                                iconColor = textColor,
+                                translucentAlpha = translucentAlpha
+                            )
+                        }
+                        if (onMenuClick != null) {
+                            TopBarIconButton(
+                                icon = menuIcon,
+                                onClick = onMenuClick,
+                                backgroundStyle = buttonStyle,
+                                size = 40.dp,
+                                iconSize = 24.dp,
+                                iconColor = textColor,
+                                translucentAlpha = translucentAlpha
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -215,86 +325,88 @@ private fun TopBarProfileLayout(
     }
 }
 
-
-// ----- Preview -----
-
-@Preview(showBackground = true, backgroundColor = 0xFFF5F5F5)
+@Preview(showBackground = true, backgroundColor = 0xFFF0F2F5)
 @Composable
 fun CustomTopBarVariantsPreview() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF5F5F5)),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(BackgroundPrimary),
+        verticalArrangement = Arrangement.spacedBy(28.dp)
     ) {
-        // Back Button Only
-        CustomTopBar(onBackClick = {})
 
-        // Back + Menu Buttons
-        CustomTopBar(title = "Label", onBackClick = {}, onMenuClick = {})
-
-        // Label + Subtitle + Dropdown (Center)
+        // 1. Back button only
         CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onDropdownClick = {}
+            onBackClick = {},
+            buttonStyle = ButtonBackground.OPAQUE
         )
 
-        // Back + Label + Subtitle + Dropdown
+        // 2. Simple Center Label
         CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
+            title = "Simple Label",
+            buttonStyle = ButtonBackground.TRANSPARENT
+        )
+
+        // 3. Center Label + Subtitle (Dropdown click disabled)
+        CustomTopBar(
+            title = "Label Only",
+            subtitle = "Non-interactive subtitle",
+            onBackClick = {}
+        )
+
+        // 4. Center Label + Subtitle + Interactive Chevron Dropdown
+        CustomTopBar(
+            title = "Dropdown Active",
+            subtitle = "Click to open folder",
             onBackClick = {},
             onDropdownClick = {}
         )
 
-        // Back + Label + Subtitle + Dropdown + Menu
+        // 5. Classic Center Layout (Back + Label + Dropdown + Menu)
         CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
+            title = "Standard Workspace",
+            subtitle = "General files",
             onBackClick = {},
-            onMenuClick = {},
-            onDropdownClick = {}
-        )
-
-        // Simple Center Label + Subtitle (Duplicate of 4)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onDropdownClick = {}
-        )
-
-        // Back + Simple Center Label + Subtitle (Duplicate of 5)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onBackClick = {},
-            onDropdownClick = {}
-        )
-
-        // Back + Simple Center Label + Subtitle + Menu (Duplicate of 6)
-        CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            onBackClick = {},
-            onMenuClick = {},
             onDropdownClick = {},
-            isLargeTitle = true
+            onMenuClick = {},
+            buttonStyle = ButtonBackground.OPAQUE
         )
 
-        // Back + Profile Variant + Menu
+        // 6. Center-Left aligned Profile card layout with action controls
         CustomTopBar(
-            title = "Label",
-            subtitle = "Subtitle",
-            image = painterResource(R.drawable.ic_profile),
+            title = "Jane Doe",
+            subtitle = "Active 2 mins ago",
+            image = painterResource(R.drawable.ic_google), // Using vector checklist painter as placeholder
             onBackClick = {},
-            onMenuClick = {}
+            onMenuClick = {},
+            buttonStyle = ButtonBackground.OPAQUE
         )
 
-        // Example with a custom color (e.g., Purple/Blue)
         CustomTopBar(
-            title = "Custom Color",
-            subtitle = "Subtitle stays secondary",
+            title = "Checklist",
+            titleIcon = TopIcon.Predefined.CHECKLIST,
+            isLeftAligned = true,
+            isLargeTitle = true,
+            secondaryIcon = TopIcon.Predefined.SEARCH,
+            onSecondaryClick = {},
+            onMenuClick = {},
+            buttonStyle = ButtonBackground.OPAQUE
+        )
+
+        CustomTopBar(
+            onBackClick = {},
+            secondaryIcon = TopIcon.Predefined.PIN,
+            onSecondaryClick = {},
+            onMenuClick = {},
+            buttonStyle = ButtonBackground.TRANSLUCENT,
+            translucentAlpha = 0.25f,
+            textColor = Color.Black
+        )
+
+        // 9. Custom Color top bar (Purple/Blue text styling)
+        CustomTopBar(
+            title = "Custom Brand Accent",
+            subtitle = "Subtitles remain secondary",
             textColor = Color(0xFF6200EE),
             onBackClick = {},
             onMenuClick = {}
