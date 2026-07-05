@@ -33,20 +33,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.filled.CalendarToday
-import java.time.LocalDate
-import java.time.Month
-import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
@@ -60,8 +51,6 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
@@ -333,13 +322,19 @@ fun VenueMainContent(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
-                            if (!isSearchActive) {
-                                Spacer(Modifier.height(12.dp))
-                                LocationSelectorPill(
-                                    location = selectedLocation,
-                                    onLocationSelectorClick = onLocationSelectorClick,
-                                    modifier = Modifier
-                                )
+                            AnimatedVisibility(
+                                visible = !isSearchActive,
+                                enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
+                                exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(250))
+                            ) {
+                                Column {
+                                    Spacer(Modifier.height(12.dp))
+                                    LocationSelectorPill(
+                                        location = selectedLocation,
+                                        onLocationSelectorClick = onLocationSelectorClick,
+                                        modifier = Modifier
+                                    )
+                                }
                             }
                         }
 
@@ -357,9 +352,17 @@ fun VenueMainContent(
                                     placeholder = "Type your choices"
                                 )
 
-                                if (!isSearchActive) {
-                                    Spacer(Modifier.width(8.dp))
-                                    FilterButton(onClick = { showFilterDialog = true })
+                                AnimatedVisibility(
+                                    visible = !isSearchActive,
+                                    enter = fadeIn(animationSpec = tween(200)) +
+                                            expandHorizontally(expandFrom = Alignment.End, animationSpec = tween(250)),
+                                    exit = fadeOut(animationSpec = tween(150)) +
+                                            shrinkHorizontally(shrinkTowards = Alignment.End, animationSpec = tween(250))
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Spacer(Modifier.width(8.dp))
+                                        FilterButton(onClick = { showFilterDialog = true })
+                                    }
                                 }
                             }
                         }
@@ -411,8 +414,7 @@ fun VenueMainContent(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Column(
-                                        modifier = Modifier
-                                            .fillMaxSize(),
+                                        modifier = Modifier.fillMaxSize(),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
@@ -438,12 +440,13 @@ fun VenueMainContent(
                                 }
                             }
                         } else {
-                            item{
+                            item {
                                 IosSegmentedControl(
                                     options = viewOptions,
                                     selectedOption = selectedViewType,
                                     onOptionSelected = { selectedViewType = it },
-                                    modifier = Modifier.padding(vertical = 12.dp)
+                                    modifier = Modifier
+                                        .padding(vertical = 12.dp)
                                         .height(44.dp)
                                 )
                             }
@@ -554,34 +557,6 @@ fun VenueMainContent(
     }
 }
 
-@Composable
-fun CustomCircleIndicator(
-    checked: Boolean,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .size(24.dp)
-            .clip(CircleShape)
-            .background(if (checked) ContentBrandDark else Color.Transparent)
-            .border(
-                width = if (checked) 0.dp else 1.5.dp,
-                color = if (checked) Color.Transparent else ContentTertiary,
-                shape = CircleShape
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        if (checked) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Selected",
-                tint = Color.White,
-                modifier = Modifier.size(14.dp)
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -596,7 +571,6 @@ fun SaveListBottomSheet(
     onDismiss: () -> Unit,
     onDone: () -> Unit
 ) {
-    // Hold a dynamic draft SubEventItem inside our SaveListBottomSheet to directly integrate TimeLineInput
     var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
 
     CustomBottomSheet(
@@ -641,7 +615,11 @@ fun SaveListBottomSheet(
                             color = ContentPrimary
                         )
 
-                        CustomCircleIndicator(checked = isMySavedListChecked)
+                        // Replaced the old CustomCircleIndicator with CustomChecker
+                        CustomChecker(
+                            checked = isMySavedListChecked,
+                            onCheckedChange = null // Touch action handled directly on outer Row layout
+                        )
                     }
                 }
 
@@ -678,7 +656,6 @@ fun SaveListBottomSheet(
 
                         Row(
                             modifier = Modifier.clickable {
-                                // Directly initialize our unified SubEventItem to trigger the editing mode
                                 draftNewEvent = SubEventItem(
                                     id = "temp-new-item",
                                     date = "",
@@ -705,7 +682,6 @@ fun SaveListBottomSheet(
                     }
                 }
 
-                // Render the unified TimeLineInput component when adding a new event
                 if (draftNewEvent != null) {
                     item {
                         TimeLineInput(
@@ -713,7 +689,6 @@ fun SaveListBottomSheet(
                             onUpdate = { updatedItem ->
                                 if (!updatedItem.isEditing) {
                                     if (updatedItem.isExisting) {
-                                        // Save standard event when "Done" clicked
                                         onAddNewEvent(updatedItem.name, updatedItem.date)
                                     }
                                     draftNewEvent = null
@@ -764,10 +739,13 @@ fun SaveListBottomSheet(
                             )
                         }
 
-                        CustomCircleIndicator(checked = isSelected)
+                        // Replaced the old CustomCircleIndicator with CustomChecker
+                        CustomChecker(
+                            checked = isSelected,
+                            onCheckedChange = null // Touch action handled directly on outer Row layout
+                        )
                     }
 
-                    // To inject a 2.dp gap between timeline cards
                     if (index < timelineEvents.lastIndex) {
                         Spacer(modifier = Modifier.height(2.dp))
                     }
@@ -978,7 +956,6 @@ private fun parsePrice(priceString: String): Int {
         .trim()
     return clean.toIntOrNull() ?: 0
 }
-
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)

@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.components.cards
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -11,7 +12,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
@@ -49,6 +49,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 // ---- Constants for Infinite Pager ----
 private const val VIRTUAL_PAGE_COUNT = 10000
@@ -84,7 +85,8 @@ fun VendorCardFull(
 ) {
     val actualPageCount = vendor.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage = if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
+    val initialPage =
+        if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
@@ -94,7 +96,7 @@ fun VendorCardFull(
     if (actualPageCount > 1) {
         LaunchedEffect(Unit) {
             while (true) {
-                delay(3000)
+                delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
                     pagerState.animateScrollToPage(pagerState.currentPage + 1)
                 }
@@ -128,39 +130,53 @@ fun VendorCardFull(
                 }
 
                 OfferBadge(
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
                     onClick = onOfferClick
                 )
 
-                Surface(
-                    onClick = onFavoriteToggle,
-                    shape = CircleShape,
-                    color = if (vendor.isFavorite) Color.White else ContentPrimary.copy(alpha = 0.5f),
-                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).size(44.dp)
+                // Favorite Toggle wrapped inside clip & clickable
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .clip(CircleShape)
+                        .clickable { onFavoriteToggle() },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (vendor.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite Icon",
-                            modifier = Modifier.size(20.dp),
-                            tint = if (vendor.isFavorite) Color.Red else ContentInvPrimary
+                    val iconRes =
+                        if (vendor.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                            R.drawable.ic_heart
                         )
-                    }
+                    Icon(
+                        painter = iconRes,
+                        contentDescription = "Favorite Icon",
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(28.dp),
+                    )
                 }
 
                 CarouselDots(
                     pageCount = actualPageCount,
                     currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp)
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp)
                 )
             }
 
             Column(
-                modifier = Modifier.height(190.dp).padding(vertical = 12.dp),
+                modifier = Modifier
+                    .height(190.dp)
+                    .padding(vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(46.dp).padding(horizontal = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(46.dp)
+                        .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
                 ) {
@@ -210,12 +226,19 @@ fun VendorCardFull(
                 DashedDivider(modifier = Modifier.padding(horizontal = 12.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 12.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Starting at", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
+                        Text(
+                            "Starting at",
+                            style = JasnifyTheme.typography.labelSmall,
+                            color = ContentSecondary
+                        )
                         Text(
                             text = vendor.priceStartsFrom,
                             style = JasnifyTheme.typography.displayMedium,
@@ -280,7 +303,8 @@ fun VendorCardCompact(
 ) {
     val actualPageCount = vendor.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage = if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
+    val initialPage =
+        if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
@@ -290,7 +314,7 @@ fun VendorCardCompact(
     if (actualPageCount > 1) {
         LaunchedEffect(Unit) {
             while (true) {
-                delay(3000)
+                delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
                     pagerState.animateScrollToPage(pagerState.currentPage + 1)
                 }
@@ -330,39 +354,59 @@ fun VendorCardCompact(
                     userScrollEnabled = false
                 ) { page ->
                     val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                    VendorImage(url = vendor.images.getOrNull(actualIndex) ?: "", modifier = Modifier.fillMaxSize())
+                    VendorImage(
+                        url = vendor.images.getOrNull(actualIndex) ?: "",
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
 
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
-                    modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
                 ) {
-                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(Icons.Default.Star, null, Modifier.size(12.dp), ContentPrimary)
                         Spacer(Modifier.width(4.dp))
-                        Text(text = "${vendor.rating}", color = ContentPrimary, style = JasnifyTheme.typography.labelSmall)
-                    }
-                }
-
-                Surface(
-                    onClick = onFavoriteToggle,
-                    shape = CircleShape,
-                    color = if (vendor.isFavorite) Color.White else ContentPrimary.copy(alpha = 0.5f),
-                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp).size(36.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = if (vendor.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                            contentDescription = "Favorite Icon",
-                            modifier = Modifier.size(18.dp),
-                            tint = if (vendor.isFavorite) Color.Red else ContentInvPrimary
+                        Text(
+                            text = "${vendor.rating}",
+                            color = ContentPrimary,
+                            style = JasnifyTheme.typography.labelSmall
                         )
                     }
                 }
 
+                // Favorite Toggle wrapped inside clip & clickable
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .clip(CircleShape)
+                        .clickable { onFavoriteToggle() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    val iconRes =
+                        if (vendor.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                            R.drawable.ic_heart
+                        )
+                    Icon(
+                        painter = iconRes,
+                        contentDescription = "Favorite Icon",
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+
                 Row(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .padding(8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Bottom
                 ) {
@@ -392,12 +436,25 @@ fun VendorCardCompact(
                 )
                 Spacer(Modifier.height(4.dp))
 
-                LocationAndTypeRow(vendor.location, vendor.vendorType, compactCardSize = compactCardSize)
+                LocationAndTypeRow(
+                    vendor.location,
+                    vendor.vendorType,
+                    compactCardSize = compactCardSize
+                )
 
                 if (isMedium) {
                     Spacer(Modifier.height(8.dp))
-                    Text("Starting at", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
-                    Text(text = vendor.priceStartsFrom, style = JasnifyTheme.typography.displaySmall, color = ContentPrimary, fontWeight = FontWeight.Medium)
+                    Text(
+                        "Starting at",
+                        style = JasnifyTheme.typography.labelSmall,
+                        color = ContentSecondary
+                    )
+                    Text(
+                        text = vendor.priceStartsFrom,
+                        style = JasnifyTheme.typography.displaySmall,
+                        color = ContentPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
@@ -428,16 +485,20 @@ private fun OfferBadge(
         onClick = onClick,
         color = ContentPrimary.copy(alpha = 0.5f),
         shape = SquircleShape(100, 0f),
-        modifier = modifier.height(26.dp)
+        modifier = modifier.height(28.dp)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 0.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(imageVector = Icons.Outlined.LocalOffer,
+            Icon(
+                imageVector = Icons.Outlined.LocalOffer,
                 contentDescription = "Offer Icon",
-                Modifier.size(18.dp).graphicsLayer { scaleX = -1f },
-                tint = ContentInvPrimary)
+                Modifier
+                    .size(18.dp)
+                    .graphicsLayer { scaleX = -1f },
+                tint = ContentInvPrimary
+            )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = "Offers",
@@ -510,8 +571,21 @@ fun Modifier.vendorShadow(
         )
         layers.forEach { layer ->
             paint.color = color.copy(alpha = layer.alpha).toArgb()
-            paint.setShadowLayer(layer.blur.toPx(), 0f, layer.offsetY.toPx(), color.copy(alpha = layer.alpha).toArgb())
-            canvas.nativeCanvas.drawRoundRect(0f, 0f, size.width, size.height, borderRadius.toPx(), borderRadius.toPx(), paint)
+            paint.setShadowLayer(
+                layer.blur.toPx(),
+                0f,
+                layer.offsetY.toPx(),
+                color.copy(alpha = layer.alpha).toArgb()
+            )
+            canvas.nativeCanvas.drawRoundRect(
+                0f,
+                0f,
+                size.width,
+                size.height,
+                borderRadius.toPx(),
+                borderRadius.toPx(),
+                paint
+            )
         }
     }
 }
@@ -539,7 +613,10 @@ fun PreviewVendorCards() {
     )
 
     JasnifyTheme {
-        Column(modifier = Modifier.padding(16.dp).fillMaxSize().background(Color(0xFFF9F9F9))) {
+        Column(modifier = Modifier
+            .padding(16.dp)
+            .fillMaxSize()
+            .background(Color(0xFFF9F9F9))) {
             VendorCardFull(vendor = sample)
             Spacer(Modifier.height(40.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
