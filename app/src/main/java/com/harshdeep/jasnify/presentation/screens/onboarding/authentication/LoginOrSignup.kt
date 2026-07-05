@@ -14,23 +14,18 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.MailOutline
-import androidx.compose.material.icons.outlined.Phone
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -53,12 +48,8 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import kotlinx.coroutines.delay
-
-// --- Toast State Management ---
-data class ToastData(
-    val message: String? = null,
-    val type: ToastType = ToastType.DEFAULT
-)
+import kotlin.time.Duration.Companion.milliseconds
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 
 @Composable
 fun LoginOrSignup(
@@ -152,7 +143,7 @@ fun LoginOrSignup(
     // --- LaunchedEffect to dismiss CustomToast automatically ---
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000L) // Wait for 3 seconds
+            delay(3000L.milliseconds) // Wait for 3 seconds
             toastData = toastData.copy(message = null) // Clear message to dismiss toast
         }
     }
@@ -170,188 +161,195 @@ fun LoginOrSignup(
         10.dp
     }
 
-    Scaffold(
-        topBar = {
-            Box(modifier = Modifier.statusBarsPadding()) {
-                CustomTopBar(
-                    onBackClick = { navController.popBackStack() },
-                )
-            }
-        },
-        content = { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(BackgroundPrimary)
-                    .padding(paddingValues)
-                    .padding(12.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(BackgroundPrimary),
-                    verticalArrangement = Arrangement.Top,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Logo
-                    Box(
-                        modifier = Modifier
-                            .height(100.dp)
-                            .width(120.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Image(
-                            painter = painterResource(R.drawable.ic_app),
-                            contentDescription = "App Logo"
-                        )
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    Text(
-                        modifier = Modifier
-                            .padding(top = 16.dp, bottom = 16.dp)
-                            .align(Alignment.CenterHorizontally),
-                        text = "Log in or Sign up",
-                        style = MaterialTheme.typography.displayMedium,
-                        color = ContentPrimary
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundPrimary)
+    ) {
+        Scaffold(
+            containerColor = BackgroundPrimary,
+            topBar = {
+                Box(modifier = Modifier.statusBarsPadding()) {
+                    CustomTopBar(
+                        onBackClick = { navController.popBackStack() },
                     )
-
-                    Spacer(Modifier.height(16.dp))
-
-                    AnimatedContent(
-                        targetState = isPhoneMode,
-                        transitionSpec = {
-                            (fadeIn() togetherWith fadeOut())
-                                .using(
-                                     SizeTransform(clip = false)
-                                )
-                        },
-                        label = "input_mode_transition"
-                    ) { phoneMode ->
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                }
+            },
+            content = { paddingValues ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .padding(12.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        verticalArrangement = Arrangement.Top,
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // Logo
+                        Box(
+                            modifier = Modifier
+                                .height(100.dp)
+                                .width(120.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (phoneMode) {
-                                PhoneNumberInput(
-                                    value = phoneNumber,
-                                    onValueChange = { phoneNumber = it }
-                                )
-                            } else {
-                                PrimaryInput(
-                                    value = email,
-                                    onValueChange = { email = it },
-                                    placeholder = "Enter email address",
-                                    keyboardType = KeyboardType.Email
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                PrimaryInput(
-                                    value = password,
-                                    onValueChange = { password = it },
-                                    placeholder = "Enter password",
-                                    keyboardType = KeyboardType.Password
-                                )
+                            Image(
+                                painter = painterResource(R.drawable.ic_app),
+                                contentDescription = "App Logo"
+                            )
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Text(
+                            modifier = Modifier
+                                .padding(top = 16.dp, bottom = 16.dp)
+                                .align(Alignment.CenterHorizontally),
+                            text = "Log in or Sign up",
+                            style = MaterialTheme.typography.displayMedium,
+                            color = ContentPrimary
+                        )
+
+                        Spacer(Modifier.height(16.dp))
+
+                        AnimatedContent(
+                            targetState = isPhoneMode,
+                            transitionSpec = {
+                                (fadeIn() togetherWith fadeOut())
+                                    .using(
+                                        SizeTransform(clip = false)
+                                    )
+                            },
+                            label = "input_mode_transition"
+                        ) { phoneMode ->
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                if (phoneMode) {
+                                    PhoneNumberInput(
+                                        value = phoneNumber,
+                                        onValueChange = { phoneNumber = it }
+                                    )
+                                } else {
+                                    PrimaryInput(
+                                        value = email,
+                                        onValueChange = { email = it },
+                                        placeholder = "Enter email address",
+                                        keyboardType = KeyboardType.Email
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    PrimaryInput(
+                                        value = password,
+                                        onValueChange = { password = it },
+                                        placeholder = "Enter password",
+                                        keyboardType = KeyboardType.Password
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(8.dp))
 
-                    CustomTextButton(
-                        onClick = {
-                            val isValid: Boolean
-                            val errorMessage: String
+                        CustomTextButton(
+                            onClick = {
+                                val isValid: Boolean
+                                val errorMessage: String
 
-                            if (isPhoneMode) {
-                                isValid = phoneNumber.isNotBlank() && phoneNumber.length in 10..15
-                                errorMessage = "Please enter a valid phone number"
-                            } else {
-                                isValid = email.isNotBlank() && emailPattern.matches(email) && password.length >= 6
-                                errorMessage = if (!emailPattern.matches(email)) {
-                                    "Please enter a valid email address"
+                                if (isPhoneMode) {
+                                    isValid = phoneNumber.isNotBlank() && phoneNumber.length in 10..15
+                                    errorMessage = "Please enter a valid phone number"
                                 } else {
-                                    "Password must be at least 6 characters long"
+                                    isValid = email.isNotBlank() && emailPattern.matches(email) && password.length >= 6
+                                    errorMessage = if (!emailPattern.matches(email)) {
+                                        "Please enter a valid email address"
+                                    } else {
+                                        "Password must be at least 6 characters long"
+                                    }
                                 }
-                            }
 
-                            if (isValid) {
-                                if (isPhoneMode && activity != null) {
-                                    viewModel.sendVerificationCode(phoneNumber, activity)
-                                } else if (!isPhoneMode) {
-                                    viewModel.handleEmailAuth(email, password)
+                                if (isValid) {
+                                    if (isPhoneMode && activity != null) {
+                                        viewModel.sendVerificationCode(phoneNumber, activity)
+                                    } else if (!isPhoneMode) {
+                                        viewModel.handleEmailAuth(email, password)
+                                    }
+                                } else {
+                                    toastData = ToastData(errorMessage, ToastType.ERROR)
                                 }
-                            } else {
-                                toastData = ToastData(errorMessage, ToastType.ERROR)
-                            }
-                        },
-                        text = if (authState is AuthState.Loading) "Loading..." else "Continue",
-                        modifier = Modifier.fillMaxWidth(),
-                        shapeStyle = ButtonShapeStyle.Square,
-                        containerColor = ContentPrimary,
-                    )
+                            },
+                            text = if (authState is AuthState.Loading) "Loading..." else "Continue",
+                            modifier = Modifier.fillMaxWidth(),
+                            shapeStyle = ButtonShapeStyle.Square,
+                            containerColor = ContentPrimary,
+                        )
 
-                    OrDivider()
+                        OrDivider()
 
-                    // Google Sign-In Button
-                    AuthButton(
-                        onClick = {
-                            val signInIntent = googleSignInClient.signInIntent
-                            googleSignInLauncher.launch(signInIntent)
-                        },
-                        text = "Sign in with Google",
-                        icon = painterResource(id = R.drawable.ic_google),
-                        badgeText = "Fastest & Most Used"
-                    )
+                        // Google Sign-In Button
+                        AuthButton(
+                            onClick = {
+                                val signInIntent = googleSignInClient.signInIntent
+                                googleSignInLauncher.launch(signInIntent)
+                            },
+                            text = "Sign in with Google",
+                            icon = painterResource(id = R.drawable.ic_google),
+                            badgeText = "Fastest & Most Used"
+                        )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
 
-                    // Temporarily remove the phone number with otp login feature
+                        // Temporarily remove the phone number with otp login feature
 
-//                    if(isPhoneMode){
-//                        AuthButton(
-//                            onClick = {
-//                                isPhoneMode = false
-//                                viewModel.resetAuthState()
-//                            },
-//                            text = "Sign in with Email",
-//                            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
-//                        )
-//                    } else {
-//                        AuthButton(
-//                            onClick = {
-//                                isPhoneMode = true
-//                                viewModel.resetAuthState()
-//                            },
-//                            text = "Sign in with Phone",
-//                            icon = rememberVectorPainter(Icons.Outlined.Phone),
-//                        )
-//                    }
-
-                }
-
-                // --- CustomToast Display  ---
-                AnimatedVisibility(
-                    visible = toastData.message != null,
-                    enter = slideInVertically(initialOffsetY = { -it }),
-                    exit = slideOutVertically(targetOffsetY = { -it }),
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp)
-                ) {
-                    CustomToast(
-                        message = toastData.message ?: "",
-                        type = toastData.type,
-                        buttonText = null,
-                        onButtonClick = null,
-                    )
+    //                    if(isPhoneMode){
+    //                        AuthButton(
+    //                            onClick = {
+    //                                isPhoneMode = false
+    //                                viewModel.resetAuthState()
+    //                            },
+    //                            text = "Sign in with Email",
+    //                            icon = rememberVectorPainter(Icons.Outlined.MailOutline),
+    //                        )
+    //                    } else {
+    //                        AuthButton(
+    //                            onClick = {
+    //                                isPhoneMode = true
+    //                                viewModel.resetAuthState()
+    //                            },
+    //                            text = "Sign in with Phone",
+    //                            icon = rememberVectorPainter(Icons.Outlined.Phone),
+    //                        )
+    //                    }
+                    }
                 }
             }
+        )
+
+        // --- CustomToast Display  ---
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(
+                message = toastData.message ?: "",
+                type = toastData.type,
+                buttonText = null,
+                onButtonClick = null,
+            )
         }
-    )
+    }
 }
 
-// --- Preview remains the same (without ViewModel) ---
+// --- Preview (without ViewModel) ---
 @androidx.compose.ui.tooling.preview.Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun LoginOrSignupPreview() {

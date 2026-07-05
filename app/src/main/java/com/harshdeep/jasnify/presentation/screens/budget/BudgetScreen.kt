@@ -170,6 +170,11 @@ fun BudgetScreen(
     var expandedCardId by remember { mutableStateOf<String?>("0") }
     var isSearchBarFocused by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = isSearchBarFocused) {
+        isSearchBarFocused = false
+        focusManager.clearFocus()
+    }
+
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
