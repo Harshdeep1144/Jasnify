@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -280,7 +283,7 @@ fun ChecklistsTab() {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(top = paddingValues.calculateTopPadding())
             ) {
                 Spacer(Modifier.height(12.dp))
 
@@ -322,10 +325,11 @@ fun ChecklistsTab() {
                 if (isGridView) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp),
                         modifier = Modifier.fillMaxSize()
+                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
                         items(items = sortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
@@ -336,9 +340,10 @@ fun ChecklistsTab() {
                     }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(12.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
+                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
                         items(items = sortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
@@ -386,13 +391,20 @@ fun ChecklistsTab() {
         )
     }
 
-    if (showDiscardToast) {
-        Box(
+    // --- CustomToast Display positioned at the bottom of the screen ---
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        AnimatedVisibility(
+            visible = showDiscardToast,
+            enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight + 500 }),
+            exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight + 500 }),
             modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp)
-                .padding(bottom = 80.dp),
-            contentAlignment = Alignment.BottomCenter
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 92.dp) // Positioned above the bottom bar
+                .zIndex(100f)
         ) {
             CustomToast(
                 message = "Empty list discarded",
@@ -510,11 +522,14 @@ fun ChecklistDetailScreen(
         },
         containerColor = bgColor
     ) { paddingValues ->
+        val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val adjustedBottomPadding = (imeBottomPadding - 100.dp).coerceAtLeast(0.dp)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding()
+                .padding(bottom = adjustedBottomPadding)
         ) {
             Column(
                 modifier = Modifier
@@ -765,11 +780,11 @@ fun ChecklistArchivesScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             Spacer(Modifier.height(12.dp))
-            // Search Bar
 
+            // Search Bar
             CustomSearchBar(
                 value = searchQuery,
                 onValueChange = {searchQuery = it },
@@ -812,9 +827,10 @@ fun ChecklistArchivesScreen(
 
             // Archived List
             LazyColumn(
-                contentPadding = PaddingValues(12.dp),
+                contentPadding = PaddingValues(bottom = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.fillMaxSize()
+                    .padding(start = 12.dp, end = 12.dp, top = 12.dp)
             ) {
                 items(items = filteredChecklists, key = { it.id }) { checklist ->
                     ChecklistCard(
@@ -850,14 +866,14 @@ fun ChecklistDetailToolbar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         if (isFormattingActive) {
             // STATE 2: TEXT FORMATTING STATE
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TopBarIconButton(
@@ -889,7 +905,7 @@ fun ChecklistDetailToolbar(
         } else {
             // STATE 1: DEFAULT STATE
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TopBarIconButton(
@@ -906,7 +922,7 @@ fun ChecklistDetailToolbar(
                 )
             }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TopBarIconButton(
