@@ -48,7 +48,6 @@ fun CustomChecker(
         Modifier.toggleable(
             value = checked,
             onValueChange = onCheckedChange,
-            enabled = enabled,
             role = Role.Checkbox,
             interactionSource = remember { MutableInteractionSource() },
             indication = null
