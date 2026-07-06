@@ -1,30 +1,34 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,17 +36,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
@@ -51,15 +65,21 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.Checklist
 import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
-import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastType
+import kotlinx.coroutines.delay
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.*
 import java.util.*
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun ChecklistsTab() {
@@ -68,8 +88,59 @@ fun ChecklistsTab() {
     var showMenuSheet by remember { mutableStateOf(false) }
     var selectedChecklist by remember { mutableStateOf<Checklist?>(null) }
     var isAddingNew by remember { mutableStateOf(false) }
-    
-    // Manage checklists state
+    var showArchives by remember { mutableStateOf(false) }
+    var navigatedFromArchives by remember { mutableStateOf(false) }
+    var showDiscardToast by remember { mutableStateOf(false) }
+
+    // Search and Focus states
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Focus Requester to request keyboard focus immediately when active
+    val searchFocusRequester = remember { FocusRequester() }
+    var wasFocused by remember { mutableStateOf(false) }
+
+    // Core focusManager integration
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(showDiscardToast) {
+        if (showDiscardToast) {
+            delay(2000.milliseconds)
+            showDiscardToast = false
+        }
+    }
+
+    // Handle requesting focus immediately when search is activated
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            wasFocused = false
+            // Allow transition or layout composition to settle before requesting focus
+            delay(100.milliseconds)
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    // System Back Button Handling
+    BackHandler(enabled = selectedChecklist != null || isAddingNew || showArchives || isSearchActive) {
+        // Clear focus first when processing system back requests
+        focusManager.clearFocus()
+        if (isSearchActive) {
+            isSearchActive = false
+            searchQuery = ""
+            wasFocused = false
+        } else if (selectedChecklist != null || isAddingNew) {
+            selectedChecklist = null
+            isAddingNew = false
+            // If we came from archives, go back to archives
+            if (navigatedFromArchives) {
+                showArchives = true
+                navigatedFromArchives = false
+            }
+        } else if (showArchives) {
+            showArchives = false
+        }
+    }
+
     val checklists = remember {
         mutableStateListOf(
             Checklist(
@@ -108,32 +179,119 @@ fun ChecklistsTab() {
             )
         )
     }
-//    selectedChecklist != null || isAddingNew
-    if (true) {
+
+    val archivedChecklists = remember {
+        mutableStateListOf(
+            Checklist(
+                id = "archived_1",
+                title = "Audio-Visual Setup",
+                dateTime = "Yesterday, 9:00 AM",
+                items = listOf(
+                    ChecklistItem(text = "Test Equipment"),
+                    ChecklistItem(text = "Confirm Speaker Arrangements"),
+                    ChecklistItem(text = "Check Lighting Levels")
+                ),
+                bgColor = PaleLavender
+            ),
+            Checklist(
+                id = "archived_2",
+                title = "Guest Transportation",
+                dateTime = "Yesterday, 11:00 AM",
+                items = listOf(
+                    ChecklistItem(text = "Book Shuttle Services"),
+                    ChecklistItem(text = "Verify Arrival Times"),
+                    ChecklistItem(text = "Coordinate with Drivers")
+                ),
+                bgColor = SoftPeach
+            )
+        )
+    }
+
+    if (selectedChecklist != null || isAddingNew) {
         ChecklistDetailScreen(
             checklist = selectedChecklist,
             onBackClick = { updatedChecklist ->
+                focusManager.clearFocus()
                 if (updatedChecklist != null) {
-                    val index = checklists.indexOfFirst { it.id == updatedChecklist.id }
-                    if (index != -1) {
-                        checklists[index] = updatedChecklist
-                    } else {
-                        checklists.add(0, updatedChecklist)
+                    val isEmpty = updatedChecklist.title.isBlank() &&
+                            updatedChecklist.items.all { it.text.isBlank() }
+
+                    if (isEmpty && isAddingNew) {
+                        showDiscardToast = true
+                    } else if (updatedChecklist.title.isNotBlank() || updatedChecklist.items.any { it.text.isNotBlank() }) {
+                        // Check if it's in normal list
+                        val index = checklists.indexOfFirst { it.id == updatedChecklist.id }
+                        if (index != -1) {
+                            checklists[index] = updatedChecklist
+                        } else {
+                            // Check if it's in archived list
+                            val archIndex = archivedChecklists.indexOfFirst { it.id == updatedChecklist.id }
+                            if (archIndex != -1) {
+                                archivedChecklists[archIndex] = updatedChecklist
+                            } else {
+                                checklists.add(0, updatedChecklist)
+                            }
+                        }
                     }
                 }
                 selectedChecklist = null
                 isAddingNew = false
+                if (navigatedFromArchives) {
+                    showArchives = true
+                    navigatedFromArchives = false
+                }
             },
             onDelete = { id ->
+                focusManager.clearFocus()
                 checklists.removeAll { it.id == id }
+                archivedChecklists.removeAll { it.id == id }
                 selectedChecklist = null
                 isAddingNew = false
+                if (navigatedFromArchives) {
+                    showArchives = true
+                    navigatedFromArchives = false
+                }
             },
             onTogglePin = { id ->
                 val index = checklists.indexOfFirst { it.id == id }
                 if (index != -1) {
                     checklists[index] = checklists[index].copy(isPinned = !checklists[index].isPinned)
                 }
+            },
+            onArchive = { id ->
+                focusManager.clearFocus()
+                val index = checklists.indexOfFirst { it.id == id }
+                if (index != -1) {
+                    val item = checklists.removeAt(index)
+                    archivedChecklists.add(0, item.copy(isPinned = false))
+                } else {
+                    val archIndex = archivedChecklists.indexOfFirst { it.id == id }
+                    if (archIndex != -1) {
+                        val item = archivedChecklists.removeAt(archIndex)
+                        checklists.add(0, item)
+                    }
+                }
+                selectedChecklist = null
+                isAddingNew = false
+                if (navigatedFromArchives) {
+                    showArchives = true
+                    navigatedFromArchives = false
+                }
+            },
+            isArchived = archivedChecklists.any { it.id == selectedChecklist?.id }
+        )
+    } else if (showArchives) {
+        ChecklistArchivesScreen(
+            archivedChecklists = archivedChecklists,
+            onBackClick = {
+                focusManager.clearFocus()
+                showArchives = false
+            },
+            onChecklistClick = { checklist ->
+                focusManager.clearFocus()
+                selectedChecklist = checklist
+                showArchives = false
+                navigatedFromArchives = true
             }
         )
     } else {
@@ -144,34 +302,103 @@ fun ChecklistsTab() {
                         .fillMaxWidth()
                         .statusBarsPadding()
                 ){
-                    CustomTopBar(
-                        title = "Checklist",
-                        titleIcon = TopIcon.Predefined.CHECKLIST,
-                        isLeftAligned = true,
-                        isLargeTitle = true,
-                        secondaryIcon = TopIcon.Predefined.SEARCH,
-                        onSecondaryClick = {},
-                        onMenuClick = { showMenuSheet = true },
-                        buttonStyle = ButtonBackground.OPAQUE
-                    )
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = {
+                            if (targetState) {
+                                (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> -width } + fadeOut()
+                                )
+                            } else {
+                                (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> width } + fadeOut()
+                                )
+                            }
+                        },
+                        label = "SearchBarTransition"
+                    ) { active ->
+                        if (active) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, end = 12.dp, top = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CustomSearchBar(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(searchFocusRequester)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                wasFocused = true
+                                            } else if (wasFocused) {
+                                                // Automatically hide search when clicking outside / losing focus
+                                                isSearchActive = false
+                                                searchQuery = ""
+                                                wasFocused = false
+                                            }
+                                        },
+                                    onActiveChange = {},
+                                )
+                            }
+                        } else {
+                            CustomTopBar(
+                                title = "Checklist",
+                                titleIcon = TopIcon.Predefined.CHECKLIST,
+                                isLeftAligned = true,
+                                isLargeTitle = true,
+                                secondaryIcon = TopIcon.Predefined.SEARCH,
+                                onSecondaryClick = { isSearchActive = true },
+                                onMenuClick = {
+                                    focusManager.clearFocus()
+                                    showMenuSheet = true
+                                },
+                                buttonStyle = ButtonBackground.OPAQUE
+                            )
+                        }
+                    }
                 }
             },
             floatingActionButton = {
                 CustomIconButton(
-                    onClick = { isAddingNew = true },
+                    onClick = {
+                        focusManager.clearFocus()
+                        isAddingNew = true
+                    },
                     icon = painterResource(R.drawable.ic_plus),
                     size = ButtonSize.Large,
-                    modifier = Modifier.shadow(16.dp, CircleShape)
+                    modifier = Modifier
+                        .offset(y = 12.dp)
+                        .shadow(16.dp, CircleShape)
                 )
             },
-            containerColor = BackgroundPrimary
+            containerColor = BackgroundPrimary,
+            modifier = Modifier
+                .fillMaxSize()
+                // Clear search focus when tapping outside on Scaffold background bounds
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
+                    .padding(top = paddingValues.calculateTopPadding())
+                    // Clear search focus when tapping empty spaces inside main lists
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
             ) {
-                // Filter Chips
+                Spacer(Modifier.height(12.dp))
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -181,57 +408,82 @@ fun ChecklistsTab() {
                     FilterChip(
                         label = "All",
                         isSelected = selectedFilter == "All",
-                        onClick = { selectedFilter = "All" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "All"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                     FilterChip(
                         label = "Recent First",
                         isSelected = selectedFilter == "Recent First",
-                        onClick = { selectedFilter = "Recent First" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "Recent First"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                     FilterChip(
                         label = "Oldest First",
                         isSelected = selectedFilter == "Oldest First",
-                        onClick = { selectedFilter = "Oldest First" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "Oldest First"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                 }
 
-                val sortedChecklists = when (selectedFilter) {
-                    "Recent First" -> checklists.sortedByDescending { it.dateTime } // Simplified sorting
-                    "Oldest First" -> checklists.sortedBy { it.dateTime }
-                    else -> checklists.sortedByDescending { it.isPinned }
+                // Filter & Sort checklists based on active query
+                val filteredAndSortedChecklists = remember(searchQuery, checklists, selectedFilter) {
+                    checklists.filter {
+                        it.title.contains(searchQuery, ignoreCase = true) ||
+                                it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
+                    }.let { list ->
+                        when (selectedFilter) {
+                            "Recent First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenByDescending { it.dateTime })
+                            "Oldest First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenBy { it.dateTime })
+                            else -> list.sortedByDescending { it.isPinned }
+                        }
+                    }
                 }
 
                 if (isGridView) {
                     LazyVerticalGrid(
                         columns = GridCells.Fixed(2),
-                        contentPadding = PaddingValues(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp),
                         modifier = Modifier.fillMaxSize()
+                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
-                        items(sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
-                                onClick = { selectedChecklist = checklist }
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    selectedChecklist = checklist
+                                }
                             )
                         }
                     }
                 } else {
                     LazyColumn(
-                        contentPadding = PaddingValues(12.dp),
+                        contentPadding = PaddingValues(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxSize()
+                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
-                        items(sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
-                                onClick = { selectedChecklist = checklist }
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    selectedChecklist = checklist
+                                }
                             )
                         }
                     }
@@ -254,7 +506,10 @@ fun ChecklistsTab() {
                 MenuSheetActionItem(
                     text = "View Archives",
                     icon = painterResource(R.drawable.ic_box),
-                    onClick = { showMenuSheet = false }
+                    onClick = {
+                        showArchives = true
+                        showMenuSheet = false
+                    }
                 ),
                 MenuSheetActionItem(
                     text = "Manage Room Access",
@@ -270,7 +525,31 @@ fun ChecklistsTab() {
             onCancelClick = { showMenuSheet = false }
         )
     }
+
+    // --- CustomToast Display positioned at the bottom of the screen ---
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        AnimatedVisibility(
+            visible = showDiscardToast,
+            enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight + 500 }),
+            exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight + 500 }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 92.dp) // Positioned above the bottom bar
+                .zIndex(100f)
+        ) {
+            CustomToast(
+                message = "Empty list discarded",
+                type = ToastType.DEFAULT
+            )
+        }
+    }
 }
+
+// ========================================== DETAIL SCREEN ==========================================
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -278,21 +557,75 @@ fun ChecklistDetailScreen(
     checklist: Checklist? = null,
     onBackClick: (Checklist?) -> Unit,
     onDelete: (String) -> Unit = {},
-    onTogglePin: (String) -> Unit = {}
+    onTogglePin: (String) -> Unit = {},
+    onArchive: (String) -> Unit = {},
+    isArchived: Boolean = false
 ) {
     var title by remember { mutableStateOf(checklist?.title ?: "") }
-    var items by remember { 
+    var items by remember {
         mutableStateOf(
             checklist?.items ?: emptyList()
-        ) 
+        )
     }
     var bgColor by remember { mutableStateOf(checklist?.bgColor ?: SoftMint) }
     var isPinned by remember { mutableStateOf(checklist?.isPinned ?: false) }
     var showColorPicker by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    // Drag and drop state
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
+
+    // Text Formatting states
+    var isFormattingActive by remember { mutableStateOf(false) }
+    var isBoldActive by remember { mutableStateOf(false) }
+    var isItalicActive by remember { mutableStateOf(false) }
+    var isUnderlineActive by remember { mutableStateOf(false) }
+
+    // Detail Screen local focus tracking
+    val focusManager = LocalFocusManager.current
+
+    // Undo/Redo State History
+    val history = remember { mutableStateListOf<Pair<String, List<ChecklistItem>>>() }
+    var historyIndex by remember { mutableIntStateOf(-1) }
+
+    // Initialize snapshot
+    LaunchedEffect(checklist) {
+        if (history.isEmpty()) {
+            history.add(Pair(title, items))
+            historyIndex = 0
+        }
+    }
+
+    fun saveToHistory(newTitle: String, newItems: List<ChecklistItem>) {
+        if (historyIndex >= 0 && historyIndex < history.size) {
+            val current = history[historyIndex]
+            if (current.first == newTitle && current.second == newItems) return
+        }
+        while (history.size > historyIndex + 1) {
+            history.removeAt(history.size - 1)
+        }
+        history.add(Pair(newTitle, newItems.toList()))
+        historyIndex = history.size - 1
+    }
+
+    fun performUndo() {
+        if (historyIndex > 0) {
+            historyIndex--
+            val snapshot = history[historyIndex]
+            title = snapshot.first
+            items = snapshot.second
+        }
+    }
+
+    fun performRedo() {
+        if (historyIndex < history.size - 1) {
+            historyIndex++
+            val snapshot = history[historyIndex]
+            title = snapshot.first
+            items = snapshot.second
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -303,6 +636,7 @@ fun ChecklistDetailScreen(
             ) {
                 CustomTopBar(
                     onBackClick = {
+                        focusManager.clearFocus()
                         val result = Checklist(
                             id = checklist?.id ?: UUID.randomUUID().toString(),
                             title = title,
@@ -314,167 +648,498 @@ fun ChecklistDetailScreen(
                         onBackClick(result)
                     },
                     backIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_check)),
-                    secondaryIcon = TopIcon.Predefined.PIN,
+                    secondaryIcon =  if(isPinned) TopIcon.Predefined.PIN_FILLED else TopIcon.Predefined.PIN,
                     onSecondaryClick = {
+                        focusManager.clearFocus()
                         isPinned = !isPinned
                         checklist?.id?.let { onTogglePin(it) }
                     },
-                    onMenuClick = {},
-                    buttonStyle = ButtonBackground.OPAQUE,
+                    onMenuClick = {
+                        focusManager.clearFocus()
+                        showMenu = true
+                    },
+                    buttonStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f
                 )
             }
         },
-        containerColor = bgColor
+        containerColor = bgColor,
+        modifier = Modifier
+            .fillMaxSize()
+            // Clear keyboard focus when tapping outside on Scaffold background bounds
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
     ) { paddingValues ->
+        val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
+        val adjustedBottomPadding = (imeBottomPadding - 100.dp).coerceAtLeast(0.dp)
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(12.dp)
-        ) {
-            Text(
-                text = checklist?.dateTime ?: "Today, 09:30 PM",
-                style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                color = ContentSecondary,
-            )
-            Spacer(Modifier.height(8.dp))
-
-            BasicTextField(
-                value = title,
-                onValueChange = { title = it },
-                textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                modifier = Modifier.fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    if (title.isEmpty()) {
-                        Text(
-                            "Title",
-                            style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                            color = ContentSecondary
-                        )
-                    }
-                    innerTextField()
+                .padding(bottom = adjustedBottomPadding)
+                // Clear keyboard focus when clicking background empty area space
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
                 }
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            val listState = rememberLazyListState()
-
-            LazyColumn(
-                state = listState,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.weight(1f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(12.dp)
             ) {
-                itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                    val focusRequester = remember { FocusRequester() }
-                    val isDragging = draggedItemIndex == index
-                    
-                    Box(
-                        modifier = Modifier
-                            .graphicsLayer {
-                                translationY = if (isDragging) dragOffset else 0f
-                                scaleX = if (isDragging) 1.05f else 1f
-                                scaleY = if (isDragging) 1.05f else 1f
-                                alpha = if (isDragging) 0.8f else 1f
-                            }
-                            .zIndex(if (isDragging) 1f else 0f)
-                    ) {
-                        ChecklistItem(
-                            item = item,
-                            focusRequester = focusRequester,
-                            onTextChanged = { newText ->
-                                items = items.map { if (it.id == item.id) it.copy(text = newText) else it }
-                            },
-                            onCheckedChange = { isChecked ->
-                                items = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
-                            },
-                            onRemove = {
-                                items = items.filter { it.id != item.id }
-                            },
-                            modifier = Modifier.pointerInput(Unit) {
-                                detectDragGesturesAfterLongPress(
-                                    onDragStart = { draggedItemIndex = index },
-                                    onDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffset += dragAmount.y
-                                        
-                                        // Simple reordering logic
-                                        val targetIndex = (index + (dragOffset / 60f).toInt()).coerceIn(0, items.size - 1)
-                                        if (targetIndex != index && draggedItemIndex != null) {
-                                            val newList = items.toMutableList()
-                                            val movingItem = newList.removeAt(index)
-                                            newList.add(targetIndex, movingItem)
-                                            items = newList
-                                            draggedItemIndex = targetIndex
+                Text(
+                    text = checklist?.dateTime ?: "Today, 09:30 PM",
+                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    color = ContentSecondary,
+                )
+                Spacer(Modifier.height(8.dp))
+
+                BasicTextField(
+                    value = title,
+                    onValueChange = {
+                        title = it
+                        saveToHistory(it, items)
+                    },
+                    textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { innerTextField ->
+                        if (title.isEmpty()) {
+                            Text(
+                                "Title",
+                                style = JasnifyTheme.typography.headingXLarge.copy(
+                                    fontWeight = if (isBoldActive) FontWeight.Bold else FontWeight.Medium,
+                                    fontStyle = if (isItalicActive) FontStyle.Italic else FontStyle.Normal,
+                                    textDecoration = if (isUnderlineActive) TextDecoration.Underline else TextDecoration.None
+                                ),
+                                color = ContentSecondary
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+
+                Spacer(Modifier.height(12.dp))
+
+                val listState = rememberLazyListState()
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
+                        val focusRequester = remember { FocusRequester() }
+                        val isDragging = draggedItemIndex == index
+
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    translationY = if (isDragging) dragOffset else 0f
+                                    scaleX = if (isDragging) 1.05f else 1f
+                                    scaleY = if (isDragging) 1.05f else 1f
+                                    alpha = if (isDragging) 0.8f else 1f
+                                }
+                                .zIndex(if (isDragging) 1f else 0f)
+                        ) {
+                            ChecklistItem(
+                                item = item,
+                                focusRequester = focusRequester,
+                                onTextChanged = { newText ->
+                                    val updated = items.map { if (it.id == item.id) it.copy(text = newText) else it }
+                                    items = updated
+                                    saveToHistory(title, updated)
+                                },
+                                onCheckedChange = { isChecked ->
+                                    val updated = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
+                                    items = updated
+                                    saveToHistory(title, updated)
+                                },
+                                onRemove = {
+                                    val updated = items.filter { it.id != item.id }
+                                    items = updated
+                                    saveToHistory(title, updated)
+                                },
+                                modifier = Modifier.pointerInput(Unit) {
+                                    detectDragGesturesAfterLongPress(
+                                        onDragStart = {
+                                            focusManager.clearFocus()
+                                            draggedItemIndex = index
+                                        },
+                                        onDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragOffset += dragAmount.y
+
+                                            val targetIndex = (index + (dragOffset / 60f).toInt()).coerceIn(0, items.size - 1)
+                                            if (targetIndex != index && draggedItemIndex != null) {
+                                                val newList = items.toMutableList()
+                                                val movingItem = newList.removeAt(index)
+                                                newList.add(targetIndex, movingItem)
+                                                items = newList
+                                                draggedItemIndex = targetIndex
+                                                dragOffset = 0f
+                                            }
+                                        },
+                                        onDragEnd = {
+                                            draggedItemIndex = null
+                                            dragOffset = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggedItemIndex = null
                                             dragOffset = 0f
                                         }
-                                    },
-                                    onDragEnd = {
-                                        draggedItemIndex = null
-                                        dragOffset = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggedItemIndex = null
-                                        dragOffset = 0f
-                                    }
-                                )
-                            }
-                        )
+                                    )
+                                }
+                            )
+                        }
                     }
-                }
-                
-                item {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                items = items + ChecklistItem(id = UUID.randomUUID().toString())
-                            }
-                            .padding(start = 32.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Add,
-                            contentDescription = null,
-                            tint = ContentPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Add item",
-                            style = JasnifyTheme.typography.headingMedium,
-                            color = ContentSecondary
-                        )
+
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    val updated = items + ChecklistItem(id = UUID.randomUUID().toString())
+                                    items = updated
+                                    saveToHistory(title, updated)
+                                }
+                                .padding(start = 32.dp, 8.dp, 8.dp, 8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Add,
+                                contentDescription = null,
+                                tint = ContentPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "Add item",
+                                style = JasnifyTheme.typography.headingMedium,
+                                color = ContentSecondary
+                            )
+                        }
                     }
                 }
             }
-            
-            // Bottom bar icons for color picker
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 16.dp)
-                    .navigationBarsPadding(),
-                horizontalArrangement = Arrangement.Start
-            ) {
-                IconButton(onClick = { showColorPicker = true }) {
-                    Icon(painter = painterResource(id = R.drawable.ic_ai), contentDescription = "Change color", tint = ContentPrimary)
+
+            ChecklistDetailToolbar(
+                isFormattingActive = isFormattingActive,
+                onFormattingActiveChange = { isFormattingActive = it },
+                isBoldActive = isBoldActive,
+                onBoldChange = { isBoldActive = it },
+                isItalicActive = isItalicActive,
+                onItalicChange = { isItalicActive = it },
+                isUnderlineActive = isUnderlineActive,
+                onUnderlineChange = { isUnderlineActive = it },
+                canUndo = historyIndex > 0,
+                canRedo = historyIndex < history.size - 1,
+                onUndo = { performUndo() },
+                onRedo = { performRedo() },
+                onColorClick = {
+                    focusManager.clearFocus()
+                    showColorPicker = true
                 }
-            }
+            )
         }
     }
 
     if (showColorPicker) {
         ColorPickerBottomSheet(
             selectedColor = bgColor,
-            onColorSelected = { 
+            onColorSelected = {
                 bgColor = it
                 showColorPicker = false
             },
             onDismiss = { showColorPicker = false }
         )
     }
+
+    if (showMenu) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = if (isArchived) "Unarchive" else "Archive",
+                    icon = painterResource(R.drawable.ic_box),
+                    onClick = {
+                        showMenu = false
+                        checklist?.id?.let { onArchive(it) }
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Delete",
+                    icon = painterResource(R.drawable.ic_delete),
+                    contentColor = MaterialTheme.colorScheme.error,
+                    onClick = {
+                        showMenu = false
+                        showDeleteConfirmation = true
+                    }
+                )
+            ),
+            onCancelClick = { showMenu = false }
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        CustomDeleteSheet(
+            heading = "Are you sure?",
+            subHeading = "The checklist will be deleted permanently.",
+            confirmButtonText = "Delete Checklist",
+            onDismiss = { showDeleteConfirmation = false },
+            onConfirmRemove = {
+                showDeleteConfirmation = false
+                checklist?.id?.let { onDelete(it) }
+            }
+        )
+    }
 }
+
+// ========================================== ARCHIVES SCREEN ==========================================
+
+@Composable
+fun ChecklistArchivesScreen(
+    archivedChecklists: List<Checklist>,
+    onBackClick: () -> Unit,
+    onChecklistClick: (Checklist) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf("All") }
+
+    // local focusManager integration inside archives scope
+    val focusManager = LocalFocusManager.current
+
+    val filteredChecklists = remember(searchQuery, selectedFilter, archivedChecklists) {
+        archivedChecklists.filter {
+            it.title.contains(searchQuery, ignoreCase = true) ||
+                    it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
+        }.let { list ->
+            when (selectedFilter) {
+                "Recent First" -> list.sortedByDescending { it.dateTime }
+                "Oldest First" -> list.sortedBy { it.dateTime }
+                else -> list
+            }
+        }
+    }
+
+    Scaffold(
+        topBar = {
+            Column(
+                modifier = Modifier.background(BackgroundPrimary)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+            ) {
+                CustomTopBar(
+                    title = "Archives",
+                    onBackClick = {
+                        focusManager.clearFocus()
+                        onBackClick()
+                    },
+                    backIcon = TopIcon.Predefined.BACK,
+                    buttonStyle = ButtonBackground.OPAQUE,
+                    isLargeTitle = true
+                )
+            }
+        },
+        containerColor = BackgroundPrimary,
+        modifier = Modifier
+            .fillMaxSize()
+            // Clear archive text focus on external background tap
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+                // Clear focus inside scroll containers too
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                }
+        ) {
+            Spacer(Modifier.height(12.dp))
+
+            // Search Bar
+            CustomSearchBar(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                onActiveChange = { }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            // Filters
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    label = "All",
+                    isSelected = selectedFilter == "All",
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "All"
+                    },
+                    hasStroke = true,
+                    shapeStyle = ChipShapeStyle.Round
+                )
+                FilterChip(
+                    label = "Recent First",
+                    isSelected = selectedFilter == "Recent First",
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "Recent First"
+                    },
+                    hasStroke = true,
+                    shapeStyle = ChipShapeStyle.Round
+                )
+                FilterChip(
+                    label = "Oldest First",
+                    isSelected = selectedFilter == "Oldest First",
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "Oldest First"
+                    },
+                    hasStroke = true,
+                    shapeStyle = ChipShapeStyle.Round
+                )
+            }
+
+            // Archived List
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.fillMaxSize()
+                    .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+            ) {
+                items(items = filteredChecklists, key = { it.id }) { checklist ->
+                    ChecklistCard(
+                        checklist = checklist,
+                        onClick = { onChecklistClick(checklist) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+// ========================================== HELPER COMPONENTS ==========================================
+
+
+@Composable
+fun ChecklistDetailToolbar(
+    isFormattingActive: Boolean,
+    onFormattingActiveChange: (Boolean) -> Unit,
+    isBoldActive: Boolean,
+    onBoldChange: (Boolean) -> Unit,
+    isItalicActive: Boolean,
+    onItalicChange: (Boolean) -> Unit,
+    isUnderlineActive: Boolean,
+    onUnderlineChange: (Boolean) -> Unit,
+    canUndo: Boolean,
+    canRedo: Boolean,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onColorClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        if (isFormattingActive) {
+            // STATE 2: TEXT FORMATTING STATE
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_bold)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    onClick = { onBoldChange(!isBoldActive) }
+                )
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_italic)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    onClick = { onItalicChange(!isItalicActive) }
+                )
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_underline)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    onClick = { onUnderlineChange(!isUnderlineActive) }
+                )
+            }
+            TopBarIconButton(
+                icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_cross)),
+                backgroundStyle = ButtonBackground.TRANSLUCENT,
+                translucentAlpha = 0.5f,
+                iconSize = 18.dp,
+                onClick = { onFormattingActiveChange(false) }
+            )
+        } else {
+            // STATE 1: DEFAULT STATE
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_paint)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    onClick = onColorClick
+                )
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_a_text)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    onClick = { onFormattingActiveChange(true) }
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_undo)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    iconColor = if(canUndo) ContentPrimary else ContentTertiary,
+                    onClick = onUndo
+                )
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_redo)),
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f,
+                    iconColor = if(canRedo) ContentPrimary else ContentTertiary,
+                    onClick = onRedo
+                )
+            }
+        }
+    }
+}
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -491,7 +1156,7 @@ fun ColorPickerBottomSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = SurfacePrimary,
+        containerColor = selectedColor,
         shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
         dragHandle = {
             Box(
@@ -515,9 +1180,9 @@ fun ColorPickerBottomSheet(
                 fontWeight = FontWeight.Medium,
                 color = ContentPrimary
             )
-            
+
             Spacer(modifier = Modifier.height(12.dp))
-            
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     colors.take(6).forEach { color ->
@@ -538,9 +1203,9 @@ fun ColorPickerBottomSheet(
                     }
                 }
             }
-            
+
             Spacer(modifier = Modifier.height(24.dp))
-            
+
             CustomTextButton(
                 text = "Done",
                 onClick = onDismiss,
