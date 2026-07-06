@@ -1,17 +1,16 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -86,7 +85,7 @@ fun ChecklistCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            checklist.items.take(3).forEach { item ->
+            checklist.items.sortedBy { it.isChecked }.take(3).forEach { item ->
                 ChecklistCardItem(item)
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -102,8 +101,8 @@ fun ChecklistCardItem(item: ChecklistItem) {
     ) {
         CustomChecker(
             checked = item.isChecked,
-            enabled = item.isChecked,
-            onCheckedChange = { },
+            enabled = false,
+            onCheckedChange = null,
             modifier = Modifier.size(18.dp)
         )
         
@@ -111,8 +110,12 @@ fun ChecklistCardItem(item: ChecklistItem) {
         
         Text(
             text = item.text,
-            style = JasnifyTheme.typography.headingSmall,
-            color = ContentPrimary,
+            style = JasnifyTheme.typography.headingSmall.merge(
+                TextStyle(
+                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
+                )
+            ),
+            color = if (item.isChecked) ContentSecondary else ContentPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
