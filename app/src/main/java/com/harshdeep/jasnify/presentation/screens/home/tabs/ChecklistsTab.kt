@@ -369,7 +369,9 @@ fun ChecklistsTab() {
                     },
                     icon = painterResource(R.drawable.ic_plus),
                     size = ButtonSize.Large,
-                    modifier = Modifier.shadow(16.dp, CircleShape)
+                    modifier = Modifier
+                        .offset(y = 12.dp)
+                        .shadow(16.dp, CircleShape)
                 )
             },
             containerColor = BackgroundPrimary,
@@ -873,7 +875,7 @@ fun ChecklistDetailScreen(
                 MenuSheetActionItem(
                     text = "Delete",
                     icon = painterResource(R.drawable.ic_delete),
-                    contentColor = Color.Red,
+                    contentColor = MaterialTheme.colorScheme.error,
                     onClick = {
                         showMenu = false
                         showDeleteConfirmation = true
