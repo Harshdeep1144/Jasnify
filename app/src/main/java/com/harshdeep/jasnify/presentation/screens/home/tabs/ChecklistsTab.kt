@@ -3,11 +3,19 @@ package com.harshdeep.jasnify.presentation.screens.home.tabs
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -30,6 +38,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,6 +92,17 @@ fun ChecklistsTab() {
     var navigatedFromArchives by remember { mutableStateOf(false) }
     var showDiscardToast by remember { mutableStateOf(false) }
 
+    // Search and Focus states
+    var isSearchActive by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+
+    // Focus Requester to request keyboard focus immediately when active
+    val searchFocusRequester = remember { FocusRequester() }
+    var wasFocused by remember { mutableStateOf(false) }
+
+    // Core focusManager integration
+    val focusManager = LocalFocusManager.current
+
     LaunchedEffect(showDiscardToast) {
         if (showDiscardToast) {
             delay(2000.milliseconds)
@@ -89,9 +110,25 @@ fun ChecklistsTab() {
         }
     }
 
+    // Handle requesting focus immediately when search is activated
+    LaunchedEffect(isSearchActive) {
+        if (isSearchActive) {
+            wasFocused = false
+            // Allow transition or layout composition to settle before requesting focus
+            delay(100.milliseconds)
+            searchFocusRequester.requestFocus()
+        }
+    }
+
     // System Back Button Handling
-    BackHandler(enabled = selectedChecklist != null || isAddingNew || showArchives) {
-        if (selectedChecklist != null || isAddingNew) {
+    BackHandler(enabled = selectedChecklist != null || isAddingNew || showArchives || isSearchActive) {
+        // Clear focus first when processing system back requests
+        focusManager.clearFocus()
+        if (isSearchActive) {
+            isSearchActive = false
+            searchQuery = ""
+            wasFocused = false
+        } else if (selectedChecklist != null || isAddingNew) {
             selectedChecklist = null
             isAddingNew = false
             // If we came from archives, go back to archives
@@ -174,6 +211,7 @@ fun ChecklistsTab() {
         ChecklistDetailScreen(
             checklist = selectedChecklist,
             onBackClick = { updatedChecklist ->
+                focusManager.clearFocus()
                 if (updatedChecklist != null) {
                     val isEmpty = updatedChecklist.title.isBlank() &&
                             updatedChecklist.items.all { it.text.isBlank() }
@@ -204,6 +242,7 @@ fun ChecklistsTab() {
                 }
             },
             onDelete = { id ->
+                focusManager.clearFocus()
                 checklists.removeAll { it.id == id }
                 archivedChecklists.removeAll { it.id == id }
                 selectedChecklist = null
@@ -220,6 +259,7 @@ fun ChecklistsTab() {
                 }
             },
             onArchive = { id ->
+                focusManager.clearFocus()
                 val index = checklists.indexOfFirst { it.id == id }
                 if (index != -1) {
                     val item = checklists.removeAt(index)
@@ -243,8 +283,12 @@ fun ChecklistsTab() {
     } else if (showArchives) {
         ChecklistArchivesScreen(
             archivedChecklists = archivedChecklists,
-            onBackClick = { showArchives = false },
+            onBackClick = {
+                focusManager.clearFocus()
+                showArchives = false
+            },
             onChecklistClick = { checklist ->
+                focusManager.clearFocus()
                 selectedChecklist = checklist
                 showArchives = false
                 navigatedFromArchives = true
@@ -258,32 +302,98 @@ fun ChecklistsTab() {
                         .fillMaxWidth()
                         .statusBarsPadding()
                 ){
-                    CustomTopBar(
-                        title = "Checklist",
-                        titleIcon = TopIcon.Predefined.CHECKLIST,
-                        isLeftAligned = true,
-                        isLargeTitle = true,
-                        secondaryIcon = TopIcon.Predefined.SEARCH,
-                        onSecondaryClick = {},
-                        onMenuClick = { showMenuSheet = true },
-                        buttonStyle = ButtonBackground.OPAQUE
-                    )
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = {
+                            if (targetState) {
+                                (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> -width } + fadeOut()
+                                )
+                            } else {
+                                (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                    slideOutHorizontally { width -> width } + fadeOut()
+                                )
+                            }
+                        },
+                        label = "SearchBarTransition"
+                    ) { active ->
+                        if (active) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 12.dp, end = 12.dp, top = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                CustomSearchBar(
+                                    value = searchQuery,
+                                    onValueChange = { searchQuery = it },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .focusRequester(searchFocusRequester)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused) {
+                                                wasFocused = true
+                                            } else if (wasFocused) {
+                                                // Automatically hide search when clicking outside / losing focus
+                                                isSearchActive = false
+                                                searchQuery = ""
+                                                wasFocused = false
+                                            }
+                                        },
+                                    onActiveChange = {},
+                                )
+                            }
+                        } else {
+                            CustomTopBar(
+                                title = "Checklist",
+                                titleIcon = TopIcon.Predefined.CHECKLIST,
+                                isLeftAligned = true,
+                                isLargeTitle = true,
+                                secondaryIcon = TopIcon.Predefined.SEARCH,
+                                onSecondaryClick = { isSearchActive = true },
+                                onMenuClick = {
+                                    focusManager.clearFocus()
+                                    showMenuSheet = true
+                                },
+                                buttonStyle = ButtonBackground.OPAQUE
+                            )
+                        }
+                    }
                 }
             },
             floatingActionButton = {
                 CustomIconButton(
-                    onClick = { isAddingNew = true },
+                    onClick = {
+                        focusManager.clearFocus()
+                        isAddingNew = true
+                    },
                     icon = painterResource(R.drawable.ic_plus),
                     size = ButtonSize.Large,
                     modifier = Modifier.shadow(16.dp, CircleShape)
                 )
             },
-            containerColor = BackgroundPrimary
+            containerColor = BackgroundPrimary,
+            modifier = Modifier
+                .fillMaxSize()
+                // Clear search focus when tapping outside on Scaffold background bounds
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                }
         ) { paddingValues ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(top = paddingValues.calculateTopPadding())
+                    // Clear search focus when tapping empty spaces inside main lists
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
             ) {
                 Spacer(Modifier.height(12.dp))
 
@@ -296,30 +406,47 @@ fun ChecklistsTab() {
                     FilterChip(
                         label = "All",
                         isSelected = selectedFilter == "All",
-                        onClick = { selectedFilter = "All" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "All"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                     FilterChip(
                         label = "Recent First",
                         isSelected = selectedFilter == "Recent First",
-                        onClick = { selectedFilter = "Recent First" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "Recent First"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                     FilterChip(
                         label = "Oldest First",
                         isSelected = selectedFilter == "Oldest First",
-                        onClick = { selectedFilter = "Oldest First" },
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = "Oldest First"
+                        },
                         hasStroke = true,
                         shapeStyle = ChipShapeStyle.Round
                     )
                 }
 
-                val sortedChecklists = when (selectedFilter) {
-                    "Recent First" -> checklists.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenByDescending { it.dateTime })
-                    "Oldest First" -> checklists.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenBy { it.dateTime })
-                    else -> checklists.sortedByDescending { it.isPinned }
+                // Filter & Sort checklists based on active query
+                val filteredAndSortedChecklists = remember(searchQuery, checklists, selectedFilter) {
+                    checklists.filter {
+                        it.title.contains(searchQuery, ignoreCase = true) ||
+                                it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
+                    }.let { list ->
+                        when (selectedFilter) {
+                            "Recent First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenByDescending { it.dateTime })
+                            "Oldest First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenBy { it.dateTime })
+                            else -> list.sortedByDescending { it.isPinned }
+                        }
+                    }
                 }
 
                 if (isGridView) {
@@ -331,10 +458,13 @@ fun ChecklistsTab() {
                         modifier = Modifier.fillMaxSize()
                             .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
-                        items(items = sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
-                                onClick = { selectedChecklist = checklist }
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    selectedChecklist = checklist
+                                }
                             )
                         }
                     }
@@ -345,10 +475,13 @@ fun ChecklistsTab() {
                         modifier = Modifier.fillMaxSize()
                             .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                     ) {
-                        items(items = sortedChecklists, key = { it.id }) { checklist ->
+                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
                             ChecklistCard(
                                 checklist = checklist,
-                                onClick = { selectedChecklist = checklist }
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    selectedChecklist = checklist
+                                }
                             )
                         }
                     }
@@ -447,6 +580,9 @@ fun ChecklistDetailScreen(
     var isItalicActive by remember { mutableStateOf(false) }
     var isUnderlineActive by remember { mutableStateOf(false) }
 
+    // Detail Screen local focus tracking
+    val focusManager = LocalFocusManager.current
+
     // Undo/Redo State History
     val history = remember { mutableStateListOf<Pair<String, List<ChecklistItem>>>() }
     var historyIndex by remember { mutableIntStateOf(-1) }
@@ -498,6 +634,7 @@ fun ChecklistDetailScreen(
             ) {
                 CustomTopBar(
                     onBackClick = {
+                        focusManager.clearFocus()
                         val result = Checklist(
                             id = checklist?.id ?: UUID.randomUUID().toString(),
                             title = title,
@@ -511,16 +648,29 @@ fun ChecklistDetailScreen(
                     backIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_check)),
                     secondaryIcon =  if(isPinned) TopIcon.Predefined.PIN_FILLED else TopIcon.Predefined.PIN,
                     onSecondaryClick = {
+                        focusManager.clearFocus()
                         isPinned = !isPinned
                         checklist?.id?.let { onTogglePin(it) }
                     },
-                    onMenuClick = { showMenu = true },
+                    onMenuClick = {
+                        focusManager.clearFocus()
+                        showMenu = true
+                    },
                     buttonStyle = ButtonBackground.TRANSLUCENT,
                     translucentAlpha = 0.5f
                 )
             }
         },
-        containerColor = bgColor
+        containerColor = bgColor,
+        modifier = Modifier
+            .fillMaxSize()
+            // Clear keyboard focus when tapping outside on Scaffold background bounds
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
     ) { paddingValues ->
         val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
         val adjustedBottomPadding = (imeBottomPadding - 100.dp).coerceAtLeast(0.dp)
@@ -530,6 +680,13 @@ fun ChecklistDetailScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(bottom = adjustedBottomPadding)
+                // Clear keyboard focus when clicking background empty area space
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                }
         ) {
             Column(
                 modifier = Modifier
@@ -609,7 +766,10 @@ fun ChecklistDetailScreen(
                                 },
                                 modifier = Modifier.pointerInput(Unit) {
                                     detectDragGesturesAfterLongPress(
-                                        onDragStart = { draggedItemIndex = index },
+                                        onDragStart = {
+                                            focusManager.clearFocus()
+                                            draggedItemIndex = index
+                                        },
                                         onDrag = { change, dragAmount ->
                                             change.consume()
                                             dragOffset += dragAmount.y
@@ -680,7 +840,10 @@ fun ChecklistDetailScreen(
                 canRedo = historyIndex < history.size - 1,
                 onUndo = { performUndo() },
                 onRedo = { performRedo() },
-                onColorClick = { showColorPicker = true }
+                onColorClick = {
+                    focusManager.clearFocus()
+                    showColorPicker = true
+                }
             )
         }
     }
@@ -746,6 +909,9 @@ fun ChecklistArchivesScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
 
+    // local focusManager integration inside archives scope
+    val focusManager = LocalFocusManager.current
+
     val filteredChecklists = remember(searchQuery, selectedFilter, archivedChecklists) {
         archivedChecklists.filter {
             it.title.contains(searchQuery, ignoreCase = true) ||
@@ -768,26 +934,45 @@ fun ChecklistArchivesScreen(
             ) {
                 CustomTopBar(
                     title = "Archives",
-                    onBackClick = onBackClick,
+                    onBackClick = {
+                        focusManager.clearFocus()
+                        onBackClick()
+                    },
                     backIcon = TopIcon.Predefined.BACK,
                     buttonStyle = ButtonBackground.OPAQUE,
                     isLargeTitle = true
                 )
             }
         },
-        containerColor = BackgroundPrimary
+        containerColor = BackgroundPrimary,
+        modifier = Modifier
+            .fillMaxSize()
+            // Clear archive text focus on external background tap
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+            }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding())
+                // Clear focus inside scroll containers too
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    focusManager.clearFocus()
+                }
         ) {
             Spacer(Modifier.height(12.dp))
 
             // Search Bar
             CustomSearchBar(
                 value = searchQuery,
-                onValueChange = {searchQuery = it },
+                onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 12.dp),
                 onActiveChange = { }
@@ -805,21 +990,30 @@ fun ChecklistArchivesScreen(
                 FilterChip(
                     label = "All",
                     isSelected = selectedFilter == "All",
-                    onClick = { selectedFilter = "All" },
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "All"
+                    },
                     hasStroke = true,
                     shapeStyle = ChipShapeStyle.Round
                 )
                 FilterChip(
                     label = "Recent First",
                     isSelected = selectedFilter == "Recent First",
-                    onClick = { selectedFilter = "Recent First" },
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "Recent First"
+                    },
                     hasStroke = true,
                     shapeStyle = ChipShapeStyle.Round
                 )
                 FilterChip(
                     label = "Oldest First",
                     isSelected = selectedFilter == "Oldest First",
-                    onClick = { selectedFilter = "Oldest First" },
+                    onClick = {
+                        focusManager.clearFocus()
+                        selectedFilter = "Oldest First"
+                    },
                     hasStroke = true,
                     shapeStyle = ChipShapeStyle.Round
                 )

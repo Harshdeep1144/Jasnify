@@ -44,7 +44,6 @@ fun CustomTopBar(
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
     translucentAlpha: Float = 0.2f,
-    // Support parameters for Left-Aligned variants (image_47b3e9.png) & Double Action variants (Screenshot 2026-07-05 213115.png)
     isLeftAligned: Boolean = false,
     titleIcon: TopIcon? = null,
     secondaryIcon: TopIcon? = null,
