@@ -1,12 +1,15 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
-import android.widget.Toast
+import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -44,10 +47,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,21 +66,31 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategorySheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseSheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -109,8 +125,11 @@ import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
@@ -119,6 +138,7 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class BudgetScreenView {
     BUDGET_TRACKER,
@@ -155,8 +175,17 @@ fun BudgetScreen(
     val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
+    // --- Toast State Management ---
+    var toastData by remember { mutableStateOf(ToastData()) }
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
     // User Directory State initialized inside Budget Screen
-    var roomUsers by remember {
+    var budgetRoomUsers by remember {
         mutableStateOf(
             listOf(
                 User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
@@ -1390,7 +1419,7 @@ fun BudgetScreen(
                                 .background(SurfaceSecondary)
                         ) {
                             RoomScreen(
-                                allUsers = roomUsers,
+                                allUsers = budgetRoomUsers,
                                 currentUserRole = UserRole.OWNER,
                                 isSelf = { it.username == "viratanand" },
                                 onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
@@ -1398,7 +1427,7 @@ fun BudgetScreen(
                                     showRoomMenuBottomSheet = true
                                 },
                                 onRoleChange = { targetUser, newRole ->
-                                    roomUsers = roomUsers.map { user ->
+                                    budgetRoomUsers = budgetRoomUsers.map { user ->
                                         if (user.username == targetUser.username) user.copy(role = newRole) else user
                                     }
                                 },
@@ -1406,10 +1435,10 @@ fun BudgetScreen(
                                     userToRemove = targetUser
                                 },
                                 onReport = { targetUser ->
-                                    Toast.makeText(context, "${targetUser.name} reported", Toast.LENGTH_SHORT).show()
+                                    toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
-                                    Toast.makeText(context, "You left the room", Toast.LENGTH_SHORT).show()
+                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
                                     currentView = BudgetScreenView.BUDGET_TRACKER
                                 },
                                 modifier = Modifier.fillMaxSize()
@@ -1417,6 +1446,34 @@ fun BudgetScreen(
                         }
                     }
                 }
+            }
+
+
+// ============================================================================================================================================
+// HELPER: BOTTOM_SHEETS
+// ============================================================================================================================================
+
+
+            // --- Screen-level CustomToast Display (Shown ONLY when no Bottom Sheets are visible) ---
+            val isAnySheetVisible = showBottomSheet || showAddExpenseSheet || showAddCustomCategorySheet ||
+                    showEditBudgetSheet || showMenuBottomSheet || showCategoryMenuBottomSheet ||
+                    showRoomMenuBottomSheet || expenseToDelete != null || categoryToDeleteConfirm != null || userToRemove != null
+
+            AnimatedVisibility(
+                visible = toastData.message != null && !isAnySheetVisible,
+                enter = slideInVertically(initialOffsetY = { -it - 500 }),
+                exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .zIndex(99f)
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type
+                )
             }
         }
     }
@@ -1441,103 +1498,337 @@ fun BudgetScreen(
         val editingItem = expenseToEdit
         val initialAmountRaw = editingItem?.amount?.replace("₹", "")?.replace(",", "") ?: ""
 
-        AddExpenseBottomSheet(
-            sheetState = addExpenseSheetState,
-            initialAmount = initialAmountRaw,
-            initialReceiver = editingItem?.title ?: "",
-            initialCategory = editingItem?.category ?: "",
-            initialEmoji = editingItem?.emoji ?: "",
-            onDismiss = {
-                showAddExpenseSheet = false
-                expenseToEdit = null
-            },
-            onSave = { amount, receiver, category, emoji ->
-                val formattedAmount = "₹${formatter.format(amount)}"
+        // Local state for AddExpenseSheetContent logic, moved from wrapper to parent for toast support
+        var amountTextFieldValue by remember(initialAmountRaw) {
+            mutableStateOf(TextFieldValue(text = initialAmountRaw, selection = TextRange(initialAmountRaw.length)))
+        }
+        var receiverName by remember(editingItem?.title) { mutableStateOf(editingItem?.title ?: "") }
+        var selectedCategory by remember(editingItem?.category) { mutableStateOf(editingItem?.category ?: "") }
+        var selectedEmoji by remember(editingItem?.emoji) { mutableStateOf(editingItem?.emoji ?: "") }
+        var dynamicCategories by remember(defaultCategories) { mutableStateOf(defaultCategories) }
+        var showInnerCustomCategorySheet by remember { mutableStateOf(false) }
+        val innerCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-                if (editingItem != null) {
-                    allExpenses = allExpenses.map {
-                        if (it.id == editingItem.id) {
-                            it.copy(
-                                title = receiver.ifBlank { "Unnamed Receiver" },
-                                category = category.ifBlank { "Misc" },
-                                amount = formattedAmount,
-                                emoji = emoji.ifBlank { "💸" },
-                                lastUpdatedBy = "Anonymous",
-                                lastUpdatedDate = "Just now"
-                            )
-                        } else {
-                            it
-                        }
-                    }
-                } else {
-                    val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
-                    val newItem = ExpenseItem(
-                        id = nextUniqueId,
-                        title = receiver.ifBlank { "Unnamed Receiver" },
-                        category = category.ifBlank { "Misc" },
-                        amount = formattedAmount,
-                        emoji = emoji.ifBlank { "💸" },
-                        lastUpdatedBy = "Anonymous",
-                        lastUpdatedDate = "Just now"
-                    )
-                    allExpenses = listOf(newItem) + allExpenses
-                }
+        val headingTitle = if (editingItem != null) "Edit expense" else "Add an expense"
+
+        ModalBottomSheet(
+            onDismissRequest = {
                 showAddExpenseSheet = false
                 expenseToEdit = null
             },
-            categories = defaultCategories,
-            onAddCategory = { newCategory ->
-                if (!defaultCategories.contains(newCategory)) {
-                    defaultCategories = defaultCategories + newCategory
+            sheetState = addExpenseSheetState,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+            dragHandle = null,
+            sheetGesturesEnabled = true,
+        ) {
+            val view = LocalView.current
+            DisposableEffect(view) {
+                var parent = view.parent
+                var dialogWindow: android.view.Window? = null
+                while (parent != null) {
+                    if (parent is DialogWindowProvider) {
+                        dialogWindow = parent.window
+                        break
+                    }
+                    parent = parent.parent
+                }
+                dialogWindow?.let { w ->
+                    val colorInt = SurfacePrimary.toArgb()
+                    w.navigationBarColor = colorInt
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        w.isNavigationBarContrastEnforced = false
+                    }
+                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+                }
+                onDispose {}
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .zIndex(998f)
+                ) {
+                    CustomToast(
+                        message = toastData.message ?: "",
+                        type = toastData.type
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(999f)
+                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                        .background(SurfacePrimary)
+                        .navigationBarsPadding()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 8.dp)
+                            .width(56.dp)
+                            .height(4.dp)
+                            .background(ContentTertiary, shape = SquircleShape(100))
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = headingTitle,
+                            style = JasnifyTheme.typography.displayLarge,
+                            color = ContentPrimary
+                        )
+                        TopBarIconButton(
+                            backgroundStyle = ButtonBackground.OPAQUE,
+                            icon = TopIcon.Predefined.CLOSE,
+                            iconSize = 18.dp,
+                            onClick = {
+                                showAddExpenseSheet = false
+                                expenseToEdit = null
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(543.dp)) {
+                        AddExpenseSheetContent(
+                            amountTextFieldValue = amountTextFieldValue,
+                            onAmountChange = { amountTextFieldValue = it },
+                            receiverName = receiverName,
+                            onReceiverChange = { receiverName = it },
+                            selectedCategory = selectedCategory,
+                            onCategorySelect = { selectedCategory = it },
+                            dynamicCategories = dynamicCategories,
+                            selectedEmoji = selectedEmoji,
+                            onEmojiChange = { selectedEmoji = it },
+                            onCustomCategoryClick = { showInnerCustomCategorySheet = true },
+                            onDismiss = {
+                                showAddExpenseSheet = false
+                                expenseToEdit = null
+                            },
+                            onSave = { amount, receiver, category ->
+                                if (amountTextFieldValue.text.isBlank()) {
+                                    toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                                } else if (selectedCategory.isBlank()) {
+                                    toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                                } else {
+                                    val formattedAmount = "₹${formatter.format(amount)}"
+                                    if (editingItem != null) {
+                                        allExpenses = allExpenses.map {
+                                            if (it.id == editingItem.id) {
+                                                it.copy(
+                                                    title = receiver.ifBlank { "Unnamed Receiver" },
+                                                    category = category.ifBlank { "Misc" },
+                                                    amount = formattedAmount,
+                                                    emoji = selectedEmoji.ifBlank { "💸" },
+                                                    lastUpdatedBy = "Anonymous",
+                                                    lastUpdatedDate = "Just now"
+                                                )
+                                            } else it
+                                        }
+                                    } else {
+                                        val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
+                                        allExpenses = listOf(ExpenseItem(
+                                            id = nextUniqueId,
+                                            title = receiver.ifBlank { "Unnamed Receiver" },
+                                            category = category.ifBlank { "Misc" },
+                                            amount = formattedAmount,
+                                            emoji = selectedEmoji.ifBlank { "💸" },
+                                            lastUpdatedBy = "Anonymous",
+                                            lastUpdatedDate = "Just now"
+                                        )) + allExpenses
+                                    }
+                                    toastData = ToastData("Expense Added!", ToastType.SUCCESS)
+                                    showAddExpenseSheet = false
+                                    expenseToEdit = null
+                                }
+                            }
+                        )
+                    }
                 }
             }
-        )
+        }
+
+        if (showInnerCustomCategorySheet) {
+            AddCustomCategoryBottomSheet(
+                sheetState = innerCustomCategorySheetState,
+                onDismiss = {
+                    coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
+                        showInnerCustomCategorySheet = false
+                    }
+                },
+                onAddCategory = { newCategory ->
+                    if (newCategory.isBlank()) {
+                        toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
+                    } else {
+                        if (!defaultCategories.contains(newCategory)) {
+                            defaultCategories = defaultCategories + newCategory
+                        }
+                        dynamicCategories = dynamicCategories + newCategory
+                        selectedCategory = newCategory
+                        coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
+                            showInnerCustomCategorySheet = false
+                        }
+                    }
+                }
+            )
+        }
     }
 
     if (showAddCustomCategorySheet) {
-        AddCustomCategoryBottomSheet(
-            sheetState = addCustomCategorySheetState,
-            initialCategoryName = categoryToRename ?: "",
-            heading = if (categoryToRename != null) "Rename category" else "Add custom category",
-            onDismiss = {
+        ModalBottomSheet(
+            onDismissRequest = {
                 showAddCustomCategorySheet = false
                 categoryToRename = null
             },
-            onAddCategory = { inputName ->
-                if (inputName.isBlank()) {
-                    Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
-                } else {
-                    val originalName = categoryToRename
-                    if (originalName != null) {
-                        if (originalName != inputName) {
-                            if (defaultCategories.contains(originalName)) {
-                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
-                            } else if (!defaultCategories.contains(inputName)) {
-                                defaultCategories = defaultCategories + inputName
-                            }
-
-                            allExpenses = allExpenses.map { expense ->
-                                if (expense.category == originalName) {
-                                    expense.copy(category = inputName)
-                                } else {
-                                    expense
-                                }
-                            }
-
-                            if (selectedCategoryForDetails == originalName) {
-                                selectedCategoryForDetails = inputName
-                            }
-                        }
-                    } else {
-                        if (!defaultCategories.contains(inputName)) {
-                            defaultCategories = defaultCategories + inputName
-                        }
+            sheetState = addCustomCategorySheetState,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+            dragHandle = null,
+            sheetGesturesEnabled = true,
+        ) {
+            val view = LocalView.current
+            DisposableEffect(view) {
+                var parent = view.parent
+                var dialogWindow: android.view.Window? = null
+                while (parent != null) {
+                    if (parent is DialogWindowProvider) {
+                        dialogWindow = parent.window
+                        break
                     }
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
+                    parent = parent.parent
+                }
+                dialogWindow?.let { w ->
+                    val colorInt = SurfacePrimary.toArgb()
+                    w.navigationBarColor = colorInt
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        w.isNavigationBarContrastEnforced = false
+                    }
+                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+                }
+                onDispose {}
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .zIndex(998f)
+                ) {
+                    CustomToast(
+                        message = toastData.message ?: "",
+                        type = toastData.type
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(999f)
+                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                        .background(SurfacePrimary)
+                        .navigationBarsPadding()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 8.dp)
+                            .width(56.dp)
+                            .height(4.dp)
+                            .background(ContentTertiary, shape = SquircleShape(100))
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (categoryToRename != null) "Rename category" else "Add custom category",
+                            style = JasnifyTheme.typography.displayLarge,
+                            color = ContentPrimary
+                        )
+                        TopBarIconButton(
+                            backgroundStyle = ButtonBackground.OPAQUE,
+                            icon = TopIcon.Predefined.CLOSE,
+                            iconSize = 18.dp,
+                            onClick = {
+                                showAddCustomCategorySheet = false
+                                categoryToRename = null
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(161.dp)) {
+                        AddCustomCategorySheetContent(
+                            onDismiss = {
+                                showAddCustomCategorySheet = false
+                                categoryToRename = null
+                            },
+                            onAddCategory = { inputName ->
+                                if (inputName.isBlank()) {
+                                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
+                                } else {
+                                    val originalName = categoryToRename
+                                    if (originalName != null) {
+                                        if (originalName != inputName) {
+                                            if (defaultCategories.contains(originalName)) {
+                                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
+                                            } else if (!defaultCategories.contains(inputName)) {
+                                                defaultCategories = defaultCategories + inputName
+                                            }
+                                            allExpenses = allExpenses.map { expense ->
+                                                if (expense.category == originalName) expense.copy(category = inputName) else expense
+                                            }
+                                            if (selectedCategoryForDetails == originalName) {
+                                                selectedCategoryForDetails = inputName
+                                            }
+                                        }
+                                    } else {
+                                        if (!defaultCategories.contains(inputName)) {
+                                            defaultCategories = defaultCategories + inputName
+                                        }
+                                    }
+                                    showAddCustomCategorySheet = false
+                                    categoryToRename = null
+                                }
+                            },
+                            initialCategoryName = categoryToRename ?: ""
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 
     if (expenseToDelete != null) {
@@ -1672,7 +1963,7 @@ fun BudgetScreen(
                     icon = painterResource(R.drawable.ic_link),
                     onClick = {
                         showRoomMenuBottomSheet = false
-                        Toast.makeText(context, "Link copied to clipboard", Toast.LENGTH_SHORT).show()
+                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
                     }
                 ),
                 MenuSheetActionItem(
@@ -1710,8 +2001,8 @@ fun BudgetScreen(
             onConfirmRemove = {
                 val target = userToRemove
                 if (target != null) {
-                    roomUsers = roomUsers.filter { it.username != target.username }
-                    Toast.makeText(context, "${target.name} removed from room", Toast.LENGTH_SHORT).show()
+                    budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null
             }
