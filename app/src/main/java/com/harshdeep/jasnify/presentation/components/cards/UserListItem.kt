@@ -122,7 +122,7 @@ fun UserListItem(
 
             if (isOwner) {
                 Icon(
-                    imageVector = Icons.Outlined.VerifiedUser,
+                    painter = painterResource(R.drawable.ic_shield),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
                     tint = roleColor
