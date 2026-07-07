@@ -11,9 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -21,11 +19,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
@@ -37,17 +34,14 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.Neutral100
 import com.harshdeep.jasnify.theme.SurfacePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
-    navController: NavController,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
 
@@ -73,11 +67,16 @@ fun RoomScreen(
         topBar = {
             CustomTopBar(
                 title = "Manage Room Access",
-                onBackClick = { navController.popBackStack() },
-                buttonStyle = ButtonBackground.OPAQUE,
+                onBackClick = {
+
+                },
                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                onMenuClick = { /* More options */ },
-                backIcon = TopIcon.Predefined.BACK
+                onMenuClick = {
+
+                },
+                backIcon = TopIcon.Predefined.BACK,
+                buttonStyle = ButtonBackground.TRANSLUCENT,
+                translucentAlpha = 0.5f
             )
         },
         containerColor = BackgroundSecondary,
@@ -87,24 +86,23 @@ fun RoomScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 12.dp)
+                .padding(12.dp)
         ) {
-            Spacer(modifier = Modifier.height(16.dp))
-
             CustomSearchBar(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                placeholder = "Search a user"
+                placeholder = "Search a user",
+                backgroundColor = SurfacePrimary
             )
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             // List of Users Container
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(CornerExtraLarge))
-                    .background(SurfacePrimary),
+                    .background(Color.Transparent),
             ) {
                 itemsIndexed(filteredUsers) { index, user ->
                     val isFirst = index == 0
@@ -124,16 +122,9 @@ fun RoomScreen(
                         onClick = {
                             selectedUser = user
                             showBottomSheet = true
-                        }
+                        },
+                        modifier = Modifier.padding(bottom = 1.dp)
                     )
-
-                    if (!isLast) {
-                        HorizontalDivider(
-                            modifier = Modifier.padding(horizontal = 16.dp),
-                            thickness = 0.5.dp,
-                            color = Neutral100
-                        )
-                    }
                 }
             }
         }
@@ -157,6 +148,6 @@ fun RoomScreen(
 @Composable
 fun RoomScreenPreview() {
     JasnifyTheme {
-        RoomScreen(navController = rememberNavController())
+        RoomScreen()
     }
 }
