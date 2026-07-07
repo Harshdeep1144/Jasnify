@@ -609,7 +609,12 @@ fun ChecklistsTab() {
     }
 }
 
+
+
 // ========================================== DETAIL SCREEN ==========================================
+
+
+
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -1015,7 +1020,11 @@ fun ChecklistDetailScreen(
     }
 }
 
+
+
 // ========================================== ARCHIVES SCREEN ==========================================
+
+
 
 @Composable
 fun ChecklistArchivesScreen(
@@ -1149,7 +1158,11 @@ fun ChecklistArchivesScreen(
 }
 
 
+
+
 // ========================================== HELPER COMPONENTS ==========================================
+
+
 
 
 @Composable
