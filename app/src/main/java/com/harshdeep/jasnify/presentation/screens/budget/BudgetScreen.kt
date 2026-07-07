@@ -1,10 +1,15 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
-import android.widget.Toast
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,10 +47,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,22 +66,31 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.PathFillType
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategorySheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseSheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -108,21 +125,27 @@ import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class BudgetScreenView {
     BUDGET_TRACKER,
     EXPENSE_SUMMARY,
     EXPENSE_CATEGORY,
-    CATEGORY_DETAIL
+    CATEGORY_DETAIL,
+    MANAGE_ROOM_ACCESS
 }
 
 data class ExpenseItem(
@@ -135,7 +158,6 @@ data class ExpenseItem(
     val lastUpdatedDate: String? = null
 )
 
-// Helper structure to hold dynamically computed category values
 data class CategorySummaryData(
     val name: String,
     val amountFormatted: String,
@@ -143,7 +165,6 @@ data class CategorySummaryData(
     val emojis: List<String>,
     val totalCount: Int
 )
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -154,19 +175,43 @@ fun BudgetScreen(
     val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
 
+    // --- Toast State Management ---
+    var toastData by remember { mutableStateOf(ToastData()) }
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
+    // User Directory State initialized inside Budget Screen
+    var budgetRoomUsers by remember {
+        mutableStateOf(
+            listOf(
+                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+            )
+        )
+    }
+
     // SYSTEM BACK BUTTON HANDLER
-    // It steps backward logically matching BudgetScreenView navigation flow.
     BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER) {
         currentView = when (currentView) {
             BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
             BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
             BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
+            BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
             BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
         }
     }
 
     var searchQuery by remember { mutableStateOf("") }
-    var categorySearchQuery by remember { mutableStateOf("") } // Separate state for categories
+    var categorySearchQuery by remember { mutableStateOf("") }
     var expandedCardId by remember { mutableStateOf<String?>("0") }
     var isSearchBarFocused by remember { mutableStateOf(false) }
 
@@ -190,26 +235,25 @@ fun BudgetScreen(
 
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
-    var budgetValue by remember { mutableStateOf("INR10000000") } // Default Budget to 10,000,000
+    var budgetValue by remember { mutableStateOf("INR10000000") }
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
 
-    // States added to support dynamically launching a menu specific to a chosen Category Card
     var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
     var selectedCategoryForMenu by remember { mutableStateOf<String?>(null) }
 
-    // State holding selected category for dedicated detail card views
     var selectedCategoryForDetails by remember { mutableStateOf<String?>(null) }
     var selectedCategoryChips by remember { mutableStateOf(setOf("Recent First")) }
 
-    // State to hold the category queued for deletion confirmation
     var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
 
-    // Category Screen Add / Rename Bottom Sheet integration
     var showAddCustomCategorySheet by remember { mutableStateOf(false) }
     var categoryToRename by remember { mutableStateOf<String?>(null) }
     val addCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
 
     val sortOptions = remember { listOf("Newest First", "Oldest First", "Highest Amount", "Lowest Amount") }
     val filterOptions = remember { listOf("Vendors", "Catering", "Beauty", "Stationery", "Apparel", "Beverages", "Transport", "Equipment Rentals") }
@@ -255,10 +299,9 @@ fun BudgetScreen(
         amountStr.replace("₹", "").replace(",", "").toDoubleOrNull() ?: 0.0
     }
 
-    // Dynamic calculations based on live budgetValue state
     val totalBudget = remember(budgetValue) {
         val numericPart = budgetValue.dropWhile { !it.isDigit() }
-        numericPart.toDoubleOrNull() ?: 10000000.0 // Fallback to 1Cr
+        numericPart.toDoubleOrNull() ?: 10000000.0
     }
 
     val totalSpent = remember(allExpenses) {
@@ -275,7 +318,6 @@ fun BudgetScreen(
     val formattedTotalSpent = "₹${formatter.format(totalSpent.toLong())}"
     val formattedTotalBudget = formatter.format(totalBudget.toLong())
 
-    // Convert dynamic total expenses into (Cr, L, K, or raw units)
     val centerTextPrimaryValue = remember(totalSpent) {
         when {
             totalSpent >= 10000000.0 -> {
@@ -308,11 +350,10 @@ fun BudgetScreen(
             "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
             "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
             "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
-            else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 } // "Newest First" (Default)
+            else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
         }
     }
 
-    // Dynamic extraction & grouping of Categories to feed Category view
     val computedCategories = remember(allExpenses, defaultCategories) {
         val grouped = allExpenses.groupBy { it.category }
         val finalCategories = (grouped.keys + defaultCategories).distinct()
@@ -331,55 +372,49 @@ fun BudgetScreen(
         }.sortedByDescending { it.amountRaw }
     }
 
-    // Filtered categories for the search logic on Category Screen
     val filteredCategorySummary = computedCategories.filter {
         it.name.contains(categorySearchQuery, ignoreCase = true)
     }
 
-    // ----------------- DYNAMIC COLOR MAPPINGS -----------------
     val colorPalette = remember {
         listOf(
-            Color(0xFF1D5590), // Deep Blue
-            Color(0xFFFF1E56), // Crimson Red
-            Color(0xFFE56B8F), // Pink Rose
-            Color(0xFF0FAD48), // Emerald Green
-            Color(0xFF2FA4C4), // Ocean Teal
-            Color(0xFF8D16FF), // Neon Purple
-            Color(0xFFFFB020), // Honey Yellow
-            Color(0xFF00C9A7), // Mint Green
-            Color(0xFF6C5B7B), // Slate Violet
-            Color(0xFF355C7D), // Classic Indigo
-            Color(0xFFF67280), // Pastel Coral
-            Color(0xFFC06C84), // Crimson Grey
-            Color(0xFFFF8C94), // Soft Pink Rose
-            Color(0xFF45B6FE), // Electric Sky Blue
-            Color(0xFF50B498), // Sage Eucalyptus
-            Color(0xFF9B59B6), // Radiant Amethyst
-            Color(0xFFE67E22), // Pumpkin Orange
-            Color(0xFF16A085)  // Cool Pine Green
+            Color(0xFF1D5590),
+            Color(0xFFFF1E56),
+            Color(0xFFE56B8F),
+            Color(0xFF0FAD48),
+            Color(0xFF2FA4C4),
+            Color(0xFF8D16FF),
+            Color(0xFFFFB020),
+            Color(0xFF00C9A7),
+            Color(0xFF6C5B7B),
+            Color(0xFF355C7D),
+            Color(0xFFF67280),
+            Color(0xFFC06C84),
+            Color(0xFFFF8C94),
+            Color(0xFF45B6FE),
+            Color(0xFF50B498),
+            Color(0xFF9B59B6),
+            Color(0xFFE67E22),
+            Color(0xFF16A085)
         )
     }
 
-    // Extract all unique categories dynamically from both database lists to ensure proper mapping
     val uniqueCategories = remember(allExpenses, defaultCategories) {
         (allExpenses.map { it.category } + defaultCategories).distinct()
     }
 
-    // Map each unique category dynamically with color
     val categoryColors = remember(uniqueCategories, colorPalette) {
         uniqueCategories.mapIndexed { index, category ->
             category to colorPalette[index % colorPalette.size]
         }.toMap()
     }
 
-    // Dynamic resolution function keeping colors stable throughout the compose session lifecycle
     val getCategoryColor = remember(categoryColors) {
         { categoryName: String ->
-            categoryColors[categoryName] ?: ContentSecondary // Safe fallback grey
+            categoryColors[categoryName] ?: ContentSecondary
         }
     }
 
-    // Dynamic compilation of Pie Chart Slices matching current database state
     val pieSlices = remember(allExpenses, getCategoryColor) {
         val grouped = allExpenses.groupBy { it.category }
             .mapValues { (_, items) -> items.sumOf { parseAmount(it.amount) } }
@@ -405,52 +440,6 @@ fun BudgetScreen(
             ) {
                 focusManager.clearFocus()
             },
-        topBar = {
-            val topBarBg = if(currentView == BudgetScreenView.EXPENSE_CATEGORY || currentView == BudgetScreenView.CATEGORY_DETAIL) SurfaceSecondary else SurfacePrimary
-            Column(
-                modifier = Modifier
-                    .background(topBarBg)
-                    .statusBarsPadding()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    }
-            ) {
-                when (currentView) {
-                    BudgetScreenView.BUDGET_TRACKER -> {
-                        CustomTopBar(
-                            title = "Budget Tracker",
-                            onBackClick = { onBackClick() },
-                            onMenuClick = { showMenuBottomSheet = true },
-                            isLargeTitle = true
-                        )
-                    }
-                    BudgetScreenView.EXPENSE_SUMMARY -> {
-                        CustomTopBar(
-                            title = "Expense Summary",
-                            onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
-                        )
-                    }
-                    BudgetScreenView.EXPENSE_CATEGORY -> {
-                        CustomTopBar(
-                            title = "Expense Category",
-                            onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
-                            buttonStyle = ButtonBackground.TRANSLUCENT,
-                            translucentAlpha = 0.5f
-                        )
-                    }
-                    BudgetScreenView.CATEGORY_DETAIL -> {
-                        CustomTopBar(
-                            onBackClick = { currentView = BudgetScreenView.EXPENSE_CATEGORY },
-                            buttonStyle = ButtonBackground.TRANSLUCENT,
-                            translucentAlpha = 0.5f
-                        )
-                    }
-                }
-            }
-        },
         floatingActionButton = {
             if (currentView == BudgetScreenView.BUDGET_TRACKER) {
                 CustomIconButton(
@@ -465,880 +454,1026 @@ fun BudgetScreen(
             }
         },
     ) { paddingValues ->
-
-
-        // ============================================================================================================================================
-        // SCREEN 1: BUDGET_TRACKER
-        // ============================================================================================================================================
-
-
-        AnimatedVisibility(
-            visible = (currentView == BudgetScreenView.BUDGET_TRACKER),
-            enter = fadeIn(),
-            exit = fadeOut()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = paddingValues.calculateBottomPadding())
         ) {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(SurfaceSecondary)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    },
-            ) {
-                // Budget Summary Card Section
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(SurfacePrimary, SurfaceSecondary)
-                                )
-                            )
-                            .padding(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
-                                .background(SurfaceBrandSecondary)
-                                .border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                    SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
-                                )
-                        ) {
-                            Image(
-                                painter = painterResource(R.drawable.bg_budget_pattern),
-                                contentDescription = null,
-                                modifier = Modifier.matchParentSize(),
-                                contentScale = ContentScale.Crop,
-                            )
+            AnimatedContent(
+                targetState = currentView,
+                transitionSpec = {
+                    // Simple, clean and optimized fade in and fade out animation
+                    fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                },
+                label = "BudgetScreenTransition"
+            ) { targetScreen ->
+                when (targetScreen) {
 
-                            Column(
+
+// ============================================================================================================================================
+// SCREEN 1: BUDGET_TRACKER (Core Tracker Dashboard)
+// ============================================================================================================================================
+
+
+                    BudgetScreenView.BUDGET_TRACKER -> {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(SurfaceSecondary)
+                        ) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.Top
-                                ) {
-                                    Column {
-                                        Text(
-                                            text = "TOTAL BUDGET",
-                                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                            color = ContentSecondary,
-                                            letterSpacing = 1.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = formattedTotalBudget,
-                                            style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                                            color = ContentPrimary
-                                        )
-                                    }
-
-                                    TopBarIconButton(
-                                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_edit)),
-                                        onClick = { showEditBudgetSheet = true },
-                                        backgroundStyle = ButtonBackground.TRANSPARENT,
-                                        iconSize = 20.dp,
-                                    )
-                                }
-
-                                HorizontalDivider(
-                                    thickness = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
-                                )
-
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(
-                                        text = "REMAINING FUNDS",
-                                        style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                        color = ContentSecondary,
-                                        letterSpacing = 1.sp
-                                    )
-
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    .background(SurfacePrimary)
+                                    .statusBarsPadding()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
                                     ) {
-                                        Text(
-                                            text = formattedRemaining,
-                                            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                                            color = ContentPrimary
-                                        )
-                                        Icon(
-                                            painter = painterResource(R.drawable.ic_info),
-                                            contentDescription = "Remaining Funds Info",
-                                            tint = ContentPrimary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                        focusManager.clearFocus()
                                     }
+                            ) {
+                                CustomTopBar(
+                                    title = "Budget Tracker",
+                                    onBackClick = { onBackClick() },
+                                    onMenuClick = { showMenuBottomSheet = true },
+                                    isLargeTitle = true
+                                )
+                            }
 
-                                    LinearProgressIndicator(
-                                        progress = { remainingPercentage },
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusManager.clearFocus()
+                                    },
+                            ) {
+                                // Budget Summary Card Section
+                                item {
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(4.dp)
-                                            .clip(CircleShape),
-                                        color = ContentBrand,
-                                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                    )
-                                }
-
-                                CustomTextButton(
-                                    onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
-                                    text = "View Summary",
-                                    size = ButtonSize.Medium,
-                                    type = ButtonType.Primary,
-                                    shapeStyle = ButtonShapeStyle.Square,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "All Expenses",
-                            style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                            color = ContentPrimary
-                        )
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CustomSearchBar(
-                                value = searchQuery,
-                                placeholder = "Search with AI",
-                                onValueChange = { searchQuery = it },
-                                isAiSearch = true,
-                                modifier = Modifier
-                                    .weight(1.0f)
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused && !isSearchBarFocused) {
-                                            coroutineScope.launch {
-                                                delay(150)
-                                                listState.animateScrollToItem(index = 1, scrollOffset = -8)
-                                            }
-                                        }
-                                        isSearchBarFocused = focusState.isFocused
-                                    },
-                                backgroundColor = SurfacePrimary
-                            )
-
-                            FilterButton(
-                                onClick = { showBottomSheet = true },
-                                backgroundColor = SurfacePrimary
-                            )
-                        }
-                    }
-                }
-
-                items(filteredExpenses, key = { it.id }) { item ->
-                    val isFirst = filteredExpenses.firstOrNull()?.id == item.id
-                    val isLast = filteredExpenses.lastOrNull()?.id == item.id
-
-                    val itemShape = when {
-                        isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
-                        isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
-                        isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
-                        else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
-                    }
-
-                    ExpenseCard(
-                        title = item.title,
-                        category = item.category,
-                        amount = item.amount,
-                        emoji = item.emoji,
-                        lastUpdatedBy = item.lastUpdatedBy,
-                        lastUpdatedDate = item.lastUpdatedDate,
-                        showActions = (expandedCardId == item.id),
-                        cardShape = itemShape,
-                        modifier = Modifier
-                            .padding(horizontal = 12.dp, vertical = 1.dp)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null
-                            ) {
-                                focusManager.clearFocus()
-                                expandedCardId = if (expandedCardId == item.id) null else item.id
-                            },
-                        onDeleteClick = {
-                            expenseToDelete = item
-                        },
-                        onModifyClick = {
-                            expenseToEdit = item
-                            showAddExpenseSheet = true
-                        }
-                    )
-                }
-
-                item {
-                    Spacer(modifier = Modifier.height(124.dp))
-                }
-            }
-        }
-
-
-
-        // ============================================================================================================================================
-        // SCREEN 2: EXPENSE_SUMMARY (Visual Breakdown & Pie Slices)
-        // ============================================================================================================================================
-
-
-
-        AnimatedVisibility(
-            visible = (currentView == BudgetScreenView.EXPENSE_SUMMARY),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            val scrollState = rememberScrollState()
-            var isCategoryListExpanded by remember { mutableStateOf(false) }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(SurfacePrimary)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(scrollState)
-                        .padding(horizontal = 12.dp)
-                        .padding(top = 12.dp, bottom = 100.dp), // Extra bottom padding so content doesn't get hidden behind the sticky buttons
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Center Pie Chart Segment
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CustomPieChart(
-                            slices = pieSlices,
-                            centerTextPrimary = centerTextPrimaryValue,
-                            centerTextSecondary = "TOTAL EXPENSES",
-                        )
-                    }
-
-                    val remainingPercentageText = String.format(Locale.ENGLISH, "%.0f", remainingPercentage * 100)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(
-                                elevation = 12.dp,
-                                shape = RoundedCornerShape(20.dp),
-                            )
-                            .clip(SquircleShape(CornerLargeIncrease))
-                            .background(SurfacePrimary)
-                            .padding(16.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row {
-                                Text(
-                                    text = "Remaining Funds",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentPrimary
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "($remainingPercentageText%)",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentPrimary
-                                )
-                            }
-                            Text(
-                                text = formattedRemaining,
-                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                                color = Color(0xFF137935)
-                            )
-                        }
-                    }
-
-                    // Total Spent Breakdown Card
-                    val spentPercentageText = String.format(Locale.ENGLISH, "%.0f", spentPercentage * 100)
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(
-                                elevation = 16.dp,
-                                shape = RoundedCornerShape(24.dp),
-                                spotColor = ContentPrimary.copy(alpha = 0.35f),
-                                ambientColor = ContentPrimary.copy(alpha = 0.15f)
-                            )
-                            .clip(SquircleShape(CornerLargeIncrease))
-                            .background(SurfacePrimary)
-                            .padding(16.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row {
-                                Text(
-                                    text = "Total Spent",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentPrimary
-                                )
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "($spentPercentageText%)",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentPrimary
-                                )
-                            }
-                            Text(
-                                text = formattedTotalSpent,
-                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                                color = Color(0xFFBF3C34)
-                            )
-                        }
-                        Spacer(Modifier.height(16.dp))
-
-                        DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                            dashLength = 12f,
-                            gapLength = 6f
-                        )
-
-                        // Compile and sort categories dynamically based on expenditure
-                        val processedCategories = remember(allExpenses) {
-                            allExpenses.groupBy { it.category }
-                                .mapValues { (_, items) -> items.sumOf { parseAmount(it.amount) } }
-                                .toList()
-                                .sortedByDescending { it.second }
-                        }
-
-                        // Determine active list bounds based on visual Expand option state
-                        val displayedCategories = if (isCategoryListExpanded) {
-                            processedCategories
-                        } else {
-                            processedCategories.take(4)
-                        }
-
-                        Column(
-                            modifier = Modifier.padding(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            displayedCategories.forEach { (categoryName, totalCategorySpent) ->
-                                val categoryPct = if (totalBudget > 0) (totalCategorySpent / totalBudget) * 100 else 0.0
-                                val formattedCategoryPctText = String.format(Locale.ENGLISH, "%.2f", categoryPct)
-                                val formattedCategorySpentText = "₹${formatter.format(totalCategorySpent.toLong())}"
-                                val indicatorColor = getCategoryColor(categoryName)
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
+                                            .background(
+                                                brush = Brush.verticalGradient(
+                                                    colors = listOf(SurfacePrimary, SurfaceSecondary)
+                                                )
+                                            )
+                                            .padding(12.dp)
                                     ) {
-                                        // Colored Rounded Category Tag Indicator
                                         Box(
                                             modifier = Modifier
-                                                .width(6.dp)
-                                                .height(24.dp)
-                                                .clip(SquircleShape(100))
-                                                .background(indicatorColor)
+                                                .fillMaxWidth()
+                                                .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
+                                                .background(SurfaceBrandSecondary)
+                                                .border(
+                                                    1.dp,
+                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                                    SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+                                                )
+                                        ) {
+                                            Image(
+                                                painter = painterResource(R.drawable.bg_budget_pattern),
+                                                contentDescription = null,
+                                                modifier = Modifier.matchParentSize(),
+                                                contentScale = ContentScale.Crop,
+                                            )
+
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp),
+                                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.Top
+                                                ) {
+                                                    Column {
+                                                        Text(
+                                                            text = "TOTAL BUDGET",
+                                                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                            color = ContentSecondary,
+                                                            letterSpacing = 1.sp
+                                                        )
+                                                        Spacer(modifier = Modifier.height(8.dp))
+                                                        Text(
+                                                            text = formattedTotalBudget,
+                                                            style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                                            color = ContentPrimary
+                                                        )
+                                                    }
+
+                                                    TopBarIconButton(
+                                                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_edit)),
+                                                        onClick = { showEditBudgetSheet = true },
+                                                        backgroundStyle = ButtonBackground.TRANSPARENT,
+                                                        iconSize = 20.dp,
+                                                    )
+                                                }
+
+                                                HorizontalDivider(
+                                                    thickness = 1.dp,
+                                                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                                                )
+
+                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                    Text(
+                                                        text = "REMAINING FUNDS",
+                                                        style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                                        color = ContentSecondary,
+                                                        letterSpacing = 1.sp
+                                                    )
+
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = formattedRemaining,
+                                                            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                                                            color = ContentPrimary
+                                                        )
+                                                        Icon(
+                                                            painter = painterResource(R.drawable.ic_info),
+                                                            contentDescription = "Remaining Funds Info",
+                                                            tint = ContentPrimary,
+                                                            modifier = Modifier.size(20.dp)
+                                                        )
+                                                    }
+
+                                                    LinearProgressIndicator(
+                                                        progress = { remainingPercentage },
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(4.dp)
+                                                            .clip(CircleShape),
+                                                        color = ContentBrand,
+                                                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                                    )
+                                                }
+
+                                                CustomTextButton(
+                                                    onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                                                    text = "View Summary",
+                                                    size = ButtonSize.Medium,
+                                                    type = ButtonType.Primary,
+                                                    shapeStyle = ButtonShapeStyle.Square,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Text(
+                                            text = "All Expenses",
+                                            style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
+                                            color = ContentPrimary
                                         )
 
-                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            CustomSearchBar(
+                                                value = searchQuery,
+                                                placeholder = "Search with AI",
+                                                onValueChange = { searchQuery = it },
+                                                isAiSearch = true,
+                                                modifier = Modifier
+                                                    .weight(1.0f)
+                                                    .onFocusChanged { focusState ->
+                                                        if (focusState.isFocused && !isSearchBarFocused) {
+                                                            coroutineScope.launch {
+                                                                delay(150)
+                                                                listState.animateScrollToItem(index = 1, scrollOffset = -8)
+                                                            }
+                                                        }
+                                                        isSearchBarFocused = focusState.isFocused
+                                                    },
+                                                backgroundColor = SurfacePrimary
+                                            )
 
-                                        Text(
-                                            text = "$categoryName ($formattedCategoryPctText%)",
-                                            style = JasnifyTheme.typography.labelLarge,
-                                            color = ContentPrimary
+                                            FilterButton(
+                                                onClick = { showBottomSheet = true },
+                                                backgroundColor = SurfacePrimary
+                                            )
+                                        }
+                                    }
+                                }
+
+                                items(filteredExpenses, key = { it.id }) { item ->
+                                    val isFirst = filteredExpenses.firstOrNull()?.id == item.id
+                                    val isLast = filteredExpenses.lastOrNull()?.id == item.id
+
+                                    val itemShape = when {
+                                        isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
+                                        isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
+                                        isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
+                                        else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+                                    }
+
+                                    ExpenseCard(
+                                        title = item.title,
+                                        category = item.category,
+                                        amount = item.amount,
+                                        emoji = item.emoji,
+                                        lastUpdatedBy = item.lastUpdatedBy,
+                                        lastUpdatedDate = item.lastUpdatedDate,
+                                        showActions = (expandedCardId == item.id),
+                                        cardShape = itemShape,
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp, vertical = 1.dp)
+                                            .clickable(
+                                                interactionSource = remember { MutableInteractionSource() },
+                                                indication = null
+                                            ) {
+                                                focusManager.clearFocus()
+                                                expandedCardId = if (expandedCardId == item.id) null else item.id
+                                            },
+                                        onDeleteClick = {
+                                            expenseToDelete = item
+                                        },
+                                        onModifyClick = {
+                                            expenseToEdit = item
+                                            showAddExpenseSheet = true
+                                        }
+                                    )
+                                }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(124.dp))
+                                }
+                            }
+                        }
+                    }
+
+
+
+// ============================================================================================================================================
+// SCREEN 2: EXPENSE_SUMMARY (Visual Breakdown & Pie Slices)
+// ============================================================================================================================================
+
+
+                    BudgetScreenView.EXPENSE_SUMMARY -> {
+                        val scrollState = rememberScrollState()
+                        var isCategoryListExpanded by remember { mutableStateOf(false) }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(SurfacePrimary)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SurfacePrimary)
+                                    .statusBarsPadding()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusManager.clearFocus()
+                                    }
+                            ) {
+                                CustomTopBar(
+                                    title = "Expense Summary",
+                                    onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusManager.clearFocus()
+                                    }
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(scrollState)
+                                        .padding(horizontal = 12.dp)
+                                        .padding(top = 12.dp, bottom = 100.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CustomPieChart(
+                                            slices = pieSlices,
+                                            centerTextPrimary = centerTextPrimaryValue,
+                                            centerTextSecondary = "TOTAL EXPENSES",
                                         )
                                     }
 
-                                    Text(
-                                        text = formattedCategorySpentText,
-                                        style = JasnifyTheme.typography.labelLarge,
-                                        color = ContentPrimary
+                                    val remainingPercentageText = String.format(Locale.ENGLISH, "%.0f", remainingPercentage * 100)
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .shadow(
+                                                elevation = 12.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                            )
+                                            .clip(SquircleShape(CornerLargeIncrease))
+                                            .background(SurfacePrimary)
+                                            .padding(16.dp)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row {
+                                                Text(
+                                                    text = "Remaining Funds",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentPrimary
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = "($remainingPercentageText%)",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentPrimary
+                                                )
+                                            }
+                                            Text(
+                                                text = formattedRemaining,
+                                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                                                color = Color(0xFF137935)
+                                            )
+                                        }
+                                    }
+
+                                    val spentPercentageText = String.format(Locale.ENGLISH, "%.0f", spentPercentage * 100)
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .shadow(
+                                                elevation = 16.dp,
+                                                shape = RoundedCornerShape(24.dp),
+                                                spotColor = ContentPrimary.copy(alpha = 0.35f),
+                                                ambientColor = ContentPrimary.copy(alpha = 0.15f)
+                                            )
+                                            .clip(SquircleShape(CornerLargeIncrease))
+                                            .background(SurfacePrimary)
+                                            .padding(16.dp),
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Row {
+                                                Text(
+                                                    text = "Total Spent",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentPrimary
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    text = "($spentPercentageText%)",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentPrimary
+                                                )
+                                            }
+                                            Text(
+                                                text = formattedTotalSpent,
+                                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                                                color = Color(0xFFBF3C34)
+                                            )
+                                        }
+                                        Spacer(Modifier.height(16.dp))
+
+                                        DashedDivider(
+                                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                            dashLength = 12f,
+                                            gapLength = 6f
+                                        )
+
+                                        val processedCategories = remember(allExpenses) {
+                                            allExpenses.groupBy { it.category }
+                                                .mapValues { (_, items) -> items.sumOf { parseAmount(it.amount) } }
+                                                .toList()
+                                                .sortedByDescending { it.second }
+                                        }
+
+                                        val displayedCategories = if (isCategoryListExpanded) {
+                                            processedCategories
+                                        } else {
+                                            processedCategories.take(4)
+                                        }
+
+                                        Column(
+                                            modifier = Modifier.padding(vertical = 8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            displayedCategories.forEach { (categoryName, totalCategorySpent) ->
+                                                val categoryPct = if (totalBudget > 0) (totalCategorySpent / totalBudget) * 100 else 0.0
+                                                val formattedCategoryPctText = String.format(Locale.ENGLISH, "%.2f", categoryPct)
+                                                val formattedCategorySpentText = "₹${formatter.format(totalCategorySpent.toLong())}"
+                                                val indicatorColor = getCategoryColor(categoryName)
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.SpaceBetween
+                                                ) {
+                                                    Row(
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        modifier = Modifier.weight(1f)
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .width(6.dp)
+                                                                .height(24.dp)
+                                                                .clip(SquircleShape(100))
+                                                                .background(indicatorColor)
+                                                        )
+
+                                                        Spacer(modifier = Modifier.width(12.dp))
+
+                                                        Text(
+                                                            text = "$categoryName ($formattedCategoryPctText%)",
+                                                            style = JasnifyTheme.typography.labelLarge,
+                                                            color = ContentPrimary
+                                                        )
+                                                    }
+
+                                                    Text(
+                                                        text = formattedCategorySpentText,
+                                                        style = JasnifyTheme.typography.labelLarge,
+                                                        color = ContentPrimary
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        if (processedCategories.size > 4) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(40.dp)
+                                                    .clickable { isCategoryListExpanded = !isCategoryListExpanded }
+                                                    .padding(vertical = 11.dp, horizontal = 16.dp),
+                                                horizontalArrangement = Arrangement.Center,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = if (isCategoryListExpanded) "View less" else "View all",
+                                                    style = JasnifyTheme.typography.bodyLarge,
+                                                    color = ContentBrandDark
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Icon(
+                                                    imageVector = if (isCategoryListExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = null,
+                                                    tint = ContentBrandDark,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .fillMaxWidth()
+                                        .shadow(
+                                            elevation = 16.dp,
+                                            spotColor = ContentPrimary.copy(alpha = 0.1f),
+                                            ambientColor = ContentPrimary.copy(alpha = 0.05f)
+                                        )
+                                        .background(SurfacePrimary)
+                                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                                        .navigationBarsPadding(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CustomTextButton(
+                                        onClick = { },
+                                        text = "AI Overview",
+                                        shapeStyle = ButtonShapeStyle.Square,
+                                        type = ButtonType.Secondary,
+                                        modifier = Modifier.weight(1f),
+                                        leadingIcon = painterResource(R.drawable.ic_ai)
+                                    )
+
+                                    CustomTextButton(
+                                        onClick = {
+                                            expenseToEdit = null
+                                            showAddExpenseSheet = true
+                                        },
+                                        text = "Add Expense",
+                                        shapeStyle = ButtonShapeStyle.Square,
+                                        type = ButtonType.Primary,
+                                        modifier = Modifier.weight(1f)
                                     )
                                 }
                             }
                         }
-
-                        // Toggle Dropdown Button ("View all")
-                        if (processedCategories.size > 4) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(40.dp)
-                                    .clickable { isCategoryListExpanded = !isCategoryListExpanded }
-                                    .padding(vertical = 11.dp, horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = if (isCategoryListExpanded) "View less" else "View all",
-                                    style = JasnifyTheme.typography.bodyLarge,
-                                    color = ContentBrandDark
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Icon(
-                                    imageVector = if (isCategoryListExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                                    contentDescription = null,
-                                    tint = ContentBrandDark,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // STICKY BOTTOM BUTTONS ROW
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .shadow(
-                            elevation = 16.dp,
-                            spotColor = ContentPrimary.copy(alpha = 0.1f),
-                            ambientColor = ContentPrimary.copy(alpha = 0.05f)
-                        )
-                        .background(SurfacePrimary)
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                        .navigationBarsPadding(), // Ensures safe-insets layout styling for gestures
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    CustomTextButton(
-                        onClick = { /* Handle AI action flow */ },
-                        text = "AI Overview",
-                        shapeStyle = ButtonShapeStyle.Square,
-                        type = ButtonType.Secondary,
-                        modifier = Modifier.weight(1f),
-                        leadingIcon = painterResource(R.drawable.ic_ai)
-                    )
-
-                    CustomTextButton(
-                        onClick = {
-                            expenseToEdit = null
-                            showAddExpenseSheet = true
-                        },
-                        text = "Add Expense",
-                        shapeStyle = ButtonShapeStyle.Square,
-                        type = ButtonType.Primary,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-            }
-        }
-
-
-        // ============================================================================================================================================
-        // SCREEN 3: EXPENSE_CATEGORY
-        // ============================================================================================================================================
-
-
-        AnimatedVisibility(
-            visible = (currentView == BudgetScreenView.EXPENSE_CATEGORY),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(SurfaceSecondary)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    // Search bar section
-                    CustomSearchBar(
-                        value = categorySearchQuery,
-                        placeholder = "Search",
-                        onValueChange = { categorySearchQuery = it },
-                        backgroundColor = SurfacePrimary,
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(12.dp)
-                    )
-
-                    // Dynamically compiled list of category summaries
-                    LazyColumn(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        verticalArrangement = Arrangement.spacedBy(5.dp)
-                    ) {
-                        items(filteredCategorySummary, key = { it.name }) { categoryItem ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedCategoryForDetails = categoryItem.name
-                                        currentView = BudgetScreenView.CATEGORY_DETAIL
-                                    }
-                            ) {
-                                CategoryCard(
-                                    title = categoryItem.name,
-                                    amount = categoryItem.amountFormatted,
-                                    emojis = categoryItem.emojis,
-                                    totalItemCount = categoryItem.totalCount,
-                                    onMenuClick = {
-                                        // Binds selected category context and triggers bottom sheet visibility
-                                        selectedCategoryForMenu = categoryItem.name
-                                        showCategoryMenuBottomSheet = true
-                                    }
-                                )
-                            }
-                        }
-
-                        item { Spacer(modifier = Modifier.height(12.dp)) }
                     }
 
-                    // Bottom Navigation Button Sticky Row
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .shadow(elevation = 12.dp, spotColor = ContentPrimary, ambientColor = ContentPrimary)
-                            .background(SurfacePrimary)
-                            .padding(12.dp)
-                            .navigationBarsPadding(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CustomTextButton(
-                            onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
-                            text = "View Summary",
-                            type = ButtonType.Secondary,
-                            shapeStyle = ButtonShapeStyle.Square,
-                            modifier = Modifier
-                                .weight(1f)
-                        )
-
-                        CustomTextButton(
-                            onClick = {
-                                // Clear rename queue, and open the category-only bottom sheet directly
-                                categoryToRename = null
-                                showAddCustomCategorySheet = true
-                            },
-                            text = "Add Category",
-                            type = ButtonType.Primary,
-                            shapeStyle = ButtonShapeStyle.Square,
-                            modifier = Modifier
-                                .weight(1f)
-                        )
-                    }
-                }
-            }
-        }
 
 
-        // ============================================================================================================================================
-        // SCREEN 4: CATEGORY_DETAIL
-        // ============================================================================================================================================
+// ============================================================================================================================================
+// SCREEN 3: EXPENSE_CATEGORY (List of Expense Categories)
+// ============================================================================================================================================
 
 
-        AnimatedVisibility(
-            visible = (currentView == BudgetScreenView.CATEGORY_DETAIL),
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            val selectedCategoryName = selectedCategoryForDetails ?: "Category"
-            val selectedCategoryExpenses = remember(allExpenses, selectedCategoryForDetails) {
-                allExpenses.filter { it.category == selectedCategoryName }
-            }
-            val selectedCategoryTotal = remember(selectedCategoryExpenses) {
-                selectedCategoryExpenses.sumOf { parseAmount(it.amount) }
-            }
-            val formattedCategoryTotal = "₹${formatter.format(selectedCategoryTotal.toLong())}"
-
-            // Multi-sorted implementation chaining comparator criteria depending on active selected set
-            val sortedCategoryExpenses = remember(selectedCategoryExpenses, selectedCategoryChips) {
-                selectedCategoryExpenses.sortedWith(
-                    Comparator { a, b ->
-                        val amtA = parseAmount(a.amount)
-                        val amtB = parseAmount(b.amount)
-                        val idA = a.id.toIntOrNull() ?: 0
-                        val idB = b.id.toIntOrNull() ?: 0
-
-                        val hasMostExpensive = selectedCategoryChips.contains("Most Expensive")
-                        val hasLeastExpensive = selectedCategoryChips.contains("Least Expensive")
-
-                        var result = 0
-
-                        if (hasMostExpensive && !hasLeastExpensive) {
-                            result = amtB.compareTo(amtA) // Amount descending
-                        } else if (hasLeastExpensive && !hasMostExpensive) {
-                            result = amtA.compareTo(amtB) // Amount ascending
-                        } else if (hasMostExpensive && hasLeastExpensive) {
-                            // Stable sorting fallback if both contradictory toggles remain active
-                            result = amtB.compareTo(amtA)
-                        }
-
-                        if (result == 0) {
-                            result = idB.compareTo(idA) // Secondary tie-breaker sort using newest IDs
-                        }
-                        result
-                    }
-                )
-            }
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(SurfaceSecondary)
-            ) {
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = selectedCategoryName,
-                                style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
-                                color = ContentPrimary
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .padding(8.dp),
-                                contentAlignment = Alignment.Center
-                            ){
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_edit),
-                                    contentDescription = "Rename Category",
-                                    tint = ContentPrimary,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable {
-                                            categoryToRename = selectedCategoryName
-                                            showAddCustomCategorySheet = true
-                                        }
-                                )
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Total Category Expenses",
-                                style = JasnifyTheme.typography.labelLarge,
-                                color = ContentSecondary
-                            )
-                            Text(
-                                text = formattedCategoryTotal,
-                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                                color = ContentPrimary
-                            )
-                        }
-                        Row{
-                            val categoryProgressRatio = if (totalBudget > 0) (selectedCategoryTotal / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
-                            LinearProgressIndicator(
-                                progress = { categoryProgressRatio },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(4.dp)
-                                    .clip(CircleShape),
-                                color = ContentBrand,
-                                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        contentPadding = PaddingValues(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        item {
-                            val isRecentActive = selectedCategoryChips.contains("Recent First")
-                            FilterChip(
-                                label = "Recent First",
-                                isSelected = isRecentActive,
-                                shapeStyle = ChipShapeStyle.Round,
-                                size = ChipSize.Small,
-                                hasStroke = true,
-                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_clock_forward),
-                                trailingIcon = if (isRecentActive) Icons.Default.Close else null,
-                                onClick = {
-                                    selectedCategoryChips = if (isRecentActive) {
-                                        selectedCategoryChips - "Recent First"
-                                    } else {
-                                        selectedCategoryChips + "Recent First"
-                                    }
-                                },
-                                onTrailingIconClick = {
-                                    selectedCategoryChips = selectedCategoryChips - "Recent First"
-                                }
-                            )
-                        }
-
-                        item {
-                            val isMostActive = selectedCategoryChips.contains("Most Expensive")
-                            FilterChip(
-                                label = "Most Expensive",
-                                isSelected = isMostActive,
-                                shapeStyle = ChipShapeStyle.Round,
-                                size = ChipSize.Small,
-                                hasStroke = true,
-                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_up),
-                                trailingIcon = if (isMostActive) Icons.Default.Close else null,
-                                onClick = {
-                                    selectedCategoryChips = if (isMostActive) {
-                                        selectedCategoryChips - "Most Expensive"
-                                    } else {
-                                        selectedCategoryChips + "Most Expensive"
-                                    }
-                                },
-                                onTrailingIconClick = {
-                                    selectedCategoryChips = selectedCategoryChips - "Most Expensive"
-                                }
-                            )
-                        }
-
-                        item {
-                            val isLeastActive = selectedCategoryChips.contains("Least Expensive")
-                            FilterChip(
-                                label = "Least Expensive",
-                                isSelected = isLeastActive,
-                                shapeStyle = ChipShapeStyle.Round,
-                                size = ChipSize.Small,
-                                hasStroke = true,
-                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_down),
-                                trailingIcon = if (isLeastActive) Icons.Default.Close else null,
-                                onClick = {
-                                    selectedCategoryChips = if (isLeastActive) {
-                                        selectedCategoryChips - "Least Expensive"
-                                    } else {
-                                        selectedCategoryChips + "Least Expensive"
-                                    }
-                                },
-                                onTrailingIconClick = {
-                                    selectedCategoryChips = selectedCategoryChips - "Least Expensive"
-                                }
-                            )
-                        }
-                    }
-                }
-
-                // Category Expense Cards / Empty lists
-                if (sortedCategoryExpenses.isEmpty()) {
-                    item {
+                    BudgetScreenView.EXPENSE_CATEGORY -> {
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 100.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                                .fillMaxSize()
+                                .background(SurfaceSecondary)
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_receipt),
-                                contentDescription = "No expenses",
-                                tint = ContentTertiary,
-                                modifier = Modifier.size(84.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "No expenses",
-                                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                                color = ContentTertiary
-                            )
-                        }
-                    }
-                } else {
-                    items(sortedCategoryExpenses, key = { it.id }) { item ->
-                        val isFirst = sortedCategoryExpenses.firstOrNull()?.id == item.id
-                        val isLast = sortedCategoryExpenses.lastOrNull()?.id == item.id
-
-                        val itemShape = when {
-                            isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
-                            isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
-                            isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
-                            else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
-                        }
-
-                        ExpenseCard(
-                            title = item.title,
-                            category = item.category,
-                            amount = item.amount,
-                            emoji = item.emoji,
-                            lastUpdatedBy = item.lastUpdatedBy,
-                            lastUpdatedDate = item.lastUpdatedDate,
-                            showActions = (expandedCardId == item.id),
-                            cardShape = itemShape,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp, 1.dp)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    focusManager.clearFocus()
-                                    expandedCardId = if (expandedCardId == item.id) null else item.id
-                                },
-                            onDeleteClick = {
-                                expenseToDelete = item
-                            },
-                            onModifyClick = {
-                                expenseToEdit = item
-                                showAddExpenseSheet = true
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SurfaceSecondary)
+                                    .statusBarsPadding()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusManager.clearFocus()
+                                    }
+                            ) {
+                                CustomTopBar(
+                                    title = "Expense Category",
+                                    onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                    buttonStyle = ButtonBackground.TRANSLUCENT,
+                                    translucentAlpha = 0.5f
+                                )
                             }
-                        )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusManager.clearFocus()
+                                    }
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    CustomSearchBar(
+                                        value = categorySearchQuery,
+                                        placeholder = "Search",
+                                        onValueChange = { categorySearchQuery = it },
+                                        backgroundColor = SurfacePrimary,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp)
+                                    )
+
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        items(filteredCategorySummary, key = { it.name }) { categoryItem ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clickable {
+                                                        selectedCategoryForDetails = categoryItem.name
+                                                        currentView = BudgetScreenView.CATEGORY_DETAIL
+                                                    }
+                                            ) {
+                                                CategoryCard(
+                                                    title = categoryItem.name,
+                                                    amount = categoryItem.amountFormatted,
+                                                    emojis = categoryItem.emojis,
+                                                    totalItemCount = categoryItem.totalCount,
+                                                    onMenuClick = {
+                                                        selectedCategoryForMenu = categoryItem.name
+                                                        showCategoryMenuBottomSheet = true
+                                                    }
+                                                )
+                                            }
+                                        }
+
+                                        item { Spacer(modifier = Modifier.height(12.dp)) }
+                                    }
+
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .shadow(elevation = 12.dp, spotColor = ContentPrimary, ambientColor = ContentPrimary)
+                                            .background(SurfacePrimary)
+                                            .padding(12.dp)
+                                            .navigationBarsPadding(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        CustomTextButton(
+                                            onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                                            text = "View Summary",
+                                            type = ButtonType.Secondary,
+                                            shapeStyle = ButtonShapeStyle.Square,
+                                            modifier = Modifier.weight(1f)
+                                        )
+
+                                        CustomTextButton(
+                                            onClick = {
+                                                categoryToRename = null
+                                                showAddCustomCategorySheet = true
+                                            },
+                                            text = "Add Category",
+                                            type = ButtonType.Primary,
+                                            shapeStyle = ButtonShapeStyle.Square,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+
+
+// ============================================================================================================================================
+// SCREEN 4: CATEGORY_DETAIL (Detailed view of transactions per category)
+// ============================================================================================================================================
+
+
+                    BudgetScreenView.CATEGORY_DETAIL -> {
+                        val selectedCategoryName = selectedCategoryForDetails ?: "Category"
+                        val selectedCategoryExpenses = remember(allExpenses, selectedCategoryForDetails) {
+                            allExpenses.filter { it.category == selectedCategoryName }
+                        }
+                        val selectedCategoryTotal = remember(selectedCategoryExpenses) {
+                            selectedCategoryExpenses.sumOf { parseAmount(it.amount) }
+                        }
+                        val formattedCategoryTotal = "₹${formatter.format(selectedCategoryTotal.toLong())}"
+
+                        val sortedCategoryExpenses = remember(selectedCategoryExpenses, selectedCategoryChips) {
+                            selectedCategoryExpenses.sortedWith(
+                                Comparator { a, b ->
+                                    val amtA = parseAmount(a.amount)
+                                    val amtB = parseAmount(b.amount)
+                                    val idA = a.id.toIntOrNull() ?: 0
+                                    val idB = b.id.toIntOrNull() ?: 0
+
+                                    val hasMostExpensive = selectedCategoryChips.contains("Most Expensive")
+                                    val hasLeastExpensive = selectedCategoryChips.contains("Least Expensive")
+
+                                    var result = 0
+
+                                    if (hasMostExpensive && !hasLeastExpensive) {
+                                        result = amtB.compareTo(amtA)
+                                    } else if (hasLeastExpensive && !hasMostExpensive) {
+                                        result = amtA.compareTo(amtB)
+                                    } else if (hasMostExpensive && hasLeastExpensive) {
+                                        result = amtB.compareTo(amtA)
+                                    }
+
+                                    if (result == 0) {
+                                        result = idB.compareTo(idA)
+                                    }
+                                    result
+                                }
+                            )
+                        }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(SurfaceSecondary)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(SurfaceSecondary)
+                                    .statusBarsPadding()
+                            ) {
+                                CustomTopBar(
+                                    onBackClick = { currentView = BudgetScreenView.EXPENSE_CATEGORY },
+                                    buttonStyle = ButtonBackground.TRANSLUCENT,
+                                    translucentAlpha = 0.5f
+                                )
+                            }
+
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .weight(1f)
+                            ) {
+                                item {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Text(
+                                                text = selectedCategoryName,
+                                                style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
+                                                color = ContentPrimary
+                                            )
+                                            Box(
+                                                modifier = Modifier.padding(8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_edit),
+                                                    contentDescription = "Rename Category",
+                                                    tint = ContentPrimary,
+                                                    modifier = Modifier
+                                                        .size(20.dp)
+                                                        .clickable {
+                                                            categoryToRename = selectedCategoryName
+                                                            showAddCustomCategorySheet = true
+                                                        }
+                                                )
+                                            }
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = "Total Category Expenses",
+                                                style = JasnifyTheme.typography.labelLarge,
+                                                color = ContentSecondary
+                                            )
+                                            Text(
+                                                text = formattedCategoryTotal,
+                                                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                                                color = ContentPrimary
+                                            )
+                                        }
+                                        Row {
+                                            val categoryProgressRatio = if (totalBudget > 0) (selectedCategoryTotal / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
+                                            LinearProgressIndicator(
+                                                progress = { categoryProgressRatio },
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(4.dp)
+                                                    .clip(CircleShape),
+                                                color = ContentBrand,
+                                                trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                            )
+                                        }
+                                    }
+                                }
+
+                                item {
+                                    LazyRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentPadding = PaddingValues(12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        item {
+                                            val isRecentActive = selectedCategoryChips.contains("Recent First")
+                                            FilterChip(
+                                                label = "Recent First",
+                                                isSelected = isRecentActive,
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                size = ChipSize.Small,
+                                                hasStroke = true,
+                                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_clock_forward),
+                                                trailingIcon = if (isRecentActive) Icons.Default.Close else null,
+                                                onClick = {
+                                                    selectedCategoryChips = if (isRecentActive) {
+                                                        selectedCategoryChips - "Recent First"
+                                                    } else {
+                                                        selectedCategoryChips + "Recent First"
+                                                    }
+                                                },
+                                                onTrailingIconClick = {
+                                                    selectedCategoryChips = selectedCategoryChips - "Recent First"
+                                                }
+                                            )
+                                        }
+
+                                        item {
+                                            val isMostActive = selectedCategoryChips.contains("Most Expensive")
+                                            FilterChip(
+                                                label = "Most Expensive",
+                                                isSelected = isMostActive,
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                size = ChipSize.Small,
+                                                hasStroke = true,
+                                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_up),
+                                                trailingIcon = if (isMostActive) Icons.Default.Close else null,
+                                                onClick = {
+                                                    selectedCategoryChips = if (isMostActive) {
+                                                        selectedCategoryChips - "Most Expensive"
+                                                    } else {
+                                                        selectedCategoryChips + "Most Expensive"
+                                                    }
+                                                },
+                                                onTrailingIconClick = {
+                                                    selectedCategoryChips = selectedCategoryChips - "Most Expensive"
+                                                }
+                                            )
+                                        }
+
+                                        item {
+                                            val isLeastActive = selectedCategoryChips.contains("Least Expensive")
+                                            FilterChip(
+                                                label = "Least Expensive",
+                                                isSelected = isLeastActive,
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                size = ChipSize.Small,
+                                                hasStroke = true,
+                                                leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_down),
+                                                trailingIcon = if (isLeastActive) Icons.Default.Close else null,
+                                                onClick = {
+                                                    selectedCategoryChips = if (isLeastActive) {
+                                                        selectedCategoryChips - "Least Expensive"
+                                                    } else {
+                                                        selectedCategoryChips + "Least Expensive"
+                                                    }
+                                                },
+                                                onTrailingIconClick = {
+                                                    selectedCategoryChips = selectedCategoryChips - "Least Expensive"
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (sortedCategoryExpenses.isEmpty()) {
+                                    item {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 100.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_receipt),
+                                                contentDescription = "No expenses",
+                                                tint = ContentTertiary,
+                                                modifier = Modifier.size(84.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = "No expenses",
+                                                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                                                color = ContentTertiary
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    items(sortedCategoryExpenses, key = { it.id }) { item ->
+                                        val isFirst = sortedCategoryExpenses.firstOrNull()?.id == item.id
+                                        val isLast = sortedCategoryExpenses.lastOrNull()?.id == item.id
+
+                                        val itemShape = when {
+                                            isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
+                                            isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
+                                            isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
+                                            else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+                                        }
+
+                                        ExpenseCard(
+                                            title = item.title,
+                                            category = item.category,
+                                            amount = item.amount,
+                                            emoji = item.emoji,
+                                            lastUpdatedBy = item.lastUpdatedBy,
+                                            lastUpdatedDate = item.lastUpdatedDate,
+                                            showActions = (expandedCardId == item.id),
+                                            cardShape = itemShape,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(12.dp, 1.dp)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    focusManager.clearFocus()
+                                                    expandedCardId = if (expandedCardId == item.id) null else item.id
+                                                },
+                                            onDeleteClick = {
+                                                expenseToDelete = item
+                                            },
+                                            onModifyClick = {
+                                                expenseToEdit = item
+                                                showAddExpenseSheet = true
+                                            }
+                                        )
+                                    }
+                                }
+
+                                item {
+                                    Spacer(modifier = Modifier.height(100.dp))
+                                }
+                            }
+                        }
+                    }
+
+
+
+// ============================================================================================================================================
+// SCREEN 5: MANAGE_ROOM_ACCESS (Manage room users and access rights)
+// ============================================================================================================================================
+
+
+
+                    BudgetScreenView.MANAGE_ROOM_ACCESS -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(SurfaceSecondary)
+                        ) {
+                            RoomScreen(
+                                allUsers = budgetRoomUsers,
+                                currentUserRole = UserRole.OWNER,
+                                isSelf = { it.username == "viratanand" },
+                                onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                onMenuClick = {
+                                    showRoomMenuBottomSheet = true
+                                },
+                                onRoleChange = { targetUser, newRole ->
+                                    budgetRoomUsers = budgetRoomUsers.map { user ->
+                                        if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                    }
+                                },
+                                onRemove = { targetUser ->
+                                    userToRemove = targetUser
+                                },
+                                onReport = { targetUser ->
+                                    toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                },
+                                onLeave = {
+                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
+                                    currentView = BudgetScreenView.BUDGET_TRACKER
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
+            }
 
-                item {
-                    Spacer(modifier = Modifier.height(100.dp))
-                }
+
+// ============================================================================================================================================
+// HELPER: BOTTOM_SHEETS
+// ============================================================================================================================================
+
+
+            // --- Screen-level CustomToast Display (Shown ONLY when no Bottom Sheets are visible) ---
+            val isAnySheetVisible = showBottomSheet || showAddExpenseSheet || showAddCustomCategorySheet ||
+                    showEditBudgetSheet || showMenuBottomSheet || showCategoryMenuBottomSheet ||
+                    showRoomMenuBottomSheet || expenseToDelete != null || categoryToDeleteConfirm != null || userToRemove != null
+
+            AnimatedVisibility(
+                visible = toastData.message != null && !isAnySheetVisible,
+                enter = slideInVertically(initialOffsetY = { -it - 500 }),
+                exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .zIndex(99f)
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type
+                )
             }
         }
     }
@@ -1363,114 +1498,339 @@ fun BudgetScreen(
         val editingItem = expenseToEdit
         val initialAmountRaw = editingItem?.amount?.replace("₹", "")?.replace(",", "") ?: ""
 
-        AddExpenseBottomSheet(
-            sheetState = addExpenseSheetState,
-            initialAmount = initialAmountRaw,
-            initialReceiver = editingItem?.title ?: "",
-            initialCategory = editingItem?.category ?: "",
-            initialEmoji = editingItem?.emoji ?: "",
-            onDismiss = {
-                showAddExpenseSheet = false
-                expenseToEdit = null
-            },
-            onSave = { amount, receiver, category, emoji ->
-                val formattedAmount = "₹${formatter.format(amount)}"
+        // Local state for AddExpenseSheetContent logic, moved from wrapper to parent for toast support
+        var amountTextFieldValue by remember(initialAmountRaw) {
+            mutableStateOf(TextFieldValue(text = initialAmountRaw, selection = TextRange(initialAmountRaw.length)))
+        }
+        var receiverName by remember(editingItem?.title) { mutableStateOf(editingItem?.title ?: "") }
+        var selectedCategory by remember(editingItem?.category) { mutableStateOf(editingItem?.category ?: "") }
+        var selectedEmoji by remember(editingItem?.emoji) { mutableStateOf(editingItem?.emoji ?: "") }
+        var dynamicCategories by remember(defaultCategories) { mutableStateOf(defaultCategories) }
+        var showInnerCustomCategorySheet by remember { mutableStateOf(false) }
+        val innerCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-                if (editingItem != null) {
-                    // Modify existing expense in-place
-                    allExpenses = allExpenses.map {
-                        if (it.id == editingItem.id) {
-                            it.copy(
-                                title = receiver.ifBlank { "Unnamed Receiver" },
-                                category = category.ifBlank { "Misc" },
-                                amount = formattedAmount,
-                                emoji = emoji.ifBlank { "💸" },
-                                lastUpdatedBy = "Anonymous",
-                                lastUpdatedDate = "Just now"
-                            )
-                        } else {
-                            it
-                        }
-                    }
-                } else {
-                    // Create and prepend a completely new item
-                    val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
-                    val newItem = ExpenseItem(
-                        id = nextUniqueId,
-                        title = receiver.ifBlank { "Unnamed Receiver" },
-                        category = category.ifBlank { "Misc" },
-                        amount = formattedAmount,
-                        emoji = emoji.ifBlank { "💸" },
-                        lastUpdatedBy = "Anonymous",
-                        lastUpdatedDate = "Just now"
-                    )
-                    allExpenses = listOf(newItem) + allExpenses
-                }
+        val headingTitle = if (editingItem != null) "Edit expense" else "Add an expense"
+
+        ModalBottomSheet(
+            onDismissRequest = {
                 showAddExpenseSheet = false
                 expenseToEdit = null
             },
-            categories = defaultCategories,
-            onAddCategory = { newCategory ->
-                if (!defaultCategories.contains(newCategory)) {
-                    defaultCategories = defaultCategories + newCategory
+            sheetState = addExpenseSheetState,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+            dragHandle = null,
+            sheetGesturesEnabled = true,
+        ) {
+            val view = LocalView.current
+            DisposableEffect(view) {
+                var parent = view.parent
+                var dialogWindow: android.view.Window? = null
+                while (parent != null) {
+                    if (parent is DialogWindowProvider) {
+                        dialogWindow = parent.window
+                        break
+                    }
+                    parent = parent.parent
+                }
+                dialogWindow?.let { w ->
+                    val colorInt = SurfacePrimary.toArgb()
+                    w.navigationBarColor = colorInt
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        w.isNavigationBarContrastEnforced = false
+                    }
+                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+                }
+                onDispose {}
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .zIndex(998f)
+                ) {
+                    CustomToast(
+                        message = toastData.message ?: "",
+                        type = toastData.type
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(999f)
+                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                        .background(SurfacePrimary)
+                        .navigationBarsPadding()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 8.dp)
+                            .width(56.dp)
+                            .height(4.dp)
+                            .background(ContentTertiary, shape = SquircleShape(100))
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = headingTitle,
+                            style = JasnifyTheme.typography.displayLarge,
+                            color = ContentPrimary
+                        )
+                        TopBarIconButton(
+                            backgroundStyle = ButtonBackground.OPAQUE,
+                            icon = TopIcon.Predefined.CLOSE,
+                            iconSize = 18.dp,
+                            onClick = {
+                                showAddExpenseSheet = false
+                                expenseToEdit = null
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(543.dp)) {
+                        AddExpenseSheetContent(
+                            amountTextFieldValue = amountTextFieldValue,
+                            onAmountChange = { amountTextFieldValue = it },
+                            receiverName = receiverName,
+                            onReceiverChange = { receiverName = it },
+                            selectedCategory = selectedCategory,
+                            onCategorySelect = { selectedCategory = it },
+                            dynamicCategories = dynamicCategories,
+                            selectedEmoji = selectedEmoji,
+                            onEmojiChange = { selectedEmoji = it },
+                            onCustomCategoryClick = { showInnerCustomCategorySheet = true },
+                            onDismiss = {
+                                showAddExpenseSheet = false
+                                expenseToEdit = null
+                            },
+                            onSave = { amount, receiver, category ->
+                                if (amountTextFieldValue.text.isBlank()) {
+                                    toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                                } else if (selectedCategory.isBlank()) {
+                                    toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                                } else {
+                                    val formattedAmount = "₹${formatter.format(amount)}"
+                                    if (editingItem != null) {
+                                        allExpenses = allExpenses.map {
+                                            if (it.id == editingItem.id) {
+                                                it.copy(
+                                                    title = receiver.ifBlank { "Unnamed Receiver" },
+                                                    category = category.ifBlank { "Misc" },
+                                                    amount = formattedAmount,
+                                                    emoji = selectedEmoji.ifBlank { "💸" },
+                                                    lastUpdatedBy = "Anonymous",
+                                                    lastUpdatedDate = "Just now"
+                                                )
+                                            } else it
+                                        }
+                                    } else {
+                                        val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
+                                        allExpenses = listOf(ExpenseItem(
+                                            id = nextUniqueId,
+                                            title = receiver.ifBlank { "Unnamed Receiver" },
+                                            category = category.ifBlank { "Misc" },
+                                            amount = formattedAmount,
+                                            emoji = selectedEmoji.ifBlank { "💸" },
+                                            lastUpdatedBy = "Anonymous",
+                                            lastUpdatedDate = "Just now"
+                                        )) + allExpenses
+                                    }
+                                    toastData = ToastData("Expense Added!", ToastType.SUCCESS)
+                                    showAddExpenseSheet = false
+                                    expenseToEdit = null
+                                }
+                            }
+                        )
+                    }
                 }
             }
-        )
+        }
+
+        if (showInnerCustomCategorySheet) {
+            AddCustomCategoryBottomSheet(
+                sheetState = innerCustomCategorySheetState,
+                onDismiss = {
+                    coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
+                        showInnerCustomCategorySheet = false
+                    }
+                },
+                onAddCategory = { newCategory ->
+                    if (newCategory.isBlank()) {
+                        toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
+                    } else {
+                        if (!defaultCategories.contains(newCategory)) {
+                            defaultCategories = defaultCategories + newCategory
+                        }
+                        dynamicCategories = dynamicCategories + newCategory
+                        selectedCategory = newCategory
+                        coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
+                            showInnerCustomCategorySheet = false
+                        }
+                    }
+                }
+            )
+        }
     }
 
-    // Dynamic Category Add / Rename Screen Level Sheet Setup
     if (showAddCustomCategorySheet) {
-        AddCustomCategoryBottomSheet(
-            sheetState = addCustomCategorySheetState,
-            initialCategoryName = categoryToRename ?: "",
-            heading = if (categoryToRename != null) "Rename category" else "Add custom category",
-            onDismiss = {
+        ModalBottomSheet(
+            onDismissRequest = {
                 showAddCustomCategorySheet = false
                 categoryToRename = null
             },
-            onAddCategory = { inputName ->
-                if (inputName.isBlank()) {
-                    Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
-                } else {
-                    val originalName = categoryToRename
-                    if (originalName != null) {
-                        // RENAME ACTION FLOW
-                        if (originalName != inputName) {
-                            // Update our core template lists
-                            if (defaultCategories.contains(originalName)) {
-                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
-                            } else if (!defaultCategories.contains(inputName)) {
-                                defaultCategories = defaultCategories + inputName
-                            }
-
-                            // Ripple category rename changes across all matching physical expenses
-                            allExpenses = allExpenses.map { expense ->
-                                if (expense.category == originalName) {
-                                    expense.copy(category = inputName)
-                                } else {
-                                    expense
-                                }
-                            }
-
-                            // Keep Detail Screen active if we are currently inspecting the renamed category
-                            if (selectedCategoryForDetails == originalName) {
-                                selectedCategoryForDetails = inputName
-                            }
-                        }
-                    } else {
-                        // NEW ADD ACTION FLOW
-                        if (!defaultCategories.contains(inputName)) {
-                            defaultCategories = defaultCategories + inputName
-                        }
+            sheetState = addCustomCategorySheetState,
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+            dragHandle = null,
+            sheetGesturesEnabled = true,
+        ) {
+            val view = LocalView.current
+            DisposableEffect(view) {
+                var parent = view.parent
+                var dialogWindow: android.view.Window? = null
+                while (parent != null) {
+                    if (parent is DialogWindowProvider) {
+                        dialogWindow = parent.window
+                        break
                     }
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
+                    parent = parent.parent
+                }
+                dialogWindow?.let { w ->
+                    val colorInt = SurfacePrimary.toArgb()
+                    w.navigationBarColor = colorInt
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        w.isNavigationBarContrastEnforced = false
+                    }
+                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+                }
+                onDispose {}
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                        .zIndex(998f)
+                ) {
+                    CustomToast(
+                        message = toastData.message ?: "",
+                        type = toastData.type
+                    )
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(999f)
+                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                        .background(SurfacePrimary)
+                        .navigationBarsPadding()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 8.dp)
+                            .width(56.dp)
+                            .height(4.dp)
+                            .background(ContentTertiary, shape = SquircleShape(100))
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp)
+                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = if (categoryToRename != null) "Rename category" else "Add custom category",
+                            style = JasnifyTheme.typography.displayLarge,
+                            color = ContentPrimary
+                        )
+                        TopBarIconButton(
+                            backgroundStyle = ButtonBackground.OPAQUE,
+                            icon = TopIcon.Predefined.CLOSE,
+                            iconSize = 18.dp,
+                            onClick = {
+                                showAddCustomCategorySheet = false
+                                categoryToRename = null
+                            }
+                        )
+                    }
+
+                    Box(modifier = Modifier.fillMaxWidth().height(161.dp)) {
+                        AddCustomCategorySheetContent(
+                            onDismiss = {
+                                showAddCustomCategorySheet = false
+                                categoryToRename = null
+                            },
+                            onAddCategory = { inputName ->
+                                if (inputName.isBlank()) {
+                                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
+                                } else {
+                                    val originalName = categoryToRename
+                                    if (originalName != null) {
+                                        if (originalName != inputName) {
+                                            if (defaultCategories.contains(originalName)) {
+                                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
+                                            } else if (!defaultCategories.contains(inputName)) {
+                                                defaultCategories = defaultCategories + inputName
+                                            }
+                                            allExpenses = allExpenses.map { expense ->
+                                                if (expense.category == originalName) expense.copy(category = inputName) else expense
+                                            }
+                                            if (selectedCategoryForDetails == originalName) {
+                                                selectedCategoryForDetails = inputName
+                                            }
+                                        }
+                                    } else {
+                                        if (!defaultCategories.contains(inputName)) {
+                                            defaultCategories = defaultCategories + inputName
+                                        }
+                                    }
+                                    showAddCustomCategorySheet = false
+                                    categoryToRename = null
+                                }
+                            },
+                            initialCategoryName = categoryToRename ?: ""
+                        )
+                    }
                 }
             }
-        )
+        }
     }
 
-    // Modal Sheet integration for Delete confirmation flow
     if (expenseToDelete != null) {
         CustomDeleteSheet(
             heading = "Are you sure?",
@@ -1489,7 +1849,6 @@ fun BudgetScreen(
         )
     }
 
-    // Modal Sheet integration for Edit Budget Flow
     if (showEditBudgetSheet) {
         EditBudgetBottomSheet(
             initialBudgetValue = budgetValue,
@@ -1504,7 +1863,6 @@ fun BudgetScreen(
         )
     }
 
-    // Custom Menu Bottom Sheet
     if (showMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
@@ -1521,7 +1879,7 @@ fun BudgetScreen(
                     icon = painterResource(R.drawable.ic_user_default),
                     onClick = {
                         showMenuBottomSheet = false
-                        // Handle Manage Room Access action flow here
+                        currentView = BudgetScreenView.MANAGE_ROOM_ACCESS
                     }
                 ),
                 MenuSheetActionItem(
@@ -1539,7 +1897,6 @@ fun BudgetScreen(
         )
     }
 
-    // Custom Category-specific Menu Bottom Sheet
     if (showCategoryMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
@@ -1579,7 +1936,6 @@ fun BudgetScreen(
         )
     }
 
-    // Modal Sheet integration for Category Delete confirmation flow
     if (categoryToDeleteConfirm != null) {
         CustomDeleteSheet(
             heading = "Are you sure?",
@@ -1591,11 +1947,64 @@ fun BudgetScreen(
             onConfirmRemove = {
                 val categoryToDelete = categoryToDeleteConfirm
                 if (categoryToDelete != null) {
-                    // Filter out both physical category templates & all associated transactions
                     allExpenses = allExpenses.filter { it.category != categoryToDelete }
                     defaultCategories = defaultCategories.filter { it != categoryToDelete }
                 }
                 categoryToDeleteConfirm = null
+            }
+        )
+    }
+
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "Copy Link",
+                    icon = painterResource(R.drawable.ic_link),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Add New Members",
+                    icon = painterResource(R.drawable.ic_plus),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                    // Handle add new members logic
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Leave Room",
+                    icon = painterResource(R.drawable.ic_logout),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        currentView = BudgetScreenView.BUDGET_TRACKER
+                    },
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (userToRemove != null) {
+        CustomDeleteSheet(
+            heading = "Remove Member from Budget Tracker?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirmRemove = {
+                val target = userToRemove
+                if (target != null) {
+                    budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                }
+                userToRemove = null
             }
         )
     }

@@ -89,6 +89,7 @@ fun RoomProfileBottomSheet(
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
         containerColor = SurfaceSecondary,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
         dragHandle = {
             // Elegant matching drag handle
             Box(

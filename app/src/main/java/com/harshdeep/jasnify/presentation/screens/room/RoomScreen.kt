@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -39,48 +41,44 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoomScreen(
+    allUsers: List<User>,
+    currentUserRole: UserRole,
+    isSelf: (User) -> Boolean,
+    onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
+    onRoleChange: (User, UserRole) -> Unit,
+    onRemove: (User) -> Unit,
+    onReport: (User) -> Unit,
+    onLeave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
 
-    // Sample data to match the image
-    val allUsers = remember {
-        listOf(
-            User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
-            User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
-        )
-    }
-
-    val filteredUsers = allUsers.filter {
-        it.name.contains(searchQuery, ignoreCase = true) ||
-                it.username.contains(searchQuery, ignoreCase = true)
+    // Efficiently filter users only when allUsers list or search query changes
+    val filteredUsers = remember(allUsers, searchQuery) {
+        allUsers.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.username.contains(searchQuery, ignoreCase = true)
+        }
     }
 
     Scaffold(
         topBar = {
             CustomTopBar(
                 title = "Manage Room Access",
-                onBackClick = {
-
-                },
+                onBackClick = onBackClick,
                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                onMenuClick = {
-
-                },
+                onMenuClick = onMenuClick,
                 backIcon = TopIcon.Predefined.BACK,
                 buttonStyle = ButtonBackground.TRANSLUCENT,
                 translucentAlpha = 0.5f
             )
         },
-        containerColor = BackgroundSecondary,
         modifier = modifier.fillMaxSize()
+            .statusBarsPadding(),
+        containerColor = BackgroundSecondary,
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -102,7 +100,8 @@ fun RoomScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(CornerExtraLarge))
-                    .background(Color.Transparent),
+                    .background(Color.Transparent)
+                    .navigationBarsPadding(),
             ) {
                 itemsIndexed(filteredUsers) { index, user ->
                     val isFirst = index == 0
@@ -123,7 +122,7 @@ fun RoomScreen(
                             selectedUser = user
                             showBottomSheet = true
                         },
-                        modifier = Modifier.padding(bottom = 1.dp)
+                        modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
             }
@@ -133,13 +132,25 @@ fun RoomScreen(
     if (showBottomSheet && selectedUser != null) {
         RoomProfileBottomSheet(
             user = selectedUser!!,
-            currentUserRole = UserRole.OWNER,
-            isSelf = false,
+            currentUserRole = currentUserRole,
+            isSelf = isSelf(selectedUser!!),
             onDismissRequest = { showBottomSheet = false },
-            onRoleChange = { /* Handle role change */ },
-            onRemove = { /* Handle remove */ },
-            onReport = { /* Handle report */ },
-            onLeave = { /* Handle leave */ }
+            onRoleChange = { newRole ->
+                onRoleChange(selectedUser!!, newRole)
+                showBottomSheet = false
+            },
+            onRemove = {
+                onRemove(selectedUser!!)
+                showBottomSheet = false
+            },
+            onReport = {
+                onReport(selectedUser!!)
+                showBottomSheet = false
+            },
+            onLeave = {
+                onLeave()
+                showBottomSheet = false
+            }
         )
     }
 }
@@ -147,7 +158,27 @@ fun RoomScreen(
 @Preview(showBackground = true)
 @Composable
 fun RoomScreenPreview() {
+    val sampleUsers = listOf(
+        User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+        User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+    )
+
     JasnifyTheme {
-        RoomScreen()
+        RoomScreen(
+            allUsers = sampleUsers,
+            currentUserRole = UserRole.OWNER,
+            isSelf = { it.username == "viratanand" },
+            onBackClick = {},
+            onMenuClick = {},
+            onRoleChange = { _, _ -> },
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
     }
 }
