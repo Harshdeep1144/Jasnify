@@ -1424,6 +1424,7 @@ fun BudgetScreen(
                                 isSelf = { it.username == "viratanand" },
                                 onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
                                 onMenuClick = {
+                                    focusManager.clearFocus()
                                     showRoomMenuBottomSheet = true
                                 },
                                 onRoleChange = { targetUser, newRole ->

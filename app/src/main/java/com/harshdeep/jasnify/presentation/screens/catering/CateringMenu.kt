@@ -2,9 +2,11 @@ package com.harshdeep.jasnify.presentation.screens.catering
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -33,7 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -47,6 +48,8 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -55,6 +58,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -75,6 +80,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
@@ -86,6 +92,11 @@ data class MenuItem(
     val type: String,
     val cuisine: String = "Indian"
 )
+
+enum class CateringMenuView {
+    MENU,
+    MANAGE_ROOM_ACCESS
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,6 +112,28 @@ fun CateringMenuScreen(
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
         focusManager.clearFocus()
+    }
+
+    var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
+
+    // User Directory State initialized inside Catering Menu
+    var cateringRoomUsers by remember {
+        mutableStateOf(
+            listOf(
+                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+            )
+        )
+    }
+
+    // SYSTEM BACK BUTTON HANDLER
+    BackHandler(enabled = currentView != CateringMenuView.MENU) {
+        currentView = CateringMenuView.MENU
     }
 
     var selectedFilterTab by remember { mutableStateOf("All Items") }
@@ -152,6 +185,10 @@ fun CateringMenuScreen(
     // Selected state trackers for specific filters
     var selectedCuisines by remember { mutableStateOf(emptySet<String>()) }
     var selectedTypes by remember { mutableStateOf(emptySet<String>()) }
+
+    var showMenuBottomSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
 
     val allMenuItems = remember {
         mutableStateListOf(
@@ -231,266 +268,326 @@ fun CateringMenuScreen(
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            topBar = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .animateContentSize(animationSpec = tween(durationMillis = 250))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(SurfaceBrandPrimary)
-                            .animateContentSize(animationSpec = tween(durationMillis = 250))
-                    ) {
-                        Spacer(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .windowInsetsTopHeight(WindowInsets.statusBars)
-                        )
-
-                        AnimatedVisibility(
-                            visible = !isSearchActive,
-                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(animationSpec = tween(250)),
-                            exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(animationSpec = tween(250))
-                        ) {
-                            CustomTopBar(
-                                title = "Catering Menu",
-                                onBackClick = {
-                                    focusManager.clearFocus()
-                                    onBackClick()
-                                },
-                                onMenuClick = { focusManager.clearFocus() },
-                                isLargeTitle = true,
-                                buttonStyle = ButtonBackground.TRANSLUCENT,
-                                textColor = ContentInvPrimary,
-                            )
-                        }
-                    }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(searchBarParentBg)
-                            .padding(
-                                top = 12.dp,
-                                bottom = if (isSearchActive) 12.dp else 0.dp,
-                                start = 12.dp,
-                                end = 12.dp
-                            )
-                    ) {
-                        CustomSearchBar(
-                            value = searchText,
-                            onValueChange = { searchText = it },
-                            onActiveChange = { isSearchActive = it }
-                        )
-                    }
-                }
-            }
-        ) { paddingValues ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(BackgroundPrimary)
-                    // Clear focus when tapping anywhere on the main empty background
-                    .pointerInput(Unit) {
-                        detectTapGestures(onTap = { focusManager.clearFocus() })
-                    }
-                    .padding(paddingValues)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    LazyRow(
-                        state = rememberLazyListState(),
-                        contentPadding = PaddingValues(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        item {
-                            FilterChip(
-                                label = "All Items",
-                                isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
-                                shapeStyle = ChipShapeStyle.Round,
-                                hasStroke = true,
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    selectedFilterTab = "All Items"
-                                    selectedCuisines = emptySet()
-                                    selectedTypes = emptySet()
-                                }
-                            )
-                        }
-                        item {
-                            FoodChip(
-                                foodType = Dietary.Veg,
-                                isSelected = selectedFilterTab == "Veg",
-                                shapeStyle = ChipShapeStyle.Round,
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    selectedFilterTab = "Veg"
-                                }
-                            )
-                        }
-                        item {
-                            FoodChip(
-                                foodType = Dietary.NonVeg,
-                                isSelected = selectedFilterTab == "Non-Veg",
-                                shapeStyle = ChipShapeStyle.Round,
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    selectedFilterTab = "Non-Veg"
-                                }
-                            )
-                        }
-
-                        item {
-                            val hasSelectedCuisines = selectedCuisines.isNotEmpty()
-                            val cuisineLabel = if (hasSelectedCuisines) {
-                                "Cuisine (${selectedCuisines.size})"
-                            } else {
-                                "Cuisine"
-                            }
-                            FilterChip(
-                                label = cuisineLabel,
-                                isSelected = hasSelectedCuisines,
-                                shapeStyle = ChipShapeStyle.Round,
-                                hasStroke = true,
-                                hasDropdown = true,
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    showCuisineBottomSheet = true
-                                }
-                            )
-                        }
-
-                        item {
-                            val hasSelectedTypes = selectedTypes.isNotEmpty()
-                            val typeLabel = if (hasSelectedTypes) {
-                                "Type (${selectedTypes.size})"
-                            } else {
-                                "Type"
-                            }
-                            FilterChip(
-                                label = typeLabel,
-                                isSelected = hasSelectedTypes,
-                                shapeStyle = ChipShapeStyle.Round,
-                                hasStroke = true,
-                                hasDropdown = true,
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    showTypeBottomSheet = true
-                                }
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    if (categorizedItems.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.TopCenter
-                        ) {
+        AnimatedContent(
+            targetState = currentView,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+            },
+            label = "CateringMenuTransition"
+        ) { targetScreen ->
+            when (targetScreen) {
+                CateringMenuView.MENU -> {
+                    Scaffold(
+                        topBar = {
                             Column(
-                                modifier = Modifier.padding(top = 32.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .animateContentSize(animationSpec = tween(durationMillis = 250))
                             ) {
-                                Text(
-                                    text = "No items match your filters",
-                                    style = JasnifyTheme.typography.headingMedium,
-                                    color = ContentSecondary
-                                )
-                                Text(
-                                    text = "Try adjusting your search query or categories.",
-                                    style = JasnifyTheme.typography.bodyMedium,
-                                    color = ContentTertiary
-                                )
-                            }
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentPadding = PaddingValues(
-                                bottom = 80.dp
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            categorizedItems.forEach { (category, items) ->
-                                item {
-                                    MenuCategoryCard(
-                                        categoryTitle = category,
-                                        items = items,
-                                        onItemClick = { item ->
-                                            focusManager.clearFocus()
-                                            selectedItemForDetails = item
-                                            showDetailsBottomSheet = true
-                                        },
-                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(SurfaceBrandPrimary)
+                                        .animateContentSize(animationSpec = tween(durationMillis = 250))
+                                ) {
+                                    Spacer(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                                    )
+
+                                    AnimatedVisibility(
+                                        visible = !isSearchActive,
+                                        enter = fadeIn(animationSpec = tween(150)) + expandVertically(
+                                            animationSpec = tween(250)
+                                        ),
+                                        exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(
+                                            animationSpec = tween(250)
+                                        )
+                                    ) {
+                                        CustomTopBar(
+                                            title = "Catering Menu",
+                                            onBackClick = {
+                                                focusManager.clearFocus()
+                                                onBackClick()
+                                            },
+                                            onMenuClick = {
+                                                focusManager.clearFocus()
+                                                showMenuBottomSheet = true
+                                            },
+                                            isLargeTitle = true,
+                                            buttonStyle = ButtonBackground.TRANSLUCENT,
+                                            textColor = ContentInvPrimary,
+                                        )
+                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(searchBarParentBg)
+                                        .padding(
+                                            top = 12.dp,
+                                            bottom = if (isSearchActive) 12.dp else 0.dp,
+                                            start = 12.dp,
+                                            end = 12.dp
+                                        )
+                                ) {
+                                    CustomSearchBar(
+                                        value = searchText,
+                                        onValueChange = { searchText = it },
+                                        onActiveChange = { isSearchActive = it }
                                     )
                                 }
                             }
+                        }
+                    ) { paddingValues ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(BackgroundPrimary)
+                                // Clear focus when tapping anywhere on the main empty background
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                                }
+                                .padding(paddingValues)
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                Spacer(modifier = Modifier.height(12.dp))
 
-                            item {
-                                FooterJansify()
+                                LazyRow(
+                                    state = rememberLazyListState(),
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    item {
+                                        FilterChip(
+                                            label = "All Items",
+                                            isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            hasStroke = true,
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                selectedFilterTab = "All Items"
+                                                selectedCuisines = emptySet()
+                                                selectedTypes = emptySet()
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        FoodChip(
+                                            foodType = Dietary.Veg,
+                                            isSelected = selectedFilterTab == "Veg",
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                selectedFilterTab = "Veg"
+                                            }
+                                        )
+                                    }
+                                    item {
+                                        FoodChip(
+                                            foodType = Dietary.NonVeg,
+                                            isSelected = selectedFilterTab == "Non-Veg",
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                selectedFilterTab = "Non-Veg"
+                                            }
+                                        )
+                                    }
+
+                                    item {
+                                        val hasSelectedCuisines = selectedCuisines.isNotEmpty()
+                                        val cuisineLabel = if (hasSelectedCuisines) {
+                                            "Cuisine (${selectedCuisines.size})"
+                                        } else {
+                                            "Cuisine"
+                                        }
+                                        FilterChip(
+                                            label = cuisineLabel,
+                                            isSelected = hasSelectedCuisines,
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            hasStroke = true,
+                                            hasDropdown = true,
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                showCuisineBottomSheet = true
+                                            }
+                                        )
+                                    }
+
+                                    item {
+                                        val hasSelectedTypes = selectedTypes.isNotEmpty()
+                                        val typeLabel = if (hasSelectedTypes) {
+                                            "Type (${selectedTypes.size})"
+                                        } else {
+                                            "Type"
+                                        }
+                                        FilterChip(
+                                            label = typeLabel,
+                                            isSelected = hasSelectedTypes,
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            hasStroke = true,
+                                            hasDropdown = true,
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                showTypeBottomSheet = true
+                                            }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                if (categorizedItems.isEmpty()) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        contentAlignment = Alignment.TopCenter
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(top = 32.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Text(
+                                                text = "No items match your filters",
+                                                style = JasnifyTheme.typography.headingMedium,
+                                                color = ContentSecondary
+                                            )
+                                            Text(
+                                                text = "Try adjusting your search query or categories.",
+                                                style = JasnifyTheme.typography.bodyMedium,
+                                                color = ContentTertiary
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        contentPadding = PaddingValues(
+                                            bottom = 80.dp
+                                        ),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        categorizedItems.forEach { (category, items) ->
+                                            item {
+                                                MenuCategoryCard(
+                                                    categoryTitle = category,
+                                                    items = items,
+                                                    onItemClick = { item ->
+                                                        focusManager.clearFocus()
+                                                        selectedItemForDetails = item
+                                                        showDetailsBottomSheet = true
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                                )
+                                            }
+                                        }
+
+                                        item {
+                                            FooterJansify()
+                                        }
+                                    }
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.BottomCenter)
+                                    .background(
+                                        brush = Brush.verticalGradient(
+                                            colorStops = arrayOf(
+                                                0.0f to Color.Transparent,
+                                                0.55f to Color.Transparent,
+                                                0.85f to BackgroundPrimary.copy(alpha = 0.85f),
+                                                1.0f to BackgroundPrimary
+                                            )
+                                        )
+                                    )
+                                    .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 16.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CustomTextButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            /* Handle Suggestions */
+                                        },
+                                        text = "AI Suggestions",
+                                        type = ButtonType.Secondary,
+                                        shapeStyle = ButtonShapeStyle.Round,
+                                        leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+
+                                    CustomTextButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            editingItem = null
+                                            newItemName = ""
+                                            newItemCuisine = "Indian"
+                                            newItemType = "Starters"
+                                            newItemDietary = Dietary.Veg
+                                            showAddItemSheet = true
+                                        },
+                                        text = "Add an Item",
+                                        type = ButtonType.Primary,
+                                        shapeStyle = ButtonShapeStyle.Round,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to Color.Transparent,
-                                    0.55f to Color.Transparent,
-                                    0.85f to BackgroundPrimary.copy(alpha = 0.85f),
-                                    1.0f to BackgroundPrimary
-                                )
-                            )
-                        )
-                        .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                CateringMenuView.MANAGE_ROOM_ACCESS -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(BackgroundSecondary)
+                            .pointerInput(Unit) {
+                                detectTapGestures(onTap = { focusManager.clearFocus() })
+                            }
                     ) {
-                        CustomTextButton(
-                            onClick = {
+                        RoomScreen(
+                            allUsers = cateringRoomUsers,
+                            currentUserRole = UserRole.OWNER,
+                            isSelf = { it.username == "viratanand" },
+                            onBackClick = {
+                                currentView = CateringMenuView.MENU
                                 focusManager.clearFocus()
-                                /* Handle Suggestions */
                             },
-                            text = "AI Suggestions",
-                            type = ButtonType.Secondary,
-                            shapeStyle = ButtonShapeStyle.Round,
-                            leadingIcon = painterResource(id = R.drawable.ic_ai),
-                        )
-                        Spacer(Modifier.width(8.dp))
-
-                        CustomTextButton(
-                            onClick = {
+                            onMenuClick = {
+                                showRoomMenuBottomSheet = true
                                 focusManager.clearFocus()
-                                editingItem = null
-                                newItemName = ""
-                                newItemCuisine = "Indian"
-                                newItemType = "Starters"
-                                newItemDietary = Dietary.Veg
-                                showAddItemSheet = true
                             },
-                            text = "Add an Item",
-                            type = ButtonType.Primary,
-                            shapeStyle = ButtonShapeStyle.Round,
-                            modifier = Modifier.weight(1f)
+                            onRoleChange = { targetUser, newRole ->
+                                cateringRoomUsers = cateringRoomUsers.map { user ->
+                                    if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                }
+                            },
+                            onRemove = { targetUser ->
+                                userToRemove = targetUser
+                            },
+                            onReport = { targetUser ->
+                                toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                            },
+                            onLeave = {
+                                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                                currentView = CateringMenuView.MENU
+                            },
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
@@ -499,7 +596,7 @@ fun CateringMenuScreen(
 
         // --- Screen-level CustomToast Display (Shown ONLY when Bottom Sheets are hidden) ---
         AnimatedVisibility(
-            visible = toastData.message != null && !showAddItemSheet && !showDetailsBottomSheet && !showDeleteConfirmationSheet,
+            visible = toastData.message != null && !showAddItemSheet && !showDetailsBottomSheet && !showDeleteConfirmationSheet && !showMenuBottomSheet && !showRoomMenuBottomSheet && userToRemove == null,
             enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
             modifier = Modifier
@@ -700,6 +797,7 @@ fun CateringMenuScreen(
                         TopBarIconButton(
                             backgroundStyle = ButtonBackground.OPAQUE,
                             icon = TopIcon.Predefined.CLOSE,
+                            iconSize = 18.dp,
                             onClick = {
                                 coroutineScope.launch { addItemBottomSheetState.hide() }.invokeOnCompletion {
                                     showAddItemSheet = false
@@ -824,6 +922,84 @@ fun CateringMenuScreen(
                 showAddTypeBottomSheet = false
             },
             isMultiSelect = false
+        )
+    }
+
+    if (showMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "Add an item",
+                    icon = painterResource(R.drawable.ic_plus),
+                    onClick = {
+                        showAddItemSheet = true
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Manage Room Access",
+                    icon = painterResource(R.drawable.ic_user_default),
+                    onClick = {
+                        showMenuBottomSheet = false
+                        currentView = CateringMenuView.MANAGE_ROOM_ACCESS
+                    }
+                ),
+            ),
+            onCancelClick = {
+                showMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "Copy Link",
+                    icon = painterResource(R.drawable.ic_link),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Add New Members",
+                    icon = painterResource(R.drawable.ic_plus),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                    },
+                ),
+                MenuSheetActionItem(
+                    text = "Leave Room",
+                    icon = painterResource(R.drawable.ic_logout),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        currentView = CateringMenuView.MENU
+                    },
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (userToRemove != null) {
+        CustomDeleteSheet(
+            heading = "Remove Member from Catering Menu?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirmRemove = {
+                val target = userToRemove
+                if (target != null) {
+                    cateringRoomUsers = cateringRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            }
         )
     }
 }
