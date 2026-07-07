@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.room
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.User
@@ -52,6 +55,7 @@ fun RoomScreen(
     onLeave: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
@@ -85,6 +89,9 @@ fun RoomScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .padding(12.dp)
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = { focusManager.clearFocus() })
+                }
         ) {
             CustomSearchBar(
                 value = searchQuery,
@@ -130,6 +137,7 @@ fun RoomScreen(
     }
 
     if (showBottomSheet && selectedUser != null) {
+        focusManager.clearFocus()
         RoomProfileBottomSheet(
             user = selectedUser!!,
             currentUserRole = currentUserRole,
