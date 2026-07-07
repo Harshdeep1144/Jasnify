@@ -411,7 +411,7 @@ fun ChecklistsTab() {
                                 icon = painterResource(R.drawable.ic_plus),
                                 size = ButtonSize.Large,
                                 modifier = Modifier
-                                    .offset(y = 12.dp)
+                                    .offset(y = 20.dp)
                                     .shadow(16.dp, CircleShape)
                             )
                         },
