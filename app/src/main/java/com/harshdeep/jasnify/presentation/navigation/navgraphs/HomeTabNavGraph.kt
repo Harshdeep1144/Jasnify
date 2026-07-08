@@ -24,8 +24,7 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(route = Screen.HomeTabScreen.Checklists.route) {
-        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
-        ChecklistsTab()
+        ChecklistsTab(onBottomBarVisibilityChange = onBottomBarVisibilityChange)
     }
 
     composable(route = Screen.HomeTabScreen.Vendors.route) {
