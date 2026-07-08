@@ -37,7 +37,6 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerShee
 import com.harshdeep.jasnify.presentation.components.buttons.*
 import com.harshdeep.jasnify.presentation.components.chip.EventTypeChip
 import com.harshdeep.jasnify.presentation.components.inputfield.BudgetInput
-import com.harshdeep.jasnify.presentation.components.inputfield.CornerType
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.*
@@ -477,7 +476,7 @@ fun EventNameContent(
                 keyboardType = KeyboardType.Text,
                 value = eventData.eventName,
                 onValueChange = { updateEventData(eventData.copy(eventName = it)) },
-                cornerType = CornerType.MESSAGE
+                shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
             )
 
             Text(

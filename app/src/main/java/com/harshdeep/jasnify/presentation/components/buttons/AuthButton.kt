@@ -40,8 +40,6 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.Outfit
 import sv.lib.squircleshape.SquircleShape
 
-val defaultBorder = BorderStroke(1.dp, ContentPrimary)
-
 @Composable
 fun AuthButton(
     onClick: () -> Unit,
@@ -51,12 +49,16 @@ fun AuthButton(
     iconSize: Dp = 24.dp,
     enabled: Boolean = true,
     shapeStyle: ButtonShapeStyle = ButtonShapeStyle.Square,
-    badgeText: String? = null // Added optional badge parameter
+    badgeText: String? = null,
+    borderColor: Color = ContentPrimary // Added customizable border color parameter
 ) {
     val size = ButtonSize.Medium
     val type = ButtonType.Tertiary
     val (colors, height, shape) = getButtonStyles(size, type, shapeStyle)
     val contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+
+    // Dynamic border based on enabled state and input color
+    val buttonBorder = if (enabled) BorderStroke(1.dp, borderColor) else BorderStroke(1.dp, ContentSecondary)
 
     if (badgeText != null) {
         Box(modifier = modifier.fillMaxWidth()) {
@@ -89,7 +91,7 @@ fun AuthButton(
                 shape = shape,
                 colors = colors,
                 contentPadding = contentPadding,
-                border = if (enabled) defaultBorder else BorderStroke(1.dp, ContentSecondary)
+                border = buttonBorder
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
@@ -120,7 +122,7 @@ fun AuthButton(
             shape = shape,
             colors = colors,
             contentPadding = contentPadding,
-            border = if (enabled) defaultBorder else BorderStroke(1.dp, ContentSecondary)
+            border = buttonBorder
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
@@ -154,17 +156,18 @@ fun AuthButtonPreview() {
             .fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Google sign-in with "Fastest & Most Used" badge header
+        // 1. Google sign-in with a custom red border color
         AuthButton(
             onClick = { },
             text = "Continue with Google",
             icon = painterResource(id = R.drawable.ic_google),
-            badgeText = "Fastest & Most Used"
+            badgeText = "Fastest & Most Used",
+            borderColor = Color(0xFF008E11).copy(0.8f),
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // 2. Standard Email sign-in option (unbadged)
+        // 2. Standard Email sign-in option (uses default ContentPrimary border)
         AuthButton(
             onClick = { },
             text = "Sign in with Email",

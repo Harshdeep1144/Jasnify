@@ -73,7 +73,6 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
 import com.harshdeep.jasnify.presentation.components.chip.FoodChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.inputfield.CornerType
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
@@ -1274,7 +1273,6 @@ fun AddItemSheetContent(
                     onValueChange = onItemNameChange,
                     placeholder = "Type or Search a dish",
                     trailingIcon = painterResource(id = R.drawable.ic_ai),
-                    cornerType = CornerType.DEFAULT,
                     textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
                 )
             }
@@ -1304,7 +1302,6 @@ fun AddItemSheetContent(
                                 onValueChange = {},
                                 placeholder = cuisine,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
-                                cornerType = CornerType.DEFAULT,
                                 trailingIconEnabled = true,
                                 textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
                             )
@@ -1336,7 +1333,6 @@ fun AddItemSheetContent(
                                 onValueChange = {},
                                 placeholder = type,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
-                                cornerType = CornerType.DEFAULT,
                                 textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary),
                                 trailingIconEnabled = true
                             )
