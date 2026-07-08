@@ -73,6 +73,10 @@ import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
@@ -88,19 +92,50 @@ sealed interface ChecklistScreenState {
     object List : ChecklistScreenState
     data class Detail(val checklist: Checklist?, val isAddingNew: Boolean) : ChecklistScreenState
     object Archives : ChecklistScreenState
+    object ManageRoomAccess : ChecklistScreenState
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun ChecklistsTab() {
+fun ChecklistsTab(
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {}
+) {
     var isGridView by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("All") }
     var showMenuSheet by remember { mutableStateOf(false) }
     var selectedChecklist by remember { mutableStateOf<Checklist?>(null) }
     var isAddingNew by remember { mutableStateOf(false) }
     var showArchives by remember { mutableStateOf(false) }
+    var showRoomAccess by remember { mutableStateOf(false) }
     var navigatedFromArchives by remember { mutableStateOf(false) }
     var showDiscardToast by remember { mutableStateOf(false) }
+
+    // --- Toast State Management ---
+    var toastData by remember { mutableStateOf(ToastData()) }
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
+    // User Directory State
+    var budgetRoomUsers by remember {
+        mutableStateOf(
+            listOf(
+                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+            )
+        )
+    }
+
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
 
     // Search and Focus states
     var isSearchActive by remember { mutableStateOf(false) }
@@ -113,7 +148,7 @@ fun ChecklistsTab() {
     // Core focusManager integration
     val focusManager = LocalFocusManager.current
 
-    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives) {
+    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives, showRoomAccess) {
         when {
             selectedChecklist != null || isAddingNew -> {
                 ChecklistScreenState.Detail(selectedChecklist, isAddingNew)
@@ -121,10 +156,17 @@ fun ChecklistsTab() {
             showArchives -> {
                 ChecklistScreenState.Archives
             }
+            showRoomAccess -> {
+                ChecklistScreenState.ManageRoomAccess
+            }
             else -> {
                 ChecklistScreenState.List
             }
         }
+    }
+
+    LaunchedEffect(currentScreen) {
+        onBottomBarVisibilityChange(currentScreen == ChecklistScreenState.List)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -144,21 +186,18 @@ fun ChecklistsTab() {
         }
     }
 
-    BackHandler(enabled = selectedChecklist != null || isAddingNew || showArchives || isSearchActive) {
+    // Parent BackHandler only manages non-detail screen transitions (Archives & Search)
+    // Detail Screen manages its own back behavior now to ensure autocompletion/saving of changes.
+    BackHandler(enabled = showArchives || isSearchActive || showRoomAccess) {
         focusManager.clearFocus()
         if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
             wasFocused = false
-        } else if (selectedChecklist != null || isAddingNew) {
-            selectedChecklist = null
-            isAddingNew = false
-            if (navigatedFromArchives) {
-                showArchives = true
-                navigatedFromArchives = false
-            }
         } else if (showArchives) {
             showArchives = false
+        } else if (showRoomAccess) {
+            showRoomAccess = false
         }
     }
 
@@ -241,6 +280,7 @@ fun ChecklistsTab() {
                 is ChecklistScreenState.Detail -> {
                     ChecklistDetailScreen(
                         checklist = targetScreenState.checklist,
+                        isAddingNew = targetScreenState.isAddingNew,
                         onBackClick = { updatedChecklist ->
                             focusManager.clearFocus()
                             if (updatedChecklist != null) {
@@ -326,6 +366,43 @@ fun ChecklistsTab() {
                             navigatedFromArchives = true
                         }
                     )
+                }
+                ChecklistScreenState.ManageRoomAccess -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(SurfaceSecondary)
+                    ){
+                        RoomScreen(
+                            allUsers = budgetRoomUsers,
+                            currentUserRole = UserRole.OWNER,
+                            isSelf = { it.username == "viratanand" },
+                            onBackClick = {
+                                focusManager.clearFocus()
+                                showRoomAccess = false
+                            },
+                            onMenuClick = {
+                                focusManager.clearFocus()
+                                showRoomMenuBottomSheet = true
+                            },
+                            onRoleChange = { targetUser, newRole ->
+                                budgetRoomUsers = budgetRoomUsers.map { user ->
+                                    if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                }
+                            },
+                            onRemove = { targetUser ->
+                                userToRemove = targetUser
+                            },
+                            onReport = { targetUser ->
+                                toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                            },
+                            onLeave = {
+                                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                                showRoomAccess = false
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
                 ChecklistScreenState.List -> {
                     Scaffold(
@@ -566,7 +643,10 @@ fun ChecklistsTab() {
                 MenuSheetActionItem(
                     text = "Manage Room Access",
                     icon = painterResource(R.drawable.ic_user_default),
-                    onClick = { showMenuSheet = false }
+                    onClick = {
+                        showMenuSheet = false
+                        showRoomAccess = true
+                    }
                 ),
                 MenuSheetActionItem(
                     text = "Help & Feedback",
@@ -578,12 +658,66 @@ fun ChecklistsTab() {
         )
     }
 
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                MenuSheetActionItem(
+                    text = "Copy Link",
+                    icon = painterResource(R.drawable.ic_link),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Add New Members",
+                    icon = painterResource(R.drawable.ic_plus),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        // Handle add new members logic
+                    }
+                ),
+                MenuSheetActionItem(
+                    text = "Leave Room",
+                    icon = painterResource(R.drawable.ic_logout),
+                    onClick = {
+                        showRoomMenuBottomSheet = false
+                        showRoomAccess = false
+                    },
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (userToRemove != null) {
+        CustomDeleteSheet(
+            heading = "Remove Member from Checklist Room?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirmRemove = {
+                val target = userToRemove
+                if (target != null) {
+                    budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            }
+        )
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.BottomCenter
     ) {
         AnimatedVisibility(
-            visible = showDiscardToast,
+            visible = showDiscardToast || toastData.message != null,
             enter = slideInVertically(initialOffsetY = { fullHeight -> fullHeight + 500 }),
             exit = slideOutVertically(targetOffsetY = { fullHeight -> fullHeight + 500 }),
             modifier = Modifier
@@ -593,8 +727,8 @@ fun ChecklistsTab() {
                 .zIndex(100f)
         ) {
             CustomToast(
-                message = "Empty list discarded",
-                type = ToastType.DEFAULT
+                message = toastData.message ?: "Empty list discarded",
+                type = toastData.type
             )
         }
     }
@@ -611,6 +745,7 @@ fun ChecklistsTab() {
 @Composable
 fun ChecklistDetailScreen(
     checklist: Checklist? = null,
+    isAddingNew: Boolean = false,
     onBackClick: (Checklist?) -> Unit,
     onDelete: (String) -> Unit = {},
     onTogglePin: (String) -> Unit = {},
@@ -642,6 +777,9 @@ fun ChecklistDetailScreen(
 
     val focusManager = LocalFocusManager.current
 
+    // Focus Requester specifically mapped to the heading / title text field
+    val titleFocusRequester = remember { FocusRequester() }
+
     // Generate/Reuse the active card timestamp dynamically
     val cardDateTimeString = remember {
         checklist?.dateTime ?: run {
@@ -658,6 +796,14 @@ fun ChecklistDetailScreen(
         if (history.isEmpty()) {
             history.add(Pair(title, items))
             historyIndex = 0
+        }
+    }
+
+    // Automated focusing behavior with slight delay to ensure entry transitions finish gracefully
+    LaunchedEffect(isAddingNew) {
+        if (isAddingNew) {
+            delay(250.milliseconds) // Provides enough buffer for UI components & transitions to settle
+            titleFocusRequester.requestFocus()
         }
     }
 
@@ -689,6 +835,21 @@ fun ChecklistDetailScreen(
             title = snapshot.first
             items = snapshot.second
         }
+    }
+
+    // Auto-save handling for System Back gesture and hardware button back press
+    BackHandler {
+        focusManager.clearFocus()
+        val cleanedItems = items.filter { it.text.isNotBlank() }
+        val result = Checklist(
+            id = checklist?.id ?: UUID.randomUUID().toString(),
+            title = title,
+            dateTime = cardDateTimeString,
+            items = cleanedItems,
+            bgColor = bgColor,
+            isPinned = isPinned
+        )
+        onBackClick(result)
     }
 
     val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
@@ -766,14 +927,11 @@ fun ChecklistDetailScreen(
                 focusManager.clearFocus()
             }
     ) { paddingValues ->
-        val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-        val adjustedBottomPadding = (imeBottomPadding - 100.dp).coerceAtLeast(0.dp)
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(bottom = adjustedBottomPadding)
+                .imePadding() // Automatically docks layout and toolbar above system keyboard when on
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -799,8 +957,15 @@ fun ChecklistDetailScreen(
                         title = it
                         saveToHistory(it, items)
                     },
-                    textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                    modifier = Modifier.fillMaxWidth().then(sharedTitleModifier),
+                    textStyle = JasnifyTheme.typography.headingXLarge.copy(
+                        fontWeight = if (isBoldActive) FontWeight.Bold else FontWeight.Medium,
+                        fontStyle = if (isItalicActive) FontStyle.Italic else FontStyle.Normal,
+                        textDecoration = if (isUnderlineActive) TextDecoration.Underline else TextDecoration.None
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(titleFocusRequester)
+                        .then(sharedTitleModifier),
                     decorationBox = { innerTextField ->
                         if (title.isEmpty()) {
                             Text(
