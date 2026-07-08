@@ -12,9 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.rounded.MailOutline
@@ -34,6 +32,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -48,6 +47,7 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+import com.harshdeep.jasnify.R
 
 @Composable
 fun PrimaryInput(
@@ -59,6 +59,7 @@ fun PrimaryInput(
     singleLine: Boolean = true,
     textStyle: TextStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    leadingIcon: ImageVector? = null, // Added customizable leadingIcon with default null value
     trailingIcon: Painter? = null,
     trailingIconEnabled: Boolean = false, // Added disable/enable styling parameter
     shape: Shape = SquircleShape(CornerLarge, CornerSmoothingDefault), // Takes direct SquircleShape or other Shapes, defaulting to SquircleShape
@@ -73,17 +74,6 @@ fun PrimaryInput(
     val currentVisualTransformation = when {
         isPassword && !isPasswordVisible -> PasswordVisualTransformation()
         else -> visualTransformation
-    }
-
-    val defaultLeadingIcon: ImageVector? = when (keyboardType) {
-        KeyboardType.Password -> if (value.isEmpty()) {
-            Icons.Outlined.LockOpen
-        } else {
-            Icons.Outlined.Lock
-        }
-        KeyboardType.Email -> Icons.Rounded.MailOutline
-        // No leading icon for other types (like Text, Number, Phone, etc.)
-        else -> null
     }
 
     // Determine trailing icon color based on the enabled state flag
@@ -119,10 +109,10 @@ fun PrimaryInput(
                     .padding(start = 16.dp, end = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Leading Icon Layer
-                if (defaultLeadingIcon != null) {
+                // Leading Icon Layer (Only renders if leadingIcon is provided)
+                if (leadingIcon != null) {
                     Icon(
-                        imageVector = defaultLeadingIcon,
+                        imageVector = leadingIcon,
                         contentDescription = null,
                         tint = ContentSecondary,
                         modifier = Modifier.padding(end = 12.dp)
@@ -170,7 +160,7 @@ fun PrimaryInput(
                     } else {
                         IconButton(onClick = { if (!readOnly) onValueChange("") }) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                painter = painterResource(R.drawable.ic_circle_cross),
                                 contentDescription = "Clear input",
                                 tint = trailingIconTint
                             )
@@ -194,35 +184,44 @@ fun PrimaryInputPreview() {
     var text by remember { mutableStateOf("Some text") }
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.padding(12.dp)
     ) {
+        // Field with custom leading icon
         PrimaryInput(
             value = email,
             onValueChange = { email = it },
             placeholder = "Enter email address",
-            keyboardType = KeyboardType.Email
+            keyboardType = KeyboardType.Email,
+            leadingIcon = Icons.Rounded.MailOutline
         )
 
+        // Password field with custom leading icon
         PrimaryInput(
             value = password,
             onValueChange = { password = it },
             placeholder = "Enter password",
-            keyboardType = KeyboardType.Password
+            keyboardType = KeyboardType.Password,
+            leadingIcon = Icons.Outlined.Lock
         )
 
+        // Custom shape, no leading icon (default null)
         PrimaryInput(
             value = email,
             onValueChange = { email = it },
             placeholder = "Enter email address",
             keyboardType = KeyboardType.Password,
-            shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
+            trailingIconEnabled = true,
+            shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
         )
 
+        // Standard text field, no leading icon (default null)
         PrimaryInput(
             value = text,
             onValueChange = { text = it },
             placeholder = "Enter regular text",
-            keyboardType = KeyboardType.Text // KeyboardType.Text has a null defaultLeadingIcon
+            keyboardType = KeyboardType.Text,
+            trailingIconEnabled = true
         )
     }
 }
