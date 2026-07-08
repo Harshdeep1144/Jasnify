@@ -49,7 +49,18 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.Pattaya
+import androidx.compose.foundation.clickable
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+
+enum class AuthTab {
+    SIGN_UP, LOG_IN
+}
 
 @Composable
 fun LoginOrSignup(
@@ -64,7 +75,7 @@ fun LoginOrSignup(
     val activity = context as? Activity
     val authState by viewModel.authState.collectAsState()
 
-    var isPhoneMode by remember { mutableStateOf(false) } // true = phone, false = email
+    var selectedTab by remember { mutableStateOf(AuthTab.SIGN_UP) }
     var phoneNumber by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -201,21 +212,24 @@ fun LoginOrSignup(
                             )
                         }
 
-                        Spacer(Modifier.height(16.dp))
 
-                        Text(
-                            modifier = Modifier
-                                .padding(top = 16.dp, bottom = 16.dp)
-                                .align(Alignment.CenterHorizontally),
-                            text = "Log in or Sign up",
-                            style = MaterialTheme.typography.displayMedium,
-                            color = ContentPrimary
+                        // Segment Control
+                        IosSegmentedControl(
+                            options = AuthTab.entries.toList(),
+                            selectedOption = selectedTab,
+                            onOptionSelected = { selectedTab = it },
+                            labelProvider = {
+                                when (it) {
+                                    AuthTab.SIGN_UP -> "Sign up"
+                                    AuthTab.LOG_IN -> "Log in"
+                                }
+                            }
                         )
 
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(Modifier.height(24.dp))
 
                         AnimatedContent(
-                            targetState = isPhoneMode,
+                            targetState = selectedTab,
                             transitionSpec = {
                                 (fadeIn() togetherWith fadeOut())
                                     .using(
@@ -223,70 +237,88 @@ fun LoginOrSignup(
                                     )
                             },
                             label = "input_mode_transition"
-                        ) { phoneMode ->
+                        ) { tab ->
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                if (phoneMode) {
-                                    PhoneNumberInput(
-                                        value = phoneNumber,
-                                        onValueChange = { phoneNumber = it }
-                                    )
-                                } else {
-                                    PrimaryInput(
-                                        value = email,
-                                        onValueChange = { email = it },
-                                        placeholder = "Enter email address",
-                                        keyboardType = KeyboardType.Email
-                                    )
-                                    Spacer(Modifier.height(8.dp))
-                                    PrimaryInput(
-                                        value = password,
-                                        onValueChange = { password = it },
-                                        placeholder = "Enter password",
-                                        keyboardType = KeyboardType.Password
-                                    )
+                                when (tab) {
+                                    AuthTab.SIGN_UP -> {
+                                        PrimaryInput(
+                                            value = email,
+                                            onValueChange = { email = it },
+                                            placeholder = "Enter your email",
+                                            keyboardType = KeyboardType.Email,
+                                            trailingIconEnabled = true
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        PrimaryInput(
+                                            value = password,
+                                            onValueChange = { password = it },
+                                            placeholder = "Create a password",
+                                            keyboardType = KeyboardType.Password,
+                                            trailingIconEnabled = true
+                                        )
+                                    }
+                                    AuthTab.LOG_IN -> {
+                                        PrimaryInput(
+                                            value = email,
+                                            onValueChange = { email = it },
+                                            placeholder = "Enter email or username",
+                                            keyboardType = KeyboardType.Email,
+                                            trailingIconEnabled = true
+                                        )
+                                        Spacer(Modifier.height(8.dp))
+                                        PrimaryInput(
+                                            value = password,
+                                            onValueChange = { password = it },
+                                            placeholder = "Enter password",
+                                            keyboardType = KeyboardType.Password,
+                                            trailingIconEnabled = true
+                                        )
+                                    }
                                 }
                             }
                         }
 
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(16.dp))
 
                         CustomTextButton(
                             onClick = {
-                                val isValid: Boolean
-                                val errorMessage: String
-
-                                if (isPhoneMode) {
-                                    isValid = phoneNumber.isNotBlank() && phoneNumber.length in 10..15
-                                    errorMessage = "Please enter a valid phone number"
+                                val isValid: Boolean = email.isNotBlank() && emailPattern.matches(email) && password.length >= 6
+                                val errorMessage: String = if (!emailPattern.matches(email)) {
+                                    "Please enter a valid email address"
                                 } else {
-                                    isValid = email.isNotBlank() && emailPattern.matches(email) && password.length >= 6
-                                    errorMessage = if (!emailPattern.matches(email)) {
-                                        "Please enter a valid email address"
-                                    } else {
-                                        "Password must be at least 6 characters long"
-                                    }
+                                    "Password must be at least 6 characters long"
                                 }
 
                                 if (isValid) {
-                                    if (isPhoneMode && activity != null) {
-                                        viewModel.sendVerificationCode(phoneNumber, activity)
-                                    } else if (!isPhoneMode) {
-                                        viewModel.handleEmailAuth(email, password)
-                                    }
+                                    viewModel.handleEmailAuth(email, password)
                                 } else {
                                     toastData = ToastData(errorMessage, ToastType.ERROR)
                                 }
                             },
-                            text = if (authState is AuthState.Loading) "Loading..." else "Continue",
+                            text = if (authState is AuthState.Loading) "Loading..." else if (selectedTab == AuthTab.SIGN_UP) "Sign up" else "Log in",
                             modifier = Modifier.fillMaxWidth(),
                             shapeStyle = ButtonShapeStyle.Square,
                             containerColor = ContentPrimary,
                         )
 
+                        if (selectedTab == AuthTab.LOG_IN) {
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                text = "Forgot Password?",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = ContentPrimary,
+                                modifier = Modifier.clickable { /* Do nothing for now */ }
+                            )
+                        }
+
+                        Spacer(Modifier.height(8.dp))
+
                         OrDivider()
+
+                        Spacer(Modifier.height(8.dp))
 
                         // Google Sign-In Button
                         AuthButton(
@@ -294,9 +326,10 @@ fun LoginOrSignup(
                                 val signInIntent = googleSignInClient.signInIntent
                                 googleSignInLauncher.launch(signInIntent)
                             },
-                            text = "Sign in with Google",
+                            text = "Continue with Google",
                             icon = painterResource(id = R.drawable.ic_google),
-                            badgeText = "Fastest & Most Used"
+                            badgeText = "Fastest & Most Used",
+                            borderColor = Color(0xFF008E11).copy(0.8f),
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))
