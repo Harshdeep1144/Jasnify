@@ -186,7 +186,7 @@ fun ChecklistsTab(
         }
     }
 
-    // MODIFIED: Parent BackHandler only manages non-detail screen transitions (Archives & Search)
+    // Parent BackHandler only manages non-detail screen transitions (Archives & Search)
     // Detail Screen manages its own back behavior now to ensure autocompletion/saving of changes.
     BackHandler(enabled = showArchives || isSearchActive || showRoomAccess) {
         focusManager.clearFocus()
@@ -280,6 +280,7 @@ fun ChecklistsTab(
                 is ChecklistScreenState.Detail -> {
                     ChecklistDetailScreen(
                         checklist = targetScreenState.checklist,
+                        isAddingNew = targetScreenState.isAddingNew,
                         onBackClick = { updatedChecklist ->
                             focusManager.clearFocus()
                             if (updatedChecklist != null) {
@@ -744,6 +745,7 @@ fun ChecklistsTab(
 @Composable
 fun ChecklistDetailScreen(
     checklist: Checklist? = null,
+    isAddingNew: Boolean = false,
     onBackClick: (Checklist?) -> Unit,
     onDelete: (String) -> Unit = {},
     onTogglePin: (String) -> Unit = {},
@@ -775,6 +777,9 @@ fun ChecklistDetailScreen(
 
     val focusManager = LocalFocusManager.current
 
+    // Focus Requester specifically mapped to the heading / title text field
+    val titleFocusRequester = remember { FocusRequester() }
+
     // Generate/Reuse the active card timestamp dynamically
     val cardDateTimeString = remember {
         checklist?.dateTime ?: run {
@@ -791,6 +796,14 @@ fun ChecklistDetailScreen(
         if (history.isEmpty()) {
             history.add(Pair(title, items))
             historyIndex = 0
+        }
+    }
+
+    // Automated focusing behavior with slight delay to ensure entry transitions finish gracefully
+    LaunchedEffect(isAddingNew) {
+        if (isAddingNew) {
+            delay(250.milliseconds) // Provides enough buffer for UI components & transitions to settle
+            titleFocusRequester.requestFocus()
         }
     }
 
@@ -824,7 +837,7 @@ fun ChecklistDetailScreen(
         }
     }
 
-    // ADDED: Auto-save handling for System Back gesture and hardware button back press
+    // Auto-save handling for System Back gesture and hardware button back press
     BackHandler {
         focusManager.clearFocus()
         val cleanedItems = items.filter { it.text.isNotBlank() }
@@ -914,14 +927,11 @@ fun ChecklistDetailScreen(
                 focusManager.clearFocus()
             }
     ) { paddingValues ->
-        val imeBottomPadding = WindowInsets.ime.asPaddingValues().calculateBottomPadding()
-        val adjustedBottomPadding = (imeBottomPadding - 100.dp).coerceAtLeast(0.dp)
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(bottom = adjustedBottomPadding)
+                .imePadding() // Automatically docks layout and toolbar above system keyboard when on
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -947,8 +957,15 @@ fun ChecklistDetailScreen(
                         title = it
                         saveToHistory(it, items)
                     },
-                    textStyle = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
-                    modifier = Modifier.fillMaxWidth().then(sharedTitleModifier),
+                    textStyle = JasnifyTheme.typography.headingXLarge.copy(
+                        fontWeight = if (isBoldActive) FontWeight.Bold else FontWeight.Medium,
+                        fontStyle = if (isItalicActive) FontStyle.Italic else FontStyle.Normal,
+                        textDecoration = if (isUnderlineActive) TextDecoration.Underline else TextDecoration.None
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(titleFocusRequester)
+                        .then(sharedTitleModifier),
                     decorationBox = { innerTextField ->
                         if (title.isEmpty()) {
                             Text(
