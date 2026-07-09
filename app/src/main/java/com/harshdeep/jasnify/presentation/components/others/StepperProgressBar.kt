@@ -15,6 +15,7 @@ import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceAccent
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
@@ -50,7 +51,7 @@ fun StepperProgressBar(
                 .height(5.dp)
                 .clip(SquircleShape(CornerExtraSmall, CornerSmoothingDefault)),
             color = ContentBrand,
-            trackColor = SurfaceAccent,
+            trackColor = SurfaceBrandSecondary,
             strokeCap = ProgressIndicatorDefaults.LinearStrokeCap,
         )
     }

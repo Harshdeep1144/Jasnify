@@ -1,9 +1,11 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -11,9 +13,12 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.contextmenu.modifier.filterTextContextMenuComponents
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.pointer.stylusHoverIcon
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -33,10 +39,12 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.JasnifyTheme
 
 data class MenuSheetActionItem(
     val text: String,
@@ -81,6 +89,7 @@ fun MenuBottomSheet(
             // Stacked Action Menu Item Cards
             Column(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp)
@@ -94,17 +103,26 @@ fun MenuBottomSheet(
                         else -> RoundedCornerShape(CornerExtraSmall)
                     }
 
-                    CustomTextButton(
-                        onClick = item.onClick,
-                        text = item.text,
-                        leadingIcon = item.icon,
-                        type = ButtonType.Tertiary,
-                        contentColor = item.contentColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
                             .background(color = item.containerColor, shape = roundedShape)
-                            .clip(roundedShape)
-                    )
+                            .clip(shape = roundedShape)
+                            .clickable { item.onClick() }
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center
+                    ){
+                        Icon(
+                            painter = item.icon,
+                            contentDescription = null
+                        )
+                        Spacer(modifier.width(8.dp))
+                        Text(
+                            text = item.text,
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = item.contentColor
+                        )
+                    }
+
                 }
             }
 
@@ -124,6 +142,8 @@ fun MenuBottomSheet(
         }
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
