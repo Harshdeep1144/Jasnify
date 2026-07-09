@@ -927,21 +927,26 @@ fun CateringMenuScreen(
     if (showMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "Add an item",
-                    icon = painterResource(R.drawable.ic_plus),
-                    onClick = {
-                        showAddItemSheet = true
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add an item",
+                        icon = painterResource(R.drawable.ic_plus),
+                        onClick = {
+                            showMenuBottomSheet = false
+                            showAddItemSheet = true
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Manage Room Access",
-                    icon = painterResource(R.drawable.ic_user_default),
-                    onClick = {
-                        showMenuBottomSheet = false
-                        currentView = CateringMenuView.MANAGE_ROOM_ACCESS
-                    }
-                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        onClick = {
+                            showMenuBottomSheet = false
+                            currentView = CateringMenuView.MANAGE_ROOM_ACCESS
+                        }
+                    )
+                )
             ),
             onCancelClick = {
                 showMenuBottomSheet = false
@@ -952,29 +957,35 @@ fun CateringMenuScreen(
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "Copy Link",
-                    icon = painterResource(R.drawable.ic_link),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Copy Link",
+                        icon = painterResource(R.drawable.ic_link),
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Add New Members",
-                    icon = painterResource(R.drawable.ic_plus),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                    },
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add New Members",
+                        icon = painterResource(R.drawable.ic_plus),
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Leave Room",
-                    icon = painterResource(R.drawable.ic_logout),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        currentView = CateringMenuView.MENU
-                    },
-                    contentColor = MaterialTheme.colorScheme.error
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            currentView = CateringMenuView.MENU
+                        }
+                    )
                 )
             ),
             onCancelClick = {
@@ -1273,7 +1284,7 @@ fun AddItemSheetContent(
                     onValueChange = onItemNameChange,
                     placeholder = "Type or Search a dish",
                     trailingIcon = painterResource(id = R.drawable.ic_ai),
-                    textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
+                    textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary)
                 )
             }
 
@@ -1303,7 +1314,7 @@ fun AddItemSheetContent(
                                 placeholder = cuisine,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
                                 trailingIconEnabled = true,
-                                textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary)
+                                textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary)
                             )
                             Box(
                                 modifier = Modifier
@@ -1333,7 +1344,7 @@ fun AddItemSheetContent(
                                 onValueChange = {},
                                 placeholder = type,
                                 trailingIcon = painterResource(R.drawable.ic_edit),
-                                textStyle = MaterialTheme.typography.labelLarge.copy(color = ContentPrimary),
+                                textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
                                 trailingIconEnabled = true
                             )
                             Box(
