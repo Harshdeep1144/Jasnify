@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -59,11 +60,11 @@ fun PrimaryInput(
     singleLine: Boolean = true,
     textStyle: TextStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    leadingIcon: ImageVector? = null, // Added customizable leadingIcon with default null value
+    leadingIcon: ImageVector? = null,
     trailingIcon: Painter? = null,
-    trailingIconEnabled: Boolean = false, // Added disable/enable styling parameter
-    shape: Shape = SquircleShape(CornerLarge, CornerSmoothingDefault), // Takes direct SquircleShape or other Shapes, defaulting to SquircleShape
-    readOnly: Boolean = false // Expose readOnly configuration parameter
+    trailingIconEnabled: Boolean = false,
+    shape: Shape = RoundedCornerShape(CornerLarge),
+    readOnly: Boolean = false
 ) {
     val isPassword = keyboardType == KeyboardType.Password
 
