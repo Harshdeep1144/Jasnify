@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
@@ -67,7 +68,6 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class SearchBarType {
@@ -189,7 +189,7 @@ fun CustomSearchBar(
                     .heightIn(min = 56.dp)
                     .background(
                         color = backgroundColor,
-                        shape = SquircleShape(100, 0f)
+                        shape = RoundedCornerShape(100)
                     )
                     .then(
                         if (isAiSearch) {
@@ -197,19 +197,19 @@ fun CustomSearchBar(
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
-                                    shape = SquircleShape(100, 0f)
+                                    shape = RoundedCornerShape(100)
                                 )
                                 // Overlaid rotating AI Gradient border
                                 .border(
                                     width = 1.5.dp,
                                     brush = aiGradientBrush,
-                                    shape = SquircleShape(100, 0f)
+                                    shape = RoundedCornerShape(100)
                                 )
                         } else {
                             Modifier.border(
                                 width = 1.dp,
                                 color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                shape = SquircleShape(100, 0f)
+                                shape = RoundedCornerShape(100)
                             )
                         }
                     )
@@ -231,7 +231,7 @@ fun CustomSearchBar(
                         )
                     },
                     textStyle = JasnifyTheme.typography.headingLarge,
-                    shape = SquircleShape(100, 0f),
+                    shape = RoundedCornerShape(100),
                     leadingIcon = {
                         if (isFocused && !isAiSearch) {
                             IconButton(
@@ -311,25 +311,25 @@ fun CustomSearchBar(
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
-                                    shape = SquircleShape(100, 0f)
+                                    shape = RoundedCornerShape(100)
                                 )
                                 // Overlaid rotating AI Gradient border
                                 .border(
                                     width = 1.5.dp,
                                     brush = aiGradientBrush,
-                                    shape = SquircleShape(100, 0f)
+                                    shape = RoundedCornerShape(100)
                                 )
                         } else {
                             Modifier.border(
                                 width = 1.dp,
                                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                shape = SquircleShape(100, 0f)
+                                shape = RoundedCornerShape(100)
                             )
                         }
                     )
                     .background(
                         color = SurfaceSecondary,
-                        shape = SquircleShape(100, 0f)
+                        shape = RoundedCornerShape(100)
                     )
                     .clickable(
                         indication = null,
