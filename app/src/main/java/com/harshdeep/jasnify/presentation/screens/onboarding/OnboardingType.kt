@@ -85,7 +85,6 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
-import com.harshdeep.jasnify.presentation.components.inputfield.CornerType
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastType
@@ -110,6 +109,8 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
 
 enum class OnboardingState {
     CAROUSEL,
@@ -530,7 +531,7 @@ fun EnterEventIdScreen(
                 value = eventId,
                 onValueChange = onEventIdChange,
                 placeholder = "Enter the event ID",
-                cornerType = CornerType.MESSAGE,
+                shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
             )
         }
         val context = LocalContext.current
