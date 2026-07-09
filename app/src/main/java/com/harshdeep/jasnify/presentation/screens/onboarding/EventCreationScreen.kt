@@ -34,6 +34,7 @@ import com.harshdeep.jasnify.data.models.EventData
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.buttons.*
 import com.harshdeep.jasnify.presentation.components.chip.EventTypeChip
 import com.harshdeep.jasnify.presentation.components.inputfield.BudgetInput
@@ -63,6 +64,19 @@ private val PersistenceDateFormatter = DateTimeFormatter.ISO_LOCAL_DATE // e.g.,
 enum class NavigationDirection {
     FORWARD,
     BACKWARD
+}
+
+enum class EventCreationStep(val title: String, val stepNumber: Int) {
+    EVENT_TYPE("Event Type", 1),
+    EVENT_NAME("Event Name", 2),
+    EVENT_DAYS("Event Days", 3),
+    EVENT_DATE("Event Date", 4),
+    EVENT_TIMELINE("Event Timeline", 4),
+    EVENT_BUDGET("Event Budget", 5);
+
+    companion object {
+        const val totalSteps = 5
+    }
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -110,6 +124,9 @@ fun EventCreation(
         }
     }
 
+    // --- Bottom Sheet Visibility State ---
+    var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
+
     // --- Observe Event State for feedback ---
     val eventState by eventViewModel.eventState.collectAsState()
 
@@ -142,6 +159,21 @@ fun EventCreation(
                 // Do nothing
             }
         }
+    }
+
+    // Determine if the timeline is fully valid and saved
+    val isTimelineValid = remember(eventData.subEvents) {
+        eventData.subEvents.all { !it.isEditing && it.name.isNotBlank() && it.date.isNotBlank() }
+    }
+
+    // Dynamic state control to enable or disable the main Action button
+    val isContinueEnabled = remember(currentStep, eventState, isTimelineValid) {
+        val isNotLoading = eventState !is EventCreationState.Loading
+        val isStepValid = when (currentStep) {
+            EventCreationStep.EVENT_TIMELINE -> isTimelineValid
+            else -> true
+        }
+        isNotLoading && isStepValid
     }
 
     // --- Navigation Logic ---
@@ -198,13 +230,7 @@ fun EventCreation(
                 }
             }
             EventCreationStep.EVENT_TIMELINE -> {
-                // Multi-day validation: All sub-events must be 'saved' and not empty
-                val allValid = eventData.subEvents.all { !it.isEditing && it.name.isNotBlank() && it.date.isNotBlank() }
-                if (!allValid) {
-                    toastData = ToastData("Please save all event timeline details.", ToastType.ERROR)
-                } else {
-                    currentStep = EventCreationStep.EVENT_BUDGET
-                }
+                currentStep = EventCreationStep.EVENT_BUDGET
             }
             EventCreationStep.EVENT_BUDGET -> {
                 if (eventData.budget.isBlank()) {
@@ -251,7 +277,8 @@ fun EventCreation(
             topBar = {
                 Surface(
                     color = BackgroundPrimary,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .statusBarsPadding()
                 ) {
                     CustomTopBar(
@@ -280,7 +307,7 @@ fun EventCreation(
                         modifier = Modifier.fillMaxWidth(),
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Square,
-                        enabled = eventState !is EventCreationState.Loading
+                        enabled = isContinueEnabled
                     )
 
                     if (currentStep == EventCreationStep.EVENT_TYPE) {
@@ -368,7 +395,8 @@ fun EventCreation(
                                 EventCreationStep.EVENT_TIMELINE -> EventMultiDayContent(
                                     eventData,
                                     updateEventData,
-                                    onSkip
+                                    onSkip,
+                                    onInfoClick = { isTimelineInfoSheetVisible = true }
                                 )
 
                                 EventCreationStep.EVENT_BUDGET -> EventBudgetContent(
@@ -400,6 +428,13 @@ fun EventCreation(
                 type = toastData.type,
                 buttonText = null,
                 onButtonClick = null,
+            )
+        }
+
+        // --- Event Timeline Info Bottom Sheet ---
+        if (isTimelineInfoSheetVisible) {
+            EventTimeLineInfoSheet(
+                onDismiss = { isTimelineInfoSheetVisible = false }
             )
         }
     }
@@ -476,6 +511,7 @@ fun EventNameContent(
                 keyboardType = KeyboardType.Text,
                 value = eventData.eventName,
                 onValueChange = { updateEventData(eventData.copy(eventName = it)) },
+                trailingIconEnabled = true,
                 shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
             )
 
@@ -518,7 +554,8 @@ fun EventDaysContent(
         )
 
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .padding(vertical = 16.dp),
         ) {
             options.forEachIndexed { index, option ->
@@ -577,9 +614,23 @@ fun EventSingleDayContent(
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
+                    shape = SquircleShape(
+                        CornerExtraSmall,
+                        CornerLarge,
+                        CornerLarge,
+                        CornerLarge,
+                        CornerSmoothingDefault
+                    )
                 )
-                .clip(SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault))
+                .clip(
+                    SquircleShape(
+                        CornerExtraSmall,
+                        CornerLarge,
+                        CornerLarge,
+                        CornerLarge,
+                        CornerSmoothingDefault
+                    )
+                )
                 .background(SurfaceSecondary)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -646,7 +697,8 @@ fun EventSingleDayContent(
 fun EventMultiDayContent(
     eventData: EventData,
     updateEventData: (EventData) -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    onInfoClick: () -> Unit
 ) {
     val hasUnsavedEditingItem by remember(eventData.subEvents) {
         derivedStateOf {
@@ -658,10 +710,22 @@ fun EventMultiDayContent(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Add event timeline",
-            style = JasnifyTheme.typography.displayLarge
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Add event timeline",
+                style = JasnifyTheme.typography.displayLarge
+            )
+            CustomIconButton(
+                onClick = onInfoClick,
+                icon = painterResource(R.drawable.ic_info),
+                containerColor = SurfacePrimary,
+                contentColor = ContentPrimary,
+                size = ButtonSize.Small
+            )
+        }
+
 
         Text(
             text = "It helps you organize your event schedule across multiple days.",
@@ -700,7 +764,8 @@ fun EventMultiDayContent(
 
                 if (!hasAnyExistingItem){
                     Row(
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .padding(top = 16.dp),
                         horizontalArrangement = Arrangement.Center,
                     ) {

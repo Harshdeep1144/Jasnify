@@ -57,6 +57,7 @@ import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.Pattaya
 import androidx.compose.foundation.clickable
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.theme.JasnifyTheme
 
 enum class AuthTab {
     SIGN_UP, LOG_IN
@@ -308,7 +309,7 @@ fun LoginOrSignup(
                             Spacer(Modifier.height(12.dp))
                             Text(
                                 text = "Forgot Password?",
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = JasnifyTheme.typography.labelXLarge,
                                 color = ContentPrimary,
                                 modifier = Modifier.clickable { /* Do nothing for now */ }
                             )
