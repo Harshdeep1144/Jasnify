@@ -1,7 +1,12 @@
 package com.harshdeep.jasnify.presentation.components.others
 
+import android.graphics.Matrix
+import android.graphics.SweepGradient
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -43,7 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
@@ -57,7 +65,10 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class SearchBarType {
     DEFAULT,
@@ -71,7 +82,7 @@ fun CustomSearchBar(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     type: SearchBarType = SearchBarType.DEFAULT,
-    isAiSearch: Boolean = false, // Dynamic flag to toggle search background style/icon
+    isAiSearch: Boolean = false,
     backgroundColor: Color = SurfaceSecondary,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
@@ -88,6 +99,69 @@ fun CustomSearchBar(
         onActiveChange(isFocused)
         if (!isFocused && type == SearchBarType.COMPACT) {
             isExpanded = false
+        }
+    }
+
+    // Dynamic rotation angle and alpha/fade state animations
+    val rotationAnimatable = remember { Animatable(0f) }
+    val borderAlphaAnimatable = remember { Animatable(1f) } // 1f = Full AI Gradient, 0f = ContentSecondary
+
+    LaunchedEffect(isFocused) {
+        if (isFocused) {
+            borderAlphaAnimatable.snapTo(1f)
+            while (true) {
+                rotationAnimatable.animateTo(
+                    targetValue = rotationAnimatable.value + 360f,
+                    animationSpec = tween(
+                        durationMillis = 1200,
+                        easing = LinearEasing
+                    )
+                )
+            }
+        } else {
+            // Reset to visible gradient on focus loss before starting the decay transition
+            borderAlphaAnimatable.snapTo(1f)
+
+            // Perform smooth decelerating 720-degree rotation over 3 seconds
+            val rotationJob = launch {
+                rotationAnimatable.animateTo(
+                    targetValue = rotationAnimatable.value + 720f,
+                    animationSpec = tween(
+                        durationMillis = 3000,
+                        easing = CubicBezierEasing(0.25f, 1.0f, 0.50f, 1.0f)
+                    )
+                )
+            }
+
+            // After 2.5 seconds, start fading out gradient (fading in ContentSecondary outline over 500ms)
+            delay(2500.milliseconds)
+            borderAlphaAnimatable.animateTo(
+                targetValue = 0f,
+                animationSpec = tween(durationMillis = 500)
+            )
+
+            rotationJob.join()
+        }
+    }
+
+    // High performance sweep gradient brush with seamless colors and localized matrix rotation
+    val aiGradientBrush = remember(rotationAnimatable.value, borderAlphaAnimatable.value) {
+        object : ShaderBrush() {
+            override fun createShader(size: Size): android.graphics.Shader {
+                val alpha = borderAlphaAnimatable.value
+                val color1 = Color(0xFFE72EFF).copy(alpha = alpha).toArgb()
+                val color2 = Color(0xFF5B39AB).copy(alpha = alpha).toArgb()
+                val nativeShader = SweepGradient(
+                    size.width / 2f,
+                    size.height / 2f,
+                    intArrayOf(color1, color2, color1),
+                    null
+                )
+                val matrix = Matrix()
+                matrix.postRotate(rotationAnimatable.value, size.width / 2f, size.height / 2f)
+                nativeShader.setLocalMatrix(matrix)
+                return nativeShader
+            }
         }
     }
 
@@ -117,10 +191,27 @@ fun CustomSearchBar(
                         color = backgroundColor,
                         shape = SquircleShape(100, 0f)
                     )
-                    .border(
-                        width = 1.dp,
-                        color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                        shape = SquircleShape(100, 0f)
+                    .then(
+                        if (isAiSearch) {
+                            Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
+                                    shape = SquircleShape(100, 0f)
+                                )
+                                // Overlaid rotating AI Gradient border
+                                .border(
+                                    width = 1.5.dp,
+                                    brush = aiGradientBrush,
+                                    shape = SquircleShape(100, 0f)
+                                )
+                        } else {
+                            Modifier.border(
+                                width = 1.dp,
+                                color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                shape = SquircleShape(100, 0f)
+                            )
+                        }
                     )
             ) {
                 OutlinedTextField(
@@ -170,7 +261,7 @@ fun CustomSearchBar(
                             Icon(
                                 painter = iconPainter,
                                 contentDescription = if (isAiSearch) "AI Search" else "Search",
-                                tint = if(isFocused) ContentBrandDark else ContentSecondary,
+                                tint = if (isAiSearch) Color.Unspecified else if (isFocused) ContentBrandDark else ContentSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -214,10 +305,27 @@ fun CustomSearchBar(
             Box(
                 modifier = modifier
                     .size(56.dp)
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                        shape = SquircleShape(100, 0f)
+                    .then(
+                        if (isAiSearch) {
+                            Modifier
+                                .border(
+                                    width = 1.dp,
+                                    color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
+                                    shape = SquircleShape(100, 0f)
+                                )
+                                // Overlaid rotating AI Gradient border
+                                .border(
+                                    width = 1.5.dp,
+                                    brush = aiGradientBrush,
+                                    shape = SquircleShape(100, 0f)
+                                )
+                        } else {
+                            Modifier.border(
+                                width = 1.dp,
+                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                shape = SquircleShape(100, 0f)
+                            )
+                        }
                     )
                     .background(
                         color = SurfaceSecondary,
@@ -228,7 +336,6 @@ fun CustomSearchBar(
                         interactionSource = remember { MutableInteractionSource() },
                         onClick = {
                             isExpanded = true
-                            // Since we haven't gained focus yet, notify active manually
                             onActiveChange(true)
                         }
                     ),
@@ -242,7 +349,7 @@ fun CustomSearchBar(
                 Icon(
                     painter = iconPainter,
                     contentDescription = if (isAiSearch) "AI Search" else "Search",
-                    tint = ContentPrimary,
+                    tint = if (isAiSearch) Color.Unspecified else ContentPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -250,7 +357,11 @@ fun CustomSearchBar(
     }
 }
 
-// ------ Preview -----------
+
+
+// ------------------------------------------------------------- Preview ---------------------------------------------------------------
+
+
 
 @Preview(showBackground = true)
 @Composable
