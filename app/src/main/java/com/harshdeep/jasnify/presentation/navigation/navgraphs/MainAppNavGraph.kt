@@ -25,7 +25,6 @@ import androidx.compose.animation.slideOutHorizontally
 
 object NavAnimations {
     private const val DURATION = 500
-
     val slideInFromRight: EnterTransition =
         slideInHorizontally(
             initialOffsetX = { fullWidth -> fullWidth },
@@ -69,10 +68,10 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // --- Event Details Graphs ---
         composable(
             route = Screen.EventDetail.route,
-            enterTransition = { NavAnimations.slideInFromRight },
-            exitTransition = { NavAnimations.slideOutToLeft },
-            popEnterTransition = { NavAnimations.slideInFromLeft },
-            popExitTransition = { NavAnimations.slideOutToRight }
+            enterTransition = { NavAnimations.slideInFromLeft },
+            exitTransition = { NavAnimations.slideOutToRight },
+            popEnterTransition = { NavAnimations.slideInFromRight },
+            popExitTransition = { NavAnimations.slideOutToLeft }
         ) {
             EventDetailsScreen(
                 onBackClick = {
