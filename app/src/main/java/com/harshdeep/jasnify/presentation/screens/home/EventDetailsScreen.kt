@@ -73,6 +73,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSlider
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -149,6 +150,9 @@ fun EventDetailsScreen(
     // Bottom Sheet Control States
     var showBottomSheet by remember { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // --- Timeline Info Sheet State ---
+    var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
 
     // Dedicated Custom Date Picker Sheet States (Triggers directly if no timelines available)
     var showDatePickerSheet by remember { mutableStateOf(false) }
@@ -439,12 +443,14 @@ fun EventDetailsScreen(
                                         style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
                                         color = ContentPrimary
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_info),
-                                        contentDescription = "Timeline Info",
-                                        tint = ContentPrimary,
-                                        modifier = Modifier.size(20.dp)
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    CustomIconButton(
+                                        onClick = { isTimelineInfoSheetVisible = true },
+                                        icon = painterResource(R.drawable.ic_info),
+                                        containerColor = BackgroundSecondary,
+                                        contentColor = ContentPrimary,
+                                        size = ButtonSize.Small
                                     )
                                 }
 
@@ -564,6 +570,14 @@ fun EventDetailsScreen(
                 onDateSelectedCallback?.invoke(localDate)
             },
             initialDate = datePickerInitialDate
+        )
+    }
+
+    // =================================================== Event Timeline Info Bottom Sheet =================================================
+
+    if (isTimelineInfoSheetVisible) {
+        EventTimeLineInfoSheet(
+            onDismiss = { isTimelineInfoSheetVisible = false }
         )
     }
 
