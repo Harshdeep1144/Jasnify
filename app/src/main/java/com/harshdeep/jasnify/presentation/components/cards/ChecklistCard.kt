@@ -42,9 +42,9 @@ fun ChecklistCard(
         colors = CardDefaults.cardColors(
             containerColor = checklist.bgColor
         ),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f) ),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f)),
         elevation = CardDefaults.cardElevation(0.dp)
-    ){
+    ) {
         Column(
             modifier = Modifier
                 .padding(16.dp)
@@ -74,11 +74,14 @@ fun ChecklistCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
+            val displayTitle = checklist.title.ifBlank { "Title" }
+            val titleColor = if (checklist.title.isBlank()) ContentSecondary else ContentPrimary
+
             Text(
-                text = checklist.title,
+                text = displayTitle,
                 style = JasnifyTheme.typography.headingXLarge,
                 fontWeight = FontWeight.Medium,
-                color = ContentPrimary,
+                color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -105,9 +108,9 @@ fun ChecklistCardItem(item: ChecklistItem) {
             onCheckedChange = null,
             modifier = Modifier.size(18.dp)
         )
-        
+
         Spacer(modifier = Modifier.width(4.dp))
-        
+
         Text(
             text = item.text,
             style = JasnifyTheme.typography.headingSmall.merge(
@@ -123,7 +126,6 @@ fun ChecklistCardItem(item: ChecklistItem) {
 }
 
 // ----------------------------------------  Preview ---------------------------------------
-
 
 @Preview(showBackground = true)
 @Composable
@@ -156,20 +158,18 @@ private fun ChecklistCardPreview() {
                 checklist = sampleChecklist,
                 modifier = Modifier.weight(1f)
             )
+            // Empty title preview test
             ChecklistCard(
-                checklist = sampleChecklist.copy(title = "Catering...", bgColor = PaleLavender, isPinned = false),
+                checklist = sampleChecklist.copy(title = "", bgColor = PaleLavender, isPinned = false),
                 modifier = Modifier.weight(1f)
             )
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         Text("List View", style = JasnifyTheme.typography.labelSmall)
         ChecklistCard(
             checklist = sampleChecklist.copy(title = "Saturday To-Dos", bgColor = SoftPeach, isPinned = false),
         )
     }
 }
-
-
-

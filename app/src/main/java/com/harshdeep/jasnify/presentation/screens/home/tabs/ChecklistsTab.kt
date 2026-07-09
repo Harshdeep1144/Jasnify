@@ -60,6 +60,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -70,11 +71,12 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.Checklist
 import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
-import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
@@ -85,6 +87,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.*
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 
@@ -624,34 +627,45 @@ fun ChecklistsTab(
     if (showMenuSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = if (isGridView) "List View" else "Grid View",
-                    icon = if (isGridView) painterResource(R.drawable.ic_list) else painterResource(R.drawable.ic_grid),
-                    onClick = {
-                        isGridView = !isGridView
-                        showMenuSheet = false
-                    }
+                // Row 1: Side-by-side split grid (with icons on top)
+                listOf(
+                    MenuSheetActionItem(
+                        text = if (isGridView) "List View" else "Grid View",
+                        icon = if (isGridView) painterResource(R.drawable.ic_list) else painterResource(R.drawable.ic_grid),
+                        iconPlacement = IconPlacement.Top,
+                        onClick = {
+                            isGridView = !isGridView
+                            showMenuSheet = false
+                        }
+                    ),
+                    MenuSheetActionItem(
+                        text = "View Archives",
+                        icon = painterResource(R.drawable.ic_box),
+                        iconPlacement = IconPlacement.Top,
+                        onClick = {
+                            showArchives = true
+                            showMenuSheet = false
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "View Archives",
-                    icon = painterResource(R.drawable.ic_box),
-                    onClick = {
-                        showArchives = true
-                        showMenuSheet = false
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuSheet = false
+                            showRoomAccess = true
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Manage Room Access",
-                    icon = painterResource(R.drawable.ic_user_default),
-                    onClick = {
-                        showMenuSheet = false
-                        showRoomAccess = true
-                    }
-                ),
-                MenuSheetActionItem(
-                    text = "Help & Feedback",
-                    icon = painterResource(R.drawable.ic_help_feedback),
-                    onClick = { showMenuSheet = false }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = { showMenuSheet = false }
+                    )
                 )
             ),
             onCancelClick = { showMenuSheet = false }
@@ -661,30 +675,39 @@ fun ChecklistsTab(
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "Copy Link",
-                    icon = painterResource(R.drawable.ic_link),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Copy Link",
+                        icon = painterResource(R.drawable.ic_link),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Add New Members",
-                    icon = painterResource(R.drawable.ic_plus),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        // Handle add new members logic
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add New Members",
+                        icon = painterResource(R.drawable.ic_plus),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            // Handle add new members logic
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Leave Room",
-                    icon = painterResource(R.drawable.ic_logout),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        showRoomAccess = false
-                    },
-                    contentColor = MaterialTheme.colorScheme.error
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            showRoomAccess = false
+                        }
+                    )
                 )
             ),
             onCancelClick = {
@@ -755,12 +778,20 @@ fun ChecklistDetailScreen(
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     var title by remember { mutableStateOf(checklist?.title ?: "") }
+
+    // Automatically pre-populate with an empty checklist item if adding a new list
     var items by remember {
         mutableStateOf(
-            checklist?.items ?: emptyList()
+            if (isAddingNew && (checklist?.items == null || checklist.items.isEmpty())) {
+                listOf(ChecklistItem(id = UUID.randomUUID().toString()))
+            } else {
+                checklist?.items ?: emptyList()
+            }
         )
     }
+
     var bgColor by remember { mutableStateOf(checklist?.bgColor ?: SoftMint) }
+    var colorBeforePicker by remember { mutableStateOf(bgColor) }
     var isPinned by remember { mutableStateOf(checklist?.isPinned ?: false) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
@@ -777,8 +808,8 @@ fun ChecklistDetailScreen(
 
     val focusManager = LocalFocusManager.current
 
-    // Focus Requester specifically mapped to the heading / title text field
-    val titleFocusRequester = remember { FocusRequester() }
+    // Focus Requester specifically mapped to the first checklist item
+    val firstItemFocusRequester = remember { FocusRequester() }
 
     // Generate/Reuse the active card timestamp dynamically
     val cardDateTimeString = remember {
@@ -799,11 +830,11 @@ fun ChecklistDetailScreen(
         }
     }
 
-    // Automated focusing behavior with slight delay to ensure entry transitions finish gracefully
+    // Automated focusing behavior mapped to the first checklist item
     LaunchedEffect(isAddingNew) {
         if (isAddingNew) {
-            delay(250.milliseconds) // Provides enough buffer for UI components & transitions to settle
-            titleFocusRequester.requestFocus()
+            delay(250.milliseconds) // Settle UI transitions
+            firstItemFocusRequester.requestFocus()
         }
     }
 
@@ -931,7 +962,7 @@ fun ChecklistDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .imePadding() // Automatically docks layout and toolbar above system keyboard when on
+                .imePadding() // Automatically docks layout and toolbar above system keyboard
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -964,7 +995,6 @@ fun ChecklistDetailScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(titleFocusRequester)
                         .then(sharedTitleModifier),
                     decorationBox = { innerTextField ->
                         if (title.isEmpty()) {
@@ -991,7 +1021,8 @@ fun ChecklistDetailScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                        val focusRequester = remember { FocusRequester() }
+                        // Dedicate the firstItemFocusRequester to the first index
+                        val focusRequester = if (index == 0) firstItemFocusRequester else remember { FocusRequester() }
                         val isDragging = draggedItemIndex == index
                         val currentIndex by rememberUpdatedState(index)
                         val density = LocalDensity.current
@@ -1120,6 +1151,7 @@ fun ChecklistDetailScreen(
                 onRedo = { performRedo() },
                 onColorClick = {
                     focusManager.clearFocus()
+                    colorBeforePicker = bgColor // Keep a snapshot of original color before previewing
                     showColorPicker = true
                 }
             )
@@ -1128,34 +1160,47 @@ fun ChecklistDetailScreen(
 
     if (showColorPicker) {
         ColorPickerBottomSheet(
-            selectedColor = bgColor,
-            onColorSelected = {
-                bgColor = it
+            initialColor = colorBeforePicker,
+            onColorPreview = { previewColor ->
+                bgColor = previewColor // Instant temporary preview
+            },
+            onConfirm = { finalColor ->
+                bgColor = finalColor
+                colorBeforePicker = finalColor // Permanently update verified color
                 showColorPicker = false
             },
-            onDismiss = { showColorPicker = false }
+            onDismiss = {
+                bgColor = colorBeforePicker // Revert background to original color if dismissed
+                showColorPicker = false
+            }
         )
     }
 
     if (showMenu) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = if (isArchived) "Unarchive" else "Archive",
-                    icon = painterResource(R.drawable.ic_box),
-                    onClick = {
-                        showMenu = false
-                        checklist?.id?.let { onArchive(it) }
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = if (isArchived) "Unarchive" else "Archive",
+                        icon = painterResource(R.drawable.ic_box),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenu = false
+                            checklist?.id?.let { onArchive(it) }
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Delete",
-                    icon = painterResource(R.drawable.ic_delete),
-                    contentColor = MaterialTheme.colorScheme.error,
-                    onClick = {
-                        showMenu = false
-                        showDeleteConfirmation = true
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Delete",
+                        icon = painterResource(R.drawable.ic_delete),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showMenu = false
+                            showDeleteConfirmation = true
+                        }
+                    )
                 )
             ),
             onCancelClick = { showMenu = false }
@@ -1417,18 +1462,41 @@ fun ChecklistDetailToolbar(
 }
 
 
+/**
+ * Helper function to robustly compare Compose Color states.
+ * Bypasses ColorSpace representation mismatches or float precision discrepancies.
+ */
+private fun areColorsEqual(c1: Color, c2: Color): Boolean {
+    val threshold = 0.005f
+    return abs(c1.red - c2.red) < threshold &&
+            abs(c1.green - c2.green) < threshold &&
+            abs(c1.blue - c2.blue) < threshold &&
+            abs(c1.alpha - c2.alpha) < threshold
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ColorPickerBottomSheet(
-    selectedColor: Color,
-    onColorSelected: (Color) -> Unit,
+    initialColor: Color,
+    onColorPreview: (Color) -> Unit,
+    onConfirm: (Color) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val colors = listOf(
-        NeutralWhite, SoftMint, PaleLavender, LightSkyBlue, SoftPeach,
-        Color(0xFFD7E3E3), Color(0xFFF2EFEA), Color(0xFFDFE5F3), Color(0xFFDAE8D8),
-        Color(0xFFF4E3E2), Color(0xFFE9EDF7), Color(0xFFE6E3F2)
-    )
+    var selectedColor by remember { mutableStateOf(initialColor) }
+
+    val colors = remember(initialColor) {
+        val basePalette = listOf(
+            Color(0xFFE1F5FE), Color(0xFFE8F5E9), Color(0xFFFFF3E0), Color(0xFFFCE4EC), Color(0xFFEDE7F6), Color(0xFFE0F7FA), Color(0xFFFFFDE7),
+            Color(0xFFF3E5F5), Color(0xFFE8EAF6), Color(0xFFD7F9F1), Color(0xFFFFE0E0), Color(0xFFE6F4EA), Color(0xFFFFF4CC), Color(0xFFDDEBF7),
+        )
+        val matchesExisting = basePalette.any { areColorsEqual(it, initialColor) }
+        if (matchesExisting) {
+            basePalette
+        } else {
+            listOf(initialColor) + basePalette
+        }
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1459,23 +1527,22 @@ fun ColorPickerBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // Chunk the dynamic colors list to render a responsive and complete grid row layout
+            val chunkedColors = remember(colors) { colors.chunked(6) }
+
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    colors.take(6).forEach { color ->
-                        ColorCircle(
-                            color = color,
-                            isSelected = color == selectedColor,
-                            onClick = { onColorSelected(color) }
-                        )
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    colors.drop(6).take(6).forEach { color ->
-                        ColorCircle(
-                            color = color,
-                            isSelected = color == selectedColor,
-                            onClick = { onColorSelected(color) }
-                        )
+                chunkedColors.forEach { rowColors ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowColors.forEach { color ->
+                            ColorCircle(
+                                color = color,
+                                isSelected = areColorsEqual(color, selectedColor),
+                                onClick = {
+                                    selectedColor = color
+                                    onColorPreview(color) // Triggers real-time screen color preview
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -1484,7 +1551,7 @@ fun ColorPickerBottomSheet(
 
             CustomTextButton(
                 text = "Done",
-                onClick = onDismiss,
+                onClick = { onConfirm(selectedColor) }, // Commits chosen color permanently
                 type = ButtonType.Primary,
                 shapeStyle = ButtonShapeStyle.Square,
                 containerColor = ContentPrimary,
