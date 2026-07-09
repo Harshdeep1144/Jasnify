@@ -95,6 +95,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSh
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -1867,29 +1868,38 @@ fun BudgetScreen(
     if (showMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "Edit Budget",
-                    icon = painterResource(R.drawable.ic_edit),
-                    onClick = {
-                        showMenuBottomSheet = false
-                        showEditBudgetSheet = true
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Edit Budget",
+                        icon = painterResource(R.drawable.ic_edit),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuBottomSheet = false
+                            showEditBudgetSheet = true
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Manage Room Access",
-                    icon = painterResource(R.drawable.ic_user_default),
-                    onClick = {
-                        showMenuBottomSheet = false
-                        currentView = BudgetScreenView.MANAGE_ROOM_ACCESS
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuBottomSheet = false
+                            currentView = BudgetScreenView.MANAGE_ROOM_ACCESS
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Manage Categories",
-                    icon = painterResource(R.drawable.ic_category),
-                    onClick = {
-                        showMenuBottomSheet = false
-                        currentView = BudgetScreenView.EXPENSE_CATEGORY
-                    },
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Categories",
+                        icon = painterResource(R.drawable.ic_category),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuBottomSheet = false
+                            currentView = BudgetScreenView.EXPENSE_CATEGORY
+                        },
+                    )
                 )
             ),
             onCancelClick = {
@@ -1901,33 +1911,42 @@ fun BudgetScreen(
     if (showCategoryMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "View Expenses",
-                    icon = painterResource(R.drawable.ic_file),
-                    onClick = {
-                        showCategoryMenuBottomSheet = false
-                        selectedCategoryForDetails = selectedCategoryForMenu
-                        currentView = BudgetScreenView.CATEGORY_DETAIL
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "View Expenses",
+                        icon = painterResource(R.drawable.ic_pie_chart),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showCategoryMenuBottomSheet = false
+                            selectedCategoryForDetails = selectedCategoryForMenu
+                            currentView = BudgetScreenView.CATEGORY_DETAIL
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Rename Category",
-                    icon = painterResource(R.drawable.ic_edit),
-                    onClick = {
-                        showCategoryMenuBottomSheet = false
-                        categoryToRename = selectedCategoryForMenu
-                        showAddCustomCategorySheet = true
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Rename Category",
+                        icon = painterResource(R.drawable.ic_edit),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showCategoryMenuBottomSheet = false
+                            categoryToRename = selectedCategoryForMenu
+                            showAddCustomCategorySheet = true
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Delete Category",
-                    icon = painterResource(R.drawable.ic_delete),
-                    onClick = {
-                        categoryToDeleteConfirm = selectedCategoryForMenu
-                        showCategoryMenuBottomSheet = false
-                        selectedCategoryForMenu = null
-                    },
-                    contentColor = MaterialTheme.colorScheme.error
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Delete Category",
+                        icon = painterResource(R.drawable.ic_delete),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            categoryToDeleteConfirm = selectedCategoryForMenu
+                            showCategoryMenuBottomSheet = false
+                            selectedCategoryForMenu = null
+                        }
+                    )
                 )
             ),
             onCancelClick = {
@@ -1959,30 +1978,38 @@ fun BudgetScreen(
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                MenuSheetActionItem(
-                    text = "Copy Link",
-                    icon = painterResource(R.drawable.ic_link),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Copy Link",
+                        icon = painterResource(R.drawable.ic_link),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Add New Members",
-                    icon = painterResource(R.drawable.ic_plus),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                    // Handle add new members logic
-                    }
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add New Members",
+                        icon = painterResource(R.drawable.ic_plus),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                        }
+                    )
                 ),
-                MenuSheetActionItem(
-                    text = "Leave Room",
-                    icon = painterResource(R.drawable.ic_logout),
-                    onClick = {
-                        showRoomMenuBottomSheet = false
-                        currentView = BudgetScreenView.BUDGET_TRACKER
-                    },
-                    contentColor = MaterialTheme.colorScheme.error
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            currentView = BudgetScreenView.BUDGET_TRACKER
+                        }
+                    )
                 )
             ),
             onCancelClick = {
