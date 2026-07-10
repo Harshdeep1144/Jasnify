@@ -112,6 +112,16 @@ fun SortFilterBottomSheetContent(
             .fillMaxWidth()
             .navigationBarsPadding()
     ) {
+        // Drag Handle
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(vertical = 8.dp)
+                .width(56.dp)
+                .height(4.dp)
+                .background(ContentTertiary, shape = RoundedCornerShape(100))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -135,6 +145,7 @@ fun SortFilterBottomSheetContent(
                 )
 
                 Column(modifier = Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.height(4.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -149,7 +160,7 @@ fun SortFilterBottomSheetContent(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
                                     ) { activeTab = index }
-                                    .padding(vertical = 12.dp),
+                                    .padding(top = 12.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -174,8 +185,7 @@ fun SortFilterBottomSheetContent(
                                 .width(tabWidth)
                                 .fillMaxHeight()
                                 .offset(x = indicatorOffset)
-                                .padding(horizontal = 12.dp)
-                                .clip(SquircleShape(
+                                .clip(RoundedCornerShape(
                                         CornerExtraLarge, CornerExtraLarge,
                                         CornerExtraSmall, CornerExtraSmall
                                     )
@@ -214,7 +224,9 @@ fun SortFilterBottomSheetContent(
                             label = option,
                             isSelected = isSelected,
                             onClick = { tempSortOption = option },
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 2.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 2.dp)
                         )
                     }
                 } else {
