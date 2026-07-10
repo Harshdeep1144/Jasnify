@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.harshdeep.jasnify.R
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +67,34 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import androidx.core.content.edit
+
+// --- SharedPreferences Helpers for Search History ---
+private const val PREFS_NAME = "venue_search_prefs"
+private const val KEY_RECENT_SEARCHES = "recent_searches"
+
+// --- Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
+private fun getRecentSearches(context: Context): List<String> {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
+    return if (raw.isEmpty()) emptyList() else raw.split("|||")
+}
+
+// --- Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
+private fun saveRecentSearch(context: Context, vendorName: String) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val current = getRecentSearches(context).toMutableList()
+    current.remove(vendorName) // Remove duplicate if it exists to push it to the top
+    current.add(0, vendorName)  // Add to the front of the list
+    val limited = current.take(8) // Limit search history to 8 items
+    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))}
+}
+
+// --- Clears the persistent search history completely.
+private fun clearRecentSearches(context: Context) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit { remove(KEY_RECENT_SEARCHES) }
+}
 
 data class TimelineEvent(
     val id: String,
@@ -128,6 +158,7 @@ fun VenueMainContent(
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var selectedTab by remember { mutableStateOf("explore") }
 
@@ -147,6 +178,11 @@ fun VenueMainContent(
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+
+    // Read and track recent search history as reactive state
+    var recentSearches by remember {
+        mutableStateOf(getRecentSearches(context))
+    }
 
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
@@ -171,6 +207,20 @@ fun VenueMainContent(
     var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     val exploreVenues = remember { MockData.sampleVenues1 }
+
+    // Map stored vendor names back to full VendorCardData objects
+    val recentVenuesList = remember(recentSearches, exploreVenues) {
+        recentSearches.mapNotNull { name ->
+            exploreVenues.find { it.vendorName == name }
+        }
+    }
+
+    // Helper lambda to record clicks to recent searches before forwarding click events
+    val handleVenueClick: (VendorCardData) -> Unit = { venue ->
+        saveRecentSearch(context, venue.vendorName)
+        recentSearches = getRecentSearches(context) // refresh local Compose state
+        onVenueClick(venue)
+    }
 
     val savedVenuesList = remember(venueSavedDestinations) {
         exploreVenues.filter { venue ->
@@ -404,7 +454,7 @@ fun VenueMainContent(
                                             showSaveListBottomSheet = true
                                         }
                                     },
-                                    onCardClick = {},
+                                    onCardClick = { handleVenueClick(venue) },
                                     onChatClick = {},
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -412,12 +462,18 @@ fun VenueMainContent(
                                 )
                             }
                         } else {
-                            item {
-                                RecentSearchesSection(
-                                    onVenueClick = {},
-                                    recentVenues = MockData.sampleVenues1,
-                                    onClearAll = {}
-                                )
+                            // Only show RecentSearchesSection if history is not empty
+                            if (recentVenuesList.isNotEmpty()) {
+                                item {
+                                    RecentSearchesSection(
+                                        onVenueClick = handleVenueClick,
+                                        recentVenues = recentVenuesList,
+                                        onClearAll = {
+                                            clearRecentSearches(context)
+                                            recentSearches = emptyList()
+                                        }
+                                    )
+                                }
                             }
                         }
                         item { Spacer(Modifier.height(6.dp)) }
@@ -447,7 +503,7 @@ fun VenueMainContent(
                                     date = timelineItem.date,
                                     event = timelineItem.event,
                                     venues = timelineItem.venues,
-                                    onVenueClick = { },
+                                    onVenueClick = handleVenueClick,
                                     onFavoriteToggle = { venue ->
                                         venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                     },
@@ -478,7 +534,7 @@ fun VenueMainContent(
                                         onFavoriteToggle = {
                                             venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                         },
-                                        onCardClick = {},
+                                        onCardClick = { handleVenueClick(venue) },
                                         onChatClick = {},
                                     )
                                 }

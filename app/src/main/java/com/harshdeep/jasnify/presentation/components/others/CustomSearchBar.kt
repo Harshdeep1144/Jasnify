@@ -194,14 +194,14 @@ fun CustomSearchBar(
                     .then(
                         if (isAiSearch) {
                             Modifier
+                                // AI border
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
                                     shape = RoundedCornerShape(100)
                                 )
-                                // Overlaid rotating AI Gradient border
                                 .border(
-                                    width = 1.5.dp,
+                                    width = 1.dp,
                                     brush = aiGradientBrush,
                                     shape = RoundedCornerShape(100)
                                 )
@@ -308,14 +308,14 @@ fun CustomSearchBar(
                     .then(
                         if (isAiSearch) {
                             Modifier
+                                // AI border
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
                                     shape = RoundedCornerShape(100)
                                 )
-                                // Overlaid rotating AI Gradient border
                                 .border(
-                                    width = 1.5.dp,
+                                    width = 1.dp,
                                     brush = aiGradientBrush,
                                     shape = RoundedCornerShape(100)
                                 )
