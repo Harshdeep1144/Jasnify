@@ -66,6 +66,20 @@ fun EditBudgetBottomSheet(
         }
     }
 
+    // --- DYNAMIC HEIGHT CALCULATION ---
+    val dynamicSheetHeight = remember(budgetInWords) {
+        val baseHeight = 226
+        // On average portrait mobile displays, approx 32 chars fit in one row
+        val charsPerLine = 45
+        if (budgetInWords.length > charsPerLine) {
+            val extraLines = (budgetInWords.length - charsPerLine) / charsPerLine + 1
+            // Adding 18.dp extra space per estimated wrapped line, capped at a safe maximum
+            (baseHeight + (extraLines * 18)).coerceAtMost(300).dp
+        } else {
+            baseHeight.dp
+        }
+    }
+
     // Quick-addition offset configurations
     val quickAddOptions = listOf(
         5000L to "+ ₹5,000",
@@ -78,7 +92,7 @@ fun EditBudgetBottomSheet(
         heading = "Edit Budget",
         sheetState = sheetState,
         onDismiss = onDismiss,
-        sheetHeight = 226.dp
+        sheetHeight = dynamicSheetHeight
     ) {
         // --- INSTANT KEYBOARD & FOCUS FLOW ---
         val focusRequester = remember { FocusRequester() }
