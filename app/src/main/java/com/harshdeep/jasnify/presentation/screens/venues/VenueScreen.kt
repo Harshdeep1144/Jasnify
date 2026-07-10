@@ -13,6 +13,7 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
@@ -72,9 +73,18 @@ import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import java.util.UUID
+import kotlin.time.Duration.Companion.milliseconds
 
 // --- SharedPreferences Helpers for Search History ---
 private const val PREFS_NAME = "venue_search_prefs"
@@ -118,56 +128,36 @@ fun VenueScreen(
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
+    var showRoomAccess by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = isLocationPickerVisible) {
-        isLocationPickerVisible = false
+    // User Directory State
+    var venueRoomUsers by remember {
+        mutableStateOf(
+            listOf(
+                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+            )
+        )
     }
 
-    AnimatedContent(
-        targetState = isLocationPickerVisible,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
-        },
-        label = "venue_location_transition"
-    ) { showPicker ->
-        if (showPicker) {
-            LocationScreen(
-                initialSearches = emptyList(),
-                currentAddress = currentAddress,
-                onAddressSelected = {
-                    currentAddress = it
-                    isLocationPickerVisible = false
-                },
-                onBackClick = { isLocationPickerVisible = false },
-            )
-        } else {
-            VenueMainContent(
-                selectedLocation = currentAddress,
-                onVenueClick = onVenueClick,
-                onLocationSelectorClick = { isLocationPickerVisible = true },
-                onBackClick = onBackClick,
-                isScreenActive = isScreenActive
-            )
-        }
-    }
-}
+    // Hoisted bottom sheets and dialog states to build correct 'isAnySheetVisible' overlays
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var showMenuSheet by remember { mutableStateOf(false) }
 
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VenueMainContent(
-    selectedLocation: String,
-    onVenueClick: (VendorCardData) -> Unit,
-    onLocationSelectorClick: () -> Unit,
-    onBackClick: () -> Unit,
-    isScreenActive: Boolean = true
-) {
-    val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
-    var selectedTab by remember { mutableStateOf("explore") }
-
-    val viewOptions = listOf("By Timeline", "By List")
-    var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
+    // Hoisted dynamic details states for target venue saving interactions
+    var activeTargetVenue by remember { mutableStateOf<VendorCardData?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+    var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
+    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     var timelineEvents by remember {
         mutableStateOf(
@@ -179,6 +169,266 @@ fun VenueMainContent(
             )
         )
     }
+
+    // Unified screen-level Toast State
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
+
+    val focusManager = LocalFocusManager.current
+
+    BackHandler(enabled = isLocationPickerVisible || showRoomAccess) {
+        if (isLocationPickerVisible) {
+            isLocationPickerVisible = false
+        } else if (showRoomAccess) {
+            showRoomAccess = false
+        }
+    }
+
+    // Determine overlay occlusion layers to mask global toast alerts cleanly
+    val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        AnimatedContent(
+            targetState = when {
+                isLocationPickerVisible -> "picker"
+                showRoomAccess -> "room"
+                else -> "main"
+            },
+            transitionSpec = {
+                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+            },
+            label = "venue_screen_transition"
+        ) { state ->
+            when (state) {
+                "picker" -> {
+                    LocationScreen(
+                        initialSearches = emptyList(),
+                        currentAddress = currentAddress,
+                        onAddressSelected = {
+                            currentAddress = it
+                            isLocationPickerVisible = false
+                        },
+                        onBackClick = { isLocationPickerVisible = false },
+                    )
+                }
+                "room" -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(SurfaceSecondary)
+                    ) {
+                        RoomScreen(
+                            allUsers = venueRoomUsers,
+                            currentUserRole = UserRole.OWNER,
+                            isSelf = { it.username == "viratanand" },
+                            onBackClick = { showRoomAccess = false },
+                            onMenuClick = {
+                                focusManager.clearFocus()
+                                showRoomMenuBottomSheet = true
+                            },
+                            onRoleChange = { targetUser, newRole ->
+                                venueRoomUsers = venueRoomUsers.map { user ->
+                                    if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                }
+                            },
+                            onRemove = { targetUser ->
+                                userToRemove = targetUser
+                            },
+                            onReport = { targetUser ->
+                                toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                            },
+                            onLeave = {
+                                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                                showRoomAccess = false
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                else -> {
+                    VenueMainContent(
+                        selectedLocation = currentAddress,
+                        onVenueClick = onVenueClick,
+                        onLocationSelectorClick = { isLocationPickerVisible = true },
+                        onManageRoomAccessClick = { showRoomAccess = true },
+                        onBackClick = onBackClick,
+                        isScreenActive = isScreenActive,
+                        toastData = toastData,
+                        onShowToast = { toastData = it },
+                        showFilterDialog = showFilterDialog,
+                        onShowFilterDialogChange = { showFilterDialog = it },
+                        showSaveListBottomSheet = showSaveListBottomSheet,
+                        onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
+                        showMenuSheet = showMenuSheet,
+                        onShowMenuSheetChange = { showMenuSheet = it },
+                        timelineEvents = timelineEvents,
+                        onTimelineEventsChange = { timelineEvents = it },
+                        activeTargetVenue = activeTargetVenue,
+                        onActiveTargetVenueChange = { activeTargetVenue = it },
+                        isMySavedListChecked = isMySavedListChecked,
+                        onMySavedListCheckedChange = { isMySavedListChecked = it },
+                        selectedSaveEventId = selectedSaveEventId,
+                        onSelectedSaveEventIdChange = { selectedSaveEventId = it },
+                        venueSavedDestinations = venueSavedDestinations,
+                        onVenueSavedDestinationsChange = { venueSavedDestinations = it },
+                        lastSavedVenue = lastSavedVenue,
+                        onLastSavedVenueChange = { lastSavedVenue = it }
+                    )
+                }
+            }
+        }
+
+        // --- Premium Unified Top-Center Toast Alignment (Matching Budget Screen structure) ---
+        AnimatedVisibility(
+            visible = toastData?.message != null && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let { data ->
+                // Intelligently transform to interactive CustomToast if this is a venue saving success event
+                if (data.message?.contains("Saved List") == true && lastSavedVenue != null) {
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type,
+                        leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                        buttonText = "Change",
+                        onButtonClick = {
+                            toastData = null
+                            lastSavedVenue?.let { venue ->
+                                activeTargetVenue = venue
+                                val currentDest = venueSavedDestinations[venue.vendorName]
+                                isMySavedListChecked = currentDest == "mysaved"
+                                selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                                showSaveListBottomSheet = true
+                            }
+                        }
+                    )
+                } else {
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
+                    )
+                }
+            }
+        }
+    }
+
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Copy Link",
+                        icon = painterResource(R.drawable.ic_link),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add New Members",
+                        icon = painterResource(R.drawable.ic_plus),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            showRoomAccess = false
+                        }
+                    )
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (userToRemove != null) {
+        CustomDeleteSheet(
+            heading = "Remove Member from Venue Room?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirmRemove = {
+                val target = userToRemove
+                if (target != null) {
+                    venueRoomUsers = venueRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            }
+        )
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun VenueMainContent(
+    selectedLocation: String,
+    onVenueClick: (VendorCardData) -> Unit,
+    onLocationSelectorClick: () -> Unit,
+    onManageRoomAccessClick: () -> Unit,
+    onBackClick: () -> Unit,
+    isScreenActive: Boolean = true,
+    // Unified Hoisted States
+    toastData: ToastData?,
+    onShowToast: (ToastData?) -> Unit,
+    showFilterDialog: Boolean,
+    onShowFilterDialogChange: (Boolean) -> Unit,
+    showSaveListBottomSheet: Boolean,
+    onShowSaveListBottomSheetChange: (Boolean) -> Unit,
+    showMenuSheet: Boolean,
+    onShowMenuSheetChange: (Boolean) -> Unit,
+    timelineEvents: List<TimelineEvent>,
+    onTimelineEventsChange: (List<TimelineEvent>) -> Unit,
+    activeTargetVenue: VendorCardData?,
+    onActiveTargetVenueChange: (VendorCardData?) -> Unit,
+    isMySavedListChecked: Boolean,
+    onMySavedListCheckedChange: (Boolean) -> Unit,
+    selectedSaveEventId: String?,
+    onSelectedSaveEventIdChange: (String?) -> Unit,
+    venueSavedDestinations: Map<String, String>,
+    onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
+    lastSavedVenue: VendorCardData?,
+    onLastSavedVenueChange: (VendorCardData?) -> Unit
+) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+    var selectedTab by remember { mutableStateOf("explore") }
+
+    val viewOptions = listOf("By Timeline", "By List")
+    var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -194,19 +444,7 @@ fun VenueMainContent(
     }
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showFilterDialog by remember { mutableStateOf(false) }
-
     val saveListSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showSaveListBottomSheet by remember { mutableStateOf(false) }
-
-    var activeTargetVenue by remember { mutableStateOf<VendorCardData?>(null) }
-    var isMySavedListChecked by remember { mutableStateOf(true) }
-    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
-
-    var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
-
-    var toastData by remember { mutableStateOf<ToastData?>(null) }
-    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     val exploreVenues = remember { MockData.sampleVenues1 }
 
@@ -293,7 +531,6 @@ fun VenueMainContent(
             venue.copy(isFavorite = true)
         }
 
-        // ONLY show "My Saved List" if it has actual saved items (no longer added as an empty default list)
         if (defaultSavedVenues.isNotEmpty()) {
             list.add(
                 TimelineEvent(
@@ -318,13 +555,6 @@ fun VenueMainContent(
         list
     }
 
-    LaunchedEffect(toastData?.message) {
-        if (toastData?.message != null) {
-            delay(3000L)
-            toastData = null
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -338,15 +568,23 @@ fun VenueMainContent(
     ) {
         Scaffold(
             topBar = {
-                Column(
+                // Clickable custom top bar wrapper to clear focus cleanly like the BudgetScreen
+                Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .background(Color.Transparent)
                         .statusBarsPadding()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusManager.clearFocus()
+                        }
                 ) {
                     CustomTopBar(
                         title = "Venue",
                         onBackClick = { onBackClick() },
-                        onMenuClick = if (!isSearchActive) { { } } else null,
+                        onMenuClick = if (!isSearchActive) { { onShowMenuSheetChange(true) } } else null,
                         isLargeTitle = true,
                     )
                 }
@@ -434,7 +672,7 @@ fun VenueMainContent(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Spacer(Modifier.width(8.dp))
-                                        FilterButton(onClick = { showFilterDialog = true })
+                                        FilterButton(onClick = { onShowFilterDialogChange(true) })
                                     }
                                 }
                             }
@@ -446,12 +684,12 @@ fun VenueMainContent(
                                     vendor = venue,
                                     onFavoriteToggle = {
                                         if (venueSavedDestinations.containsKey(venue.vendorName)) {
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
                                         } else {
-                                            activeTargetVenue = venue
-                                            isMySavedListChecked = true
-                                            selectedSaveEventId = null
-                                            showSaveListBottomSheet = true
+                                            onActiveTargetVenueChange(venue)
+                                            onMySavedListCheckedChange(true)
+                                            onSelectedSaveEventIdChange(null)
+                                            onShowSaveListBottomSheetChange(true)
                                         }
                                     },
                                     onCardClick = { handleVenueClick(venue) },
@@ -516,7 +754,7 @@ fun VenueMainContent(
                                         venues = timelineItem.venues,
                                         onVenueClick = handleVenueClick,
                                         onFavoriteToggle = { venue ->
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
                                         },
                                     )
                                 }
@@ -531,7 +769,7 @@ fun VenueMainContent(
                                     VendorCardFull(
                                         vendor = venue,
                                         onFavoriteToggle = {
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
                                         },
                                         onCardClick = { handleVenueClick(venue) },
                                     )
@@ -543,37 +781,6 @@ fun VenueMainContent(
                 }
             }
         }
-
-        AnimatedVisibility(
-            visible = toastData?.message != null,
-            enter = slideInVertically(initialOffsetY = { it + 500 }),
-            exit = slideOutVertically(targetOffsetY = { it + 500 }),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .fillMaxWidth()
-                .zIndex(99f)
-                .padding(12.dp, 80.dp)
-        ) {
-            toastData?.let { data ->
-                CustomToast(
-                    message = data.message ?: "",
-                    type = data.type,
-                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
-                    buttonText = "Change",
-                    onButtonClick = {
-                        toastData = null
-                        lastSavedVenue?.let { venue ->
-                            activeTargetVenue = venue
-                            val currentDest = venueSavedDestinations[venue.vendorName]
-                            isMySavedListChecked = currentDest == "mysaved"
-                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
-                            showSaveListBottomSheet = true
-                        }
-                    }
-                )
-            }
-        }
     }
 
     if (showFilterDialog) {
@@ -583,11 +790,11 @@ fun VenueMainContent(
             initialSortOption = appliedSortOption,
             filterByOptions = filterByOptions,
             initialFilterOptions = appliedFilterOptions,
-            onDismiss = { showFilterDialog = false },
+            onDismiss = { onShowFilterDialogChange(false) },
             onApply = { sortOption, filterSet ->
                 appliedSortOption = sortOption
                 appliedFilterOptions = filterSet
-                showFilterDialog = false
+                onShowFilterDialogChange(false)
             }
         )
     }
@@ -598,37 +805,77 @@ fun VenueMainContent(
             timelineEvents = timelineEvents,
             isMySavedListChecked = isMySavedListChecked,
             onMySavedListToggled = { checked ->
-                isMySavedListChecked = checked
+                onMySavedListCheckedChange(checked)
                 if (checked) {
-                    selectedSaveEventId = null
+                    onSelectedSaveEventIdChange(null)
                 }
             },
             selectedEventId = selectedSaveEventId,
             onEventSelected = { eventId ->
-                selectedSaveEventId = eventId
+                onSelectedSaveEventIdChange(eventId)
                 if (eventId != null) {
-                    isMySavedListChecked = false
+                    onMySavedListCheckedChange(false)
                 }
             },
             onAddNewEvent = { name, date ->
                 val newId = (timelineEvents.size + 1).toString()
-                timelineEvents = listOf(TimelineEvent(newId, date, name, emptyList())) + timelineEvents
-                selectedSaveEventId = newId
-                isMySavedListChecked = false
+                onTimelineEventsChange(listOf(TimelineEvent(newId, date, name, emptyList())) + timelineEvents)
+                onSelectedSaveEventIdChange(newId)
+                onMySavedListCheckedChange(false)
             },
-            onDismiss = { showSaveListBottomSheet = false },
+            onDismiss = { onShowSaveListBottomSheetChange(false) },
             onDone = {
                 activeTargetVenue?.let { venue ->
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
-                        venueSavedDestinations = venueSavedDestinations + (venue.vendorName to destination)
-                        lastSavedVenue = venue
-                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to destination))
+                        onLastSavedVenueChange(venue)
+                        onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
                     }
                 }
-                showSaveListBottomSheet = false
-                activeTargetVenue = null
+                onShowSaveListBottomSheetChange(false)
+                onActiveTargetVenueChange(null)
             }
+        )
+    }
+
+    if (showMenuSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Change Location",
+                        icon = painterResource(R.drawable.ic_location_marker),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                            onLocationSelectorClick()
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                            onManageRoomAccessClick()
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                        }
+                    )
+                )
+            ),
+            onCancelClick = { onShowMenuSheetChange(false) }
         )
     }
 }
