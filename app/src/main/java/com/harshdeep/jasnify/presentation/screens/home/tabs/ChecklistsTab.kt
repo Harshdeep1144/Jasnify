@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -80,7 +81,6 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
-import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
@@ -564,55 +564,85 @@ fun ChecklistsTab(
                                 tween(durationMillis = 350, easing = FastOutSlowInEasing)
                             }
 
-                            if (isGridView) {
-                                LazyVerticalGrid(
-                                    columns = GridCells.Fixed(2),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    contentPadding = PaddingValues(bottom = 12.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                        .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                            if (filteredAndSortedChecklists.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
-                                        Box(
-                                            modifier = Modifier.sharedBounds(
-                                                sharedContentState = rememberSharedContentState(key = "bounds-${checklist.id}"),
-                                                animatedVisibilityScope = this@AnimatedContent,
-                                                boundsTransform = boundsTransformSpec
-                                            )
-                                        ) {
-                                            ChecklistCard(
-                                                checklist = checklist,
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    selectedChecklist = checklist
-                                                }
-                                            )
-                                        }
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_receipt),
+                                            contentDescription = "No Checklist Available",
+                                            tint = ContentSecondary,
+                                            modifier = Modifier.size(72.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        Text(
+                                            text = "No Checklist Available",
+                                            style = JasnifyTheme.typography.headingLarge,
+                                            color = ContentSecondary,
+                                            textAlign = TextAlign.Center
+                                        )
                                     }
                                 }
                             } else {
-                                LazyColumn(
-                                    contentPadding = PaddingValues(bottom = 12.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxSize()
-                                        .padding(start = 12.dp, end = 12.dp, top = 12.dp)
-                                ) {
-                                    items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
-                                        Box(
-                                            modifier = Modifier.sharedBounds(
-                                                sharedContentState = rememberSharedContentState(key = "bounds-${checklist.id}"),
-                                                animatedVisibilityScope = this@AnimatedContent,
-                                                boundsTransform = boundsTransformSpec
-                                            )
-                                        ) {
-                                            ChecklistCard(
-                                                checklist = checklist,
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    selectedChecklist = checklist
-                                                }
-                                            )
+                                if (isGridView) {
+                                    LazyVerticalGrid(
+                                        columns = GridCells.Fixed(2),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        contentPadding = PaddingValues(bottom = 12.dp),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                                    ) {
+                                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
+                                            Box(
+                                                modifier = Modifier.sharedBounds(
+                                                    sharedContentState = rememberSharedContentState(key = "bounds-${checklist.id}"),
+                                                    animatedVisibilityScope = this@AnimatedContent,
+                                                    boundsTransform = boundsTransformSpec
+                                                )
+                                            ) {
+                                                ChecklistCard(
+                                                    checklist = checklist,
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        selectedChecklist = checklist
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    LazyColumn(
+                                        contentPadding = PaddingValues(bottom = 12.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                                    ) {
+                                        items(items = filteredAndSortedChecklists, key = { it.id }) { checklist ->
+                                            Box(
+                                                modifier = Modifier.sharedBounds(
+                                                    sharedContentState = rememberSharedContentState(key = "bounds-${checklist.id}"),
+                                                    animatedVisibilityScope = this@AnimatedContent,
+                                                    boundsTransform = boundsTransformSpec
+                                                )
+                                            ) {
+                                                ChecklistCard(
+                                                    checklist = checklist,
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        selectedChecklist = checklist
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -728,7 +758,7 @@ fun ChecklistsTab(
                 val target = userToRemove
                 if (target != null) {
                     budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
-                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null
             }
@@ -750,7 +780,7 @@ fun ChecklistsTab(
                 .zIndex(100f)
         ) {
             CustomToast(
-                message = toastData.message ?: "Empty list discarded",
+                message = toastData.message ?: "Empty List Discarded!",
                 type = toastData.type
             )
         }
@@ -1341,17 +1371,46 @@ fun ChecklistArchivesScreen(
                 )
             }
 
-            LazyColumn(
-                contentPadding = PaddingValues(bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize()
-                    .padding(start = 12.dp, end = 12.dp, top = 12.dp)
-            ) {
-                items(items = filteredChecklists, key = { it.id }) { checklist ->
-                    ChecklistCard(
-                        checklist = checklist,
-                        onClick = { onChecklistClick(checklist) }
-                    )
+            if (filteredChecklists.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_receipt),
+                            contentDescription = "Nothing Archived Yet",
+                            tint = ContentSecondary,
+                            modifier = Modifier.size(72.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Nothing Archived Yet",
+                            style = JasnifyTheme.typography.headingLarge,
+                            color = ContentSecondary,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 12.dp, end = 12.dp, top = 12.dp)
+                ) {
+                    items(items = filteredChecklists, key = { it.id }) { checklist ->
+                        ChecklistCard(
+                            checklist = checklist,
+                            onClick = { onChecklistClick(checklist) }
+                        )
+                    }
                 }
             }
         }
