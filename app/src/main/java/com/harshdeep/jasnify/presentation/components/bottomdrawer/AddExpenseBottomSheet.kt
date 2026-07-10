@@ -1,6 +1,10 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import android.os.Build
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,12 +20,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -35,15 +42,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,11 +69,9 @@ import java.text.NumberFormat
 import java.util.Locale
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.TextRange
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * A custom visual transformation that formats raw numeric input into standard Indian style
- * grouping (e.g., 68000 -> 68,000) while keeping offset calculations correct for the keyboard cursor.
- */
 class ThousandsSeparatorVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val originalText = text.text
@@ -109,18 +124,27 @@ class ThousandsSeparatorVisualTransformation : VisualTransformation {
 fun AddExpenseBottomSheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
-    onSave: (amount: Long, receiver: String, category: String, emoji: String) -> Unit,
+    onSave: (amount: Long, receiver: String, category: String, emoji: String, phoneNumber: String, note: String) -> Unit,
     categories: List<String>,
     onAddCategory: (String) -> Unit,
     initialAmount: String = "",
     initialReceiver: String = "",
     initialCategory: String = "",
-    initialEmoji: String = ""
+    initialEmoji: String = "",
+    initialPhoneNumber: String = "",
+    initialNote: String = ""
 ) {
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    // Set up amount as TextFieldValue with selection pointing to the end of the initial amount
+    var toastData by remember { mutableStateOf(ToastData()) }
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
     var amountTextFieldValue by remember(initialAmount) {
         mutableStateOf(
             TextFieldValue(
@@ -132,71 +156,157 @@ fun AddExpenseBottomSheet(
     var receiverName by remember(initialReceiver) { mutableStateOf(initialReceiver) }
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     var selectedEmoji by remember(initialEmoji) { mutableStateOf(initialEmoji) }
+    var phoneNumber by remember(initialPhoneNumber) { mutableStateOf(initialPhoneNumber) }
+    var note by remember(initialNote) { mutableStateOf(initialNote) }
 
     var dynamicCategories by remember(categories) { mutableStateOf(categories) }
 
-    // Managing the sub-sheet's independent state internally
     var showCustomCategorySheet by remember { mutableStateOf(false) }
     val customCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val headingTitle = if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
 
-    CustomBottomSheet(
-        heading = headingTitle,
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
-        onDismiss = onDismiss,
-        sheetHeight = 543.dp,
-        sheetGesturesEnabled = true
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+        dragHandle = null,
+        sheetGesturesEnabled = true,
     ) {
-        AddExpenseSheetContent(
-            amountTextFieldValue = amountTextFieldValue,
-            onAmountChange = { amountTextFieldValue = it },
-            receiverName = receiverName,
-            onReceiverChange = { receiverName = it },
-            selectedCategory = selectedCategory,
-            onCategorySelect = { selectedCategory = it },
-            dynamicCategories = dynamicCategories,
-            selectedEmoji = selectedEmoji,
-            onEmojiChange = { selectedEmoji = it },
-            onCustomCategoryClick = {
-                showCustomCategorySheet = true
-            },
-            onDismiss = onDismiss,
-            onSave = { amt, rec, cat ->
-                if (amountTextFieldValue.text.isBlank() || receiverName.isBlank() || selectedCategory.isBlank()) {
-                    Toast.makeText(context, "Please enter Amount, Paid to, and select a Category!", Toast.LENGTH_SHORT).show()
-                } else {
-                    onSave(amt, rec, cat, selectedEmoji)
+        val view = LocalView.current
+        DisposableEffect(view) {
+            var parent = view.parent
+            var dialogWindow: android.view.Window? = null
+            while (parent != null) {
+                if (parent is DialogWindowProvider) {
+                    dialogWindow = parent.window
+                    break
+                }
+                parent = parent.parent
+            }
+            dialogWindow?.let { w ->
+                val colorInt = SurfacePrimary.toArgb()
+                w.navigationBarColor = colorInt
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    w.isNavigationBarContrastEnforced = false
+                }
+                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+            }
+            onDispose {}
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedVisibility(
+                visible = toastData.message != null,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+                    .zIndex(998f)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(999f)
+                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                    .background(SurfacePrimary)
+                    .navigationBarsPadding()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 8.dp)
+                        .width(56.dp)
+                        .height(4.dp)
+                        .background(ContentTertiary, shape = SquircleShape(100))
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = headingTitle,
+                        style = JasnifyTheme.typography.displayLarge,
+                        color = ContentPrimary
+                    )
+                    TopBarIconButton(
+                        backgroundStyle = ButtonBackground.OPAQUE,
+                        icon = TopIcon.Predefined.CLOSE,
+                        iconSize = 18.dp,
+                        onClick = onDismiss
+                    )
+                }
+
+                Box(modifier = Modifier.fillMaxWidth().height(600.dp)) {
+                    AddExpenseSheetContent(
+                        amountTextFieldValue = amountTextFieldValue,
+                        onAmountChange = { amountTextFieldValue = it },
+                        receiverName = receiverName,
+                        onReceiverChange = { receiverName = it },
+                        selectedCategory = selectedCategory,
+                        onCategorySelect = { selectedCategory = it },
+                        dynamicCategories = dynamicCategories,
+                        selectedEmoji = selectedEmoji,
+                        onEmojiChange = { selectedEmoji = it },
+                        phoneNumber = phoneNumber,
+                        onPhoneNumberChange = { phoneNumber = it },
+                        note = note,
+                        onNoteChange = { note = it },
+                        onCustomCategoryClick = { showCustomCategorySheet = true },
+                        onDismiss = onDismiss,
+                        onSave = { amt, rec, cat ->
+                            if (amountTextFieldValue.text.isBlank()) {
+                                toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                            } else if (selectedCategory.isBlank()) {
+                                toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                            } else {
+                                // Default fallback to 💸 emoji if left blank by user
+                                val finalEmoji = selectedEmoji.ifBlank { "💸" }
+                                onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
+                            }
+                        }
+                    )
                 }
             }
-        )
+        }
     }
 
     if (showCustomCategorySheet) {
         AddCustomCategoryBottomSheet(
             sheetState = customCategorySheetState,
             onDismiss = {
-                coroutineScope.launch {
-                    customCategorySheetState.hide()
-                }.invokeOnCompletion {
-                    if (!customCategorySheetState.isVisible) {
-                        showCustomCategorySheet = false
-                    }
+                coroutineScope.launch { customCategorySheetState.hide() }.invokeOnCompletion {
+                    showCustomCategorySheet = false
                 }
             },
             onAddCategory = { newCategory ->
                 if (newCategory.isBlank()) {
-                    Toast.makeText(context, "Please enter a category name first!", Toast.LENGTH_SHORT).show()
+                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
                 } else {
                     onAddCategory(newCategory)
                     dynamicCategories = dynamicCategories + newCategory
                     selectedCategory = newCategory
-                    coroutineScope.launch {
-                        customCategorySheetState.hide()
-                    }.invokeOnCompletion {
-                        if (!customCategorySheetState.isVisible) {
-                            showCustomCategorySheet = false
-                        }
+                    coroutineScope.launch { customCategorySheetState.hide() }.invokeOnCompletion {
+                        showCustomCategorySheet = false
                     }
                 }
             }
@@ -204,9 +314,6 @@ fun AddExpenseBottomSheet(
     }
 }
 
-/**
- * Reusable Custom Category Bottom Sheet configured to support both Adding & Renaming categories.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCustomCategoryBottomSheet(
@@ -216,22 +323,92 @@ fun AddCustomCategoryBottomSheet(
     initialCategoryName: String = "",
     heading: String = "Add custom category"
 ) {
-    CustomBottomSheet(
-        heading = heading,
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
-        onDismiss = onDismiss,
-        sheetHeight = 161.dp,
-        sheetGesturesEnabled = true
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+        dragHandle = null,
+        sheetGesturesEnabled = true,
     ) {
-        AddCustomCategorySheetContent(
-            onDismiss = onDismiss,
-            onAddCategory = onAddCategory,
-            initialCategoryName = initialCategoryName
-        )
+        val view = LocalView.current
+        DisposableEffect(view) {
+            var parent = view.parent
+            var dialogWindow: android.view.Window? = null
+            while (parent != null) {
+                if (parent is DialogWindowProvider) {
+                    dialogWindow = parent.window
+                    break
+                }
+                parent = parent.parent
+            }
+            dialogWindow?.let { w ->
+                val colorInt = SurfacePrimary.toArgb()
+                w.navigationBarColor = colorInt
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    w.isNavigationBarContrastEnforced = false
+                }
+                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+            }
+            onDispose {}
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(999f)
+                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                    .background(SurfacePrimary)
+                    .navigationBarsPadding()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 8.dp)
+                        .width(56.dp)
+                        .height(4.dp)
+                        .background(ContentTertiary, shape = SquircleShape(100))
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = heading,
+                        style = JasnifyTheme.typography.displayLarge,
+                        color = ContentPrimary
+                    )
+                    TopBarIconButton(
+                        backgroundStyle = ButtonBackground.OPAQUE,
+                        icon = TopIcon.Predefined.CLOSE,
+                        iconSize = 18.dp,
+                        onClick = onDismiss
+                    )
+                }
+
+                Box(modifier = Modifier.fillMaxWidth().height(161.dp)) {
+                    AddCustomCategorySheetContent(
+                        onDismiss = onDismiss,
+                        onAddCategory = onAddCategory,
+                        initialCategoryName = initialCategoryName
+                    )
+                }
+            }
+        }
     }
 }
-
-// ----------- Helper Functions and Content of the above bottom sheets ---------------------
 
 fun getEmojiFromString(text: String): String? {
     if (text.isEmpty()) return null
@@ -242,7 +419,7 @@ fun getEmojiFromString(text: String): String? {
     return text.takeLast(1)
 }
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddExpenseSheetContent(
     amountTextFieldValue: TextFieldValue,
@@ -254,6 +431,10 @@ fun AddExpenseSheetContent(
     dynamicCategories: List<String>,
     selectedEmoji: String,
     onEmojiChange: (String) -> Unit,
+    phoneNumber: String,
+    onPhoneNumberChange: (String) -> Unit,
+    note: String,
+    onNoteChange: (String) -> Unit,
     onCustomCategoryClick: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (amount: Long, receiver: String, category: String) -> Unit,
@@ -398,56 +579,19 @@ fun AddExpenseSheetContent(
                         .height(56.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    OutlinedTextField(
+                    PrimaryInput(
                         value = receiverName,
                         onValueChange = onReceiverChange,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .background(
-                                SurfaceSecondary,
-                                shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
-                            )
-                            .border(
-                                BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                                shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
-                            ),
-                        shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault),
-                        singleLine = true,
-                        placeholder = {
-                            Text(
-                                text = "Enter Receiver's Name",
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentSecondary
-                            )
-                        },
-                        textStyle = JasnifyTheme.typography.labelXLarge,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            disabledBorderColor = Color.Transparent,
-                            errorBorderColor = Color.Transparent
-                        ),
-                        trailingIcon = {
-                            if (receiverName.isNotEmpty()) {
-                                IconButton(onClick = { onReceiverChange("") }) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_circle_cross),
-                                        contentDescription = "Clear receiver",
-                                        tint = ContentPrimary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-                        }
+                        modifier = Modifier.weight(1f),
+                        placeholder = "Enter Receiver's Name",
+                        shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
                     )
 
                     Box(
                         modifier = Modifier
                             .width(56.dp)
                             .fillMaxHeight()
+                            .clip(shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault))
                             .background(
                                 SurfaceSecondary,
                                 shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault)
@@ -570,6 +714,86 @@ fun AddExpenseSheetContent(
                     }
                 }
             }
+
+            DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), dashLength = 12f, gapLength = 6f)
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_phone),
+                        contentDescription = "Phone icon",
+                        modifier = Modifier.size(24.dp),
+                        tint = ContentPrimary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Phone Number",
+                            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                            color = ContentPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "(optional)",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentSecondary
+                        )
+                    }
+                }
+
+                PrimaryInput(
+                    value = phoneNumber,
+                    onValueChange = onPhoneNumberChange,
+                    placeholder = "Enter receiver's phone number",
+                    keyboardType = KeyboardType.Phone
+                )
+            }
+
+            DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), dashLength = 12f, gapLength = 6f)
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_notes),
+                        contentDescription = "Note icon",
+                        modifier = Modifier.size(24.dp),
+                        tint = ContentPrimary
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Note",
+                            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                            color = ContentPrimary
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "(optional)",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentSecondary
+                        )
+                    }
+                }
+
+                PrimaryInput(
+                    value = note,
+                    onValueChange = onNoteChange,
+                    placeholder = "Write something to remember...",
+                    keyboardType = KeyboardType.Text,
+                    singleLine = false,
+                    modifier = Modifier.heightIn(min = 56.dp, max = 112.dp)
+                )
+            }
         }
 
         HorizontalDivider(
@@ -616,7 +840,6 @@ fun AddCustomCategorySheetContent(
     onAddCategory: (String) -> Unit,
     initialCategoryName: String = ""
 ) {
-    // Utilize TextFieldValue state wrapper to manually enforce end-of-word selection ranges
     var categoryInput by remember(initialCategoryName) {
         mutableStateOf(
             TextFieldValue(
@@ -628,7 +851,7 @@ fun AddCustomCategorySheetContent(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(focusRequester) {
-        delay(50) // Small delay ensures focus and soft-keyboard interactions bind flawlessly
+        delay(50)
         focusRequester.requestFocus()
     }
 
@@ -639,40 +862,14 @@ fun AddCustomCategorySheetContent(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Styled directly using OutlinedTextField to safely inject robust TextFieldValue mappings
-        OutlinedTextField(
-            value = categoryInput,
-            onValueChange = { categoryInput = it },
+        PrimaryInput(
+            value = categoryInput.text,
+            onValueChange = { categoryInput = categoryInput.copy(text = it) },
+            placeholder = "Enter a category of your choice",
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
                 .focusRequester(focusRequester)
-                .background(
-                    SurfaceSecondary,
-                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                )
-                .border(
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                ),
-            shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-            singleLine = true,
-            placeholder = {
-                Text(
-                    text = "Enter a category of your choice",
-                    style = JasnifyTheme.typography.labelXLarge,
-                    color = ContentSecondary
-                )
-            },
-            textStyle = JasnifyTheme.typography.labelXLarge,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedBorderColor = Color.Transparent,
-                unfocusedBorderColor = Color.Transparent,
-                disabledBorderColor = Color.Transparent,
-                errorBorderColor = Color.Transparent
-            )
         )
 
         DashedDivider(
@@ -717,6 +914,10 @@ fun AddExpenseSheetContentPreview() {
         dynamicCategories = categories,
         selectedEmoji = "💍",
         onEmojiChange = {},
+        phoneNumber = "",
+        onPhoneNumberChange = {},
+        note = "",
+        onNoteChange = {},
         onCustomCategoryClick = {},
         onDismiss = {},
         onSave = { _, _, _ -> }
