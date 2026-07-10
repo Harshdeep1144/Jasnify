@@ -647,13 +647,13 @@ fun LazyItemScope.EmptySavedState() {
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_receipt),
-                contentDescription = "Empty List",
+                contentDescription = "No plans here yet",
                 tint = ContentSecondary,
                 modifier = Modifier.size(72.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Empty List",
+                text = "No plans here yet",
                 style = JasnifyTheme.typography.headingLarge,
                 color = ContentSecondary,
                 textAlign = TextAlign.Center
