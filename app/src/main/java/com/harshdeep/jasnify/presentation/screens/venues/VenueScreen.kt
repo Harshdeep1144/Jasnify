@@ -1407,7 +1407,8 @@ fun TrendingAiSearchesSection(
                     size = ChipSize.Small,
                     leadingIcon = aiIcon,
                     onClick = { onTrendingClick(query) },
-                    hasStroke = true
+                    hasStroke = true,
+                    isAiMode = true
                 )
             }
         }
