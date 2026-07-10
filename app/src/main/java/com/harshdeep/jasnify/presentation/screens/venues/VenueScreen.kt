@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import com.harshdeep.jasnify.R
@@ -33,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -52,10 +54,17 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
@@ -65,6 +74,33 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+
+// --- SharedPreferences Helpers for Search History ---
+private const val PREFS_NAME = "venue_search_prefs"
+private const val KEY_RECENT_SEARCHES = "recent_searches"
+
+// --- Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
+private fun getRecentSearches(context: Context): List<String> {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
+    return if (raw.isEmpty()) emptyList() else raw.split("|||")
+}
+
+// --- Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
+private fun saveRecentSearch(context: Context, vendorName: String) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val current = getRecentSearches(context).toMutableList()
+    current.remove(vendorName) // Remove duplicate if it exists to push it to the top
+    current.add(0, vendorName)  // Add to the front of the list
+    val limited = current.take(8) // Limit search history to 8 items
+    prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
+}
+
+// --- Clears the persistent search history completely.
+private fun clearRecentSearches(context: Context) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
+}
 
 data class TimelineEvent(
     val id: String,
@@ -98,7 +134,7 @@ fun VenueScreen(
     ) { showPicker ->
         if (showPicker) {
             LocationScreen(
-                initialSearches = listOf("Patna", "Delhi", "Mumbai"),
+                initialSearches = emptyList(),
                 currentAddress = currentAddress,
                 onAddressSelected = {
                     currentAddress = it
@@ -128,6 +164,7 @@ fun VenueMainContent(
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var selectedTab by remember { mutableStateOf("explore") }
 
@@ -147,6 +184,11 @@ fun VenueMainContent(
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+
+    // Read and track recent search history as reactive state
+    var recentSearches by remember {
+        mutableStateOf(getRecentSearches(context))
+    }
 
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
@@ -171,6 +213,20 @@ fun VenueMainContent(
     var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     val exploreVenues = remember { MockData.sampleVenues1 }
+
+    // Map stored vendor names back to full VendorCardData objects
+    val recentVenuesList = remember(recentSearches, exploreVenues) {
+        recentSearches.mapNotNull { name ->
+            exploreVenues.find { it.vendorName == name }
+        }
+    }
+
+    // Helper lambda to record clicks to recent searches before forwarding click events
+    val handleVenueClick: (VendorCardData) -> Unit = { venue ->
+        saveRecentSearch(context, venue.vendorName)
+        recentSearches = getRecentSearches(context) // refresh local Compose state
+        onVenueClick(venue)
+    }
 
     val savedVenuesList = remember(venueSavedDestinations) {
         exploreVenues.filter { venue ->
@@ -334,7 +390,6 @@ fun VenueMainContent(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 12.dp)
                             .background(Color.Transparent),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -344,7 +399,11 @@ fun VenueMainContent(
                                 enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
                                 exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(250))
                             ) {
-                                Column {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                ) {
                                     Spacer(Modifier.height(12.dp))
                                     LocationSelectorPill(
                                         location = selectedLocation,
@@ -357,7 +416,9 @@ fun VenueMainContent(
 
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 CustomSearchBar(
@@ -388,7 +449,6 @@ fun VenueMainContent(
                             items(filteredAndSortedExploreVenues) { venue ->
                                 VendorCardFull(
                                     vendor = venue,
-                                    onBookCallClick = {},
                                     onFavoriteToggle = {
                                         if (venueSavedDestinations.containsKey(venue.vendorName)) {
                                             venueSavedDestinations = venueSavedDestinations - venue.vendorName
@@ -399,17 +459,33 @@ fun VenueMainContent(
                                             showSaveListBottomSheet = true
                                         }
                                     },
-                                    onCardClick = {},
-                                    onChatClick = {},
+                                    onCardClick = { handleVenueClick(venue) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
                                 )
                             }
                         } else {
                             item {
-                                RecentSearchesSection(
-                                    onVenueClick = {},
-                                    recentVenues = MockData.sampleVenues1,
-                                    onClearAll = {}
+                                TrendingAiSearchesSection(
+                                    onTrendingClick = { query ->
+                                        text = query
+                                        focusManager.clearFocus()
+                                    }
                                 )
+                            }
+                            // Only show RecentSearchesSection if history is not empty
+                            if (recentVenuesList.isNotEmpty()) {
+                                item {
+                                    RecentSearchesSection(
+                                        onVenueClick = handleVenueClick,
+                                        recentVenues = recentVenuesList,
+                                        onClearAll = {
+                                            clearRecentSearches(context)
+                                            recentSearches = emptyList() // Reactive update to hide search view section immediately
+                                        }
+                                    )
+                                }
                             }
                         }
                         item { Spacer(Modifier.height(6.dp)) }
@@ -439,10 +515,10 @@ fun VenueMainContent(
                                     date = timelineItem.date,
                                     event = timelineItem.event,
                                     venues = timelineItem.venues,
-                                    onVenueClick = { },
+                                    onVenueClick = handleVenueClick,
                                     onFavoriteToggle = { venue ->
                                         venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                    }
+                                    },
                                 )
                             }
                         } else {
@@ -466,12 +542,10 @@ fun VenueMainContent(
                                 items(savedVenuesList) { venue ->
                                     VendorCardFull(
                                         vendor = venue,
-                                        onBookCallClick = {},
                                         onFavoriteToggle = {
                                             venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                         },
-                                        onCardClick = {},
-                                        onChatClick = {},
+                                        onCardClick = { handleVenueClick(venue) },
                                     )
                                 }
                             }
@@ -942,12 +1016,12 @@ fun LocationSelectorPill(
             )
 
             Icon(
-                imageVector = Icons.Outlined.LocationOn,
+                painter = painterResource(R.drawable.ic_location_marker),
                 contentDescription = null,
                 tint = ContentBrandDark,
                 modifier = Modifier
                     .padding(start = 4.dp)
-                    .size(24.dp)
+                    .size(20.dp)
             )
 
             Spacer(modifier = Modifier.weight(1f))
@@ -976,6 +1050,77 @@ fun TimelineHeader(date: String, event: String) {
             Text(event, style = JasnifyTheme.typography.labelXLarge, color = ContentBrandDark, fontWeight = FontWeight.Medium)
         }
         Icon(Icons.Default.MoreVert, "Options", tint = ContentPrimary)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TrendingAiSearchesSection(
+    onTrendingClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
+    val trendingQueries = listOf(
+        "4.5+ Rated",
+        "Hotels for 800 guests",
+        "Vintage Themed Hotels"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_trend_up),
+                    contentDescription = "Trending",
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Trending AI Searches",
+                    style = JasnifyTheme.typography.headingMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = ContentPrimary
+                )
+            }
+
+            CustomIconButton(
+                onClick = { },
+                icon = painterResource(R.drawable.ic_info),
+                contentColor = ContentPrimary,
+                containerColor = SurfacePrimary,
+                size = ButtonSize.Small
+            )
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            trendingQueries.forEach { query ->
+                FilterChip(
+                    label = query,
+                    isSelected = false,
+                    shapeStyle = ChipShapeStyle.Round,
+                    size = ChipSize.Small,
+                    leadingIcon = aiIcon,
+                    onClick = { onTrendingClick(query) },
+                    hasStroke = true
+                )
+            }
+        }
     }
 }
 

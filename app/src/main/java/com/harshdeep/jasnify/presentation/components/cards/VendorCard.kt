@@ -5,13 +5,13 @@ import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.Apartment
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material3.*
@@ -22,8 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -39,19 +41,12 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.chip.DisabledChip
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
-// ---- Constants for Infinite Pager ----
 private const val VIRTUAL_PAGE_COUNT = 10000
 
 data class VendorCardData(
@@ -63,9 +58,9 @@ data class VendorCardData(
     val services: List<String>,
     val priceStartsFrom: String,
     val images: List<String> = listOf(),
-    val enquiriesLastMonth: Int = 65,
+    val enquiriesLastMonth: Int = 0,
     val isFavorite: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis() // Added timestamp field with default value for ordering
+    val timestamp: Long = System.currentTimeMillis()
 )
 
 enum class CompactCardSize {
@@ -77,8 +72,6 @@ enum class CompactCardSize {
 fun VendorCardFull(
     vendor: VendorCardData,
     modifier: Modifier = Modifier,
-    onBookCallClick: () -> Unit = {},
-    onChatClick: () -> Unit = {},
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {}
@@ -108,13 +101,13 @@ fun VendorCardFull(
         onClick = onCardClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(416.dp)
+            .wrapContentHeight()
             .vendorShadow(borderRadius = 20.dp),
         shape = SquircleShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
     ) {
         Column {
-            Box(modifier = Modifier.height(200.dp)) {
+            Box(modifier = Modifier.height(230.dp)) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -125,10 +118,11 @@ fun VendorCardFull(
                         url = imageUrl,
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFFF2F2F2))
+                            .background(SurfaceSecondary)
                     )
                 }
 
+                // Top left "Offers" Badge
                 OfferBadge(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -136,7 +130,7 @@ fun VendorCardFull(
                     onClick = onOfferClick
                 )
 
-                // Favorite Toggle wrapped inside clip & clickable
+                // Top right Favorite Toggle
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
@@ -153,139 +147,209 @@ fun VendorCardFull(
                         painter = iconRes,
                         contentDescription = "Favorite Icon",
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(30.dp),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
 
+                // Dynamic padding to prevent overlapping with the Enquiry Banner
+                val hasEnquiries = vendor.enquiriesLastMonth > 0
+                val dotsBottomPadding = if (hasEnquiries) (26.dp + 12.dp) else 12.dp
+
+                // Carousel Dots
                 CarouselDots(
                     pageCount = actualPageCount,
                     currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(12.dp)
+                        .padding(
+                            start = 12.dp,
+                            end = 12.dp,
+                            top = 12.dp,
+                            bottom = dotsBottomPadding
+                        )
+                )
+
+                BannerRow(
+                    vendor = vendor,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
                 )
             }
 
             Column(
                 modifier = Modifier
-                    .height(190.dp)
-                    .padding(vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .background(SurfacePrimary)
+                    .padding(12.dp),
             ) {
+                // Vendor Name Title
+                Text(
+                    text = vendor.vendorName,
+                    style = JasnifyTheme.typography.headingLarge,
+                    color = ContentPrimary
+                )
+                Spacer(Modifier.height(4.dp))
+
+                // Location and Vendor Type Row
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp)
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = vendor.vendorName,
-                            style = JasnifyTheme.typography.headingLarge,
-                            color = ContentPrimary,
-                            fontWeight = FontWeight.Normal
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        LocationAndTypeRow(vendor.location, vendor.vendorType)
-                    }
-
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Surface(color = Color(0xFF009B0A), shape = SquircleShape(100, 0.1f)) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Star, null, Modifier.size(14.dp), Color.White)
-                                Spacer(Modifier.width(4.dp))
-                                Text(
-                                    text = "${vendor.rating}",
-                                    color = ContentInvPrimary,
-                                    style = JasnifyTheme.typography.labelMedium
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = "${vendor.totalReviews} reviews",
-                            style = JasnifyTheme.typography.labelSmall,
-                            color = ContentSecondary,
-                        )
-                    }
-                }
-
-                LazyRow(
                     modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(vendor.services) { service -> DisabledChip(label = service) }
-                }
-
-                DashedDivider(modifier = Modifier.padding(horizontal = 12.dp))
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
+                    // Location Info
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_location_marker),
+                            contentDescription = "Location Pin",
+                            modifier = Modifier.size(16.dp),
+                            tint = ContentSecondary
+                        )
+                        Spacer(Modifier.width(4.dp))
                         Text(
-                            "Starting at",
-                            style = JasnifyTheme.typography.labelSmall,
+                            text = vendor.location,
+                            style = JasnifyTheme.typography.labelMedium,
                             color = ContentSecondary
                         )
-                        Text(
-                            text = vendor.priceStartsFrom,
-                            style = JasnifyTheme.typography.displayMedium,
-                            color = ContentPrimary,
-                            fontWeight = FontWeight.Medium
-                        )
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CustomIconButton(
-                            onClick = onChatClick,
-                            modifier = Modifier.width(60.dp),
-                            icon = painterResource(R.drawable.ic_message),
-                            size = ButtonSize.Small,
-                            type = ButtonType.Secondary,
-                            shapeStyle = ButtonShapeStyle.Round,
-                        )
-                        CustomTextButton(
-                            onClick = onBookCallClick,
-                            text = "Book a Call",
-                            size = ButtonSize.Small,
-                            shapeStyle = ButtonShapeStyle.Round,
-                        )
+                    // Vendor Type Info
+                    vendor.vendorType?.let { type ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_building),
+                                contentDescription = "Vendor Type",
+                                modifier = Modifier.size(16.dp),
+                                tint = ContentSecondary
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = type,
+                                style = JasnifyTheme.typography.labelMedium,
+                                color = ContentSecondary
+                            )
+                        }
                     }
+                }
+
+                Spacer(Modifier.height(8.dp))
+                DashedDivider(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                )
+                Spacer(Modifier.height(8.dp))
+
+                Column {
+                    Text(
+                        text = "Starting at",
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary
+                    )
+                    Text(
+                        text = vendor.priceStartsFrom,
+                        style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                        color = ContentBrandDark
+                    )
                 }
             }
+        }
+    }
+}
 
-            Box(
+@Composable
+private fun BannerRow(
+    vendor: VendorCardData,
+    modifier: Modifier = Modifier
+) {
+    val hasEnquiries = vendor.enquiriesLastMonth > 0
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .wrapContentHeight(),
+        contentAlignment = Alignment.BottomStart
+    ) {
+        // Golden Enquiry Row
+        if (hasEnquiries) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFEAC768))
-                    .padding(vertical = 4.dp, horizontal = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.TrendingUp,
-                        contentDescription = null, Modifier.size(18.dp),
-                        tint = Color(0xFF6D5410)
+                    .height(26.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xFFEAC768),
+                                Color(0xFFCCB065),
+                            )
+                        )
                     )
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${vendor.enquiriesLastMonth} Enquiries last month",
-                        style = JasnifyTheme.typography.labelMedium,
-                        color = Color(0xFF6D5410)
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_trend_up),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = Color(0xFF6D5410),
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "${vendor.enquiriesLastMonth} Enquiries last month",
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = Color(0xFF6D5410)
+                )
+            }
+        }
+
+        //  Exact Shape Mask Layer from Figma Cutout Dimensions
+        Box(
+            modifier = Modifier
+                .width(101.5.dp)
+                .height(34.dp)
+                .drawBehind {
+                    // Bleed overshoot constant to mask rendering seam lines
+                    val bleedY = size.height + 1.5f
+
+                    val path = Path().apply {
+                        moveTo(0f, bleedY)      // Bottom-left
+                        lineTo(0f, 0f)          // Top-left
+
+                        // Gives room for the green pill before the curve begins
+                        val startCurveX = size.width * 0.45f
+                        lineTo(startCurveX, 0f)
+
+                        // S-curve dropping gracefully down to the bottom right boundary
+                        cubicTo(
+                            x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
+                            x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
+                            x3 = size.width, y3 = size.height
+                        )
+
+                        lineTo(0f, bleedY) // Closes path back smoothly via the bottom line
+                        close()
+                    }
+                    drawPath(
+                        path = path,
+                        color = SurfacePrimary
                     )
                 }
+                .padding(start = 12.dp),
+            contentAlignment = Alignment.BottomStart
+        ) {
+            // Green Rating Pill
+            Row(
+                modifier = Modifier
+                    .background(Color(0xFF009B0A), shape = RoundedCornerShape(100))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Star, null, Modifier.size(12.dp), Color.White)
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    text = "${vendor.rating}",
+                    color = ContentInvPrimary,
+                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+                )
             }
         }
     }
@@ -437,8 +501,8 @@ fun VendorCardCompact(
                 Spacer(Modifier.height(4.dp))
 
                 LocationAndTypeRow(
-                    vendor.location,
-                    vendor.vendorType,
+                    location = vendor.location,
+                    type = vendor.vendorType,
                     compactCardSize = compactCardSize
                 )
 
@@ -523,7 +587,7 @@ private fun LocationAndTypeRow(
     ) {
         if (isMedium) {
             Icon(
-                imageVector = Icons.Outlined.LocationOn,
+                painter = painterResource(R.drawable.ic_location_marker),
                 contentDescription = null,
                 modifier = Modifier.size(14.dp),
                 tint = ContentSecondary
@@ -563,12 +627,14 @@ fun Modifier.vendorShadow(
 ) = this.drawBehind {
     drawIntoCanvas { canvas ->
         val paint = Paint().asFrameworkPaint()
+
         val layers = listOf(
-            ShadowLayer(offsetY = 11.dp, blur = 24.dp, alpha = 0.10f),
-            ShadowLayer(offsetY = 43.dp, blur = 43.dp, alpha = 0.09f),
-            ShadowLayer(offsetY = 97.dp, blur = 58.dp, alpha = 0.05f),
-            ShadowLayer(offsetY = 172.dp, blur = 69.dp, alpha = 0.01f)
+            ShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
+            ShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
+            ShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
+            ShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
         )
+
         layers.forEach { layer ->
             paint.color = color.copy(alpha = layer.alpha).toArgb()
             paint.setShadowLayer(
@@ -577,6 +643,7 @@ fun Modifier.vendorShadow(
                 layer.offsetY.toPx(),
                 color.copy(alpha = layer.alpha).toArgb()
             )
+
             canvas.nativeCanvas.drawRoundRect(
                 0f,
                 0f,
@@ -609,6 +676,7 @@ fun PreviewVendorCards() {
         ),
         vendorType = "Photographer",
         isFavorite = true,
+        enquiriesLastMonth = 0,
         timestamp = 1718000000000L // Updated mock timestamp
     )
 

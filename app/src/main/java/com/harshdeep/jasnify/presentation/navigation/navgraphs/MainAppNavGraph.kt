@@ -107,7 +107,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             val previousBackStackEntry = mainNavController.previousBackStackEntry
 
             LocationScreen(
-                initialSearches = listOf("Patna", "Delhi", "Mumbai"),
+                initialSearches = emptyList(),
                 currentAddress = previousBackStackEntry?.savedStateHandle?.get<String>("selected_location") ?: "City, State",
                 onAddressSelected = { selectedAddress ->
                     previousBackStackEntry?.savedStateHandle?.set("selected_location", selectedAddress)
