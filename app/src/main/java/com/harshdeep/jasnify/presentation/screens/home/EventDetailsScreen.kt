@@ -226,7 +226,7 @@ fun EventDetailsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(0.dp) // Manual spacing to optimize list placement animations
                 ) {
                     item {
                         Row(
@@ -259,6 +259,7 @@ fun EventDetailsScreen(
                                 }
                             )
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
 
                     // Joined Card Group: Primary Event Name, Event Timeline Type, and Event Date
@@ -423,6 +424,7 @@ fun EventDetailsScreen(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
 
                     // Render Event Timeline lists and setups ONLY if Multi-day is active
@@ -459,7 +461,7 @@ fun EventDetailsScreen(
                                 Row(
                                     modifier = Modifier
                                         .clickable(enabled = !hasUnsavedEditingItem) {
-                                            // Inserts at index 0 (top of the list)
+                                            // Inserts a new timeline event at the top of the list instantly
                                             timelineItems.add(
                                                 0,
                                                 SubEventItem(
@@ -488,90 +490,123 @@ fun EventDetailsScreen(
                                     )
                                 }
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
 
-                        // Event Timeline Stack rendering custom TimeLineInput
-                        item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp),
-                                verticalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                timelineItems.forEachIndexed { index, item ->
-                                    val isEditing = item.isEditing
+                        // Event Timeline Stack rendering direct animated items in LazyColumn
+                        itemsIndexed(
+                            items = timelineItems,
+                            key = { _, item -> item.id }
+                        ) { index, item ->
+                            val isEditing = item.isEditing
 
-                                    // Dynamic margins/paddings target values
-                                    val targetTopPadding = if (isEditing && index > 0 && !timelineItems[index - 1].isEditing) 12.dp else 0.dp
-                                    val targetBottomPadding = if (isEditing && index == 0) {
-                                        12.dp
-                                    } else if (isEditing && index < timelineItems.lastIndex && !timelineItems[index + 1].isEditing) {
-                                        12.dp
-                                    } else {
-                                        0.dp
-                                    }
+                            // Dynamic margins/paddings target values
+                            val targetTopPadding = if (isEditing && index > 0 && !timelineItems[index - 1].isEditing) 12.dp else 0.dp
+                            val targetBottomPadding = if (isEditing && index == 0) {
+                                12.dp
+                            } else if (isEditing && index < timelineItems.lastIndex && !timelineItems[index + 1].isEditing) {
+                                12.dp
+                            } else {
+                                0.dp
+                            }
 
-                                    // Animating paddings smoothly using animateDpAsState to avoid harsh vertical layout jumps
-                                    val animatedTopPadding by animateDpAsState(
-                                        targetValue = targetTopPadding,
-                                        label = "TimelineItemTopPadding"
-                                    )
-                                    val animatedBottomPadding by animateDpAsState(
-                                        targetValue = targetBottomPadding,
-                                        label = "TimelineItemBottomPadding"
-                                    )
+                            // Animating paddings smoothly using animateDpAsState to avoid harsh vertical layout jumps
+                            val animatedTopPadding by animateDpAsState(
+                                targetValue = targetTopPadding,
+                                label = "TimelineItemTopPadding"
+                            )
+                            val animatedBottomPadding by animateDpAsState(
+                                targetValue = targetBottomPadding,
+                                label = "TimelineItemBottomPadding"
+                            )
 
-                                    // Dynamic Shape Assignment: Editing items pop out with full squircle corners.
-                                    // Neighboring items seamlessly adjust their outer boundaries around them.
-                                    val shape = if (isEditing) {
-                                        SquircleShape(CornerLargeIncrease)
-                                    } else {
-                                        val isFirstInBlock = index == 0 || timelineItems[index - 1].isEditing
-                                        val isLastInBlock = index == timelineItems.lastIndex || timelineItems[index + 1].isEditing
+                            // Dynamic Shape Assignment: Editing items pop out with full squircle corners.
+                            // Neighboring items seamlessly adjust their outer boundaries around them.
+                            val shape = if (isEditing) {
+                                SquircleShape(CornerLargeIncrease)
+                            } else {
+                                val isFirstInBlock = index == 0 || timelineItems[index - 1].isEditing
+                                val isLastInBlock = index == timelineItems.lastIndex || timelineItems[index + 1].isEditing
 
-                                        when {
-                                            isFirstInBlock && isLastInBlock -> SquircleShape(CornerLargeIncrease)
-                                            isFirstInBlock -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
-                                            isLastInBlock -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
-                                            else -> RoundedCornerShape(CornerExtraSmall)
-                                        }
-                                    }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(top = animatedTopPadding, bottom = animatedBottomPadding)
-                                            .clip(shape)
-                                            .background(SurfacePrimary)
-                                    ) {
-                                        TimeLineInput(
-                                            item = item,
-                                            onUpdate = { updatedItem ->
-                                                val indexToUpdate = timelineItems.indexOfFirst { it.id == updatedItem.id }
-                                                if (indexToUpdate != -1) {
-                                                    timelineItems[indexToUpdate] = updatedItem
-
-                                                    if (!updatedItem.isEditing) {
-                                                        // Pre-parse dates exactly once per item to eliminate comparison parsing lag
-                                                        val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.date) }
-                                                        val sorted = timelineItems.sortedBy { parsedDates[it.id] }
-
-                                                        timelineItems.clear()
-                                                        timelineItems.addAll(sorted)
-                                                    }
-                                                }
-                                            },
-                                            onDelete = { itemToDelete ->
-                                                timelineItems.remove(itemToDelete)
-                                            },
-                                            backgroundColor = SurfacePrimary,
-                                            hasBorder = false,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
-                                    }
+                                when {
+                                    isFirstInBlock && isLastInBlock -> SquircleShape(CornerLargeIncrease)
+                                    isFirstInBlock -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
+                                    isLastInBlock -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
+                                    else -> RoundedCornerShape(CornerExtraSmall)
                                 }
                             }
+
+                            Box(
+                                modifier = Modifier
+                                    .animateItem() // Built-in Compose transition engine handles reordering slide animations
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp)
+                                    .padding(top = animatedTopPadding, bottom = animatedBottomPadding + 2.dp)
+                                    .clip(shape)
+                                    .background(SurfacePrimary)
+                            ) {
+                                TimeLineInput(
+                                    item = item,
+                                    onUpdate = { updatedItem ->
+                                        val indexToUpdate = timelineItems.indexOfFirst { it.id == updatedItem.id }
+                                        if (indexToUpdate != -1) {
+                                            val oldItem = timelineItems[indexToUpdate]
+                                            timelineItems[indexToUpdate] = updatedItem
+
+                                            // Trigger chronological sort instantly when date is picked (even during editing)
+                                            if (oldItem.date != updatedItem.date || (!updatedItem.isEditing && oldItem.isEditing)) {
+                                                val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.date) }
+
+                                                val sorted = timelineItems.sortedWith(
+                                                    compareBy<SubEventItem> {
+                                                        // Keep empty/undated/newly added items at the very top (index 0) so they can be edited cleanly
+                                                        if (it.date.isBlank() || it.date == "Not yet decided" || it.date == "Select a date") 0 else 1
+                                                    }.thenBy {
+                                                        parsedDates[it.id] ?: LocalDate.MAX
+                                                    }
+                                                )
+
+                                                timelineItems.clear()
+                                                timelineItems.addAll(sorted)
+                                            }
+                                        }
+                                    },
+                                    onDelete = { itemToDelete ->
+                                        timelineItems.remove(itemToDelete)
+                                    },
+                                    backgroundColor = SurfacePrimary,
+                                    hasBorder = false,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
                         }
+                    }
+
+                    item{
+                        Spacer(Modifier.height(46.dp))
+                    }
+
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ){
+                            Icon(
+                                painter = painterResource(R.drawable.ic_app),
+                                contentDescription = null,
+                                tint = ContentSecondary
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "Your smart way to celebrate.",
+                                style = JasnifyTheme.typography.bodySmall.copy(fontWeight = FontWeight.Light),
+                                color = ContentSecondary
+                            )
+                        }
+
                     }
                 }
             }
