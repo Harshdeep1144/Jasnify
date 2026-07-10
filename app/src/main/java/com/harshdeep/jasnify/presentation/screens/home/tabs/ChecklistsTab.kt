@@ -578,14 +578,14 @@ fun ChecklistsTab(
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_receipt),
                                             contentDescription = "No Checklist Available",
-                                            tint = ContentSecondary,
-                                            modifier = Modifier.size(72.dp)
+                                            tint = ContentTertiary,
+                                            modifier = Modifier.size(84.dp)
                                         )
                                         Spacer(modifier = Modifier.height(12.dp))
                                         Text(
                                             text = "No Checklist Available",
-                                            style = JasnifyTheme.typography.headingLarge,
-                                            color = ContentSecondary,
+                                            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                                            color = ContentTertiary,
                                             textAlign = TextAlign.Center
                                         )
                                     }
@@ -1385,14 +1385,14 @@ fun ChecklistArchivesScreen(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_receipt),
                             contentDescription = "Nothing Archived Yet",
-                            tint = ContentSecondary,
-                            modifier = Modifier.size(72.dp)
+                            tint = ContentTertiary,
+                            modifier = Modifier.size(84.dp)
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = "Nothing Archived Yet",
-                            style = JasnifyTheme.typography.headingLarge,
-                            color = ContentSecondary,
+                            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                            color = ContentTertiary,
                             textAlign = TextAlign.Center
                         )
                     }
