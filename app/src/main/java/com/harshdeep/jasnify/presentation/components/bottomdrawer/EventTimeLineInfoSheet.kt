@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
@@ -179,6 +181,8 @@ private fun InfoFeatureItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(SquircleShape(CornerLargeIncrease))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLargeIncrease))
             .background(SurfaceSecondary, SquircleShape(CornerLargeIncrease))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
