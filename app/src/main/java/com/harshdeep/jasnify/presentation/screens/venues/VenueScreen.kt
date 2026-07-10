@@ -118,7 +118,7 @@ data class TimelineEvent(
 )
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VenueScreen(
     selectedLocation: String = "City, State",
@@ -129,6 +129,7 @@ fun VenueScreen(
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
+    var selectedTab by remember { mutableStateOf("explore") }
 
     // User Directory State
     var venueRoomUsers by remember {
@@ -193,6 +194,10 @@ fun VenueScreen(
     // Determine overlay occlusion layers to mask global toast alerts cleanly
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
             showFilterDialog || showSaveListBottomSheet || showMenuSheet
+
+    val isSavedListToast = remember(toastData, lastSavedVenue) {
+        toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
+    }
 
     Box(
         modifier = Modifier.fillMaxSize()
@@ -281,15 +286,17 @@ fun VenueScreen(
                         venueSavedDestinations = venueSavedDestinations,
                         onVenueSavedDestinationsChange = { venueSavedDestinations = it },
                         lastSavedVenue = lastSavedVenue,
-                        onLastSavedVenueChange = { lastSavedVenue = it }
+                        onLastSavedVenueChange = { lastSavedVenue = it },
+                        selectedTab = selectedTab,
+                        onSelectedTabChange = { selectedTab = it }
                     )
                 }
             }
         }
 
-        // --- Premium Unified Top-Center Toast Alignment (Matching Budget Screen structure) ---
+        // --- Standard Alerts: Top-Center Toast Animation ---
         AnimatedVisibility(
-            visible = toastData?.message != null && !isAnySheetVisible,
+            visible = toastData?.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
@@ -300,30 +307,43 @@ fun VenueScreen(
                 .padding(horizontal = 12.dp, vertical = 16.dp)
         ) {
             toastData?.let { data ->
-                // Intelligently transform to interactive CustomToast if this is a venue saving success event
-                if (data.message?.contains("Saved List") == true && lastSavedVenue != null) {
-                    CustomToast(
-                        message = data.message ?: "",
-                        type = data.type,
-                        leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
-                        buttonText = "Change",
-                        onButtonClick = {
-                            toastData = null
-                            lastSavedVenue?.let { venue ->
-                                activeTargetVenue = venue
-                                val currentDest = venueSavedDestinations[venue.vendorName]
-                                isMySavedListChecked = currentDest == "mysaved"
-                                selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
-                                showSaveListBottomSheet = true
-                            }
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type
+                )
+            }
+        }
+
+        // --- Interactive Saved List Notification: Bottom-Up Toast Animation ---
+        AnimatedVisibility(
+            visible = toastData?.message != null && isSavedListToast && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = "Change",
+                    onButtonClick = {
+                        toastData = null
+                        lastSavedVenue?.let { venue ->
+                            activeTargetVenue = venue
+                            val currentDest = venueSavedDestinations[venue.vendorName]
+                            isMySavedListChecked = currentDest == "mysaved"
+                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                            showSaveListBottomSheet = true
                         }
-                    )
-                } else {
-                    CustomToast(
-                        message = data.message ?: "",
-                        type = data.type
-                    )
-                }
+                    }
+                )
             }
         }
     }
@@ -421,11 +441,12 @@ fun VenueMainContent(
     venueSavedDestinations: Map<String, String>,
     onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
     lastSavedVenue: VendorCardData?,
-    onLastSavedVenueChange: (VendorCardData?) -> Unit
+    onLastSavedVenueChange: (VendorCardData?) -> Unit,
+    selectedTab: String,
+    onSelectedTabChange: (String) -> Unit
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var selectedTab by remember { mutableStateOf("explore") }
 
     val viewOptions = listOf("By Timeline", "By List")
     var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
@@ -458,6 +479,24 @@ fun VenueMainContent(
         saveRecentSearch(context, venue.vendorName)
         recentSearches = getRecentSearches(context)
         onVenueClick(venue)
+    }
+
+    // Interactive helper for when the user clicks the like/favorite button directly
+    val handleFavoriteToggle: (VendorCardData) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.vendorName)
+        if (alreadySaved) {
+            // Already Saved: Unlike action triggers the "Manage Saved List" bottom sheet
+            onActiveTargetVenueChange(venue)
+            val currentDestination = venueSavedDestinations[venue.vendorName]
+            onMySavedListCheckedChange(currentDestination == "mysaved")
+            onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
+            onShowSaveListBottomSheetChange(true)
+        } else {
+            // Not Saved: Clicking like directly adds to the "My Saved List"
+            onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to "mysaved"))
+            onLastSavedVenueChange(venue)
+            onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
+        }
     }
 
     val savedVenuesList = remember(venueSavedDestinations) {
@@ -568,7 +607,6 @@ fun VenueMainContent(
     ) {
         Scaffold(
             topBar = {
-                // Clickable custom top bar wrapper to clear focus cleanly like the BudgetScreen
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -594,7 +632,7 @@ fun VenueMainContent(
                     BottomTab(
                         items = bottomTabs,
                         selectedValue = selectedTab,
-                        onItemSelected = { selectedTab = it }
+                        onItemSelected = { onSelectedTabChange(it) }
                     )
                 }
             },
@@ -682,16 +720,7 @@ fun VenueMainContent(
                             items(filteredAndSortedExploreVenues) { venue ->
                                 VendorCardFull(
                                     vendor = venue,
-                                    onFavoriteToggle = {
-                                        if (venueSavedDestinations.containsKey(venue.vendorName)) {
-                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
-                                        } else {
-                                            onActiveTargetVenueChange(venue)
-                                            onMySavedListCheckedChange(true)
-                                            onSelectedSaveEventIdChange(null)
-                                            onShowSaveListBottomSheetChange(true)
-                                        }
-                                    },
+                                    onFavoriteToggle = { handleFavoriteToggle(venue) },
                                     onCardClick = { handleVenueClick(venue) },
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -753,9 +782,7 @@ fun VenueMainContent(
                                         event = timelineItem.event,
                                         venues = timelineItem.venues,
                                         onVenueClick = handleVenueClick,
-                                        onFavoriteToggle = { venue ->
-                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
-                                        },
+                                        onFavoriteToggle = { venue -> handleFavoriteToggle(venue) },
                                     )
                                 }
                             }
@@ -768,9 +795,7 @@ fun VenueMainContent(
                                 items(savedVenuesList) { venue ->
                                     VendorCardFull(
                                         vendor = venue,
-                                        onFavoriteToggle = {
-                                            onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
-                                        },
+                                        onFavoriteToggle = { handleFavoriteToggle(venue) },
                                         onCardClick = { handleVenueClick(venue) },
                                     )
                                 }
@@ -831,6 +856,10 @@ fun VenueMainContent(
                         onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to destination))
                         onLastSavedVenueChange(venue)
                         onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
+                    } else {
+                        // User unchecked all lists -> This confirms the "unlike" behavior
+                        onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
+                        onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
                     }
                 }
                 onShowSaveListBottomSheetChange(false)

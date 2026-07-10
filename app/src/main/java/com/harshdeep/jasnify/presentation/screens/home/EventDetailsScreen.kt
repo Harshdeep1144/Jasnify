@@ -184,7 +184,8 @@ fun EventDetailsScreen(
             SubEventItem(id = "3", date = "12th Sept, 2025", name = "The Wedding Day", isExisting = true),
             SubEventItem(id = "2", date = "10th Sept, 2025", name = "Haldi & Sangeet Ceremony", isExisting = true)
         ).apply {
-            sortBy { parseFormattedDate(it.date) }
+            val parsed = associate { it.id to parseFormattedDate(it.date) }
+            sortBy { parsed[it.id] }
         }
     }
 
@@ -458,7 +459,9 @@ fun EventDetailsScreen(
                                 Row(
                                     modifier = Modifier
                                         .clickable(enabled = !hasUnsavedEditingItem) {
+                                            // Inserts at index 0 (top of the list)
                                             timelineItems.add(
+                                                0,
                                                 SubEventItem(
                                                     id = "new-${nextNewId.value++}",
                                                     date = "",
@@ -496,44 +499,76 @@ fun EventDetailsScreen(
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 timelineItems.forEachIndexed { index, item ->
-                                    val shape = when {
-                                        timelineItems.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
-                                        index == 0 -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
-                                        index == timelineItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
-                                        else -> RoundedCornerShape(CornerExtraSmall)
+                                    val isEditing = item.isEditing
+
+                                    // Dynamic margins/paddings target values
+                                    val targetTopPadding = if (isEditing && index > 0 && !timelineItems[index - 1].isEditing) 12.dp else 0.dp
+                                    val targetBottomPadding = if (isEditing && index == 0) {
+                                        12.dp
+                                    } else if (isEditing && index < timelineItems.lastIndex && !timelineItems[index + 1].isEditing) {
+                                        12.dp
+                                    } else {
+                                        0.dp
                                     }
 
-                                    TimeLineInput(
-                                        item = item,
-                                        onUpdate = { updatedItem ->
-                                            val indexToUpdate = timelineItems.indexOfFirst { it.id == updatedItem.id }
-                                            if (indexToUpdate != -1) {
-                                                timelineItems[indexToUpdate] = updatedItem
+                                    // Animating paddings smoothly using animateDpAsState to avoid harsh vertical layout jumps
+                                    val animatedTopPadding by animateDpAsState(
+                                        targetValue = targetTopPadding,
+                                        label = "TimelineItemTopPadding"
+                                    )
+                                    val animatedBottomPadding by animateDpAsState(
+                                        targetValue = targetBottomPadding,
+                                        label = "TimelineItemBottomPadding"
+                                    )
 
-                                                // Automatically sort the timeline items chronologically when an item is finished editing
-                                                if (!updatedItem.isEditing) {
-                                                    val sorted = timelineItems.sortedWith(
-                                                        compareBy<SubEventItem> {
-                                                            // Push empty/undecided items to the very end of the list
-                                                            it.date.isBlank() || it.date == "Not yet decided"
-                                                        }.thenBy {
-                                                            parseFormattedDate(it.date)
-                                                        }
-                                                    )
-                                                    timelineItems.clear()
-                                                    timelineItems.addAll(sorted)
-                                                }
-                                            }
-                                        },
-                                        onDelete = { itemToDelete ->
-                                            timelineItems.remove(itemToDelete)
-                                        },
-                                        backgroundColor = SurfacePrimary,
-                                        hasBorder = false,
+                                    // Dynamic Shape Assignment: Editing items pop out with full squircle corners.
+                                    // Neighboring items seamlessly adjust their outer boundaries around them.
+                                    val shape = if (isEditing) {
+                                        SquircleShape(CornerLargeIncrease)
+                                    } else {
+                                        val isFirstInBlock = index == 0 || timelineItems[index - 1].isEditing
+                                        val isLastInBlock = index == timelineItems.lastIndex || timelineItems[index + 1].isEditing
+
+                                        when {
+                                            isFirstInBlock && isLastInBlock -> SquircleShape(CornerLargeIncrease)
+                                            isFirstInBlock -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
+                                            isLastInBlock -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
+                                            else -> RoundedCornerShape(CornerExtraSmall)
+                                        }
+                                    }
+
+                                    Box(
                                         modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = animatedTopPadding, bottom = animatedBottomPadding)
                                             .clip(shape)
                                             .background(SurfacePrimary)
-                                    )
+                                    ) {
+                                        TimeLineInput(
+                                            item = item,
+                                            onUpdate = { updatedItem ->
+                                                val indexToUpdate = timelineItems.indexOfFirst { it.id == updatedItem.id }
+                                                if (indexToUpdate != -1) {
+                                                    timelineItems[indexToUpdate] = updatedItem
+
+                                                    if (!updatedItem.isEditing) {
+                                                        // Pre-parse dates exactly once per item to eliminate comparison parsing lag
+                                                        val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.date) }
+                                                        val sorted = timelineItems.sortedBy { parsedDates[it.id] }
+
+                                                        timelineItems.clear()
+                                                        timelineItems.addAll(sorted)
+                                                    }
+                                                }
+                                            },
+                                            onDelete = { itemToDelete ->
+                                                timelineItems.remove(itemToDelete)
+                                            },
+                                            backgroundColor = SurfacePrimary,
+                                            hasBorder = false,
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1163,9 +1198,13 @@ fun EventDetailsScreen(
 // ========================================================= Helper Functions & Utilities ===========================================================
 
 @RequiresApi(Build.VERSION_CODES.O)
+private val DateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM, yyyy", Locale.ENGLISH)
+
+@RequiresApi(Build.VERSION_CODES.O)
 fun parseFormattedDate(dateStr: String?): LocalDate {
     if (dateStr.isNullOrBlank() || dateStr == "Not yet decided" || dateStr == "Select a date") {
-        return LocalDate.now()
+        // Return maximum bound so undecided/empty items sort naturally to the bottom
+        return LocalDate.MAX
     }
     return try {
         val dayPart = dateStr.take(2).filter { it.isDigit() }
@@ -1181,10 +1220,9 @@ fun parseFormattedDate(dateStr: String?): LocalDate {
             .trim()
 
         val cleanedStr = "${dayPart.padStart(2, '0')} $cleanedRemaining"
-        val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM, yyyy", Locale.ENGLISH)
-        LocalDate.parse(cleanedStr, formatter)
+        LocalDate.parse(cleanedStr, DateFormatter)
     } catch (e: Exception) {
-        LocalDate.now()
+        LocalDate.MAX
     }
 }
 
