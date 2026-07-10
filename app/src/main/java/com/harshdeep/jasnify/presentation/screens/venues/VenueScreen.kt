@@ -79,18 +79,14 @@ import sv.lib.squircleshape.SquircleShape
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
 
-/**
- * Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
- */
+// --- Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
 private fun getRecentSearches(context: Context): List<String> {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
     return if (raw.isEmpty()) emptyList() else raw.split("|||")
 }
 
-/**
- * Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
- */
+// --- Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
 private fun saveRecentSearch(context: Context, vendorName: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = getRecentSearches(context).toMutableList()
@@ -100,9 +96,7 @@ private fun saveRecentSearch(context: Context, vendorName: String) {
     prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
 }
 
-/**
- * Clears the persistent search history completely.
- */
+// --- Clears the persistent search history completely.
 private fun clearRecentSearches(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
@@ -140,7 +134,7 @@ fun VenueScreen(
     ) { showPicker ->
         if (showPicker) {
             LocationScreen(
-                initialSearches = listOf("Patna", "Delhi", "Mumbai"),
+                initialSearches = emptyList(),
                 currentAddress = currentAddress,
                 onAddressSelected = {
                     currentAddress = it
@@ -455,7 +449,6 @@ fun VenueMainContent(
                             items(filteredAndSortedExploreVenues) { venue ->
                                 VendorCardFull(
                                     vendor = venue,
-                                    onBookCallClick = {},
                                     onFavoriteToggle = {
                                         if (venueSavedDestinations.containsKey(venue.vendorName)) {
                                             venueSavedDestinations = venueSavedDestinations - venue.vendorName
@@ -467,7 +460,6 @@ fun VenueMainContent(
                                         }
                                     },
                                     onCardClick = { handleVenueClick(venue) },
-                                    onChatClick = {},
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp),
@@ -550,12 +542,10 @@ fun VenueMainContent(
                                 items(savedVenuesList) { venue ->
                                     VendorCardFull(
                                         vendor = venue,
-                                        onBookCallClick = {},
                                         onFavoriteToggle = {
                                             venueSavedDestinations = venueSavedDestinations - venue.vendorName
                                         },
                                         onCardClick = { handleVenueClick(venue) },
-                                        onChatClick = {},
                                     )
                                 }
                             }
@@ -1026,12 +1016,12 @@ fun LocationSelectorPill(
             )
 
             Icon(
-                imageVector = Icons.Outlined.LocationOn,
+                painter = painterResource(R.drawable.ic_location_marker),
                 contentDescription = null,
                 tint = ContentBrandDark,
                 modifier = Modifier
                     .padding(start = 4.dp)
-                    .size(24.dp)
+                    .size(20.dp)
             )
 
             Spacer(modifier = Modifier.weight(1f))
