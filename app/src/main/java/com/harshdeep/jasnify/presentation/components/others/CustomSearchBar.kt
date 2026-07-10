@@ -21,6 +21,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,15 +30,13 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +51,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
@@ -214,82 +214,105 @@ fun CustomSearchBar(
                         }
                     )
             ) {
-                OutlinedTextField(
+                BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 4.dp)
-                        .background(Color.Transparent)
+                        .heightIn(min = 56.dp)
                         .focusRequester(focusRequester),
                     singleLine = true,
-                    placeholder = {
-                        Text(
-                            text = placeholder,
-                            style = JasnifyTheme.typography.headingLarge,
-                            color = ContentSecondary
-                        )
-                    },
-                    textStyle = JasnifyTheme.typography.headingLarge,
-                    shape = RoundedCornerShape(100),
-                    leadingIcon = {
-                        if (isFocused && !isAiSearch) {
-                            IconButton(
-                                onClick = {
-                                    if (type == SearchBarType.COMPACT) {
-                                        isExpanded = false
-                                    }
-                                    onValueChange("")
-                                    focusManager.clearFocus()
-                                    // Manually trigger false just in case focus clear takes a frame
-                                    onActiveChange(false)
-                                }
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_left),
-                                    contentDescription = "Back",
-                                    tint = ContentPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        } else {
-                            val iconPainter = if (isAiSearch) {
-                                painterResource(id = R.drawable.ic_ai)
-                            } else {
-                                rememberVectorPainter(image = Icons.Rounded.Search)
-                            }
-                            Icon(
-                                painter = iconPainter,
-                                contentDescription = if (isAiSearch) "AI Search" else "Search",
-                                tint = if (isAiSearch) Color.Unspecified else if (isFocused) ContentBrandDark else ContentSecondary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    },
-                    trailingIcon = {
-                        if (value.isNotEmpty()) {
-                            IconButton(
-                                onClick = { onValueChange("") }
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Clear search",
-                                    tint = ContentPrimary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        disabledBorderColor = Color.Transparent,
-                        errorBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        cursorColor = ContentBrand,
-                    ),
+                    textStyle = JasnifyTheme.typography.headingLarge.copy(color = ContentPrimary),
+                    cursorBrush = SolidColor(ContentBrand),
                     interactionSource = interactionSource,
+                    decorationBox = { innerTextField ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Leading Icon Wrapper
+                            Box(
+                                modifier = Modifier.padding(end = 4.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isFocused && !isAiSearch) {
+                                    IconButton(
+                                        onClick = {
+                                            if (type == SearchBarType.COMPACT) {
+                                                isExpanded = false
+                                            }
+                                            onValueChange("")
+                                            focusManager.clearFocus()
+                                            // Manually trigger false just in case focus clear takes a frame
+                                            onActiveChange(false)
+                                        },
+                                        modifier = Modifier.size(40.dp) // Keeps tap-target optimized
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(R.drawable.ic_left),
+                                            contentDescription = "Back",
+                                            tint = ContentPrimary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                } else {
+                                    val iconPainter = if (isAiSearch) {
+                                        painterResource(id = R.drawable.ic_ai)
+                                    } else {
+                                        rememberVectorPainter(image = Icons.Rounded.Search)
+                                    }
+                                    Box(
+                                        modifier = Modifier.size(40.dp), // Matched box size to align exactly like IconButton
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = iconPainter,
+                                            contentDescription = if (isAiSearch) "AI Search" else "Search",
+                                            tint = if (isAiSearch) Color.Unspecified else if (isFocused) ContentBrandDark else ContentSecondary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Dynamic Text Area
+                            Box(
+                                modifier = Modifier.weight(1f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (value.isEmpty()) {
+                                    Text(
+                                        text = placeholder,
+                                        style = JasnifyTheme.typography.headingLarge,
+                                        color = ContentSecondary
+                                    )
+                                }
+                                innerTextField()
+                            }
+
+                            // Trailing Icon Wrapper
+                            if (value.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier.padding(start = 4.dp), // Reduced left-padding for a sleek close action
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    IconButton(
+                                        onClick = { onValueChange("") },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = "Clear search",
+                                            tint = ContentPrimary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 )
             }
 

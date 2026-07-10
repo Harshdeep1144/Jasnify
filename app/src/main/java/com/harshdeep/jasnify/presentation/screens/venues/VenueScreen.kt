@@ -54,10 +54,17 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.graphics.vector.ImageVector
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
@@ -67,33 +74,38 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
-import androidx.core.content.edit
 
 // --- SharedPreferences Helpers for Search History ---
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
 
-// --- Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
+/**
+ * Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
+ */
 private fun getRecentSearches(context: Context): List<String> {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
     return if (raw.isEmpty()) emptyList() else raw.split("|||")
 }
 
-// --- Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
+/**
+ * Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
+ */
 private fun saveRecentSearch(context: Context, vendorName: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = getRecentSearches(context).toMutableList()
     current.remove(vendorName) // Remove duplicate if it exists to push it to the top
     current.add(0, vendorName)  // Add to the front of the list
     val limited = current.take(8) // Limit search history to 8 items
-    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))}
+    prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
 }
 
-// --- Clears the persistent search history completely.
+/**
+ * Clears the persistent search history completely.
+ */
 private fun clearRecentSearches(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit { remove(KEY_RECENT_SEARCHES) }
+    prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
 }
 
 data class TimelineEvent(
@@ -462,6 +474,14 @@ fun VenueMainContent(
                                 )
                             }
                         } else {
+                            item {
+                                TrendingAiSearchesSection(
+                                    onTrendingClick = { query ->
+                                        text = query
+                                        focusManager.clearFocus()
+                                    }
+                                )
+                            }
                             // Only show RecentSearchesSection if history is not empty
                             if (recentVenuesList.isNotEmpty()) {
                                 item {
@@ -470,7 +490,7 @@ fun VenueMainContent(
                                         recentVenues = recentVenuesList,
                                         onClearAll = {
                                             clearRecentSearches(context)
-                                            recentSearches = emptyList()
+                                            recentSearches = emptyList() // Reactive update to hide search view section immediately
                                         }
                                     )
                                 }
@@ -1040,6 +1060,77 @@ fun TimelineHeader(date: String, event: String) {
             Text(event, style = JasnifyTheme.typography.labelXLarge, color = ContentBrandDark, fontWeight = FontWeight.Medium)
         }
         Icon(Icons.Default.MoreVert, "Options", tint = ContentPrimary)
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun TrendingAiSearchesSection(
+    onTrendingClick: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
+    val trendingQueries = listOf(
+        "4.5+ Rated",
+        "Hotels for 800 guests",
+        "Vintage Themed Hotels"
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_trend_up),
+                    contentDescription = "Trending",
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+                Text(
+                    text = "Trending AI Searches",
+                    style = JasnifyTheme.typography.headingMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = ContentPrimary
+                )
+            }
+
+            CustomIconButton(
+                onClick = { },
+                icon = painterResource(R.drawable.ic_info),
+                contentColor = ContentPrimary,
+                containerColor = SurfacePrimary,
+                size = ButtonSize.Small
+            )
+        }
+
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            trendingQueries.forEach { query ->
+                FilterChip(
+                    label = query,
+                    isSelected = false,
+                    shapeStyle = ChipShapeStyle.Round,
+                    size = ChipSize.Small,
+                    leadingIcon = aiIcon,
+                    onClick = { onTrendingClick(query) },
+                    hasStroke = true
+                )
+            }
+        }
     }
 }
 
