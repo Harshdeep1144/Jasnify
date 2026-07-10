@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -79,24 +80,21 @@ import sv.lib.squircleshape.SquircleShape
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
 
-// --- Retrieves the saved list of recent search unique names/IDs from SharedPreferences.
 private fun getRecentSearches(context: Context): List<String> {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
     return if (raw.isEmpty()) emptyList() else raw.split("|||")
 }
 
-// --- Saves a clicked/searched venue ID into SharedPreferences, avoiding duplicates and limiting length.
 private fun saveRecentSearch(context: Context, vendorName: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = getRecentSearches(context).toMutableList()
-    current.remove(vendorName) // Remove duplicate if it exists to push it to the top
-    current.add(0, vendorName)  // Add to the front of the list
-    val limited = current.take(8) // Limit search history to 8 items
+    current.remove(vendorName)
+    current.add(0, vendorName)
+    val limited = current.take(8)
     prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
 }
 
-// --- Clears the persistent search history completely.
 private fun clearRecentSearches(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
@@ -185,7 +183,6 @@ fun VenueMainContent(
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    // Read and track recent search history as reactive state
     var recentSearches by remember {
         mutableStateOf(getRecentSearches(context))
     }
@@ -208,23 +205,20 @@ fun VenueMainContent(
 
     var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
 
-    // --- Toast & Undo Action States ---
     var toastData by remember { mutableStateOf<ToastData?>(null) }
     var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     val exploreVenues = remember { MockData.sampleVenues1 }
 
-    // Map stored vendor names back to full VendorCardData objects
     val recentVenuesList = remember(recentSearches, exploreVenues) {
         recentSearches.mapNotNull { name ->
             exploreVenues.find { it.vendorName == name }
         }
     }
 
-    // Helper lambda to record clicks to recent searches before forwarding click events
     val handleVenueClick: (VendorCardData) -> Unit = { venue ->
         saveRecentSearch(context, venue.vendorName)
-        recentSearches = getRecentSearches(context) // refresh local Compose state
+        recentSearches = getRecentSearches(context)
         onVenueClick(venue)
     }
 
@@ -299,15 +293,17 @@ fun VenueMainContent(
             venue.copy(isFavorite = true)
         }
 
-        // Always show "My Saved List" by default, even if it has 0 items
-        list.add(
-            TimelineEvent(
-                id = "mysaved",
-                date = "Default List",
-                event = "My Saved List",
-                venues = defaultSavedVenues
+        // ONLY show "My Saved List" if it has actual saved items (no longer added as an empty default list)
+        if (defaultSavedVenues.isNotEmpty()) {
+            list.add(
+                TimelineEvent(
+                    id = "mysaved",
+                    date = "Default List",
+                    event = "My Saved List",
+                    venues = defaultSavedVenues
+                )
             )
-        )
+        }
 
         val eventSections = timelineEvents.map { event ->
             val eventVenues = exploreVenues.filter { venue ->
@@ -322,7 +318,6 @@ fun VenueMainContent(
         list
     }
 
-    // --- LaunchedEffect to auto-dismiss Toast ---
     LaunchedEffect(toastData?.message) {
         if (toastData?.message != null) {
             delay(3000L)
@@ -474,7 +469,6 @@ fun VenueMainContent(
                                     }
                                 )
                             }
-                            // Only show RecentSearchesSection if history is not empty
                             if (recentVenuesList.isNotEmpty()) {
                                 item {
                                     RecentSearchesSection(
@@ -482,7 +476,7 @@ fun VenueMainContent(
                                         recentVenues = recentVenuesList,
                                         onClearAll = {
                                             clearRecentSearches(context)
-                                            recentSearches = emptyList() // Reactive update to hide search view section immediately
+                                            recentSearches = emptyList()
                                         }
                                     )
                                 }
@@ -510,33 +504,27 @@ fun VenueMainContent(
                         }
 
                         if (selectedViewType == "By Timeline") {
-                            items(savedTimelineEvents) { timelineItem ->
-                                TimelineSection(
-                                    date = timelineItem.date,
-                                    event = timelineItem.event,
-                                    venues = timelineItem.venues,
-                                    onVenueClick = handleVenueClick,
-                                    onFavoriteToggle = { venue ->
-                                        venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                    },
-                                )
+                            if (savedTimelineEvents.isEmpty()) {
+                                item {
+                                    EmptySavedState()
+                                }
+                            } else {
+                                items(savedTimelineEvents) { timelineItem ->
+                                    TimelineSection(
+                                        date = timelineItem.date,
+                                        event = timelineItem.event,
+                                        venues = timelineItem.venues,
+                                        onVenueClick = handleVenueClick,
+                                        onFavoriteToggle = { venue ->
+                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
+                                        },
+                                    )
+                                }
                             }
                         } else {
                             if (savedVenuesList.isEmpty()) {
                                 item {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 12.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = "No saved venues yet.",
-                                            style = JasnifyTheme.typography.bodyLarge,
-                                            color = ContentSecondary,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
+                                    EmptySavedState()
                                 }
                             } else {
                                 items(savedVenuesList) { venue ->
@@ -556,7 +544,6 @@ fun VenueMainContent(
             }
         }
 
-        // --- CustomToast Display positioned at the bottom of the screen above the tab bar ---
         AnimatedVisibility(
             visible = toastData?.message != null,
             enter = slideInVertically(initialOffsetY = { it + 500 }),
@@ -575,7 +562,6 @@ fun VenueMainContent(
                     leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
                     buttonText = "Change",
                     onButtonClick = {
-                        // Dismiss toast & open bottom sheet immediately for editing
                         toastData = null
                         lastSavedVenue?.let { venue ->
                             activeTargetVenue = venue
@@ -637,7 +623,6 @@ fun VenueMainContent(
                     if (destination != null) {
                         venueSavedDestinations = venueSavedDestinations + (venue.vendorName to destination)
                         lastSavedVenue = venue
-                        // Trigger custom toast with heart icon & "Change" action
                         toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                     }
                 }
@@ -645,6 +630,35 @@ fun VenueMainContent(
                 activeTargetVenue = null
             }
         )
+    }
+}
+
+@Composable
+fun LazyItemScope.EmptySavedState() {
+    Box(
+        modifier = Modifier
+            .fillParentMaxHeight(0.7f)
+            .fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_receipt),
+                contentDescription = "Empty List",
+                tint = ContentSecondary,
+                modifier = Modifier.size(72.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = "Empty List",
+                style = JasnifyTheme.typography.headingLarge,
+                color = ContentSecondary,
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }
 
