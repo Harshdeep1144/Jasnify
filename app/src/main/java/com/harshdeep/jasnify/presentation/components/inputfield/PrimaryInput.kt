@@ -60,7 +60,7 @@ fun PrimaryInput(
     singleLine: Boolean = true,
     textStyle: TextStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
     visualTransformation: VisualTransformation = VisualTransformation.None,
-    leadingIcon: ImageVector? = null,
+    leadingIcon: Painter? = null,
     trailingIcon: Painter? = null,
     trailingIconEnabled: Boolean = false,
     shape: Shape = RoundedCornerShape(CornerLarge),
@@ -113,7 +113,7 @@ fun PrimaryInput(
                 // Leading Icon Layer (Only renders if leadingIcon is provided)
                 if (leadingIcon != null) {
                     Icon(
-                        imageVector = leadingIcon,
+                        painter = leadingIcon,
                         contentDescription = null,
                         tint = ContentSecondary,
                         modifier = Modifier.padding(end = 12.dp)
@@ -146,14 +146,14 @@ fun PrimaryInput(
                     }
                 } else if (showTrailingIcon) {
                     if (isPassword) {
-                        val image = if (isPasswordVisible) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff
+                        val icon = if (isPasswordVisible) painterResource(R.drawable.ic_eye_open) else painterResource(R.drawable.ic_eye_closed)
                         val description = if (isPasswordVisible) "Hide password" else "Show password"
 
                         IconButton(
                             onClick = { isPasswordVisible = !isPasswordVisible }
                         ) {
                             Icon(
-                                imageVector = image,
+                                painter = icon,
                                 contentDescription = description,
                                 tint = trailingIconTint
                             )
@@ -192,18 +192,18 @@ fun PrimaryInputPreview() {
         PrimaryInput(
             value = email,
             onValueChange = { email = it },
+            leadingIcon = painterResource(R.drawable.ic_mail),
             placeholder = "Enter email address",
             keyboardType = KeyboardType.Email,
-            leadingIcon = Icons.Rounded.MailOutline
         )
 
         // Password field with custom leading icon
         PrimaryInput(
             value = password,
             onValueChange = { password = it },
+            leadingIcon = painterResource(R.drawable.ic_key),
             placeholder = "Enter password",
             keyboardType = KeyboardType.Password,
-            leadingIcon = Icons.Outlined.Lock
         )
 
         // Custom shape, no leading icon (default null)

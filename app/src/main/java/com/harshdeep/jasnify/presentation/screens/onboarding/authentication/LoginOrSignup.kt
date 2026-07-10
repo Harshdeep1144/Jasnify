@@ -56,8 +56,14 @@ import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.Pattaya
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MailOutline
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import sv.lib.squircleshape.SquircleShape
 
 enum class AuthTab {
     SIGN_UP, LOG_IN
@@ -184,6 +190,7 @@ fun LoginOrSignup(
                 Box(modifier = Modifier.statusBarsPadding()) {
                     CustomTopBar(
                         onBackClick = { navController.popBackStack() },
+                        backIcon = TopIcon.Predefined.BACK_2
                     )
                 }
             },
@@ -250,15 +257,23 @@ fun LoginOrSignup(
                                             onValueChange = { email = it },
                                             placeholder = "Enter your email",
                                             keyboardType = KeyboardType.Email,
-                                            trailingIconEnabled = true
+                                            trailingIconEnabled = true,
+                                            shape = SquircleShape(CornerLarge, CornerLarge,
+                                                CornerExtraSmall, CornerExtraSmall
+                                            ),
+                                            leadingIcon = painterResource(R.drawable.ic_mail)
                                         )
-                                        Spacer(Modifier.height(8.dp))
+                                        Spacer(Modifier.height(2.dp))
                                         PrimaryInput(
                                             value = password,
                                             onValueChange = { password = it },
                                             placeholder = "Create a password",
                                             keyboardType = KeyboardType.Password,
-                                            trailingIconEnabled = true
+                                            trailingIconEnabled = true,
+                                            shape = RoundedCornerShape( CornerExtraSmall, CornerExtraSmall,
+                                                CornerLarge, CornerLarge
+                                            ),
+                                            leadingIcon = painterResource(R.drawable.ic_key)
                                         )
                                     }
                                     AuthTab.LOG_IN -> {
@@ -267,15 +282,23 @@ fun LoginOrSignup(
                                             onValueChange = { email = it },
                                             placeholder = "Enter email or username",
                                             keyboardType = KeyboardType.Email,
-                                            trailingIconEnabled = true
+                                            trailingIconEnabled = true,
+                                            shape = RoundedCornerShape(CornerLarge, CornerLarge,
+                                                CornerExtraSmall, CornerExtraSmall
+                                            ),
+                                            leadingIcon = painterResource(R.drawable.ic_user_profile_circle)
                                         )
-                                        Spacer(Modifier.height(8.dp))
+                                        Spacer(Modifier.height(2.dp))
                                         PrimaryInput(
                                             value = password,
                                             onValueChange = { password = it },
                                             placeholder = "Enter password",
                                             keyboardType = KeyboardType.Password,
-                                            trailingIconEnabled = true
+                                            trailingIconEnabled = true,
+                                            shape = SquircleShape( CornerExtraSmall, CornerExtraSmall,
+                                                CornerLarge, CornerLarge
+                                            ),
+                                            leadingIcon = painterResource(R.drawable.ic_key)
                                         )
                                     }
                                 }
