@@ -450,7 +450,9 @@ fun BudgetScreen(
                     },
                     icon = painterResource(R.drawable.ic_plus),
                     size = ButtonSize.Large,
-                    modifier = Modifier.shadow(16.dp, CircleShape)
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 24.dp)
+                        .shadow(16.dp, CircleShape)
                 )
             }
         },
