@@ -503,6 +503,7 @@ fun ChecklistsTab(
                                     size = ButtonSize.Large,
                                     modifier = Modifier
                                         .offset(y = 20.dp)
+                                        .padding(12.dp)
                                         .shadow(16.dp, CircleShape)
                                 )
                             },

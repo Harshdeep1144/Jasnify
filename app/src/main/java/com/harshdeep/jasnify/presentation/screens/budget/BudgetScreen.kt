@@ -90,7 +90,6 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategorySheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseSheetContent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -156,7 +155,9 @@ data class ExpenseItem(
     val amount: String,
     val emoji: String = "💸",
     val lastUpdatedBy: String? = null,
-    val lastUpdatedDate: String? = null
+    val lastUpdatedDate: String? = null,
+    val phoneNumber: String? = null,
+    val note: String? = null
 )
 
 data class CategorySummaryData(
@@ -185,7 +186,6 @@ fun BudgetScreen(
         }
     }
 
-    // User Directory State initialized inside Budget Screen
     var budgetRoomUsers by remember {
         mutableStateOf(
             listOf(
@@ -265,7 +265,7 @@ fun BudgetScreen(
     var allExpenses by remember {
         mutableStateOf(
             listOf(
-                ExpenseItem(id = "1", title = "The Divine Frames", category = "Vendors", amount = "₹26,10,660", emoji = "📸", lastUpdatedBy = "Anand K.", lastUpdatedDate = "Aug 24, 2025, 01:04pm"),
+                ExpenseItem(id = "1", title = "The Divine Frames", category = "Vendors", amount = "₹26,10,660", emoji = "📸", lastUpdatedBy = "Anand K.", lastUpdatedDate = "Aug 24, 2025, 01:04pm", phoneNumber = "9876543210", note = "Advanced booking fee"),
                 ExpenseItem(id = "2", title = "Varun Catering", category = "Catering", amount = "₹12,45,000", emoji = "🍔"),
                 ExpenseItem(id = "3", title = "GenX Entertainment", category = "Vendors", amount = "₹45,000", emoji = "🥂"),
                 ExpenseItem(id = "4", title = "Nupur Makeup Artist", category = "Vendors", amount = "₹35,000", emoji = "🧑"),
@@ -465,7 +465,6 @@ fun BudgetScreen(
             AnimatedContent(
                 targetState = currentView,
                 transitionSpec = {
-                    // Simple, clean and optimized fade in and fade out animation
                     fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
                 },
                 label = "BudgetScreenTransition"
@@ -1499,340 +1498,98 @@ fun BudgetScreen(
     }
 
     if (showAddExpenseSheet) {
-        val editingItem = expenseToEdit
-        val initialAmountRaw = editingItem?.amount?.replace("₹", "")?.replace(",", "") ?: ""
-
-        // Local state for AddExpenseSheetContent logic, moved from wrapper to parent for toast support
-        var amountTextFieldValue by remember(initialAmountRaw) {
-            mutableStateOf(TextFieldValue(text = initialAmountRaw, selection = TextRange(initialAmountRaw.length)))
-        }
-        var receiverName by remember(editingItem?.title) { mutableStateOf(editingItem?.title ?: "") }
-        var selectedCategory by remember(editingItem?.category) { mutableStateOf(editingItem?.category ?: "") }
-        var selectedEmoji by remember(editingItem?.emoji) { mutableStateOf(editingItem?.emoji ?: "") }
-        var dynamicCategories by remember(defaultCategories) { mutableStateOf(defaultCategories) }
-        var showInnerCustomCategorySheet by remember { mutableStateOf(false) }
-        val innerCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-        val headingTitle = if (editingItem != null) "Edit expense" else "Add an expense"
-
-        ModalBottomSheet(
-            onDismissRequest = {
+        AddExpenseBottomSheet(
+            sheetState = addExpenseSheetState,
+            onDismiss = {
                 showAddExpenseSheet = false
                 expenseToEdit = null
             },
-            sheetState = addExpenseSheetState,
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp,
-            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-            dragHandle = null,
-            sheetGesturesEnabled = true,
-        ) {
-            val view = LocalView.current
-            DisposableEffect(view) {
-                var parent = view.parent
-                var dialogWindow: android.view.Window? = null
-                while (parent != null) {
-                    if (parent is DialogWindowProvider) {
-                        dialogWindow = parent.window
-                        break
+            onSave = { amount, receiver, category, emoji, phone, notes ->
+                val formattedAmount = "₹${formatter.format(amount)}"
+                val editingItem = expenseToEdit
+                if (editingItem != null) {
+                    allExpenses = allExpenses.map {
+                        if (it.id == editingItem.id) {
+                            it.copy(
+                                title = receiver.ifBlank { "Unnamed Receiver" },
+                                category = category.ifBlank { "Misc" },
+                                amount = formattedAmount,
+                                emoji = emoji.ifBlank { "💸" },
+                                lastUpdatedBy = "Anonymous",
+                                lastUpdatedDate = "Just now",
+                                phoneNumber = phone,
+                                note = notes
+                            )
+                        } else it
                     }
-                    parent = parent.parent
+                    toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
+                } else {
+                    val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
+                    allExpenses = listOf(ExpenseItem(
+                        id = nextUniqueId,
+                        title = receiver.ifBlank { "Unnamed Receiver" },
+                        category = category.ifBlank { "Misc" },
+                        amount = formattedAmount,
+                        emoji = emoji.ifBlank { "💸" },
+                        lastUpdatedBy = "Anonymous",
+                        lastUpdatedDate = "Just now",
+                        phoneNumber = phone,
+                        note = notes
+                    )) + allExpenses
+                    toastData = ToastData("Expense Added!", ToastType.SUCCESS)
                 }
-                dialogWindow?.let { w ->
-                    val colorInt = SurfacePrimary.toArgb()
-                    w.navigationBarColor = colorInt
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        w.isNavigationBarContrastEnforced = false
-                    }
-                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+                showAddExpenseSheet = false
+                expenseToEdit = null
+            },
+            categories = defaultCategories,
+            onAddCategory = { newCategory ->
+                if (!defaultCategories.contains(newCategory)) {
+                    defaultCategories = defaultCategories + newCategory
                 }
-                onDispose {}
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AnimatedVisibility(
-                    visible = toastData.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                        .zIndex(998f)
-                ) {
-                    CustomToast(
-                        message = toastData.message ?: "",
-                        type = toastData.type
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .zIndex(999f)
-                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                        .background(SurfacePrimary)
-                        .navigationBarsPadding()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(vertical = 8.dp)
-                            .width(56.dp)
-                            .height(4.dp)
-                            .background(ContentTertiary, shape = SquircleShape(100))
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
-                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = headingTitle,
-                            style = JasnifyTheme.typography.displayLarge,
-                            color = ContentPrimary
-                        )
-                        TopBarIconButton(
-                            backgroundStyle = ButtonBackground.OPAQUE,
-                            icon = TopIcon.Predefined.CLOSE,
-                            iconSize = 18.dp,
-                            onClick = {
-                                showAddExpenseSheet = false
-                                expenseToEdit = null
-                            }
-                        )
-                    }
-
-                    Box(modifier = Modifier.fillMaxWidth().height(543.dp)) {
-                        AddExpenseSheetContent(
-                            amountTextFieldValue = amountTextFieldValue,
-                            onAmountChange = { amountTextFieldValue = it },
-                            receiverName = receiverName,
-                            onReceiverChange = { receiverName = it },
-                            selectedCategory = selectedCategory,
-                            onCategorySelect = { selectedCategory = it },
-                            dynamicCategories = dynamicCategories,
-                            selectedEmoji = selectedEmoji,
-                            onEmojiChange = { selectedEmoji = it },
-                            onCustomCategoryClick = { showInnerCustomCategorySheet = true },
-                            onDismiss = {
-                                showAddExpenseSheet = false
-                                expenseToEdit = null
-                            },
-                            onSave = { amount, receiver, category ->
-                                if (amountTextFieldValue.text.isBlank()) {
-                                    toastData = ToastData("Please enter the expense!", ToastType.ERROR)
-                                } else if (selectedCategory.isBlank()) {
-                                    toastData = ToastData("Please select an expense category!", ToastType.ERROR)
-                                } else {
-                                    val formattedAmount = "₹${formatter.format(amount)}"
-                                    if (editingItem != null) {
-                                        allExpenses = allExpenses.map {
-                                            if (it.id == editingItem.id) {
-                                                it.copy(
-                                                    title = receiver.ifBlank { "Unnamed Receiver" },
-                                                    category = category.ifBlank { "Misc" },
-                                                    amount = formattedAmount,
-                                                    emoji = selectedEmoji.ifBlank { "💸" },
-                                                    lastUpdatedBy = "Anonymous",
-                                                    lastUpdatedDate = "Just now"
-                                                )
-                                            } else it
-                                        }
-                                    } else {
-                                        val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
-                                        allExpenses = listOf(ExpenseItem(
-                                            id = nextUniqueId,
-                                            title = receiver.ifBlank { "Unnamed Receiver" },
-                                            category = category.ifBlank { "Misc" },
-                                            amount = formattedAmount,
-                                            emoji = selectedEmoji.ifBlank { "💸" },
-                                            lastUpdatedBy = "Anonymous",
-                                            lastUpdatedDate = "Just now"
-                                        )) + allExpenses
-                                    }
-                                    toastData = ToastData("Expense Added!", ToastType.SUCCESS)
-                                    showAddExpenseSheet = false
-                                    expenseToEdit = null
-                                }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        if (showInnerCustomCategorySheet) {
-            AddCustomCategoryBottomSheet(
-                sheetState = innerCustomCategorySheetState,
-                onDismiss = {
-                    coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
-                        showInnerCustomCategorySheet = false
-                    }
-                },
-                onAddCategory = { newCategory ->
-                    if (newCategory.isBlank()) {
-                        toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
-                    } else {
-                        if (!defaultCategories.contains(newCategory)) {
-                            defaultCategories = defaultCategories + newCategory
-                        }
-                        dynamicCategories = dynamicCategories + newCategory
-                        selectedCategory = newCategory
-                        coroutineScope.launch { innerCustomCategorySheetState.hide() }.invokeOnCompletion {
-                            showInnerCustomCategorySheet = false
-                        }
-                    }
-                }
-            )
-        }
+            },
+            initialAmount = expenseToEdit?.amount?.replace("₹", "")?.replace(",", "") ?: "",
+            initialReceiver = expenseToEdit?.title ?: "",
+            initialCategory = expenseToEdit?.category ?: "",
+            initialEmoji = expenseToEdit?.emoji ?: "",
+            initialPhoneNumber = expenseToEdit?.phoneNumber ?: "",
+            initialNote = expenseToEdit?.note ?: ""
+        )
     }
 
     if (showAddCustomCategorySheet) {
-        ModalBottomSheet(
-            onDismissRequest = {
+        AddCustomCategoryBottomSheet(
+            sheetState = addCustomCategorySheetState,
+            onDismiss = {
                 showAddCustomCategorySheet = false
                 categoryToRename = null
             },
-            sheetState = addCustomCategorySheetState,
-            containerColor = Color.Transparent,
-            tonalElevation = 0.dp,
-            scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-            dragHandle = null,
-            sheetGesturesEnabled = true,
-        ) {
-            val view = LocalView.current
-            DisposableEffect(view) {
-                var parent = view.parent
-                var dialogWindow: android.view.Window? = null
-                while (parent != null) {
-                    if (parent is DialogWindowProvider) {
-                        dialogWindow = parent.window
-                        break
+            onAddCategory = { inputName ->
+                val originalName = categoryToRename
+                if (originalName != null) {
+                    if (originalName != inputName) {
+                        if (defaultCategories.contains(originalName)) {
+                            defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
+                        } else if (!defaultCategories.contains(inputName)) {
+                            defaultCategories = defaultCategories + inputName
+                        }
+                        allExpenses = allExpenses.map { expense ->
+                            if (expense.category == originalName) expense.copy(category = inputName) else expense
+                        }
+                        if (selectedCategoryForDetails == originalName) {
+                            selectedCategoryForDetails = inputName
+                        }
                     }
-                    parent = parent.parent
-                }
-                dialogWindow?.let { w ->
-                    val colorInt = SurfacePrimary.toArgb()
-                    w.navigationBarColor = colorInt
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        w.isNavigationBarContrastEnforced = false
-                    }
-                    val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                    WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
-                }
-                onDispose {}
-            }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AnimatedVisibility(
-                    visible = toastData.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                        .zIndex(998f)
-                ) {
-                    CustomToast(
-                        message = toastData.message ?: "",
-                        type = toastData.type
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .zIndex(999f)
-                        .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                        .background(SurfacePrimary)
-                        .navigationBarsPadding()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(vertical = 8.dp)
-                            .width(56.dp)
-                            .height(4.dp)
-                            .background(ContentTertiary, shape = SquircleShape(100))
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp)
-                            .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = if (categoryToRename != null) "Rename category" else "Add custom category",
-                            style = JasnifyTheme.typography.displayLarge,
-                            color = ContentPrimary
-                        )
-                        TopBarIconButton(
-                            backgroundStyle = ButtonBackground.OPAQUE,
-                            icon = TopIcon.Predefined.CLOSE,
-                            iconSize = 18.dp,
-                            onClick = {
-                                showAddCustomCategorySheet = false
-                                categoryToRename = null
-                            }
-                        )
-                    }
-
-                    Box(modifier = Modifier.fillMaxWidth().height(161.dp)) {
-                        AddCustomCategorySheetContent(
-                            onDismiss = {
-                                showAddCustomCategorySheet = false
-                                categoryToRename = null
-                            },
-                            onAddCategory = { inputName ->
-                                if (inputName.isBlank()) {
-                                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
-                                } else {
-                                    val originalName = categoryToRename
-                                    if (originalName != null) {
-                                        if (originalName != inputName) {
-                                            if (defaultCategories.contains(originalName)) {
-                                                defaultCategories = defaultCategories.map { if (it == originalName) inputName else it }
-                                            } else if (!defaultCategories.contains(inputName)) {
-                                                defaultCategories = defaultCategories + inputName
-                                            }
-                                            allExpenses = allExpenses.map { expense ->
-                                                if (expense.category == originalName) expense.copy(category = inputName) else expense
-                                            }
-                                            if (selectedCategoryForDetails == originalName) {
-                                                selectedCategoryForDetails = inputName
-                                            }
-                                        }
-                                    } else {
-                                        if (!defaultCategories.contains(inputName)) {
-                                            defaultCategories = defaultCategories + inputName
-                                        }
-                                    }
-                                    showAddCustomCategorySheet = false
-                                    categoryToRename = null
-                                }
-                            },
-                            initialCategoryName = categoryToRename ?: ""
-                        )
+                } else {
+                    if (!defaultCategories.contains(inputName)) {
+                        defaultCategories = defaultCategories + inputName
                     }
                 }
-            }
-        }
+                showAddCustomCategorySheet = false
+                categoryToRename = null
+            },
+            initialCategoryName = categoryToRename ?: "",
+            heading = if (categoryToRename != null) "Rename category" else "Add custom category"
+        )
     }
 
     if (expenseToDelete != null) {
