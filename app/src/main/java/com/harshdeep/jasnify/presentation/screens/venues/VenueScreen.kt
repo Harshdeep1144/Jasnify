@@ -334,7 +334,6 @@ fun VenueMainContent(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 12.dp)
                             .background(Color.Transparent),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -344,7 +343,11 @@ fun VenueMainContent(
                                 enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
                                 exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(250))
                             ) {
-                                Column {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp)
+                                ) {
                                     Spacer(Modifier.height(12.dp))
                                     LocationSelectorPill(
                                         location = selectedLocation,
@@ -357,7 +360,9 @@ fun VenueMainContent(
 
                         item {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 CustomSearchBar(
@@ -401,6 +406,9 @@ fun VenueMainContent(
                                     },
                                     onCardClick = {},
                                     onChatClick = {},
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
                                 )
                             }
                         } else {
@@ -442,7 +450,7 @@ fun VenueMainContent(
                                     onVenueClick = { },
                                     onFavoriteToggle = { venue ->
                                         venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                    }
+                                    },
                                 )
                             }
                         } else {
