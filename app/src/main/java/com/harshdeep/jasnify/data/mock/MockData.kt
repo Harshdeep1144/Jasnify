@@ -30,7 +30,8 @@ object MockData {
                 "https://picsum.photos/800/400?random=4",
                 "https://picsum.photos/800/400?random=5",
                 "https://picsum.photos/800/400?random=6"
-            )
+            ),
+            enquiriesLastMonth = 32
         ),
         VendorCardData(
             vendorName = "Royal Garden Lawn",
@@ -72,7 +73,8 @@ object MockData {
                 "https://picsum.photos/800/400?random=13",
                 "https://picsum.photos/800/400?random=14",
                 "https://picsum.photos/800/400?random=15"
-            )
+            ),
+            enquiriesLastMonth = 90
         ),
         VendorCardData(
             vendorName = "Lotus Convention Center",
