@@ -262,8 +262,12 @@ fun VenueScreen(
                     }
                     "detail" -> {
                         selectedVenueForDetail?.let { venue ->
+                            val detailData = remember(venue) {
+                                MockData.venueDetailsMap[venue.vendorName]
+                                    ?: MockData.getDetailsForVendor(venue, MockData.sampleVenues1 + MockData.sampleVenues2)
+                            }
                             VenueDetailScreen(
-                                vendor = venue,
+                                venueDetail = detailData,
                                 onBackClick = { selectedVenueForDetail = null },
                                 sharedTransitionScope = this@SharedTransitionLayout,
                                 animatedVisibilityScope = this@AnimatedContent,

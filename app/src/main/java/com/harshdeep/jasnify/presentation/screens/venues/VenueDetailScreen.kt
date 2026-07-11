@@ -129,17 +129,66 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 
-// Data holder representing each item in the header media slider
+
 data class VenueMediaItem(
     val url: String,
     val isVideo: Boolean = false,
     val videoDuration: String? = null
 )
 
+data class VenuePricingItem(
+    val title: String,
+    val price: String,
+    val unit: String,
+    val iconRes: Int,
+    val labelText: String = "Price Point Offer"
+)
+
+data class VenueHighlightItem(
+    val label: String,
+    val value: String,
+    val iconRes: Int
+)
+
+data class GalleryCategoryData(
+    val categoryName: String,
+    val imageUrls: List<String>
+)
+
+data class RatingBreakdownItemData(
+    val score: String,
+    val label: String
+)
+
+data class VenueReviewItem(
+    val userName: String,
+    val userAvatarUrl: String? = null,
+    val rating: Double,
+    val relativeTime: String,
+    val reviewText: String
+)
+
+data class VenueReviewsData(
+    val ratingBreakdown: List<RatingBreakdownItemData>,
+    val reviews: List<VenueReviewItem>
+)
+
+data class VenueDetailData(
+    val vendorCard: VendorCardData,
+    val mediaItems: List<VenueMediaItem> = emptyList(),
+    val pricingItems: List<VenuePricingItem>? = null,
+    val highlightItems: List<VenueHighlightItem>? = null,
+    val aboutText: String? = null,
+    val galleryCategories: List<GalleryCategoryData>? = null,
+    val reviewsData: VenueReviewsData? = null,
+    val similarVenues: List<VendorCardData>? = null
+)
+
+
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun VenueDetailScreen(
-    vendor: VendorCardData,
+    venueDetail: VenueDetailData,
     onBackClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -147,78 +196,117 @@ fun VenueDetailScreen(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val vendor = venueDetail.vendorCard
 
-    // Dynamic offsets matching top bar height + status bar bounds
+    // Dynamic density-derived values
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
-
-    // Top bar is roughly 56.dp + we want it to sit 12.dp below the top bar
     val topBarHeightPx = with(density) { 56.dp.toPx() }
     val stickyMarginPx = with(density) { 12.dp.toPx() }
-
-    // Limits of the sliding sheet
     val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
     val maxOffsetPx = with(density) { 320.dp.toPx() }
-
-    // Animated layout state handling the sheet's slide-up
-    var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
-
-    // Offset used when scrolling to items, keeping them comfortably below the sticky tab row (approx. 56.dp height)
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
-    // Reactive selection index driven directly by scroll positions crossing the sticky header boundary
-    val selectedTabIndex by remember {
+    // Floating Sheet Swipe limits
+    var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
+    var isFavoriteState by remember { mutableStateOf(vendor.isFavorite) }
+    var isMuted by remember { mutableStateOf(true) }
+
+    // Compute dynamic tabs based on properties present inside venueDetail
+    val activeTabs = remember(venueDetail) {
+        buildList {
+            if (!venueDetail.pricingItems.isNullOrEmpty()) add("Pricings")
+            if (!venueDetail.highlightItems.isNullOrEmpty()) add("Highlights")
+            if (venueDetail.aboutText != null) add("About")
+            add("Ask AI")
+        }
+    }
+
+    // Capture precise keys assigned to items inside the LazyColumn list
+    val listKeys = remember(venueDetail) {
+        buildList {
+            add("info")
+            add("suggestions")
+            add("tabs")
+            if (!venueDetail.pricingItems.isNullOrEmpty()) {
+                add("pricings")
+                add("div_pricings")
+            }
+            if (!venueDetail.highlightItems.isNullOrEmpty()) {
+                add("highlights")
+                add("div_highlights")
+            }
+            if (venueDetail.aboutText != null) {
+                add("about")
+                add("div_about")
+            }
+            add("ask_ai")
+            add("div_ask_ai")
+            if (!venueDetail.galleryCategories.isNullOrEmpty()) {
+                add("gallery")
+                add("div_gallery")
+            }
+            if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+                add("reviews")
+                add("div_reviews")
+            }
+            add("explore_more")
+            add("div_explore_more")
+            if (!venueDetail.similarVenues.isNullOrEmpty()) {
+                add("similar_venues")
+            }
+            add("footer")
+        }
+    }
+
+    // Scroll progress-derived index synchronization
+    val selectedTabIndex by remember(activeTabs, listKeys) {
         derivedStateOf {
             val visibleItems = listState.layoutInfo.visibleItemsInfo
             if (visibleItems.isEmpty()) {
                 0
             } else {
-                // Find the first visible item that crosses beneath the sticky header threshold
                 val thresholdPx = stickyHeaderHeightPx.toFloat()
-                val item = visibleItems.firstOrNull {
+                val candidateItem = visibleItems.firstOrNull {
                     it.offset + it.size > thresholdPx + 20f
                 } ?: visibleItems.first()
 
-                // Precise mapping of list indices to their respective tab indexes
-                when (item.index) {
-                    in 0..3 -> 0
-                    in 4..5 -> 1
-                    in 6..7 -> 2
-                    else -> 3     // Divider, Ask AI and everything below
+                val itemIndex = candidateItem.index
+                val itemKey = listKeys.getOrNull(itemIndex) ?: ""
+
+                when (itemKey) {
+                    "pricings", "div_pricings" -> activeTabs.indexOf("Pricings").coerceAtLeast(0)
+                    "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
+                    "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
+                    "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
+                    else -> {
+                        // Dynamically evaluate positions relative to tab content anchors
+                        val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val askAiIdx = listKeys.indexOf("ask_ai").takeIf { it != -1 } ?: Int.MAX_VALUE
+
+                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx)
+
+                        if (itemIndex < firstContentIdx) {
+                            // If user is at "info", "suggestions", or "tabs", highlight the first available section tab
+                            0
+                        } else {
+                            // If user is below all defined tab contents (e.g. gallery/reviews), map to "Ask AI"
+                            val aiIndex = activeTabs.indexOf("Ask AI")
+                            if (aiIndex != -1) aiIndex else 0
+                        }
+                    }
                 }
             }
         }
     }
 
-    val tabs = listOf("Pricings", "Highlights", "About", "Ask AI")
-
-    val mediaItems = remember(vendor) {
-        listOf(
-            VenueMediaItem(
-                url = vendor.images.firstOrNull() ?: "image_2e5379.jpg",
-                isVideo = false
-            ),
-            VenueMediaItem(
-                url = "image_2e5379.jpg",
-                isVideo = true,
-                videoDuration = "0:15"
-            ),
-            VenueMediaItem(
-                url = "image_2e5379.jpg",
-                isVideo = false
-            )
-        )
-    }
-
-    var isFavoriteState by remember { mutableStateOf(vendor.isFavorite) }
-    var isMuted by remember { mutableStateOf(true) }
-
-    // Setup nested scroll system to handle sheet dragging vs internal scrolling elegantly
+    // NestedScroll handling for scrolling vs panel-drags
     val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
-                // When dragging up (delta < 0): slide the sheet up first before allowing lists to scroll
                 return if (delta < 0 && sheetOffsetPx > minOffsetPx) {
                     val newOffset = (sheetOffsetPx + delta).coerceAtLeast(minOffsetPx)
                     val consumed = newOffset - sheetOffsetPx
@@ -235,7 +323,6 @@ fun VenueDetailScreen(
                 source: NestedScrollSource
             ): Offset {
                 val delta = available.y
-                // When dragging down (delta < 0): pull the sheet down if the internal list has reached the top
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
@@ -248,20 +335,19 @@ fun VenueDetailScreen(
         }
     }
 
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
     ) {
-        // Subtle Parallax calculation matching the background translation to the sheet swipe
         val parallaxTranslationY = remember(sheetOffsetPx) {
             val displacement = maxOffsetPx - sheetOffsetPx
             -displacement * 0.45f
         }
 
-        // Media Slider Background Anchor
         VenueMediaSlider(
-            mediaItems = mediaItems,
+            mediaItems = venueDetail.mediaItems,
             isMuted = isMuted,
             onMuteToggle = { isMuted = !isMuted },
             vendor = vendor,
@@ -275,7 +361,6 @@ fun VenueDetailScreen(
                 }
         )
 
-        // Scrolling sheet overlap docking container
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -321,134 +406,133 @@ fun VenueDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // LazyColumn Index 0
-                item {
+                // Info Section
+                item(key = "info") {
                     VenueInfoSection(vendor = vendor)
                 }
 
-                // LazyColumn Index 1
-                item {
+                // AI Suggestions
+                item(key = "suggestions") {
                     SuggestionChipsSection()
                 }
 
-                // LazyColumn Index 2: Sticky Tabs Container
-                stickyHeader {
+                // Sticky Tab Bar Component
+                stickyHeader(key = "tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
                         shadowElevation = if (listState.firstVisibleItemIndex >= 2) 4.dp else 0.dp
                     ) {
                         VenueTabs(
-                            tabs = tabs,
+                            tabs = activeTabs,
                             selectedTabIndex = selectedTabIndex,
                             onTabSelected = { index ->
                                 coroutineScope.launch {
-                                    // Target clean layouts mapping perfectly to item index bounds
-                                    val targetLazyIndex = when (index) {
-                                        0 -> 3 // PricingsSection
-                                        1 -> 5 // HighlightsSection
-                                        2 -> 7 // AboutSection
-                                        3 -> 9 // AskAISection
-                                        else -> 3
+                                    val tabName = activeTabs[index]
+                                    val targetKey = when (tabName) {
+                                        "Pricings" -> "pricings"
+                                        "Highlights" -> "highlights"
+                                        "About" -> "about"
+                                        "Ask AI" -> "ask_ai"
+                                        else -> "pricings"
                                     }
-                                    // Align perfectly below the sticky header (negative offset pushes content down)
-                                    listState.animateScrollToItem(
-                                        index = targetLazyIndex,
-                                        scrollOffset = -stickyHeaderHeightPx
-                                    )
+                                    val itemIndex = listKeys.indexOf(targetKey)
+                                    if (itemIndex != -1) {
+                                        listState.animateScrollToItem(
+                                            index = itemIndex,
+                                            scrollOffset = -stickyHeaderHeightPx
+                                        )
+                                    }
                                 }
                             }
                         )
                     }
                 }
 
-                // LazyColumn Index 3
-                item {
-                    PricingsSection(vendor = vendor)
+                // Pricings Layout
+                if (!venueDetail.pricingItems.isNullOrEmpty()) {
+                    item(key = "pricings") {
+                        PricingsSection(vendor = vendor, pricingItems = venueDetail.pricingItems)
+                    }
+                    item(key = "div_pricings") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    }
                 }
 
-                // LazyColumn Index 4
-                item {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                // Highlights Layout
+                if (!venueDetail.highlightItems.isNullOrEmpty()) {
+                    item(key = "highlights") {
+                        HighlightsSection(highlightItems = venueDetail.highlightItems)
+                    }
+                    item(key = "div_highlights") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    }
                 }
 
-                // LazyColumn Index 5
-                item {
-                    HighlightsSection()
+                // About layout
+                if (venueDetail.aboutText != null) {
+                    item(key = "about") {
+                        AboutSection(vendor = vendor, aboutText = venueDetail.aboutText)
+                    }
+                    item(key = "div_about") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    }
                 }
 
-                // LazyColumn Index 6
-                item {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
-                }
-
-                // LazyColumn Index 7
-                item {
-                    AboutSection(vendor = vendor)
-                }
-
-                // LazyColumn Index 8
-                item {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
-                }
-
-                // LazyColumn Index 9
-                item {
+                // Ask AI Area
+                item(key = "ask_ai") {
                     AskAISection()
                 }
-
-                // LazyColumn Index 10
-                item {
+                item(key = "div_ask_ai") {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                // LazyColumn Index 11: Gallery Section
-                item {
-                    GallerySection()
+                // Gallery Grid
+                if (!venueDetail.galleryCategories.isNullOrEmpty()) {
+                    item(key = "gallery") {
+                        GallerySection(galleryCategories = venueDetail.galleryCategories)
+                    }
+                    item(key = "div_gallery") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    }
                 }
 
-                // LazyColumn Index 12
-                item {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                // Reviews Section
+                if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+                    item(key = "reviews") {
+                        ReviewsSection(vendor = vendor, reviewsData = venueDetail.reviewsData)
+                    }
+                    item(key = "div_reviews") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    }
                 }
 
-                // LazyColumn Index 13
-                item {
-                    ReviewsSection(vendor = vendor)
-                }
-
-                // LazyColumn Index 14
-                item {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
-                }
-
-                // LazyColumn Index 15
-                item {
+                // Explore Section
+                item(key = "explore_more") {
                     ExploreMoreSection()
                 }
-
-                // LazyColumn Index 16
-                item {
+                item(key = "div_explore_more") {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                // LazyColumn Index 17
-                item {
-                    SimilarVenuesSection()
+                // Similar Venues Section
+                if (!venueDetail.similarVenues.isNullOrEmpty()) {
+                    item(key = "similar_venues") {
+                        SimilarVenuesSection(similarVenues = venueDetail.similarVenues)
+                    }
                 }
 
-                // LazyColumn Index 18
-                item {
+                // Footer and spacing anchor
+                item(key = "footer") {
                     FooterJansify()
-                    // Safe bottom offset spacer to make sure LazyColumn content isn't obscured by the persistent actions
                     Spacer(Modifier.height(100.dp))
                 }
             }
         }
 
+
         val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
 
-        // Calculate scroll range and progress ratio dynamically to drive gradual opacity
         val scrollRange = maxOffsetPx - minOffsetPx
         val currentScrollOffset = maxOffsetPx - sheetOffsetPx
         val scrollFraction = if (scrollRange > 0f) {
@@ -456,10 +540,8 @@ fun VenueDetailScreen(
         } else {
             0f
         }
-        // Slowly map progress (0.0 to 1.0) to alpha (0.5f to 1.0f)
         val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
 
-        // Seamlessly switch button style to OPAQUE only when scrolled near the top boundary
         val dynamicButtonStyle = if (topBarAlpha > 0.9f) {
             ButtonBackground.OPAQUE
         } else {
@@ -492,7 +574,7 @@ fun VenueDetailScreen(
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = { isFavoriteState = !isFavoriteState },
-                onMenuClick = { /* Handle share context */  },
+                onMenuClick = { },
                 buttonStyle = dynamicButtonStyle,
                 translucentAlpha = topBarAlpha,
                 textColor = ContentPrimary,
@@ -500,8 +582,8 @@ fun VenueDetailScreen(
         }
 
         FloatingBottomActionBar(
-            onMessageClick = { /* Handle opening messages/chat with venue */ },
-            onBookCallClick = { /* Handle phone/video booking call request */ },
+            onMessageClick = { },
+            onBookCallClick = { },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -527,9 +609,6 @@ fun VenueDetailScreen(
 }
 
 
-// =========================================== Helper Sections =================================================
-
-
 @Composable
 fun FloatingBottomActionBar(
     onMessageClick: () -> Unit,
@@ -552,7 +631,7 @@ fun FloatingBottomActionBar(
             ),
         color = SurfacePrimary,
         shape = CircleShape
-    ){
+    ) {
         Row(
             modifier = Modifier
                 .padding(4.dp)
@@ -577,7 +656,6 @@ fun FloatingBottomActionBar(
         }
     }
 }
-
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -690,7 +768,7 @@ fun VenueMediaSlider(
 
             CustomTextButton(
                 text = "Gallery (${mediaItems.size})",
-                onClick = { /* Gallery navigation */ },
+                onClick = { },
                 containerColor = ContentInvPrimary.copy(alpha = 0.5f),
                 contentColor = ContentPrimary,
                 size = ButtonSize.Small,
@@ -699,7 +777,6 @@ fun VenueMediaSlider(
         }
     }
 }
-
 
 @Composable
 fun VenueInfoSection(vendor: VendorCardData) {
@@ -712,7 +789,6 @@ fun VenueInfoSection(vendor: VendorCardData) {
             .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        // Left Content: Vendor Name & Location
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -726,7 +802,6 @@ fun VenueInfoSection(vendor: VendorCardData) {
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Clickable row that toggles expansion if the text overflows
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -740,7 +815,6 @@ fun VenueInfoSection(vendor: VendorCardData) {
                     maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = { textLayoutResult ->
-                        // Only update overflow state when not expanded to avoid resetting it
                         if (!isExpanded) {
                             hasOverflow = textLayoutResult.hasVisualOverflow
                         }
@@ -759,7 +833,6 @@ fun VenueInfoSection(vendor: VendorCardData) {
             }
         }
 
-        // Right Content: Rating Badge
         Column(
             modifier = Modifier
                 .clip(shape = RoundedCornerShape(CornerMedium))
@@ -797,12 +870,10 @@ fun VenueInfoSection(vendor: VendorCardData) {
     }
 }
 
-
 @Composable
 fun SuggestionChipsSection(
     onClickSuggestion: (String) -> Unit = {}
 ) {
-    // List of AI suggestion prompts
     val suggestions = remember {
         listOf(
             "What's good here?",
@@ -833,7 +904,6 @@ fun SuggestionChipsSection(
     }
 }
 
-
 @Composable
 fun VenueTabs(
     tabs: List<String>,
@@ -847,11 +917,13 @@ fun VenueTabs(
         edgePadding = 12.dp,
         divider = {},
         indicator = { tabPositions ->
-            TabRowDefaults.SecondaryIndicator(
-                Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
-                color = ContentBrand,
-                height = 4.dp
-            )
+            if (selectedTabIndex in tabPositions.indices) {
+                TabRowDefaults.SecondaryIndicator(
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    color = ContentBrand,
+                    height = 4.dp
+                )
+            }
         }
     ) {
         tabs.forEachIndexed { index, title ->
@@ -890,33 +962,28 @@ fun VenueTabs(
 
 
 @Composable
-fun PricingsSection(vendor: VendorCardData) {
+fun PricingsSection(vendor: VendorCardData, pricingItems: List<VenuePricingItem>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        PricingCard(
-            title = "Non-Veg Plate",
-            price = vendor.priceStartsFrom,
-            unit = "starting price",
-            iconRes = R.drawable.ic_non_veg,
-            shape = SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall,CornerExtraSmall)
-        )
-        PricingCard(
-            title = "Veg Plate",
-            price = "₹2,499",
-            unit = "per plate",
-            iconRes = R.drawable.ic_veg
-        )
-        PricingCard(
-            title = "Rooms",
-            price = "₹3,199",
-            unit = "per plate",
-            iconRes = R.drawable.ic_door,
-            shape = SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge,CornerLarge)
-        )
+        pricingItems.forEachIndexed { index, item ->
+            val shape = when (index) {
+                0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
+                pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
+                else -> SquircleShape(CornerExtraSmall)
+            }
+            PricingCard(
+                title = item.title,
+                price = item.price,
+                unit = item.unit,
+                iconRes = item.iconRes,
+                labelText = item.labelText,
+                shape = shape
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -948,6 +1015,7 @@ fun PricingCard(
     price: String,
     unit: String,
     iconRes: Int,
+    labelText: String,
     shape: SquircleShape = SquircleShape(CornerExtraSmall)
 ) {
     Surface(
@@ -978,7 +1046,7 @@ fun PricingCard(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "Price Point Offer",
+                        text = labelText,
                         style = JasnifyTheme.typography.labelMedium,
                         color = ContentSecondary
                     )
@@ -1005,7 +1073,7 @@ fun PricingCard(
 
 
 @Composable
-fun HighlightsSection() {
+fun HighlightsSection(highlightItems: List<VenueHighlightItem>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1018,25 +1086,15 @@ fun HighlightsSection() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
-        val highlights = listOf(
-            HighlightData("CAPACITY", "200 Guests", painterResource(R.drawable.ic_user_default)),
-            HighlightData("CATERING", "In-House Available", painterResource(R.drawable.ic_food)),
-            HighlightData("PARKING", "Upto 25 Four-Wheelers", painterResource(R.drawable.ic_car)),
-            HighlightData("DECORATION", "In-House Available", painterResource(R.drawable.ic_start_2)),
-            HighlightData("SOUND & MUSIC", "In-House DJ Available", painterResource(R.drawable.ic_music))
-        )
-
-        highlights.forEach { highlight ->
+        highlightItems.forEach { highlight ->
             HighlightItemRow(highlight)
             Spacer(Modifier.height(12.dp))
         }
     }
 }
 
-data class HighlightData(val label: String, val value: String, val icon: Painter)
-
 @Composable
-fun HighlightItemRow(data: HighlightData) {
+fun HighlightItemRow(data: VenueHighlightItem) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -1044,12 +1102,11 @@ fun HighlightItemRow(data: HighlightData) {
         Surface(
             color = SurfaceBrandSecondary,
             shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-            modifier = Modifier
-                .size(48.dp)
+            modifier = Modifier.size(48.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    painter = data.icon,
+                    painter = painterResource(data.iconRes),
                     contentDescription = null,
                     tint = ContentBrandDark,
                     modifier = Modifier.size(24.dp)
@@ -1073,8 +1130,9 @@ fun HighlightItemRow(data: HighlightData) {
     }
 }
 
+
 @Composable
-fun AboutSection(vendor: VendorCardData) {
+fun AboutSection(vendor: VendorCardData, aboutText: String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1087,7 +1145,7 @@ fun AboutSection(vendor: VendorCardData) {
             modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            text = "Discover the charm of ${vendor.vendorName}, located in ${vendor.location}.\n\nThis inviting space blends comfort with high-end luxury, matching your vision perfectly for event styling...",
+            text = aboutText,
             style = JasnifyTheme.typography.labelLarge,
             overflow = TextOverflow.Ellipsis,
             maxLines = 4,
@@ -1168,24 +1226,25 @@ fun AskAISection() {
                     trailingIcon = Icons.Rounded.ArrowOutward,
                     shapeStyle = ChipShapeStyle.Round,
                     hasStroke = true,
-                    onClick = { /* Handle */ }
+                    onClick = { }
                 )
             }
         }
     }
 }
 
+
 @Composable
-fun GallerySection() {
-    var selectedCategory by remember { mutableStateOf("Images") }
-    val categories = listOf("Images", "Videos", "Albums")
+fun GallerySection(galleryCategories: List<GalleryCategoryData>) {
+    var selectedCategoryIndex by remember { mutableStateOf(0) }
+    val activeCategory = galleryCategories.getOrNull(selectedCategoryIndex)
+    val imagesList = activeCategory?.imageUrls.orEmpty()
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        // Gallery Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1219,25 +1278,25 @@ fun GallerySection() {
 
         Spacer(Modifier.height(12.dp))
 
-        // Custom Category Filter Chips
         LazyRow(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(bottom = 12.dp)
         ) {
-            items(categories) { category ->
-                val isSelected = selectedCategory == category
+            items(galleryCategories.size) { index ->
+                val category = galleryCategories[index]
+                val isSelected = selectedCategoryIndex == index
 
                 FilterChip(
-                    label = category,
+                    label = category.categoryName,
                     isSelected = isSelected,
                     shapeStyle = ChipShapeStyle.Round,
                     hasStroke = true,
+                    onClick = { selectedCategoryIndex = index }
                 )
             }
         }
 
-        // Gallery Grid View
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1245,7 +1304,6 @@ fun GallerySection() {
                 .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Left Side: Prominent Feature Card
             Box(
                 modifier = Modifier
                     .weight(1.5f)
@@ -1259,13 +1317,12 @@ fun GallerySection() {
                     .background(SurfaceSecondary)
             ) {
                 AsyncImage(
-                    model = "image_2e5379.jpg",
-                    contentDescription = "Main Gallery Stage View",
+                    model = imagesList.getOrNull(0) ?: "image_2e5379.jpg",
+                    contentDescription = "Main Gallery",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
 
-                // Index Counter Badge (1/46)
                 Surface(
                     color = ContentPrimary.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(100),
@@ -1274,7 +1331,7 @@ fun GallerySection() {
                         .padding(12.dp)
                 ) {
                     Text(
-                        text = "1/46",
+                        text = "1/${imagesList.size}",
                         color = ContentInvPrimary,
                         style = JasnifyTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1282,14 +1339,12 @@ fun GallerySection() {
                 }
             }
 
-            // Right Side: Grid of 3 Rounded Thumbnails
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight(),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Top Right Thumbnail (2/46)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -1303,8 +1358,8 @@ fun GallerySection() {
                         .background(SurfaceSecondary)
                 ) {
                     AsyncImage(
-                        model = "image_2e5379.jpg",
-                        contentDescription = "Gallery Image 2",
+                        model = imagesList.getOrNull(1) ?: "image_2e5379.jpg",
+                        contentDescription = "Gallery Row 2",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -1316,7 +1371,7 @@ fun GallerySection() {
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = "2/46",
+                            text = "2/${imagesList.size}",
                             color = ContentInvPrimary,
                             style = JasnifyTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1324,7 +1379,6 @@ fun GallerySection() {
                     }
                 }
 
-                // Middle Right Thumbnail (3/46)
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -1338,8 +1392,8 @@ fun GallerySection() {
                         .background(SurfaceSecondary)
                 ) {
                     AsyncImage(
-                        model = "image_2e5379.jpg",
-                        contentDescription = "Gallery Image 3",
+                        model = imagesList.getOrNull(2) ?: "image_2e5379.jpg",
+                        contentDescription = "Gallery Row 3",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -1351,7 +1405,7 @@ fun GallerySection() {
                             .padding(8.dp)
                     ) {
                         Text(
-                            text = "3/46",
+                            text = "3/${imagesList.size}",
                             color = ContentInvPrimary,
                             style = JasnifyTheme.typography.labelSmall,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1359,7 +1413,6 @@ fun GallerySection() {
                     }
                 }
 
-                // Bottom Right See All Action Thumbnail
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -1374,19 +1427,17 @@ fun GallerySection() {
                         .clickable { }
                 ) {
                     AsyncImage(
-                        model = "image_2e5379.jpg",
-                        contentDescription = "Gallery OverView",
+                        model = imagesList.getOrNull(3) ?: "image_2e5379.jpg",
+                        contentDescription = "Gallery Row OverView",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                    // Translucent Blur/Darken Overlay
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(ContentPrimary.copy(alpha = 0.8f))
                     )
 
-                    // Centered "See all" Pill Button
                     Surface(
                         color = ContentInvPrimary.copy(alpha = 0.5f),
                         shape = RoundedCornerShape(100),
@@ -1405,16 +1456,16 @@ fun GallerySection() {
     }
 }
 
+
 @Composable
-fun ReviewsSection(vendor: VendorCardData) {
+fun ReviewsSection(vendor: VendorCardData, reviewsData: VenueReviewsData) {
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding( 12.dp),
+                .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1477,15 +1528,10 @@ fun ReviewsSection(vendor: VendorCardData) {
                 Text("${vendor.totalReviews} ratings", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
             }
 
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
-
-            RatingBreakdownItem("4.8", "Hospitality")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
-            RatingBreakdownItem("4.4", "Food")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
-            RatingBreakdownItem("4.1", "Ambience")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
-            RatingBreakdownItem("4.2", "Banquets")
+            reviewsData.ratingBreakdown.forEach { item ->
+                VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
+                RatingBreakdownItem(item.score, item.label)
+            }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -1494,13 +1540,12 @@ fun ReviewsSection(vendor: VendorCardData) {
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(3) {
-                ReviewCard()
+            items(reviewsData.reviews) { review ->
+                ReviewCard(review)
             }
         }
     }
 }
-
 
 @Composable
 fun RatingBreakdownItem(rating: String, label: String) {
@@ -1511,7 +1556,7 @@ fun RatingBreakdownItem(rating: String, label: String) {
 }
 
 @Composable
-fun ReviewCard() {
+fun ReviewCard(review: VenueReviewItem) {
     Surface(
         color = SurfaceSecondary,
         shape = SquircleShape(CornerExtraLarge),
@@ -1531,7 +1576,7 @@ fun ReviewCard() {
                             .background(SurfaceSecondary)
                     ) {
                         AsyncImage(
-                            model = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
+                            model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
                             contentDescription = null,
                             contentScale = ContentScale.Crop
                         )
@@ -1539,13 +1584,13 @@ fun ReviewCard() {
                     Spacer(Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = "Anand K.",
+                            text = review.userName,
                             style = JasnifyTheme.typography.labelLarge,
                             color = ContentPrimary
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "1 week ago",
+                            text = review.relativeTime,
                             style = JasnifyTheme.typography.labelMedium,
                             color = ContentSecondary
                         )
@@ -1568,7 +1613,7 @@ fun ReviewCard() {
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "3.4",
+                            text = "${review.rating}",
                             color = ContentInvPrimary,
                             style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
                         )
@@ -1579,7 +1624,7 @@ fun ReviewCard() {
             Spacer(Modifier.height(12.dp))
 
             Text(
-                text = "Discover the charm of this venue. It has excellent hospitality and top-notch facilities",
+                text = review.reviewText,
                 style = JasnifyTheme.typography.labelLarge,
                 color = ContentSecondary,
                 maxLines = 3,
@@ -1611,6 +1656,13 @@ fun ReviewCard() {
 
 @Composable
 fun ExploreMoreSection() {
+    val suggestionChips = listOf(
+        "How is the vibe here?",
+        "What's good here?",
+        "Do they serve alcohol?",
+        "How many guests they can serve?"
+    )
+
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -1650,18 +1702,11 @@ fun ExploreMoreSection() {
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val suggestionChips = listOf(
-                "How is the vibe here?",
-                "What's good here?",
-                "Do they serve alcohol?",
-                "How many guests they can serve?"
-            )
-
             items(suggestionChips) { text ->
                 FilterChip(
                     label = text,
                     shapeStyle = ChipShapeStyle.Round,
-                    onClick = { /* Handle */ },
+                    onClick = { },
                     hasStroke = true
                 )
             }
@@ -1672,18 +1717,11 @@ fun ExploreMoreSection() {
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val suggestionChips = listOf(
-                "How is the vibe here?",
-                "What's good here?",
-                "Do they serve alcohol?",
-                "How many guests they can serve?"
-            )
-
-            items(suggestionChips) { text ->
+            items(suggestionChips.reversed()) { text ->
                 FilterChip(
                     label = text,
                     shapeStyle = ChipShapeStyle.Round,
-                    onClick = { /* Handle */ },
+                    onClick = { },
                     hasStroke = true
                 )
             }
@@ -1691,31 +1729,8 @@ fun ExploreMoreSection() {
     }
 }
 
-
-
 @Composable
-fun SimilarVenuesSection() {
-    val sampleVenues = List(3) {
-        VendorCardData(
-            vendorName = "Hotel Imperial Inn",
-            location = "Sampatchak, Patna",
-            rating = 4.4,
-            totalReviews = "1.4k",
-            services = emptyList(),
-            priceStartsFrom = "₹2,999",
-            images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800")
-        )
-        VendorCardData(
-            vendorName = "Hotel Imperial Inn",
-            location = "Sampatchak, Patna",
-            rating = 4.4,
-            totalReviews = "1.4k",
-            services = emptyList(),
-            priceStartsFrom = "₹2,999",
-            images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800")
-        )
-    }
-
+fun SimilarVenuesSection(similarVenues: List<VendorCardData>) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
             text = "Showing similar venues",
@@ -1728,29 +1743,12 @@ fun SimilarVenuesSection() {
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(sampleVenues) { vendor ->
+            items(similarVenues) { vendor ->
                 VendorCardCompact(
                     vendor = vendor,
                     compactCardSize = CompactCardSize.SMALL
                 )
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun VenueDetailScreenPreview() {
-    val mockVendor = VendorCardData(
-        vendorName = "Hotel Imperial Inn",
-        location = "Sampatchak, Patna",
-        rating = 4.4,
-        totalReviews = "1.4k",
-        services = emptyList(),
-        priceStartsFrom = "₹2,999",
-        images = listOf("image_2e5379.jpg")
-    )
-    JasnifyTheme {
-        VenueDetailScreen(vendor = mockVendor)
     }
 }
