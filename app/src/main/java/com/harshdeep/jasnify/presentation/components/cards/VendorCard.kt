@@ -351,7 +351,7 @@ private fun BannerRow(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Star, null, Modifier.size(12.dp), Color.White)
+                Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), Color.White)
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = "${vendor.rating}",
