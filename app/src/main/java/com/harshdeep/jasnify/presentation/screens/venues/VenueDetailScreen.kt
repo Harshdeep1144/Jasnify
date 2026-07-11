@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,8 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -48,12 +51,12 @@ import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -106,6 +109,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -125,14 +129,12 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 
-
 // Data holder representing each item in the header media slider
 data class VenueMediaItem(
     val url: String,
     val isVideo: Boolean = false,
     val videoDuration: String? = null
 )
-
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -179,9 +181,9 @@ fun VenueDetailScreen(
 
                 // Precise mapping of list indices to their respective tab indexes
                 when (item.index) {
-                    in 0..3 -> 0  // VenueInfo, Suggestion Chips, Sticky Header, and Pricings
-                    in 4..5 -> 1  // Divider and Highlights
-                    in 6..7 -> 2  // Divider and About
+                    in 0..3 -> 0
+                    in 4..5 -> 1
+                    in 6..7 -> 2
                     else -> 3     // Divider, Ask AI and everything below
                 }
             }
@@ -193,16 +195,16 @@ fun VenueDetailScreen(
     val mediaItems = remember(vendor) {
         listOf(
             VenueMediaItem(
-                url = vendor.images.firstOrNull() ?: "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
+                url = vendor.images.firstOrNull() ?: "image_2e5379.jpg",
                 isVideo = false
             ),
             VenueMediaItem(
-                url = "https://images.unsplash.com/photo-1469371670807-013ccf25f16a?auto=format&fit=crop&w=800",
+                url = "image_2e5379.jpg",
                 isVideo = true,
                 videoDuration = "0:15"
             ),
             VenueMediaItem(
-                url = "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800",
+                url = "image_2e5379.jpg",
                 isVideo = false
             )
         )
@@ -233,7 +235,7 @@ fun VenueDetailScreen(
                 source: NestedScrollSource
             ): Offset {
                 val delta = available.y
-                // When dragging down (delta > 0): pull the sheet down if the internal list has reached the top
+                // When dragging down (delta < 0): pull the sheet down if the internal list has reached the top
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
@@ -267,7 +269,7 @@ fun VenueDetailScreen(
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(360.dp)
+                .height(340.dp)
                 .graphicsLayer {
                     translationY = parallaxTranslationY
                 }
@@ -297,7 +299,7 @@ fun VenueDetailScreen(
                 .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .shadow(24.dp, SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .background(
-                    color = SurfacePrimary,
+                    color = BackgroundPrimary,
                     shape = SquircleShape(CornerExtraLarge, CornerExtraLarge)
                 )
         ) {
@@ -400,9 +402,9 @@ fun VenueDetailScreen(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                // LazyColumn Index 11
+                // LazyColumn Index 11: Gallery Section
                 item {
-                    ReviewsSection(vendor = vendor)
+                    GallerySection()
                 }
 
                 // LazyColumn Index 12
@@ -412,7 +414,7 @@ fun VenueDetailScreen(
 
                 // LazyColumn Index 13
                 item {
-                    ExploreMoreSection()
+                    ReviewsSection(vendor = vendor)
                 }
 
                 // LazyColumn Index 14
@@ -422,14 +424,24 @@ fun VenueDetailScreen(
 
                 // LazyColumn Index 15
                 item {
-                    SimilarVenuesSection()
+                    ExploreMoreSection()
                 }
 
                 // LazyColumn Index 16
                 item {
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                }
+
+                // LazyColumn Index 17
+                item {
+                    SimilarVenuesSection()
+                }
+
+                // LazyColumn Index 18
+                item {
                     FooterJansify()
                     // Safe bottom offset spacer to make sure LazyColumn content isn't obscured by the persistent actions
-                    Spacer(Modifier.height(112.dp))
+                    Spacer(Modifier.height(100.dp))
                 }
             }
         }
@@ -642,7 +654,7 @@ fun VenueMediaSlider(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 56.dp)
+                .padding(horizontal = 12.dp, vertical = 34.dp)
                 .then(
                     if (animatedVisibilityScope != null) {
                         with(animatedVisibilityScope) {
@@ -1164,6 +1176,236 @@ fun AskAISection() {
 }
 
 @Composable
+fun GallerySection() {
+    var selectedCategory by remember { mutableStateOf("Images") }
+    val categories = listOf("Images", "Videos", "Albums")
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        // Gallery Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Gallery",
+                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                color = ContentPrimary
+            )
+            Row(
+                modifier = Modifier.clickable { },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "See all",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = "See All Gallery",
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Custom Category Filter Chips
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(bottom = 12.dp)
+        ) {
+            items(categories) { category ->
+                val isSelected = selectedCategory == category
+
+                FilterChip(
+                    label = category,
+                    isSelected = isSelected,
+                    shapeStyle = ChipShapeStyle.Round,
+                    hasStroke = true,
+                )
+            }
+        }
+
+        // Gallery Grid View
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(340.dp)
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Left Side: Prominent Feature Card
+            Box(
+                modifier = Modifier
+                    .weight(1.5f)
+                    .fillMaxHeight()
+                    .clip(SquircleShape(CornerExtraLarge))
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                        shape = SquircleShape(CornerExtraLarge)
+                    )
+                    .background(SurfaceSecondary)
+            ) {
+                AsyncImage(
+                    model = "image_2e5379.jpg",
+                    contentDescription = "Main Gallery Stage View",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                // Index Counter Badge (1/46)
+                Surface(
+                    color = ContentPrimary.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(100),
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = "1/46",
+                        color = ContentInvPrimary,
+                        style = JasnifyTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            // Right Side: Grid of 3 Rounded Thumbnails
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // Top Right Thumbnail (2/46)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(SquircleShape(CornerLarge))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            shape = SquircleShape(CornerLarge)
+                        )
+                        .background(SurfaceSecondary)
+                ) {
+                    AsyncImage(
+                        model = "image_2e5379.jpg",
+                        contentDescription = "Gallery Image 2",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Surface(
+                        color = ContentPrimary.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(100),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "2/46",
+                            color = ContentInvPrimary,
+                            style = JasnifyTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // Middle Right Thumbnail (3/46)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(SquircleShape(CornerLarge))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            shape = SquircleShape(CornerLarge)
+                        )
+                        .background(SurfaceSecondary)
+                ) {
+                    AsyncImage(
+                        model = "image_2e5379.jpg",
+                        contentDescription = "Gallery Image 3",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Surface(
+                        color = ContentPrimary.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(100),
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = "3/46",
+                            color = ContentInvPrimary,
+                            style = JasnifyTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                }
+
+                // Bottom Right See All Action Thumbnail
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clip(SquircleShape(CornerLarge))
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            shape = SquircleShape(CornerLarge)
+                        )
+                        .background(SurfaceSecondary)
+                        .clickable { }
+                ) {
+                    AsyncImage(
+                        model = "image_2e5379.jpg",
+                        contentDescription = "Gallery OverView",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    // Translucent Blur/Darken Overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(ContentPrimary.copy(alpha = 0.8f))
+                    )
+
+                    // Centered "See all" Pill Button
+                    Surface(
+                        color = ContentInvPrimary.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(100),
+                        modifier = Modifier.align(Alignment.Center)
+                    ) {
+                        Text(
+                            text = "See all",
+                            color = ContentInvPrimary,
+                            style = JasnifyTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun ReviewsSection(vendor: VendorCardData) {
     Column(
         modifier = Modifier
@@ -1506,7 +1748,7 @@ fun VenueDetailScreenPreview() {
         totalReviews = "1.4k",
         services = emptyList(),
         priceStartsFrom = "₹2,999",
-        images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800")
+        images = listOf("image_2e5379.jpg")
     )
     JasnifyTheme {
         VenueDetailScreen(vendor = mockVendor)
