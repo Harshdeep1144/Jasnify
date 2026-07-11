@@ -3,9 +3,11 @@ package com.harshdeep.jasnify.presentation.screens.venues
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,13 +23,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -37,42 +39,24 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowOutward
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
-import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.VolumeOff
-import androidx.compose.material.icons.filled.VolumeUp
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.DirectionsCar
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -83,10 +67,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -99,22 +81,19 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
@@ -146,12 +125,14 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 
+
 // Data holder representing each item in the header media slider
 data class VenueMediaItem(
     val url: String,
     val isVideo: Boolean = false,
     val videoDuration: String? = null
 )
+
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -162,9 +143,6 @@ fun VenueDetailScreen(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
-    var selectedTabIndex by remember { mutableIntStateOf(0) }
-    val tabs = listOf("Pricings", "Highlights", "About", "Ask AI")
-
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -183,16 +161,34 @@ fun VenueDetailScreen(
     // Animated layout state handling the sheet's slide-up
     var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
 
-    // Automatically match the visible items to correct tab indexing (adjusted for the sheet content)
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        val index = listState.firstVisibleItemIndex
-        selectedTabIndex = when {
-            index >= 6 -> 3 // Ask AI section or below (Index 6)
-            index == 5 -> 2 // About section (Index 5)
-            index == 4 -> 1 // Highlights section (Index 4)
-            else -> 0       // Pricings section or above (Index 3)
+    // Offset used when scrolling to items, keeping them comfortably below the sticky tab row (approx. 56.dp height)
+    val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
+
+    // Reactive selection index driven directly by scroll positions crossing the sticky header boundary
+    val selectedTabIndex by remember {
+        derivedStateOf {
+            val visibleItems = listState.layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) {
+                0
+            } else {
+                // Find the first visible item that crosses beneath the sticky header threshold
+                val thresholdPx = stickyHeaderHeightPx.toFloat()
+                val item = visibleItems.firstOrNull {
+                    it.offset + it.size > thresholdPx + 20f
+                } ?: visibleItems.first()
+
+                // Precise mapping of list indices to their respective tab indexes
+                when (item.index) {
+                    in 0..3 -> 0  // VenueInfo, Suggestion Chips, Sticky Header, and Pricings
+                    in 4..5 -> 1  // Divider and Highlights
+                    in 6..7 -> 2  // Divider and About
+                    else -> 3     // Divider, Ask AI and everything below
+                }
+            }
         }
     }
+
+    val tabs = listOf("Pricings", "Highlights", "About", "Ask AI")
 
     val mediaItems = remember(vendor) {
         listOf(
@@ -220,7 +216,7 @@ fun VenueDetailScreen(
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
-                // When dragging up: slide the sheet up first before allowing lists to scroll
+                // When dragging up (delta < 0): slide the sheet up first before allowing lists to scroll
                 return if (delta < 0 && sheetOffsetPx > minOffsetPx) {
                     val newOffset = (sheetOffsetPx + delta).coerceAtLeast(minOffsetPx)
                     val consumed = newOffset - sheetOffsetPx
@@ -237,7 +233,7 @@ fun VenueDetailScreen(
                 source: NestedScrollSource
             ): Offset {
                 val delta = available.y
-                // When dragging down: pull the sheet down if the internal list has reached the top
+                // When dragging down (delta > 0): pull the sheet down if the internal list has reached the top
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
@@ -282,10 +278,27 @@ fun VenueDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, sheetOffsetPx.roundToInt()) }
-                .shadow(24.dp, RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                .then(
+                    if (animatedVisibilityScope != null) {
+                        with(animatedVisibilityScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInVertically(
+                                    initialOffsetY = { it },
+                                    animationSpec = tween(500)
+                                ) + fadeIn(animationSpec = tween(500)),
+                                exit = slideOutVertically(
+                                    targetOffsetY = { it },
+                                    animationSpec = tween(500)
+                                ) + fadeOut(animationSpec = tween(500))
+                            )
+                        }
+                    } else Modifier
+                )
+                .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge))
+                .shadow(24.dp, SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .background(
                     color = SurfacePrimary,
-                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                    shape = SquircleShape(CornerExtraLarge, CornerExtraLarge)
                 )
         ) {
             Column(
@@ -306,15 +319,17 @@ fun VenueDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // LazyColumn Index 0
                 item {
                     VenueInfoSection(vendor = vendor)
                 }
 
+                // LazyColumn Index 1
                 item {
                     SuggestionChipsSection()
                 }
 
-                // The Tabs sticky header container ensures beautiful persistence
+                // LazyColumn Index 2: Sticky Tabs Container
                 stickyHeader {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -325,63 +340,92 @@ fun VenueDetailScreen(
                             tabs = tabs,
                             selectedTabIndex = selectedTabIndex,
                             onTabSelected = { index ->
-                                selectedTabIndex = index
                                 coroutineScope.launch {
-                                    // Target indices are updated:
-                                    // Header (0), Chips (1), Tabs (2), Pricings (3), Highlights (4)...
-                                    listState.animateScrollToItem(index + 3)
+                                    // Target clean layouts mapping perfectly to item index bounds
+                                    val targetLazyIndex = when (index) {
+                                        0 -> 3 // PricingsSection
+                                        1 -> 5 // HighlightsSection
+                                        2 -> 7 // AboutSection
+                                        3 -> 9 // AskAISection
+                                        else -> 3
+                                    }
+                                    // Align perfectly below the sticky header (negative offset pushes content down)
+                                    listState.animateScrollToItem(
+                                        index = targetLazyIndex,
+                                        scrollOffset = -stickyHeaderHeightPx
+                                    )
                                 }
                             }
                         )
                     }
                 }
 
+                // LazyColumn Index 3
                 item {
                     PricingsSection(vendor = vendor)
                 }
-                item{
+
+                // LazyColumn Index 4
+                item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 5
                 item {
                     HighlightsSection()
                 }
-                item{
+
+                // LazyColumn Index 6
+                item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 7
                 item {
                     AboutSection(vendor = vendor)
                 }
-                item{
+
+                // LazyColumn Index 8
+                item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 9
                 item {
                     AskAISection()
                 }
-                item{
+
+                // LazyColumn Index 10
+                item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 11
                 item {
                     ReviewsSection(vendor = vendor)
                 }
-                item{
+
+                // LazyColumn Index 12
+                item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 13
                 item {
                     ExploreMoreSection()
                 }
+
+                // LazyColumn Index 14
                 item {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                // LazyColumn Index 15
                 item {
                     SimilarVenuesSection()
                 }
 
+                // LazyColumn Index 16
                 item {
                     FooterJansify()
                     // Safe bottom offset spacer to make sure LazyColumn content isn't obscured by the persistent actions
@@ -411,7 +455,24 @@ fun VenueDetailScreen(
         }
 
         Column(
-            modifier = Modifier.statusBarsPadding()
+            modifier = Modifier
+                .statusBarsPadding()
+                .then(
+                    if (animatedVisibilityScope != null) {
+                        with(animatedVisibilityScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInVertically(
+                                    initialOffsetY = { -it },
+                                    animationSpec = tween(500)
+                                ) + fadeIn(animationSpec = tween(500)),
+                                exit = slideOutVertically(
+                                    targetOffsetY = { -it },
+                                    animationSpec = tween(500)
+                                ) + fadeOut(animationSpec = tween(500))
+                            )
+                        }
+                    } else Modifier
+                )
         ) {
             CustomTopBar(
                 onBackClick = onBackClick,
@@ -433,6 +494,22 @@ fun VenueDetailScreen(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .then(
+                    if (animatedVisibilityScope != null) {
+                        with(animatedVisibilityScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInVertically(
+                                    initialOffsetY = { it },
+                                    animationSpec = tween(600)
+                                ) + fadeIn(animationSpec = tween(600)),
+                                exit = slideOutVertically(
+                                    targetOffsetY = { it },
+                                    animationSpec = tween(600)
+                                ) + fadeOut(animationSpec = tween(600))
+                            )
+                        }
+                    } else Modifier
+                )
         )
     }
 }
@@ -565,7 +642,23 @@ fun VenueMediaSlider(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 56.dp),
+                .padding(horizontal = 12.dp, vertical = 56.dp)
+                .then(
+                    if (animatedVisibilityScope != null) {
+                        with(animatedVisibilityScope) {
+                            Modifier.animateEnterExit(
+                                enter = slideInVertically(
+                                    initialOffsetY = { it },
+                                    animationSpec = tween(500)
+                                ) + fadeIn(animationSpec = tween(500)),
+                                exit = slideOutVertically(
+                                    targetOffsetY = { it },
+                                    animationSpec = tween(500)
+                                ) + fadeOut(animationSpec = tween(500))
+                            )
+                        }
+                    } else Modifier
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
