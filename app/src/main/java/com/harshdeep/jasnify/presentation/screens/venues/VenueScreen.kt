@@ -1373,9 +1373,7 @@ fun TrendingAiSearchesSection(
     onTrendingClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // FIXED: Swapped ImageVector.vectorResource on R.drawable.ic_ai for Compose standard Icons.Outlined.AutoAwesome.
-    // This strictly avoids the runtime VectorParser crashes while keeping AI stars rendering seamlessly.
-    val aiIcon = Icons.Outlined.AutoAwesome
+    val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
     val trendingQueries = listOf(
         "4.5+ Rated",
         "Hotels for 800 guests",

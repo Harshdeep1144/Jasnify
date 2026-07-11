@@ -3,34 +3,94 @@ package com.harshdeep.jasnify.presentation.screens.venues
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.ArrowOutward
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.NorthEast
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.DirectionsCar
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.rounded.ArrowOutward
+import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
-import androidx.compose.runtime.*
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -38,21 +98,52 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
-import com.harshdeep.jasnify.theme.*
-import sv.lib.squircleshape.SquircleShape
-import androidx.compose.foundation.lazy.rememberLazyListState
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.launch
+import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 
 // Data holder representing each item in the header media slider
@@ -187,7 +278,7 @@ fun VenueDetailScreen(
         )
 
         // Scrolling sheet overlap docking container
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, sheetOffsetPx.roundToInt()) }
@@ -197,33 +288,28 @@ fun VenueDetailScreen(
                     shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                 )
         ) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(vertical = 8.dp)
+                        .width(56.dp)
+                        .height(4.dp)
+                        .background(ContentTertiary, shape = RoundedCornerShape(100))
+                )
+            }
+
             LazyColumn(
                 state = listState,
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Drag handle container and brand header
                 item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .width(40.dp)
-                                .height(5.dp)
-                                .background(
-                                    color = ContentSecondary.copy(alpha = 0.3f),
-                                    shape = RoundedCornerShape(100)
-                                )
-                        )
-
-                        VenueInfoSection(vendor = vendor)
-                    }
+                    VenueInfoSection(vendor = vendor)
                 }
 
-                // AI Suggestion Chips section
                 item {
                     SuggestionChipsSection()
                 }
@@ -253,37 +339,43 @@ fun VenueDetailScreen(
                 item {
                     PricingsSection(vendor = vendor)
                 }
+                item{
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                }
 
                 item {
                     HighlightsSection()
+                }
+                item{
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
                 item {
                     AboutSection(vendor = vendor)
                 }
+                item{
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                }
 
                 item {
                     AskAISection()
+                }
+                item{
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
                 item {
                     ReviewsSection(vendor = vendor)
                 }
-
-                item {
-                    Spacer(Modifier.height(24.dp))
-                    DashedDivider(Modifier.padding(horizontal = 16.dp))
-                    Spacer(Modifier.height(24.dp))
+                item{
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
                 item {
                     ExploreMoreSection()
                 }
-
                 item {
-                    Spacer(Modifier.height(24.dp))
-                    DashedDivider(Modifier.padding(horizontal = 16.dp))
-                    Spacer(Modifier.height(24.dp))
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
                 item {
@@ -291,67 +383,112 @@ fun VenueDetailScreen(
                 }
 
                 item {
-                    Spacer(Modifier.height(100.dp))
+                    FooterJansify()
+                    // Safe bottom offset spacer to make sure LazyColumn content isn't obscured by the persistent actions
+                    Spacer(Modifier.height(112.dp))
                 }
             }
         }
 
-        // Overlaid Top Bar (Static, stays perfectly positioned at the top boundary)
-        VenueCustomTopBar(
-            isFavorite = isFavoriteState,
-            onBackClick = onBackClick,
-            onFavoriteClick = { isFavoriteState = !isFavoriteState },
-            onShareClick = { /* Handle share context */ }
+        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
+
+        // Calculate scroll range and progress ratio dynamically to drive gradual opacity
+        val scrollRange = maxOffsetPx - minOffsetPx
+        val currentScrollOffset = maxOffsetPx - sheetOffsetPx
+        val scrollFraction = if (scrollRange > 0f) {
+            (currentScrollOffset / scrollRange).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+        // Slowly map progress (0.0 to 1.0) to alpha (0.5f to 1.0f)
+        val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
+
+        // Seamlessly switch button style to OPAQUE only when scrolled near the top boundary
+        val dynamicButtonStyle = if (topBarAlpha > 0.9f) {
+            ButtonBackground.OPAQUE
+        } else {
+            ButtonBackground.TRANSLUCENT
+        }
+
+        Column(
+            modifier = Modifier.statusBarsPadding()
+        ) {
+            CustomTopBar(
+                onBackClick = onBackClick,
+                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
+                menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
+                backIcon = TopIcon.Predefined.DOWN,
+                onSecondaryClick = { isFavoriteState = !isFavoriteState },
+                onMenuClick = { /* Handle share context */  },
+                buttonStyle = dynamicButtonStyle,
+                translucentAlpha = topBarAlpha,
+                textColor = ContentPrimary,
+            )
+        }
+
+        FloatingBottomActionBar(
+            onMessageClick = { /* Handle opening messages/chat with venue */ },
+            onBookCallClick = { /* Handle phone/video booking call request */ },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
         )
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VenueCustomTopBar(
-    isFavorite: Boolean,
-    onBackClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
-    onShareClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black.copy(alpha = 0.5f),
-                        Color.Transparent
-                    )
-                )
-            )
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HeaderIconButton(
-                icon = Icons.Default.KeyboardArrowLeft,
-                onClick = onBackClick
-            )
 
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                HeaderIconButton(
-                    icon = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    iconColor = if (isFavorite) Color.Red else Color.White,
-                    onClick = onFavoriteClick
+// =========================================== Helper Sections =================================================
+
+
+@Composable
+fun FloatingBottomActionBar(
+    onMessageClick: () -> Unit,
+    onBookCallClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .fillMaxWidth()
+            .height(64.dp)
+            .dropShadow(
+                shape = CircleShape,
+                shadow = Shadow(
+                    radius = 16.dp,
+                    spread = 0.dp,
+                    color = ContentPrimary.copy(alpha = 0.2f),
+                    offset = DpOffset(0.dp, 6.dp)
                 )
-                HeaderIconButton(
-                    icon = Icons.Default.Share,
-                    onClick = onShareClick
-                )
-            }
+            ),
+        color = SurfacePrimary,
+        shape = CircleShape
+    ){
+        Row(
+            modifier = Modifier
+                .padding(4.dp)
+                .fillMaxSize(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            CustomIconButton(
+                onClick = onMessageClick,
+                icon = painterResource(R.drawable.ic_message),
+                type = ButtonType.Secondary,
+                modifier = Modifier.weight(0.4f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+
+            CustomTextButton(
+                onClick = onBookCallClick,
+                text = "Book a Call",
+                type = ButtonType.Primary,
+                modifier = Modifier.weight(1.6f)
+            )
         }
     }
 }
+
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -393,7 +530,7 @@ fun VenueMediaSlider(
                         contentDescription = "Venue Media Slide ${page + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.img_onboarding_1)
+                        placeholder = painterResource(R.drawable.ic_gallery)
                     )
                 }
 
@@ -401,11 +538,11 @@ fun VenueMediaSlider(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.15f))
+                            .background(ContentPrimary.copy(alpha = 0.15f))
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.5f),
+                            color = ContentPrimary.copy(alpha = 0.5f),
                             modifier = Modifier
                                 .size(56.dp)
                                 .align(Alignment.Center)
@@ -419,21 +556,6 @@ fun VenueMediaSlider(
                                 )
                             }
                         }
-
-                        Surface(
-                            color = Color.Black.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 90.dp, end = 16.dp)
-                        ) {
-                            Text(
-                                text = mediaItem.videoDuration ?: "0:00",
-                                color = Color.White,
-                                style = JasnifyTheme.typography.labelSmall,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -443,188 +565,169 @@ fun VenueMediaSlider(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 24.dp),
+                .padding(horizontal = 12.dp, vertical = 56.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             val activeItem = mediaItems.getOrNull(pagerState.currentPage)
             if (activeItem?.isVideo == true) {
-                HeaderIconButton(
-                    icon = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                    onClick = onMuteToggle
+                val audioIcon = if(isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_music)
+
+                TopBarIconButton(
+                    icon = TopIcon.CustomPainter(painter = audioIcon),
+                    onClick = onMuteToggle,
+                    backgroundStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f
                 )
             } else {
                 Spacer(modifier = Modifier.size(40.dp))
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(mediaItems.size) { index ->
-                    val isSelected = pagerState.currentPage == index
-                    Box(
-                        modifier = Modifier
-                            .size(if (isSelected) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) Color.White else Color.White.copy(alpha = 0.5f)
-                            )
-                    )
-                }
-            }
-
-            Surface(
-                color = Color.Black.copy(alpha = 0.6f),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.clickable { /* Gallery navigation */ }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Image,
-                        contentDescription = "Open Gallery",
-                        tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Text(
-                        text = "Gallery (${mediaItems.size})",
-                        color = Color.White,
-                        style = JasnifyTheme.typography.labelMedium
-                    )
-                }
-            }
+            CustomTextButton(
+                text = "Gallery (${mediaItems.size})",
+                onClick = { /* Gallery navigation */ },
+                containerColor = ContentInvPrimary.copy(alpha = 0.5f),
+                contentColor = ContentPrimary,
+                size = ButtonSize.Small,
+                leadingIcon = painterResource(R.drawable.ic_gallery)
+            )
         }
     }
 }
 
-@Composable
-fun HeaderIconButton(
-    icon: ImageVector,
-    iconColor: Color = Color.White,
-    onClick: () -> Unit = {}
-) {
-    Surface(
-        onClick = onClick,
-        color = Color.Black.copy(alpha = 0.4f),
-        shape = CircleShape,
-        modifier = Modifier.size(40.dp)
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp))
-        }
-    }
-}
 
 @Composable
 fun VenueInfoSection(vendor: VendorCardData) {
-    Column(
+    var isExpanded by remember { mutableStateOf(false) }
+    var hasOverflow by remember { mutableStateOf(false) }
+
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
+        // Left Content: Vendor Name & Location
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 16.dp)
         ) {
             Text(
                 text = vendor.vendorName,
-                style = JasnifyTheme.typography.displaySmall,
-                color = ContentPrimary,
-                modifier = Modifier.weight(1f)
+                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                color = ContentPrimary
             )
 
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(
-                    color = Color(0xFF009B0A),
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Star, null, Modifier.size(14.dp), Color.White)
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            "${vendor.rating}",
-                            color = Color.White,
-                            style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
-                }
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Clickable row that toggles expansion if the text overflows
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(enabled = hasOverflow) { isExpanded = !isExpanded },
+                verticalAlignment = Alignment.Bottom
+            ) {
                 Text(
-                    vendor.totalReviews,
-                    style = JasnifyTheme.typography.labelSmall,
+                    text = "${vendor.location}, India",
+                    style = JasnifyTheme.typography.bodyMedium,
                     color = ContentSecondary,
-                    modifier = Modifier.padding(top = 2.dp)
+                    maxLines = if (isExpanded) Int.MAX_VALUE else 2,
+                    overflow = TextOverflow.Ellipsis,
+                    onTextLayout = { textLayoutResult ->
+                        // Only update overflow state when not expanded to avoid resetting it
+                        if (!isExpanded) {
+                            hasOverflow = textLayoutResult.hasVisualOverflow
+                        }
+                    },
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+
+                if (hasOverflow || isExpanded) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Collapse" else "Expand",
+                        tint = ContentSecondary,
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
             }
         }
 
-        Spacer(Modifier.height(8.dp))
-
-        Row(
+        // Right Content: Rating Badge
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable { },
-            verticalAlignment = Alignment.CenterVertically
+                .clip(shape = RoundedCornerShape(CornerMedium))
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                    shape = RoundedCornerShape(CornerMedium)
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Surface(
+                color = Color(0xFF009B0A),
+                shape = RoundedCornerShape(CornerMedium, CornerMedium, 0.dp, 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentInvPrimary)
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "${vendor.rating}",
+                        color = ContentInvPrimary,
+                        style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+                    )
+                }
+            }
             Text(
-                text = "${vendor.location}, India",
-                style = JasnifyTheme.typography.bodyMedium,
+                text = vendor.totalReviews,
+                style = JasnifyTheme.typography.labelSmall,
                 color = ContentSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
             )
-            Icon(Icons.Default.KeyboardArrowDown, null, tint = ContentSecondary)
         }
     }
 }
 
+
 @Composable
-fun SuggestionChipsSection() {
+fun SuggestionChipsSection(
+    onClickSuggestion: (String) -> Unit = {}
+) {
+    // List of AI suggestion prompts
+    val suggestions = remember {
+        listOf(
+            "What's good here?",
+            "View popular dishes",
+            "Any ongoing offers?",
+            "Check real-time crowd status"
+        )
+    }
+    val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
+
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(vertical = 8.dp)
     ) {
-        item {
-            SuggestionChipWithIcon(text = "What's good here?")
-        }
-        item {
-            SuggestionChipWithIcon(text = "How many guests they can serve?")
+        items(suggestions) { text ->
+            FilterChip(
+                label = text,
+                isSelected = false,
+                shapeStyle = ChipShapeStyle.Round,
+                size = ChipSize.Small,
+                leadingIcon = aiIcon,
+                onClick = { onClickSuggestion(text) },
+                hasStroke = true,
+                isAiMode = true
+            )
         }
     }
 }
 
-@Composable
-fun SuggestionChipWithIcon(text: String) {
-    Surface(
-        onClick = { },
-        color = SurfaceSecondary.copy(alpha = 0.5f),
-        shape = SquircleShape(12.dp),
-        border = BorderStroke(1.dp, Color.Transparent)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_ai),
-                contentDescription = "AI Suggestion",
-                tint = Color.Unspecified,
-                modifier = Modifier.size(18.dp)
-            )
-            Text(text, style = JasnifyTheme.typography.labelMedium, color = ContentSecondary)
-        }
-    }
-}
 
 @Composable
 fun VenueTabs(
@@ -636,13 +739,13 @@ fun VenueTabs(
         selectedTabIndex = selectedTabIndex,
         containerColor = Color.Transparent,
         contentColor = ContentBrand,
-        edgePadding = 16.dp,
+        edgePadding = 12.dp,
         divider = {},
         indicator = { tabPositions ->
             TabRowDefaults.SecondaryIndicator(
                 Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
                 color = ContentBrand,
-                height = 3.dp
+                height = 4.dp
             )
         }
     ) {
@@ -655,22 +758,21 @@ fun VenueTabs(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = title,
-                            style = JasnifyTheme.typography.labelLarge,
+                            style = JasnifyTheme.typography.headingMedium,
                             color = if (isSelected) ContentPrimary else ContentSecondary,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
                         if (title == "Ask AI") {
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(8.dp))
                             Surface(
-                                color = Color(0xFFC7A8F7),
-                                shape = RoundedCornerShape(4.dp)
+                                color = Color(0xFFB66FC4),
+                                shape = RoundedCornerShape(100)
                             ) {
                                 Text(
                                     "NEW",
-                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                                    fontSize = 10.sp,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    style = JasnifyTheme.typography.labelMedium,
+                                    color = ContentInvPrimary,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -681,19 +783,21 @@ fun VenueTabs(
     }
 }
 
+
 @Composable
 fun PricingsSection(vendor: VendorCardData) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         PricingCard(
-            title = "Whole Venue Package",
+            title = "Non-Veg Plate",
             price = vendor.priceStartsFrom,
             unit = "starting price",
-            iconRes = R.drawable.ic_ai
+            iconRes = R.drawable.ic_non_veg,
+            shape = SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall,CornerExtraSmall)
         )
         PricingCard(
             title = "Veg Plate",
@@ -702,10 +806,11 @@ fun PricingsSection(vendor: VendorCardData) {
             iconRes = R.drawable.ic_veg
         )
         PricingCard(
-            title = "Non-Veg Plate",
+            title = "Rooms",
             price = "₹3,199",
             unit = "per plate",
-            iconRes = R.drawable.ic_non_veg
+            iconRes = R.drawable.ic_door,
+            shape = SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge,CornerLarge)
         )
 
         Row(
@@ -717,15 +822,15 @@ fun PricingsSection(vendor: VendorCardData) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                "See full pricings",
-                color = Color(0xFF397F7F),
+                text = "See full pricings",
+                color = ContentBrandDark,
                 style = JasnifyTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
             )
+            Spacer(Modifier.width(2.dp))
             Icon(
                 Icons.Default.KeyboardArrowRight,
                 null,
-                tint = Color(0xFF397F7F),
+                tint = ContentBrandDark,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -737,79 +842,93 @@ fun PricingCard(
     title: String,
     price: String,
     unit: String,
-    iconRes: Int
+    iconRes: Int,
+    shape: SquircleShape = SquircleShape(CornerExtraSmall)
 ) {
     Surface(
-        color = SurfaceSecondary.copy(alpha = 0.3f),
-        shape = SquircleShape(16.dp),
+        color = SurfaceSecondary,
+        shape = shape,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    color = Color.White,
-                    shape = SquircleShape(8.dp),
-                    modifier = Modifier.size(40.dp),
-                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.3f))
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            painter = painterResource(iconRes),
-                            contentDescription = null,
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
+                Box(contentAlignment = Alignment.TopCenter) {
+                    Icon(
+                        painter = painterResource(iconRes),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
-                Spacer(Modifier.width(12.dp))
+                Spacer(Modifier.width(8.dp))
                 Column {
-                    Text(title, style = JasnifyTheme.typography.headingMedium, color = ContentPrimary)
-                    Text("Price Point Offer", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
+                    Text(
+                        text = title,
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentPrimary
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "Price Point Offer",
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary
+                    )
                 }
             }
 
-            Column(horizontalAlignment = Alignment.End) {
-                Text(price, style = JasnifyTheme.typography.headingLarge, color = ContentPrimary)
-                Text(unit, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
+            Column(
+                horizontalAlignment = Alignment.End
+            ) {
+                Text(
+                    text = price,
+                    style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
+                    color = ContentPrimary
+                )
+                Text(
+                    text = unit,
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = ContentSecondary
+                )
             }
         }
     }
 }
+
 
 @Composable
 fun HighlightsSection() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(12.dp),
     ) {
         Text(
-            "Highlights",
-            style = JasnifyTheme.typography.headingLarge,
+            text = "Highlights",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
             color = ContentPrimary,
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
         val highlights = listOf(
-            HighlightData("CAPACITY", "200 Guests", Icons.Outlined.People),
-            HighlightData("CATERING", "In-House Available", Icons.Outlined.Restaurant),
-            HighlightData("PARKING", "Upto 25 Four-Wheelers", Icons.Outlined.DirectionsCar),
-            HighlightData("DECORATION", "In-House Available", Icons.Outlined.AutoAwesome),
-            HighlightData("SOUND & MUSIC", "In-House DJ Available", Icons.Outlined.MusicNote)
+            HighlightData("CAPACITY", "200 Guests", painterResource(R.drawable.ic_user_default)),
+            HighlightData("CATERING", "In-House Available", painterResource(R.drawable.ic_food)),
+            HighlightData("PARKING", "Upto 25 Four-Wheelers", painterResource(R.drawable.ic_car)),
+            HighlightData("DECORATION", "In-House Available", painterResource(R.drawable.ic_start_2)),
+            HighlightData("SOUND & MUSIC", "In-House DJ Available", painterResource(R.drawable.ic_music))
         )
 
         highlights.forEach { highlight ->
             HighlightItemRow(highlight)
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
 
-data class HighlightData(val label: String, val value: String, val icon: ImageVector)
+data class HighlightData(val label: String, val value: String, val icon: Painter)
 
 @Composable
 fun HighlightItemRow(data: HighlightData) {
@@ -818,18 +937,33 @@ fun HighlightItemRow(data: HighlightData) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(
-            color = Color(0xFFD7E3E3),
-            shape = SquircleShape(12.dp),
-            modifier = Modifier.size(48.dp)
+            color = SurfaceBrandSecondary,
+            shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+            modifier = Modifier
+                .size(48.dp)
         ) {
             Box(contentAlignment = Alignment.Center) {
-                Icon(data.icon, null, tint = Color(0xFF395555), modifier = Modifier.size(24.dp))
+                Icon(
+                    painter = data.icon,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(12.dp))
         Column {
-            Text(data.label, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
-            Text(data.value, style = JasnifyTheme.typography.bodyLarge, color = ContentPrimary)
+            Text(
+                text = data.label,
+                style = JasnifyTheme.typography.labelSmall,
+                color = ContentSecondary
+            )
+            Spacer(Modifier.height(2.dp))
+            Text(
+                text = data.value,
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentPrimary
+            )
         }
     }
 }
@@ -839,35 +973,37 @@ fun AboutSection(vendor: VendorCardData) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(12.dp)
     ) {
         Text(
-            "About this venue",
-            style = JasnifyTheme.typography.headingLarge,
+            text = "About this venue",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
             color = ContentPrimary,
-            modifier = Modifier.padding(bottom = 12.dp)
+            modifier = Modifier.padding(bottom = 8.dp)
         )
         Text(
-            "Discover the charm of ${vendor.vendorName}, located in ${vendor.location}.\n\nThis inviting space blends comfort with high-end luxury, matching your vision perfectly for event styling...",
-            style = JasnifyTheme.typography.bodyLarge,
+            text = "Discover the charm of ${vendor.vendorName}, located in ${vendor.location}.\n\nThis inviting space blends comfort with high-end luxury, matching your vision perfectly for event styling...",
+            style = JasnifyTheme.typography.labelLarge,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 4,
             color = ContentSecondary,
-            lineHeight = 20.sp
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier.clickable { },
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 "Read more",
-                color = Color(0xFF397F7F),
+                color = ContentBrandDark,
                 style = JasnifyTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium
             )
+            Spacer(Modifier.width(2.dp))
             Icon(
                 Icons.Default.KeyboardArrowRight,
                 null,
-                tint = Color(0xFF397F7F),
+                tint = ContentBrandDark,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -879,80 +1015,56 @@ fun AskAISection() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 12.dp, vertical = 24.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                "Ask anything about this venue",
-                style = JasnifyTheme.typography.headingLarge,
+                text = "Ask anything about this venue",
+                style = JasnifyTheme.typography.displaySmall,
                 color = ContentPrimary
             )
             Spacer(Modifier.width(8.dp))
             Surface(
-                color = Color(0xFFC7A8F7),
-                shape = RoundedCornerShape(4.dp)
+                color = Color(0xFFB66FC4),
+                shape = RoundedCornerShape(100)
             ) {
                 Text(
                     "NEW",
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                    fontSize = 10.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = ContentInvPrimary,
+                    fontWeight = FontWeight.Medium
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-
-        OutlinedTextField(
+        CustomSearchBar(
             value = "",
             onValueChange = {},
-            placeholder = { Text("What would you like to know?", color = ContentSecondary) },
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(100)),
-            leadingIcon = {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_ai),
-                    contentDescription = "Ask AI",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(20.dp)
-                )
-            },
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = SurfaceSecondary.copy(alpha = 0.2f),
-                unfocusedContainerColor = SurfaceSecondary.copy(alpha = 0.2f),
-                focusedIndicatorColor = Color(0xFFC7A8F7),
-                unfocusedIndicatorColor = Color(0xFFC7A8F7).copy(alpha = 0.5f)
-            ),
-            shape = RoundedCornerShape(100)
+            placeholder = "What would you like to know?",
+            isAiSearch = true,
+            modifier = Modifier.padding(vertical = 12.dp)
         )
 
-        Spacer(Modifier.height(16.dp))
-
-        val aiChips = listOf(
+        val suggestionChips = listOf(
             "How is the vibe here?",
             "What's good here?",
             "Do they serve alcohol?",
             "How many guests they can serve?"
         )
 
-        aiChips.forEach { chip ->
-            Surface(
-                onClick = {},
-                color = SurfaceSecondary.copy(alpha = 0.3f),
-                shape = RoundedCornerShape(100),
-                border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f)),
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(chip, style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
-                    Icon(Icons.Default.NorthEast, null, tint = ContentSecondary, modifier = Modifier.size(16.dp))
-                }
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            suggestionChips.forEach { chip ->
+                FilterChip(
+                    label = chip,
+                    trailingIcon = Icons.Rounded.ArrowOutward,
+                    shapeStyle = ChipShapeStyle.Round,
+                    hasStroke = true,
+                    onClick = { /* Handle */ }
+                )
             }
         }
     }
@@ -961,41 +1073,44 @@ fun AskAISection() {
 @Composable
 fun ReviewsSection(vendor: VendorCardData) {
     Column(
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding( 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Reviews", style = JasnifyTheme.typography.headingLarge, color = ContentPrimary)
+            Text(
+                text = "Reviews",
+                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                color = ContentPrimary
+            )
             Row(
                 modifier = Modifier.clickable { },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    "See all",
-                    color = Color(0xFF397F7F),
+                    text = "See all",
+                    color = ContentBrandDark,
                     style = JasnifyTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
                 )
+                Spacer(Modifier.width(2.dp))
                 Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    null,
-                    tint = Color(0xFF397F7F),
+                    imageVector = Icons.Rounded.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
                     modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -1003,18 +1118,23 @@ fun ReviewsSection(vendor: VendorCardData) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         color = Color(0xFF009B0A),
-                        shape = RoundedCornerShape(4.dp)
+                        shape = RoundedCornerShape(100)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Star, null, Modifier.size(14.dp), Color.White)
+                            Icon(
+                                painter = painterResource(R.drawable.ic_star),
+                                contentDescription = null,
+                                Modifier.size(12.dp),
+                                tint = ContentInvPrimary
+                            )
                             Spacer(Modifier.width(4.dp))
                             Text(
                                 "${vendor.rating}",
-                                color = Color.White,
-                                style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                                color = ContentInvPrimary,
+                                style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
                             )
                         }
                     }
@@ -1022,22 +1142,22 @@ fun ReviewsSection(vendor: VendorCardData) {
                 Text("${vendor.totalReviews} ratings", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
             }
 
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = Color.LightGray)
+            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
 
             RatingBreakdownItem("4.8", "Hospitality")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = Color.LightGray)
+            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
             RatingBreakdownItem("4.4", "Food")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = Color.LightGray)
+            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
             RatingBreakdownItem("4.1", "Ambience")
-            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = Color.LightGray)
+            VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
             RatingBreakdownItem("4.2", "Banquets")
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(12.dp))
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(3) {
                 ReviewCard()
@@ -1046,10 +1166,11 @@ fun ReviewsSection(vendor: VendorCardData) {
     }
 }
 
+
 @Composable
 fun RatingBreakdownItem(rating: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(rating, style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold), color = ContentPrimary)
+        Text(rating, style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium), color = ContentSecondary)
         Text(label, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
     }
 }
@@ -1057,8 +1178,8 @@ fun RatingBreakdownItem(rating: String, label: String) {
 @Composable
 fun ReviewCard() {
     Surface(
-        color = SurfaceSecondary.copy(alpha = 0.3f),
-        shape = SquircleShape(20.dp),
+        color = SurfaceSecondary,
+        shape = SquircleShape(CornerExtraLarge),
         modifier = Modifier.width(280.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1072,7 +1193,7 @@ fun ReviewCard() {
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.LightGray)
+                            .background(SurfaceSecondary)
                     ) {
                         AsyncImage(
                             model = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
@@ -1082,8 +1203,17 @@ fun ReviewCard() {
                     }
                     Spacer(Modifier.width(12.dp))
                     Column {
-                        Text("Anand K.", style = JasnifyTheme.typography.headingMedium, color = ContentPrimary)
-                        Text("1 week ago", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
+                        Text(
+                            text = "Anand K.",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentPrimary
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "1 week ago",
+                            style = JasnifyTheme.typography.labelMedium,
+                            color = ContentSecondary
+                        )
                     }
                 }
 
@@ -1092,15 +1222,20 @@ fun ReviewCard() {
                     shape = RoundedCornerShape(100)
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.Star, null, Modifier.size(12.dp), Color.White)
+                        Icon(
+                            painter = painterResource(R.drawable.ic_star),
+                            contentDescription = null,
+                            Modifier.size(12.dp),
+                            tint = ContentInvPrimary
+                        )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            "4.4",
-                            color = Color.White,
-                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            text = "3.4",
+                            color = ContentInvPrimary,
+                            style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
                         )
                     }
                 }
@@ -1109,14 +1244,14 @@ fun ReviewCard() {
             Spacer(Modifier.height(12.dp))
 
             Text(
-                "Discover the charm of this venue. It has excellent hospitality and top-notch facilities...",
-                style = JasnifyTheme.typography.bodyMedium,
+                text = "Discover the charm of this venue. It has excellent hospitality and top-notch facilities",
+                style = JasnifyTheme.typography.labelLarge,
                 color = ContentSecondary,
                 maxLines = 3,
                 overflow = TextOverflow.Ellipsis
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
 
             Row(
                 modifier = Modifier.clickable { },
@@ -1124,20 +1259,20 @@ fun ReviewCard() {
             ) {
                 Text(
                     "See all",
-                    color = Color(0xFF397F7F),
+                    color = ContentBrandDark,
                     style = JasnifyTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
                 )
                 Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    null,
-                    tint = Color(0xFF397F7F),
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
                     modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
+
 
 @Composable
 fun ExploreMoreSection() {
@@ -1147,77 +1282,81 @@ fun ExploreMoreSection() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("Explore more venues", style = JasnifyTheme.typography.headingLarge, color = ContentPrimary)
+            Text(
+                text = "Explore more venues",
+                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                color = ContentPrimary
+            )
             Row(
                 modifier = Modifier.clickable { },
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     "See all",
-                    color = Color(0xFF397F7F),
+                    color = ContentBrandDark,
                     style = JasnifyTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium
                 )
                 Icon(
-                    Icons.Default.KeyboardArrowRight,
-                    null,
-                    tint = Color(0xFF397F7F),
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
                     modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(listOf("How is the vibe here?", "What's good here?", "Do they serve alcohol?")) { text ->
-                Surface(
-                    onClick = {},
-                    color = SurfaceSecondary.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(100),
-                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        style = JasnifyTheme.typography.bodyLarge,
-                        color = ContentSecondary
-                    )
-                }
+            val suggestionChips = listOf(
+                "How is the vibe here?",
+                "What's good here?",
+                "Do they serve alcohol?",
+                "How many guests they can serve?"
+            )
+
+            items(suggestionChips) { text ->
+                FilterChip(
+                    label = text,
+                    shapeStyle = ChipShapeStyle.Round,
+                    onClick = { /* Handle */ },
+                    hasStroke = true
+                )
             }
         }
-
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(4.dp))
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            items(listOf("How is the vibe here?", "What's good here?", "Do they serve alcohol?")) { text ->
-                Surface(
-                    onClick = {},
-                    color = SurfaceSecondary.copy(alpha = 0.3f),
-                    shape = RoundedCornerShape(100),
-                    border = BorderStroke(1.dp, Color.LightGray.copy(alpha = 0.5f))
-                ) {
-                    Text(
-                        text,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        style = JasnifyTheme.typography.bodyLarge,
-                        color = ContentSecondary
-                    )
-                }
+            val suggestionChips = listOf(
+                "How is the vibe here?",
+                "What's good here?",
+                "Do they serve alcohol?",
+                "How many guests they can serve?"
+            )
+
+            items(suggestionChips) { text ->
+                FilterChip(
+                    label = text,
+                    shapeStyle = ChipShapeStyle.Round,
+                    onClick = { /* Handle */ },
+                    hasStroke = true
+                )
             }
         }
     }
 }
+
+
 
 @Composable
 fun SimilarVenuesSection() {
@@ -1231,22 +1370,34 @@ fun SimilarVenuesSection() {
             priceStartsFrom = "₹2,999",
             images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800")
         )
+        VendorCardData(
+            vendorName = "Hotel Imperial Inn",
+            location = "Sampatchak, Patna",
+            rating = 4.4,
+            totalReviews = "1.4k",
+            services = emptyList(),
+            priceStartsFrom = "₹2,999",
+            images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800")
+        )
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            "Showing similar venues",
+            text = "Showing similar venues",
             style = JasnifyTheme.typography.labelLarge,
             color = ContentSecondary,
-            modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp)
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
         )
 
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(sampleVenues) { vendor ->
-                VendorCardCompact(vendor = vendor)
+                VendorCardCompact(
+                    vendor = vendor,
+                    compactCardSize = CompactCardSize.SMALL
+                )
             }
         }
     }

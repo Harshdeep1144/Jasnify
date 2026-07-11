@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowRightAlt
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
@@ -42,6 +44,7 @@ sealed interface TopIcon {
     enum class Predefined : TopIcon {
         BACK,            // Chevron Left (<)
         BACK_2,          // Arrow Left (←)
+        DOWN,
         CLOSE,           // Cross (X)
         MENU_VERTICAL,   // Vertical Dots (⋮)
         MENU_HORIZONTAL, // Horizontal Dots (...)
@@ -76,6 +79,7 @@ fun TopBarIconButton(
     val painter: Painter = when (icon) {
         TopIcon.Predefined.BACK -> painterResource(R.drawable.ic_back)
         TopIcon.Predefined.BACK_2 -> rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack)
+        TopIcon.Predefined.DOWN -> painterResource(R.drawable.ic_down)
         TopIcon.Predefined.CLOSE -> painterResource(R.drawable.ic_cross)
         TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
         TopIcon.Predefined.MENU_HORIZONTAL -> rememberVectorPainter(Icons.Rounded.MoreHoriz)
@@ -121,6 +125,7 @@ private fun TopBarIconButtonPreview() {
     val iconList = listOf(
         TopIcon.Predefined.BACK,
         TopIcon.Predefined.BACK_2,
+        TopIcon.Predefined.DOWN,
         TopIcon.Predefined.CLOSE,
         TopIcon.Predefined.MENU_VERTICAL,
         TopIcon.Predefined.MENU_MODERN,
