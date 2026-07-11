@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -68,13 +71,16 @@ enum class CompactCardSize {
     SMALL
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorCardFull(
     vendor: VendorCardData,
     modifier: Modifier = Modifier,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
-    onOfferClick: () -> Unit = {}
+    onOfferClick: () -> Unit = {},
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val actualPageCount = vendor.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
@@ -107,7 +113,23 @@ fun VendorCardFull(
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
     ) {
         Column {
-            Box(modifier = Modifier.height(230.dp)) {
+            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                with(sharedTransitionScope) {
+                    Modifier
+                        .fillMaxWidth()
+                        .height(230.dp)
+                        .sharedElement(
+                            rememberSharedContentState(key = "image_${vendor.vendorName}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                }
+            } else {
+                Modifier
+                    .fillMaxWidth()
+                    .height(230.dp)
+            }
+
+            Box(modifier = sharedBoundsModifier) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -122,7 +144,6 @@ fun VendorCardFull(
                     )
                 }
 
-                // Top left "Offers" Badge
                 OfferBadge(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -130,7 +151,6 @@ fun VendorCardFull(
                     onClick = onOfferClick
                 )
 
-                // Top right Favorite Toggle
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
@@ -151,11 +171,9 @@ fun VendorCardFull(
                     )
                 }
 
-                // Dynamic padding to prevent overlapping with the Enquiry Banner
                 val hasEnquiries = vendor.enquiriesLastMonth > 0
                 val dotsBottomPadding = if (hasEnquiries) (26.dp + 12.dp) else 12.dp
 
-                // Carousel Dots
                 CarouselDots(
                     pageCount = actualPageCount,
                     currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0,
@@ -182,7 +200,6 @@ fun VendorCardFull(
                     .background(SurfacePrimary)
                     .padding(12.dp),
             ) {
-                // Vendor Name Title
                 Text(
                     text = vendor.vendorName,
                     style = JasnifyTheme.typography.headingLarge,
@@ -190,13 +207,11 @@ fun VendorCardFull(
                 )
                 Spacer(Modifier.height(4.dp))
 
-                // Location and Vendor Type Row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Location Info
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             painter = painterResource(R.drawable.ic_location_marker),
@@ -212,7 +227,6 @@ fun VendorCardFull(
                         )
                     }
 
-                    // Vendor Type Info
                     vendor.vendorType?.let { type ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
@@ -268,7 +282,6 @@ private fun BannerRow(
             .wrapContentHeight(),
         contentAlignment = Alignment.BottomStart
     ) {
-        // Golden Enquiry Row
         if (hasEnquiries) {
             Row(
                 modifier = Modifier
@@ -301,31 +314,27 @@ private fun BannerRow(
             }
         }
 
-        //  Exact Shape Mask Layer from Figma Cutout Dimensions
         Box(
             modifier = Modifier
                 .width(101.5.dp)
                 .height(34.dp)
                 .drawBehind {
-                    // Bleed overshoot constant to mask rendering seam lines
                     val bleedY = size.height + 1.5f
 
                     val path = Path().apply {
-                        moveTo(0f, bleedY)      // Bottom-left
-                        lineTo(0f, 0f)          // Top-left
+                        moveTo(0f, bleedY)
+                        lineTo(0f, 0f)
 
-                        // Gives room for the green pill before the curve begins
                         val startCurveX = size.width * 0.45f
                         lineTo(startCurveX, 0f)
 
-                        // S-curve dropping gracefully down to the bottom right boundary
                         cubicTo(
                             x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
                             x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
                             x3 = size.width, y3 = size.height
                         )
 
-                        lineTo(0f, bleedY) // Closes path back smoothly via the bottom line
+                        lineTo(0f, bleedY)
                         close()
                     }
                     drawPath(
@@ -336,7 +345,6 @@ private fun BannerRow(
                 .padding(start = 12.dp),
             contentAlignment = Alignment.BottomStart
         ) {
-            // Green Rating Pill
             Row(
                 modifier = Modifier
                     .background(Color(0xFF009B0A), shape = RoundedCornerShape(100))
@@ -355,6 +363,7 @@ private fun BannerRow(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorCardCompact(
     vendor: VendorCardData,
@@ -363,7 +372,9 @@ fun VendorCardCompact(
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {},
     compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
-    removeBg: Boolean = false
+    removeBg: Boolean = false,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val actualPageCount = vendor.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
@@ -401,11 +412,26 @@ fun VendorCardCompact(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
-            Box(
-                modifier = Modifier
+            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                with(sharedTransitionScope) {
+                    Modifier
+                        .fillMaxWidth()
+                        .height(if (isMedium) 200.dp else 160.dp)
+                        .clip(SquircleShape(20.dp))
+                        .sharedElement(
+                            rememberSharedContentState(key = "image_${vendor.vendorName}"),
+                            animatedVisibilityScope = animatedVisibilityScope
+                        )
+                }
+            } else {
+                Modifier
                     .fillMaxWidth()
                     .height(if (isMedium) 200.dp else 160.dp)
                     .clip(SquircleShape(20.dp))
+            }
+
+            Box(
+                modifier = sharedBoundsModifier
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
@@ -445,7 +471,6 @@ fun VendorCardCompact(
                     }
                 }
 
-                // Favorite Toggle wrapped inside clip & clickable
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
@@ -677,7 +702,7 @@ fun PreviewVendorCards() {
         vendorType = "Photographer",
         isFavorite = true,
         enquiriesLastMonth = 0,
-        timestamp = 1718000000000L // Updated mock timestamp
+        timestamp = 1718000000000L
     )
 
     JasnifyTheme {
