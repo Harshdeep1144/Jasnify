@@ -1,6 +1,15 @@
 package com.harshdeep.jasnify.data.mock
 
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.presentation.screens.venues.GalleryCategoryData
+import com.harshdeep.jasnify.presentation.screens.venues.RatingBreakdownItemData
+import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailData
+import com.harshdeep.jasnify.presentation.screens.venues.VenueHighlightItem
+import com.harshdeep.jasnify.presentation.screens.venues.VenueMediaItem
+import com.harshdeep.jasnify.presentation.screens.venues.VenuePricingItem
+import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewItem
+import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewsData
 
 object MockData {
     val sampleVenues1 = listOf(
@@ -10,7 +19,7 @@ object MockData {
             vendorType = null,
             rating = 4.4,
             totalReviews = "1k",
-            services = listOf("AC Rooms", "Catering", "Parking","AC Rooms","AC Rooms","AC Rooms","AC Rooms","AC Rooms","AC Rooms"),
+            services = listOf("AC Rooms", "Catering", "Parking", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms"),
             priceStartsFrom = "₹2,999",
             images = listOf(
                 "https://picsum.photos/800/400?random=1",
@@ -235,4 +244,128 @@ object MockData {
         )
     )
 
+    // Generator function that constructs robust mock detail screens for any given card.
+    fun getDetailsForVendor(vendor: VendorCardData, similar: List<VendorCardData>): VenueDetailData {
+        val detailImages = vendor.images.toMutableList()
+        // Ensure we have at least 4 unique gallery image placeholders for the 4-grid layout
+        while (detailImages.size < 4) {
+            detailImages.add("https://picsum.photos/800/600?random=${(100..999).random()}")
+        }
+
+        return VenueDetailData(
+            vendorCard = vendor,
+            mediaItems = listOf(
+                VenueMediaItem(url = detailImages[0], isVideo = false),
+                VenueMediaItem(url = detailImages[1], isVideo = true, videoDuration = "0:45"),
+                VenueMediaItem(url = detailImages[2], isVideo = false),
+                VenueMediaItem(url = detailImages[3], isVideo = false)
+            ),
+            pricingItems = listOf(
+                VenuePricingItem(
+                    title = "Veg Package Plate",
+                    price = vendor.priceStartsFrom,
+                    unit = "Per Plate",
+                    iconRes = R.drawable.ic_gallery, // Fallback drawable identifier
+                    labelText = "Standard Entry Package"
+                ),
+                VenuePricingItem(
+                    title = "Non-Veg Package Plate",
+                    price = "₹" + ((vendor.priceStartsFrom.replace("₹", "").replace(",", "").toIntOrNull() ?: 2000) + 400).toString(),
+                    unit = "Per Plate",
+                    iconRes = R.drawable.ic_gallery,
+                    labelText = "Premium Culinary Tier"
+                ),
+                VenuePricingItem(
+                    title = "Hall Rental Only",
+                    price = "₹45,000",
+                    unit = "Per Day",
+                    iconRes = R.drawable.ic_gallery,
+                    labelText = "Excludes Food / Decor Service"
+                )
+            ),
+            highlightItems = listOf(
+                VenueHighlightItem(
+                    label = "Capacity",
+                    value = "250 to 1200 Guests",
+                    iconRes = R.drawable.ic_gallery
+                ),
+                VenueHighlightItem(
+                    label = "Space Status",
+                    value = "Indoor Hall & Outdoor Lawn Available",
+                    iconRes = R.drawable.ic_gallery
+                ),
+                VenueHighlightItem(
+                    label = "Parking Space",
+                    value = "Valet Parking for up to 150 Vehicles",
+                    iconRes = R.drawable.ic_gallery
+                )
+            ),
+            aboutText = "${vendor.vendorName} located around ${vendor.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams.",
+            galleryCategories = listOf(
+                GalleryCategoryData(
+                    categoryName = "All Photos",
+                    imageUrls = detailImages
+                ),
+                GalleryCategoryData(
+                    categoryName = "Decor",
+                    imageUrls = listOf(
+                        "https://picsum.photos/800/400?random=101",
+                        "https://picsum.photos/800/400?random=102",
+                        "https://picsum.photos/800/400?random=103",
+                        "https://picsum.photos/800/400?random=104"
+                    )
+                ),
+                GalleryCategoryData(
+                    categoryName = "Seating Layout",
+                    imageUrls = listOf(
+                        "https://picsum.photos/800/400?random=105",
+                        "https://picsum.photos/800/400?random=106",
+                        "https://picsum.photos/800/400?random=107",
+                        "https://picsum.photos/800/400?random=108"
+                    )
+                ),
+                GalleryCategoryData(
+                    categoryName = "Food & Catering",
+                    imageUrls = listOf(
+                        "https://picsum.photos/800/400?random=109",
+                        "https://picsum.photos/800/400?random=110",
+                        "https://picsum.photos/800/400?random=111",
+                        "https://picsum.photos/800/400?random=112"
+                    )
+                )
+            ),
+            reviewsData = VenueReviewsData(
+                ratingBreakdown = listOf(
+                    RatingBreakdownItemData(score = "4.8", label = "Food Quality"),
+                    RatingBreakdownItemData(score = "4.5", label = "Staff Behavior"),
+                    RatingBreakdownItemData(score = "4.2", label = "Location Space")
+                ),
+                reviews = listOf(
+                    VenueReviewItem(
+                        userName = "Amit Kumar",
+                        userAvatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100",
+                        rating = 4.5,
+                        relativeTime = "2 weeks ago",
+                        reviewText = "Highly satisfied with the services. The food was absolutely stellar, and managing the event flow with the staff coordinators was exceptionally smooth."
+                    ),
+                    VenueReviewItem(
+                        userName = "Priya Singh",
+                        userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100",
+                        rating = 4.0,
+                        relativeTime = "1 month ago",
+                        reviewText = "Beautiful interior arrangement and lightning facilities. The air conditioning was working well even during extreme summer peak days."
+                    )
+                )
+            ),
+            similarVenues = similar.filter { it.vendorName != vendor.vendorName }
+        )
+    }
+
+    // Lazy mapped details for quick retrieval
+    val venueDetailsMap: Map<String, VenueDetailData> by lazy {
+        val fullList = sampleVenues1 + sampleVenues2
+        fullList.associate { venue ->
+            venue.vendorName to getDetailsForVendor(venue, fullList)
+        }
+    }
 }

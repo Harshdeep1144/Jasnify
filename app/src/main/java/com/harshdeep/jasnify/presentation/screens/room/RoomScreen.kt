@@ -1,7 +1,10 @@
 package com.harshdeep.jasnify.presentation.screens.room
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -70,15 +73,26 @@ fun RoomScreen(
 
     Scaffold(
         topBar = {
-            CustomTopBar(
-                title = "Manage Room Access",
-                onBackClick = onBackClick,
-                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                onMenuClick = onMenuClick,
-                backIcon = TopIcon.Predefined.BACK,
-                buttonStyle = ButtonBackground.TRANSLUCENT,
-                translucentAlpha = 0.5f
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        focusManager.clearFocus()
+                    }
+            ) {
+                CustomTopBar(
+                    title = "Manage Room Access",
+                    onBackClick = onBackClick,
+                    menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                    onMenuClick = onMenuClick,
+                    backIcon = TopIcon.Predefined.BACK,
+                    buttonStyle = ButtonBackground.TRANSLUCENT,
+                    translucentAlpha = 0.5f
+                )
+            }
         },
         modifier = modifier.fillMaxSize()
             .statusBarsPadding(),

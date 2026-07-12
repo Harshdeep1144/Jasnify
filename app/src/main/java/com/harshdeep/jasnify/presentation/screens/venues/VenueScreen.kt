@@ -2,18 +2,51 @@ package com.harshdeep.jasnify.presentation.screens.venues
 
 import android.content.Context
 import android.os.Build
-import androidx.annotation.RequiresApi
-import com.harshdeep.jasnify.R
-import androidx.compose.animation.*
-import androidx.compose.animation.core.tween
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -24,59 +57,94 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.LocationOn
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.SubEventItem
-import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.ChipSize
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.filter.FilterButton
+import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
+import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
+import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
-import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
-import com.harshdeep.jasnify.presentation.components.chip.ChipSize
-import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.graphics.vector.ImageVector
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
-import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
-import com.harshdeep.jasnify.presentation.components.filter.FilterButton
-import com.harshdeep.jasnify.presentation.components.others.OrDivider
-import com.harshdeep.jasnify.presentation.components.others.CustomToast
-import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.presentation.components.others.ToastData
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.CloudWhisper
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.LightSkyBlue
+import com.harshdeep.jasnify.theme.PaleLavender
+import com.harshdeep.jasnify.theme.SoftMint
+import com.harshdeep.jasnify.theme.SoftPeach
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
-// --- SharedPreferences Helpers for Search History ---
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
 
@@ -118,56 +186,35 @@ fun VenueScreen(
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
-
-    BackHandler(enabled = isLocationPickerVisible) {
-        isLocationPickerVisible = false
-    }
-
-    AnimatedContent(
-        targetState = isLocationPickerVisible,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
-        },
-        label = "venue_location_transition"
-    ) { showPicker ->
-        if (showPicker) {
-            LocationScreen(
-                initialSearches = emptyList(),
-                currentAddress = currentAddress,
-                onAddressSelected = {
-                    currentAddress = it
-                    isLocationPickerVisible = false
-                },
-                onBackClick = { isLocationPickerVisible = false },
-            )
-        } else {
-            VenueMainContent(
-                selectedLocation = currentAddress,
-                onVenueClick = onVenueClick,
-                onLocationSelectorClick = { isLocationPickerVisible = true },
-                onBackClick = onBackClick,
-                isScreenActive = isScreenActive
-            )
-        }
-    }
-}
-
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun VenueMainContent(
-    selectedLocation: String,
-    onVenueClick: (VendorCardData) -> Unit,
-    onLocationSelectorClick: () -> Unit,
-    onBackClick: () -> Unit,
-    isScreenActive: Boolean = true
-) {
-    val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
+    var showRoomAccess by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("explore") }
+    var selectedVenueForDetail by remember { mutableStateOf<VendorCardData?>(null) }
 
-    val viewOptions = listOf("By Timeline", "By List")
-    var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
+    var venueRoomUsers by remember {
+        mutableStateOf(
+            listOf(
+                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+            )
+        )
+    }
+
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
+    var showFilterDialog by remember { mutableStateOf(false) }
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var showMenuSheet by remember { mutableStateOf(false) }
+
+    var activeTargetVenue by remember { mutableStateOf<VendorCardData?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+    var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
+    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     var timelineEvents by remember {
         mutableStateOf(
@@ -179,6 +226,309 @@ fun VenueMainContent(
             )
         )
     }
+
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
+
+    val focusManager = LocalFocusManager.current
+
+    BackHandler(enabled = isLocationPickerVisible || showRoomAccess || selectedVenueForDetail != null) {
+        if (isLocationPickerVisible) {
+            isLocationPickerVisible = false
+        } else if (showRoomAccess) {
+            showRoomAccess = false
+        } else if (selectedVenueForDetail != null) {
+            selectedVenueForDetail = null
+        }
+    }
+
+    val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet
+
+    val isSavedListToast = remember(toastData, lastSavedVenue) {
+        toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        SharedTransitionLayout {
+            AnimatedContent(
+                targetState = when {
+                    isLocationPickerVisible -> "picker"
+                    showRoomAccess -> "room"
+                    selectedVenueForDetail != null -> "detail"
+                    else -> "main"
+                },
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                },
+                label = "venue_screen_transition",
+                modifier = Modifier.fillMaxSize()
+            ) { state ->
+                when (state) {
+                    "picker" -> {
+                        LocationScreen(
+                            initialSearches = emptyList(),
+                            currentAddress = currentAddress,
+                            onAddressSelected = {
+                                currentAddress = it
+                                isLocationPickerVisible = false
+                            },
+                            onBackClick = { isLocationPickerVisible = false },
+                        )
+                    }
+                    "room" -> {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(SurfaceSecondary)
+                        ) {
+                            RoomScreen(
+                                allUsers = venueRoomUsers,
+                                currentUserRole = UserRole.OWNER,
+                                isSelf = { it.username == "viratanand" },
+                                onBackClick = { showRoomAccess = false },
+                                onMenuClick = {
+                                    focusManager.clearFocus()
+                                    showRoomMenuBottomSheet = true
+                                },
+                                onRoleChange = { targetUser, newRole ->
+                                    venueRoomUsers = venueRoomUsers.map { user ->
+                                        if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                    }
+                                },
+                                onRemove = { targetUser ->
+                                    userToRemove = targetUser
+                                },
+                                onReport = { targetUser ->
+                                    toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                },
+                                onLeave = {
+                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
+                                    showRoomAccess = false
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                    "detail" -> {
+                        selectedVenueForDetail?.let { venue ->
+                            val detailData = remember(venue) {
+                                MockData.venueDetailsMap[venue.vendorName]
+                                    ?: MockData.getDetailsForVendor(venue, MockData.sampleVenues1 + MockData.sampleVenues2)
+                            }
+                            VenueDetailScreen(
+                                venueDetail = detailData,
+                                onBackClick = { selectedVenueForDetail = null },
+                                sharedTransitionScope = this@SharedTransitionLayout,
+                                animatedVisibilityScope = this@AnimatedContent,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                    else -> {
+                        VenueMainContent(
+                            selectedLocation = currentAddress,
+                            onVenueClick = { venue ->
+                                selectedVenueForDetail = venue
+                                onVenueClick(venue)
+                            },
+                            onLocationSelectorClick = { isLocationPickerVisible = true },
+                            onManageRoomAccessClick = { showRoomAccess = true },
+                            onBackClick = onBackClick,
+                            isScreenActive = isScreenActive,
+                            toastData = toastData,
+                            onShowToast = { toastData = it },
+                            showFilterDialog = showFilterDialog,
+                            onShowFilterDialogChange = { showFilterDialog = it },
+                            showSaveListBottomSheet = showSaveListBottomSheet,
+                            onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
+                            showMenuSheet = showMenuSheet,
+                            onShowMenuSheetChange = { showMenuSheet = it },
+                            timelineEvents = timelineEvents,
+                            onTimelineEventsChange = { timelineEvents = it },
+                            activeTargetVenue = activeTargetVenue,
+                            onActiveTargetVenueChange = { activeTargetVenue = it },
+                            isMySavedListChecked = isMySavedListChecked,
+                            onMySavedListCheckedChange = { isMySavedListChecked = it },
+                            selectedSaveEventId = selectedSaveEventId,
+                            onSelectedSaveEventIdChange = { selectedSaveEventId = it },
+                            venueSavedDestinations = venueSavedDestinations,
+                            onVenueSavedDestinationsChange = { venueSavedDestinations = it },
+                            lastSavedVenue = lastSavedVenue,
+                            onLastSavedVenueChange = { lastSavedVenue = it },
+                            selectedTab = selectedTab,
+                            onSelectedTabChange = { selectedTab = it },
+                            sharedTransitionScope = this@SharedTransitionLayout,
+                            animatedVisibilityScope = this@AnimatedContent
+                        )
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = toastData?.message != null && !isSavedListToast && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = toastData?.message != null && isSavedListToast && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = "Change",
+                    onButtonClick = {
+                        toastData = null
+                        lastSavedVenue?.let { venue ->
+                            activeTargetVenue = venue
+                            val currentDest = venueSavedDestinations[venue.vendorName]
+                            isMySavedListChecked = currentDest == "mysaved"
+                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                            showSaveListBottomSheet = true
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Copy Link",
+                        icon = painterResource(R.drawable.ic_link),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Add New Members",
+                        icon = painterResource(R.drawable.ic_plus),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            showRoomAccess = false
+                        }
+                    )
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            }
+        )
+    }
+
+    if (userToRemove != null) {
+        CustomDeleteSheet(
+            heading = "Remove Member from Venue Room?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirmRemove = {
+                val target = userToRemove
+                if (target != null) {
+                    venueRoomUsers = venueRoomUsers.filter { it.username != target.username }
+                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            }
+        )
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@Composable
+fun VenueMainContent(
+    selectedLocation: String,
+    onVenueClick: (VendorCardData) -> Unit,
+    onLocationSelectorClick: () -> Unit,
+    onManageRoomAccessClick: () -> Unit,
+    onBackClick: () -> Unit,
+    isScreenActive: Boolean = true,
+    toastData: ToastData?,
+    onShowToast: (ToastData?) -> Unit,
+    showFilterDialog: Boolean,
+    onShowFilterDialogChange: (Boolean) -> Unit,
+    showSaveListBottomSheet: Boolean,
+    onShowSaveListBottomSheetChange: (Boolean) -> Unit,
+    showMenuSheet: Boolean,
+    onShowMenuSheetChange: (Boolean) -> Unit,
+    timelineEvents: List<TimelineEvent>,
+    onTimelineEventsChange: (List<TimelineEvent>) -> Unit,
+    activeTargetVenue: VendorCardData?,
+    onActiveTargetVenueChange: (VendorCardData?) -> Unit,
+    isMySavedListChecked: Boolean,
+    onMySavedListCheckedChange: (Boolean) -> Unit,
+    selectedSaveEventId: String?,
+    onSelectedSaveEventIdChange: (String?) -> Unit,
+    venueSavedDestinations: Map<String, String>,
+    onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
+    lastSavedVenue: VendorCardData?,
+    onLastSavedVenueChange: (VendorCardData?) -> Unit,
+    selectedTab: String,
+    onSelectedTabChange: (String) -> Unit,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
+) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
+    val viewOptions = listOf("By Timeline", "By List")
+    var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -194,19 +544,7 @@ fun VenueMainContent(
     }
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showFilterDialog by remember { mutableStateOf(false) }
-
     val saveListSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var showSaveListBottomSheet by remember { mutableStateOf(false) }
-
-    var activeTargetVenue by remember { mutableStateOf<VendorCardData?>(null) }
-    var isMySavedListChecked by remember { mutableStateOf(true) }
-    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
-
-    var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
-
-    var toastData by remember { mutableStateOf<ToastData?>(null) }
-    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
 
     val exploreVenues = remember { MockData.sampleVenues1 }
 
@@ -220,6 +558,21 @@ fun VenueMainContent(
         saveRecentSearch(context, venue.vendorName)
         recentSearches = getRecentSearches(context)
         onVenueClick(venue)
+    }
+
+    val handleFavoriteToggle: (VendorCardData) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.vendorName)
+        if (alreadySaved) {
+            onActiveTargetVenueChange(venue)
+            val currentDestination = venueSavedDestinations[venue.vendorName]
+            onMySavedListCheckedChange(currentDestination == "mysaved")
+            onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
+            onShowSaveListBottomSheetChange(true)
+        } else {
+            onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to "mysaved"))
+            onLastSavedVenueChange(venue)
+            onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
+        }
     }
 
     val savedVenuesList = remember(venueSavedDestinations) {
@@ -293,7 +646,6 @@ fun VenueMainContent(
             venue.copy(isFavorite = true)
         }
 
-        // ONLY show "My Saved List" if it has actual saved items (no longer added as an empty default list)
         if (defaultSavedVenues.isNotEmpty()) {
             list.add(
                 TimelineEvent(
@@ -318,13 +670,6 @@ fun VenueMainContent(
         list
     }
 
-    LaunchedEffect(toastData?.message) {
-        if (toastData?.message != null) {
-            delay(3000L)
-            toastData = null
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -338,15 +683,22 @@ fun VenueMainContent(
     ) {
         Scaffold(
             topBar = {
-                Column(
+                Box(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .background(Color.Transparent)
                         .statusBarsPadding()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusManager.clearFocus()
+                        }
                 ) {
                     CustomTopBar(
                         title = "Venue",
                         onBackClick = { onBackClick() },
-                        onMenuClick = if (!isSearchActive) { { } } else null,
+                        onMenuClick = if (!isSearchActive) { { onShowMenuSheetChange(true) } } else null,
                         isLargeTitle = true,
                     )
                 }
@@ -356,7 +708,7 @@ fun VenueMainContent(
                     BottomTab(
                         items = bottomTabs,
                         selectedValue = selectedTab,
-                        onItemSelected = { selectedTab = it }
+                        onItemSelected = { onSelectedTabChange(it) }
                     )
                 }
             },
@@ -434,30 +786,23 @@ fun VenueMainContent(
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Spacer(Modifier.width(8.dp))
-                                        FilterButton(onClick = { showFilterDialog = true })
+                                        FilterButton(onClick = { onShowFilterDialogChange(true) })
                                     }
                                 }
                             }
                         }
 
                         if (!isSearchActive) {
-                            items(filteredAndSortedExploreVenues) { venue ->
+                            items(filteredAndSortedExploreVenues, key = { it.vendorName }) { venue ->
                                 VendorCardFull(
                                     vendor = venue,
-                                    onFavoriteToggle = {
-                                        if (venueSavedDestinations.containsKey(venue.vendorName)) {
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                        } else {
-                                            activeTargetVenue = venue
-                                            isMySavedListChecked = true
-                                            selectedSaveEventId = null
-                                            showSaveListBottomSheet = true
-                                        }
-                                    },
+                                    onFavoriteToggle = { handleFavoriteToggle(venue) },
                                     onCardClick = { handleVenueClick(venue) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp),
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
                                 )
                             }
                         } else {
@@ -515,9 +860,9 @@ fun VenueMainContent(
                                         event = timelineItem.event,
                                         venues = timelineItem.venues,
                                         onVenueClick = handleVenueClick,
-                                        onFavoriteToggle = { venue ->
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                        },
+                                        onFavoriteToggle = { venue -> handleFavoriteToggle(venue) },
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope
                                     )
                                 }
                             }
@@ -527,13 +872,13 @@ fun VenueMainContent(
                                     EmptySavedState()
                                 }
                             } else {
-                                items(savedVenuesList) { venue ->
+                                items(savedVenuesList, key = { it.vendorName }) { venue ->
                                     VendorCardFull(
                                         vendor = venue,
-                                        onFavoriteToggle = {
-                                            venueSavedDestinations = venueSavedDestinations - venue.vendorName
-                                        },
+                                        onFavoriteToggle = { handleFavoriteToggle(venue) },
                                         onCardClick = { handleVenueClick(venue) },
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope
                                     )
                                 }
                             }
@@ -541,37 +886,6 @@ fun VenueMainContent(
                         item { Spacer(Modifier.height(6.dp)) }
                     }
                 }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = toastData?.message != null,
-            enter = slideInVertically(initialOffsetY = { it + 500 }),
-            exit = slideOutVertically(targetOffsetY = { it + 500 }),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .fillMaxWidth()
-                .zIndex(99f)
-                .padding(12.dp, 80.dp)
-        ) {
-            toastData?.let { data ->
-                CustomToast(
-                    message = data.message ?: "",
-                    type = data.type,
-                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
-                    buttonText = "Change",
-                    onButtonClick = {
-                        toastData = null
-                        lastSavedVenue?.let { venue ->
-                            activeTargetVenue = venue
-                            val currentDest = venueSavedDestinations[venue.vendorName]
-                            isMySavedListChecked = currentDest == "mysaved"
-                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
-                            showSaveListBottomSheet = true
-                        }
-                    }
-                )
             }
         }
     }
@@ -583,11 +897,11 @@ fun VenueMainContent(
             initialSortOption = appliedSortOption,
             filterByOptions = filterByOptions,
             initialFilterOptions = appliedFilterOptions,
-            onDismiss = { showFilterDialog = false },
+            onDismiss = { onShowFilterDialogChange(false) },
             onApply = { sortOption, filterSet ->
                 appliedSortOption = sortOption
                 appliedFilterOptions = filterSet
-                showFilterDialog = false
+                onShowFilterDialogChange(false)
             }
         )
     }
@@ -598,37 +912,80 @@ fun VenueMainContent(
             timelineEvents = timelineEvents,
             isMySavedListChecked = isMySavedListChecked,
             onMySavedListToggled = { checked ->
-                isMySavedListChecked = checked
+                onMySavedListCheckedChange(checked)
                 if (checked) {
-                    selectedSaveEventId = null
+                    onSelectedSaveEventIdChange(null)
                 }
             },
             selectedEventId = selectedSaveEventId,
             onEventSelected = { eventId ->
-                selectedSaveEventId = eventId
+                onSelectedSaveEventIdChange(eventId)
                 if (eventId != null) {
-                    isMySavedListChecked = false
+                    onMySavedListCheckedChange(false)
                 }
             },
             onAddNewEvent = { name, date ->
                 val newId = (timelineEvents.size + 1).toString()
-                timelineEvents = listOf(TimelineEvent(newId, date, name, emptyList())) + timelineEvents
-                selectedSaveEventId = newId
-                isMySavedListChecked = false
+                onTimelineEventsChange(listOf(TimelineEvent(newId, date, name, emptyList())) + timelineEvents)
+                onSelectedSaveEventIdChange(newId)
+                onMySavedListCheckedChange(false)
             },
-            onDismiss = { showSaveListBottomSheet = false },
+            onDismiss = { onShowSaveListBottomSheetChange(false) },
             onDone = {
                 activeTargetVenue?.let { venue ->
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
-                        venueSavedDestinations = venueSavedDestinations + (venue.vendorName to destination)
-                        lastSavedVenue = venue
-                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to destination))
+                        onLastSavedVenueChange(venue)
+                        onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
+                    } else {
+                        onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
+                        onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
                     }
                 }
-                showSaveListBottomSheet = false
-                activeTargetVenue = null
+                onShowSaveListBottomSheetChange(false)
+                onActiveTargetVenueChange(null)
             }
+        )
+    }
+
+    if (showMenuSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Change Location",
+                        icon = painterResource(R.drawable.ic_location_marker),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                            onLocationSelectorClick()
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                            onManageRoomAccessClick()
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onShowMenuSheetChange(false)
+                        }
+                    )
+                )
+            ),
+            onCancelClick = { onShowMenuSheetChange(false) }
         )
     }
 }
@@ -647,15 +1004,15 @@ fun LazyItemScope.EmptySavedState() {
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_receipt),
-                contentDescription = "Empty List",
-                tint = ContentSecondary,
-                modifier = Modifier.size(72.dp)
+                contentDescription = "No plans here yet",
+                tint = ContentTertiary,
+                modifier = Modifier.size(84.dp)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Empty List",
-                style = JasnifyTheme.typography.headingLarge,
-                color = ContentSecondary,
+                text = "No plans here yet",
+                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                color = ContentTertiary,
                 textAlign = TextAlign.Center
             )
         }
@@ -885,6 +1242,7 @@ fun SaveListBottomSheet(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun TimelineSection(
     date: String,
@@ -892,7 +1250,9 @@ fun TimelineSection(
     venues: List<VendorCardData>,
     onVenueClick: (VendorCardData) -> Unit,
     onFavoriteToggle: (VendorCardData) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope
 ) {
     val listState = rememberLazyListState()
     val accentColors = listOf(CloudWhisper, SoftMint, PaleLavender, LightSkyBlue, SoftPeach)
@@ -939,7 +1299,9 @@ fun TimelineSection(
                         vendor = venue,
                         removeBg = true,
                         onCardClick = { onVenueClick(venue) },
-                        onFavoriteToggle = { onFavoriteToggle(venue) }
+                        onFavoriteToggle = { onFavoriteToggle(venue) },
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope
                     )
                 }
             }
@@ -1131,7 +1493,8 @@ fun TrendingAiSearchesSection(
                     size = ChipSize.Small,
                     leadingIcon = aiIcon,
                     onClick = { onTrendingClick(query) },
-                    hasStroke = true
+                    hasStroke = true,
+                    isAiMode = true
                 )
             }
         }
