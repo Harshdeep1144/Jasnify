@@ -1,13 +1,21 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,18 +42,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.ArrowOutward
-import androidx.compose.material.icons.rounded.KeyboardArrowRight
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ScrollableTabRow
@@ -54,7 +66,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.VerticalDivider
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -72,10 +85,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
@@ -86,6 +101,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -103,6 +119,12 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
+import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
+import com.harshdeep.jasnify.presentation.components.sections.GallerySection
+import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
+import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostScreen
+import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -122,7 +144,13 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
+import androidx.core.net.toUri
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.theme.BackgroundSecondary
 
+// ============================================================================================================================================
+// DATA MODELS & ENUMS
+// ============================================================================================================================================
 
 data class VenueMediaItem(
     val url: String,
@@ -154,17 +182,36 @@ data class RatingBreakdownItemData(
     val label: String
 )
 
+data class MerchantReplyData(
+    val merchantName: String,
+    val merchantAvatarUrl: String? = null,
+    val relativeTime: String,
+    val replyText: String,
+    val isVerified: Boolean = true
+)
+
 data class VenueReviewItem(
     val userName: String,
     val userAvatarUrl: String? = null,
     val rating: Double,
     val relativeTime: String,
-    val reviewText: String
+    val reviewText: String,
+    val isVerified: Boolean = false,
+    val attachedImages: List<String> = emptyList(),
+    val merchantReply: MerchantReplyData? = null
 )
 
 data class VenueReviewsData(
     val ratingBreakdown: List<RatingBreakdownItemData>,
-    val reviews: List<VenueReviewItem>
+    val reviews: List<VenueReviewItem>,
+    val totalRatingsCount: String = "1.4k+",
+    val distribution: List<Float> = listOf(0.85f, 0.60f, 0.15f, 0.10f, 0.25f), // 5-star to 1-star
+    val subMetrics: List<RatingBreakdownItemData> = listOf(
+        RatingBreakdownItemData("4.8", "Hospitality"),
+        RatingBreakdownItemData("4.4", "Food"),
+        RatingBreakdownItemData("4.1", "Ambience"),
+        RatingBreakdownItemData("4.2", "Banquets")
+    )
 )
 
 data class VenueDetailData(
@@ -178,6 +225,13 @@ data class VenueDetailData(
     val similarVenues: List<VendorCardData>? = null
 )
 
+enum class ActiveScreen {
+    DETAIL, REVIEWS, GALLERY, POST
+}
+
+// ============================================================================================================================================
+// MAIN SCREEN CONTAINERS
+// ============================================================================================================================================
 
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -188,11 +242,126 @@ fun VenueDetailScreen(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    // Dynamic stack to keep track of screens locally
+    var screenStack by remember { mutableStateOf(listOf(ActiveScreen.DETAIL)) }
+    val currentScreen = screenStack.last()
+
+    var selectedReviewForPost by remember { mutableStateOf<VenueReviewItem?>(null) }
+
+    // Intercepts the back gesture ONLY when there is a screen to pop locally
+    BackHandler(enabled = screenStack.size > 1) {
+        screenStack = screenStack.dropLast(1)
+    }
+
+    AnimatedContent(
+        targetState = currentScreen,
+        transitionSpec = {
+            if (targetState != ActiveScreen.DETAIL) {
+                slideInHorizontally(
+                    initialOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeIn() togetherWith slideOutHorizontally(
+                    targetOffsetX = { -it },
+                    animationSpec = tween(400)
+                ) + fadeOut()
+            } else {
+                slideInHorizontally(
+                    initialOffsetX = { -it },
+                    animationSpec = tween(400)
+                ) + fadeIn() togetherWith slideOutHorizontally(
+                    targetOffsetX = { it },
+                    animationSpec = tween(400)
+                ) + fadeOut()
+            }
+        },
+        label = "VenueNavigationTransition"
+    ) { screen ->
+        when (screen) {
+            ActiveScreen.DETAIL -> {
+                VenueDetailContent(
+                    venueDetail = venueDetail,
+                    onBackClick = onBackClick,
+                    onSeeAllReviewsClick = { screenStack = screenStack + ActiveScreen.REVIEWS },
+                    onSeeAllGalleryClick = { screenStack = screenStack + ActiveScreen.GALLERY },
+                    onOpenReviewPost = { review ->
+                        selectedReviewForPost = review
+                        screenStack = screenStack + ActiveScreen.POST
+                    },
+                    modifier = modifier,
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope
+                )
+            }
+            ActiveScreen.REVIEWS -> {
+                AllReviewsScreen(
+                    title = venueDetail.vendorCard.vendorName,
+                    reviewsData = venueDetail.reviewsData ?: VenueReviewsData(emptyList(), emptyList()),
+                    ratingValue = venueDetail.vendorCard.rating.toString(),
+                    onBack = { screenStack = screenStack.dropLast(1) },
+                    onOpenReviewPost = { review ->
+                        selectedReviewForPost = review
+                        screenStack = screenStack + ActiveScreen.POST
+                    },
+                    onLeaveReview = {
+                        // Navigation to Write Review Screen
+                    }
+                )
+            }
+            ActiveScreen.GALLERY -> {
+                GalleryDetailScreen(
+                    title = venueDetail.vendorCard.vendorName,
+                    galleryCategories = venueDetail.galleryCategories ?: emptyList(),
+                    onBack = { screenStack = screenStack.dropLast(1) },
+                    onOpenAlbum = { }
+                )
+            }
+            ActiveScreen.POST -> {
+                ReviewDetailPostScreen(
+                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull() ?: VenueReviewItem(
+                        userName = "Anand K.",
+                        rating = 4.4,
+                        relativeTime = "1 week ago",
+                        reviewText = "Discover the charm of Hotel Imperial Inn, located in Sampatchak, Patna."
+                    ),
+                    onBack = {
+                        screenStack = screenStack.dropLast(1)
+                    }
+                )
+            }
+        }
+    }
+}
+
+
+@SuppressLint("UseKtx")
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@Composable
+private fun VenueDetailContent(
+    venueDetail: VenueDetailData,
+    onBackClick: () -> Unit,
+    onSeeAllReviewsClick: () -> Unit,
+    onSeeAllGalleryClick: () -> Unit,
+    onOpenReviewPost: (VenueReviewItem) -> Unit,
+    modifier: Modifier = Modifier,
+    sharedTransitionScope: SharedTransitionScope? = null,
+    animatedVisibilityScope: AnimatedVisibilityScope? = null
+) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val vendor = venueDetail.vendorCard
 
-    // Dynamic density-derived values
+    val addressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showAddressSheet by remember { mutableStateOf(false) }
+
+    val aboutSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var showAboutSheet by remember { mutableStateOf(false) }
+
+    // Intercept back button if any custom bottom sheet is open inside this content block
+    BackHandler(enabled = showAddressSheet || showAboutSheet) {
+        if (showAddressSheet) showAddressSheet = false
+        if (showAboutSheet) showAboutSheet = false
+    }
+
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
     val topBarHeightPx = with(density) { 56.dp.toPx() }
@@ -201,12 +370,10 @@ fun VenueDetailScreen(
     val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
-    // Floating Sheet Swipe limits
     var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
     var isFavoriteState by remember { mutableStateOf(vendor.isFavorite) }
     var isMuted by remember { mutableStateOf(true) }
 
-    // Compute dynamic tabs based on properties present inside venueDetail
     val activeTabs = remember(venueDetail) {
         buildList {
             if (!venueDetail.pricingItems.isNullOrEmpty()) add("Pricings")
@@ -216,7 +383,6 @@ fun VenueDetailScreen(
         }
     }
 
-    // Capture precise keys assigned to items inside the LazyColumn list
     val listKeys = remember(venueDetail) {
         buildList {
             add("info")
@@ -244,16 +410,11 @@ fun VenueDetailScreen(
                 add("reviews")
                 add("div_reviews")
             }
-            add("explore_more")
-            add("div_explore_more")
-            if (!venueDetail.similarVenues.isNullOrEmpty()) {
-                add("similar_venues")
-            }
+            add("explore_more_and_similar")
             add("footer")
         }
     }
 
-    // Scroll progress-derived index synchronization
     val selectedTabIndex by remember(activeTabs, listKeys) {
         derivedStateOf {
             val visibleItems = listState.layoutInfo.visibleItemsInfo
@@ -274,7 +435,6 @@ fun VenueDetailScreen(
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
                     "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
                     else -> {
-                        // Dynamically evaluate positions relative to tab content anchors
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
@@ -283,10 +443,8 @@ fun VenueDetailScreen(
                         val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx)
 
                         if (itemIndex < firstContentIdx) {
-                            // If user is at "info", "suggestions", or "tabs", highlight the first available section tab
                             0
                         } else {
-                            // If user is below all defined tab contents (e.g. gallery/reviews), map to "Ask AI"
                             val aiIndex = activeTabs.indexOf("Ask AI")
                             if (aiIndex != -1) aiIndex else 0
                         }
@@ -296,7 +454,6 @@ fun VenueDetailScreen(
         }
     }
 
-    // NestedScroll handling for scrolling vs panel-drags
     val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
@@ -329,7 +486,6 @@ fun VenueDetailScreen(
         }
     }
 
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -345,6 +501,7 @@ fun VenueDetailScreen(
             isMuted = isMuted,
             onMuteToggle = { isMuted = !isMuted },
             vendor = vendor,
+            onSeeAllGalleryClick = onSeeAllGalleryClick,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier
@@ -400,17 +557,14 @@ fun VenueDetailScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Info Section
                 item(key = "info") {
-                    VenueInfoSection(vendor = vendor)
+                    VenueInfoSection(vendor = vendor, onAddressClick = { showAddressSheet = true })
                 }
 
-                // AI Suggestions
                 item(key = "suggestions") {
                     SuggestionChipsSection()
                 }
 
-                // Sticky Tab Bar Component
                 stickyHeader(key = "tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -443,7 +597,6 @@ fun VenueDetailScreen(
                     }
                 }
 
-                // Pricings Layout
                 if (!venueDetail.pricingItems.isNullOrEmpty()) {
                     item(key = "pricings") {
                         PricingsSection(vendor = vendor, pricingItems = venueDetail.pricingItems)
@@ -453,7 +606,6 @@ fun VenueDetailScreen(
                     }
                 }
 
-                // Highlights Layout
                 if (!venueDetail.highlightItems.isNullOrEmpty()) {
                     item(key = "highlights") {
                         HighlightsSection(highlightItems = venueDetail.highlightItems)
@@ -463,17 +615,19 @@ fun VenueDetailScreen(
                     }
                 }
 
-                // About layout
                 if (venueDetail.aboutText != null) {
                     item(key = "about") {
-                        AboutSection(vendor = vendor, aboutText = venueDetail.aboutText)
+                        AboutSection(
+                            vendor = vendor,
+                            aboutText = venueDetail.aboutText,
+                            onReadMoreClick = { showAboutSheet = true }
+                        )
                     }
                     item(key = "div_about") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
-                // Ask AI Area
                 item(key = "ask_ai") {
                     AskAISection()
                 }
@@ -481,49 +635,45 @@ fun VenueDetailScreen(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                // Gallery Grid
                 if (!venueDetail.galleryCategories.isNullOrEmpty()) {
                     item(key = "gallery") {
-                        GallerySection(galleryCategories = venueDetail.galleryCategories)
+                        GallerySection(
+                            galleryCategories = venueDetail.galleryCategories,
+                            onSeeAllClick = onSeeAllGalleryClick
+                        )
                     }
                     item(key = "div_gallery") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
-                // Reviews Section
                 if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
                     item(key = "reviews") {
-                        ReviewsSection(vendor = vendor, reviewsData = venueDetail.reviewsData)
+                        ReviewsSection(
+                            vendor = vendor,
+                            reviewsData = venueDetail.reviewsData,
+                            onSeeAllClick = onSeeAllReviewsClick,
+                            onReviewCardClick = onOpenReviewPost,
+                            onWriteReviewClick = {}
+                        )
                     }
                     item(key = "div_reviews") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
-                // Explore Section
-                item(key = "explore_more") {
-                    ExploreMoreSection()
-                }
-                item(key = "div_explore_more") {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
-                }
-
-                // Similar Venues Section
                 if (!venueDetail.similarVenues.isNullOrEmpty()) {
-                    item(key = "similar_venues") {
-                        SimilarVenuesSection(similarVenues = venueDetail.similarVenues)
+                    item(key = "explore_more_and_similar") {
+                        ExploreMoreSection(similarVenues = venueDetail.similarVenues)
                     }
                 }
 
-                // Footer and spacing anchor
                 item(key = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
                 }
             }
         }
-
 
         val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
 
@@ -599,57 +749,167 @@ fun VenueDetailScreen(
                     } else Modifier
                 )
         )
-    }
-}
 
+// ============================================================= Bottom Sheets ===============================================
 
-@Composable
-fun FloatingBottomActionBar(
-    onMessageClick: () -> Unit,
-    onBookCallClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-            .fillMaxWidth()
-            .height(64.dp)
-            .dropShadow(
-                shape = CircleShape,
-                shadow = Shadow(
-                    radius = 16.dp,
-                    spread = 0.dp,
-                    color = ContentPrimary.copy(alpha = 0.2f),
-                    offset = DpOffset(0.dp, 6.dp)
-                )
-            ),
-        color = SurfacePrimary,
-        shape = CircleShape
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(4.dp)
-                .fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            CustomIconButton(
-                onClick = onMessageClick,
-                icon = painterResource(R.drawable.ic_message),
-                type = ButtonType.Secondary,
-                modifier = Modifier.weight(0.4f)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
+        if (showAddressSheet) {
+            CustomBottomSheet(
+                heading = "Venue Address",
+                sheetState = addressSheetState,
+                onDismiss = { showAddressSheet = false },
+                sheetHeight = 360.dp
+            ) {
+                val context = LocalContext.current
 
-            CustomTextButton(
-                onClick = onBookCallClick,
-                text = "Book a Call",
-                type = ButtonType.Primary,
-                modifier = Modifier.weight(1.6f)
-            )
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                ) {
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(12.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Surface(
+                            color = SurfaceSecondary,
+                            shape = SquircleShape(CornerLarge),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalAlignment = Alignment.Start
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color.Transparent),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.img_hero_venueaddress),
+                                        contentDescription = "Map Pin Logo",
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(80.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(12.dp))
+
+                                Text(
+                                    text = vendor.vendorName,
+                                    style = JasnifyTheme.typography.displayMedium,
+                                    color = ContentPrimary
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                Text(
+                                    text = "2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar - 800007, Patna, Bihar 800007",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentSecondary
+                                )
+                            }
+                        }
+                    }
+                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+                    CustomTextButton(
+                        onClick = {
+                            val mapQuery = "${vendor.vendorName}, 2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar 800007"
+                            val encodedQuery = Uri.encode(mapQuery)
+                            val mapUri = "geo:0,0?q=$encodedQuery".toUri()
+                            val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+                                setPackage("com.google.android.apps.maps")
+                            }
+                            try {
+                                context.startActivity(mapIntent)
+                            } catch (e: Exception) {
+                                val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
+                                val webIntent = Intent(Intent.ACTION_VIEW, webUri)
+                                try {
+                                    context.startActivity(webIntent)
+                                } catch (ignored: Exception) {}
+                            }
+                        },
+                        text = "Get Directions",
+                        trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        shapeStyle = ButtonShapeStyle.Square
+                    )
+                }
+            }
+        }
+
+        if (showAboutSheet) {
+            ModalBottomSheet(
+                onDismissRequest = { showAboutSheet = false },
+                sheetState = aboutSheetState,
+                dragHandle = {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .width(56.dp)
+                            .height(4.dp)
+                            .background(ContentTertiary, shape = SquircleShape(100))
+                    )
+                },
+                scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+                containerColor = SurfacePrimary,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(12.dp),
+                ) {
+                    Text(
+                        text = "About ${vendor.vendorName}",
+                        style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                        color = ContentPrimary
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    // Simulating the data coming from database
+                    val aboutVenueFromDb = "Discover the charm of ${vendor.vendorName}, located in Sampatchak, Patna. This inviting hotel blends comfort with elegance, making it the perfect choice for both business and leisure travelers. Experience our stylish rooms equipped with modern amenities and enjoy exceptional service that ensures a relaxing stay. Whether you're visiting for work or a getaway, ${vendor.vendorName} is your ideal retreat in Patna."
+                    val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
+
+                    Text(
+                        text = formattedAboutText,
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentSecondary
+                    )
+                }
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+                Column{
+                    CustomTextButton(
+                        onClick = { showAboutSheet = false },
+                        text = "Okay",
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(12.dp),
+                        shapeStyle = ButtonShapeStyle.Square
+                    )
+                }
+            }
         }
     }
 }
+
+
+
+
+// ============================================================================================================================================
+// STRUCTURAL CONTENT SECTIONS
+// ============================================================================================================================================
+
+
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -658,6 +918,7 @@ fun VenueMediaSlider(
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
     vendor: VendorCardData,
+    onSeeAllGalleryClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
@@ -762,7 +1023,7 @@ fun VenueMediaSlider(
 
             CustomTextButton(
                 text = "Gallery (${mediaItems.size})",
-                onClick = { },
+                onClick = onSeeAllGalleryClick,
                 containerColor = ContentInvPrimary.copy(alpha = 0.5f),
                 contentColor = ContentPrimary,
                 size = ButtonSize.Small,
@@ -772,9 +1033,13 @@ fun VenueMediaSlider(
     }
 }
 
+
+
 @Composable
-fun VenueInfoSection(vendor: VendorCardData) {
-    var isExpanded by remember { mutableStateOf(false) }
+fun VenueInfoSection(
+    vendor: VendorCardData,
+    onAddressClick: () -> Unit
+) {
     var hasOverflow by remember { mutableStateOf(false) }
 
     Row(
@@ -799,31 +1064,27 @@ fun VenueInfoSection(vendor: VendorCardData) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(enabled = hasOverflow) { isExpanded = !isExpanded },
+                    .clickable { onAddressClick() },
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
                     text = "${vendor.location}, India",
                     style = JasnifyTheme.typography.bodyMedium,
                     color = ContentSecondary,
-                    maxLines = if (isExpanded) Int.MAX_VALUE else 2,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     onTextLayout = { textLayoutResult ->
-                        if (!isExpanded) {
-                            hasOverflow = textLayoutResult.hasVisualOverflow
-                        }
+                        hasOverflow = textLayoutResult.hasVisualOverflow
                     },
                     modifier = Modifier.weight(1f, fill = false)
                 )
 
-                if (hasOverflow || isExpanded) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        tint = ContentSecondary,
-                        modifier = Modifier.padding(start = 4.dp)
-                    )
-                }
+                Icon(
+                    imageVector =  Icons.Default.KeyboardArrowDown,
+                    contentDescription =  "Expand",
+                    tint = ContentSecondary,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
             }
         }
 
@@ -837,23 +1098,10 @@ fun VenueInfoSection(vendor: VendorCardData) {
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                color = Color(0xFF009B0A),
+            RatingSurface(
+                rating = vendor.rating.toString(),
                 shape = RoundedCornerShape(CornerMedium, CornerMedium, 0.dp, 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentInvPrimary)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        text = "${vendor.rating}",
-                        color = ContentInvPrimary,
-                        style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
-                    )
-                }
-            }
+            )
             Text(
                 text = vendor.totalReviews,
                 style = JasnifyTheme.typography.labelSmall,
@@ -863,6 +1111,357 @@ fun VenueInfoSection(vendor: VendorCardData) {
         }
     }
 }
+
+
+@Composable
+fun PricingsSection(vendor: VendorCardData, pricingItems: List<VenuePricingItem>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        pricingItems.forEachIndexed { index, item ->
+            val shape = when (index) {
+                0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
+                pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
+                else -> SquircleShape(CornerExtraSmall)
+            }
+            PricingCard(
+                title = item.title,
+                price = item.price,
+                unit = item.unit,
+                iconRes = item.iconRes,
+                labelText = item.labelText,
+                shape = shape
+            )
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { }
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "See full pricings",
+                color = ContentBrandDark,
+                style = JasnifyTheme.typography.labelLarge,
+            )
+            Spacer(Modifier.width(2.dp))
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                null,
+                tint = ContentBrandDark,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+
+@Composable
+fun HighlightsSection(highlightItems: List<VenueHighlightItem>) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp),
+    ) {
+        Text(
+            text = "Highlights",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(bottom = 16.dp)
+        )
+
+        highlightItems.forEach { highlight ->
+            HighlightItemRow(highlight)
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+fun AboutSection(
+    vendor: VendorCardData,
+    aboutText: String,
+    onReadMoreClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp)
+    ) {
+        Text(
+            text = "About this venue",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Text(
+            text = aboutText,
+            style = JasnifyTheme.typography.labelLarge,
+            overflow = TextOverflow.Ellipsis,
+            maxLines = 4,
+            color = ContentSecondary,
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.clickable { onReadMoreClick() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Read more",
+                color = ContentBrandDark,
+                style = JasnifyTheme.typography.labelLarge,
+                fontWeight = FontWeight.Medium
+            )
+            Spacer(Modifier.width(2.dp))
+            Icon(
+                Icons.Default.KeyboardArrowRight,
+                null,
+                tint = ContentBrandDark,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun AskAISection() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 24.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Text(
+                text = "Ask anything about this venue",
+                style = JasnifyTheme.typography.displaySmall,
+                color = ContentPrimary
+            )
+            Spacer(Modifier.width(8.dp))
+            Surface(
+                color = Color(0xFFB66FC4),
+                shape = RoundedCornerShape(100)
+            ) {
+                Text(
+                    "NEW",
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = ContentInvPrimary,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        CustomSearchBar(
+            value = "",
+            onValueChange = {},
+            placeholder = "What would you like to know?",
+            isAiSearch = true,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
+        )
+
+        val suggestionChips = listOf(
+            "How is the vibe here?",
+            "What's good here?",
+            "Do they serve alcohol?",
+            "How many guests they can serve?"
+        )
+
+        if (suggestionChips.size > 6) {
+            val midIndex = (suggestionChips.size + 1) / 2
+            val firstRowChips = suggestionChips.take(midIndex)
+            val secondRowChips = suggestionChips.drop(midIndex)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // First Row
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(firstRowChips) { chip ->
+                        FilterChip(
+                            label = chip,
+                            trailingIcon = Icons.Rounded.ArrowOutward,
+                            hasStroke = true,
+                            onClick = { }
+                        )
+                    }
+                }
+
+                // Second Row
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    items(secondRowChips) { chip ->
+                        FilterChip(
+                            label = chip,
+                            trailingIcon = Icons.Rounded.ArrowOutward,
+                            hasStroke = true,
+                            onClick = { }
+                        )
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp)
+            ) {
+                items(suggestionChips) { chip ->
+                    FilterChip(
+                        label = chip,
+                        trailingIcon = Icons.Rounded.ArrowOutward,
+                        hasStroke = true,
+                        onClick = { }
+                    )
+                }
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ExploreMoreSection(
+    similarVenues: List<VendorCardData>,
+    modifier: Modifier = Modifier
+) {
+    val filters = remember {
+        listOf("All", "Top Rated", "Great Ambiance", "Budget-Friendly")
+    }
+    var selectedFilterIndex by remember { mutableStateOf(0) }
+
+    val filteredVenues = remember(selectedFilterIndex, similarVenues) {
+        when (selectedFilterIndex) {
+            1 -> similarVenues.filter { it.rating >= 4.5 }
+            2 -> similarVenues.filter { it.rating >= 4.2 }
+            else -> similarVenues
+        }
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Explore more venues",
+                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                color = ContentPrimary
+            )
+            Row(
+                modifier = Modifier.clickable { },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "See all",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                )
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        if (filters.size > 6) {
+            val midIndex = (filters.size + 1) / 2
+            val firstRowFilters = filters.take(midIndex)
+            val secondRowFilters = filters.drop(midIndex)
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // First Row
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(firstRowFilters) { index, filterText ->
+                        FilterChip(
+                            label = filterText,
+                            isSelected = selectedFilterIndex == index,
+                            onClick = { selectedFilterIndex = index },
+                            hasStroke = true
+                        )
+                    }
+                }
+                // Second Row
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(secondRowFilters) { index, filterText ->
+                        val originalIndex = index + midIndex
+                        FilterChip(
+                            label = filterText,
+                            isSelected = selectedFilterIndex == originalIndex,
+                            onClick = { selectedFilterIndex = originalIndex },
+                            hasStroke = true
+                        )
+                    }
+                }
+            }
+        } else {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                itemsIndexed(filters) { index, filterText ->
+                    FilterChip(
+                        label = filterText,
+                        isSelected = selectedFilterIndex == index,
+                        onClick = { selectedFilterIndex = index },
+                        hasStroke = true
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        Text(
+            text = "Showing similar venues",
+            style = JasnifyTheme.typography.labelLarge,
+            color = ContentSecondary,
+            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
+        )
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(filteredVenues) { vendor ->
+                VendorCardCompact(
+                    vendor = vendor,
+                    compactCardSize = CompactCardSize.SMALL
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================================================================================
+// HELPER COMPONENTS
+// ============================================================================================================================================
+
 
 @Composable
 fun SuggestionChipsSection(
@@ -954,55 +1553,6 @@ fun VenueTabs(
     }
 }
 
-
-@Composable
-fun PricingsSection(vendor: VendorCardData, pricingItems: List<VenuePricingItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
-    ) {
-        pricingItems.forEachIndexed { index, item ->
-            val shape = when (index) {
-                0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
-                pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
-                else -> SquircleShape(CornerExtraSmall)
-            }
-            PricingCard(
-                title = item.title,
-                price = item.price,
-                unit = item.unit,
-                iconRes = item.iconRes,
-                labelText = item.labelText,
-                shape = shape
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { }
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "See full pricings",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
 @Composable
 fun PricingCard(
     title: String,
@@ -1065,28 +1615,6 @@ fun PricingCard(
     }
 }
 
-
-@Composable
-fun HighlightsSection(highlightItems: List<VenueHighlightItem>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-    ) {
-        Text(
-            text = "Highlights",
-            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-            color = ContentPrimary,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        highlightItems.forEach { highlight ->
-            HighlightItemRow(highlight)
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
 @Composable
 fun HighlightItemRow(data: VenueHighlightItem) {
     Row(
@@ -1124,625 +1652,50 @@ fun HighlightItemRow(data: VenueHighlightItem) {
     }
 }
 
-
 @Composable
-fun AboutSection(vendor: VendorCardData, aboutText: String) {
-    Column(
-        modifier = Modifier
+fun FloatingBottomActionBar(
+    onMessageClick: () -> Unit,
+    onBookCallClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .padding(horizontal = 12.dp, vertical = 8.dp)
             .fillMaxWidth()
-            .padding(12.dp)
-    ) {
-        Text(
-            text = "About this venue",
-            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-            color = ContentPrimary,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            text = aboutText,
-            style = JasnifyTheme.typography.labelLarge,
-            overflow = TextOverflow.Ellipsis,
-            maxLines = 4,
-            color = ContentSecondary,
-        )
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.clickable { },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                "Read more",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun AskAISection() {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 24.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Ask anything about this venue",
-                style = JasnifyTheme.typography.displaySmall,
-                color = ContentPrimary
-            )
-            Spacer(Modifier.width(8.dp))
-            Surface(
-                color = Color(0xFFB66FC4),
-                shape = RoundedCornerShape(100)
-            ) {
-                Text(
-                    "NEW",
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    style = JasnifyTheme.typography.labelMedium,
-                    color = ContentInvPrimary,
-                    fontWeight = FontWeight.Medium
+            .height(64.dp)
+            .dropShadow(
+                shape = CircleShape,
+                shadow = Shadow(
+                    radius = 16.dp,
+                    spread = 0.dp,
+                    color = ContentPrimary.copy(alpha = 0.2f),
+                    offset = DpOffset(0.dp, 6.dp)
                 )
-            }
-        }
-
-        CustomSearchBar(
-            value = "",
-            onValueChange = {},
-            placeholder = "What would you like to know?",
-            isAiSearch = true,
-            modifier = Modifier.padding(vertical = 12.dp)
-        )
-
-        val suggestionChips = listOf(
-            "How is the vibe here?",
-            "What's good here?",
-            "Do they serve alcohol?",
-            "How many guests they can serve?"
-        )
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            suggestionChips.forEach { chip ->
-                FilterChip(
-                    label = chip,
-                    trailingIcon = Icons.Rounded.ArrowOutward,
-                    shapeStyle = ChipShapeStyle.Round,
-                    hasStroke = true,
-                    onClick = { }
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-fun GallerySection(galleryCategories: List<GalleryCategoryData>) {
-    var selectedCategoryIndex by remember { mutableStateOf(0) }
-    val activeCategory = galleryCategories.getOrNull(selectedCategoryIndex)
-    val imagesList = activeCategory?.imageUrls.orEmpty()
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp)
+            ),
+        color = SurfacePrimary,
+        shape = CircleShape
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Gallery",
-                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                color = ContentPrimary
-            )
-            Row(
-                modifier = Modifier.clickable { },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "See all",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Spacer(Modifier.width(2.dp))
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowRight,
-                    contentDescription = "See All Gallery",
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 12.dp)
-        ) {
-            items(galleryCategories.size) { index ->
-                val category = galleryCategories[index]
-                val isSelected = selectedCategoryIndex == index
-
-                FilterChip(
-                    label = category.categoryName,
-                    isSelected = isSelected,
-                    shapeStyle = ChipShapeStyle.Round,
-                    hasStroke = true,
-                    onClick = { selectedCategoryIndex = index }
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(340.dp)
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1.5f)
-                    .fillMaxHeight()
-                    .clip(SquircleShape(CornerExtraLarge))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                        shape = SquircleShape(CornerExtraLarge)
-                    )
-                    .background(SurfaceSecondary)
-            ) {
-                AsyncImage(
-                    model = imagesList.getOrNull(0) ?: "image_2e5379.jpg",
-                    contentDescription = "Main Gallery",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                Surface(
-                    color = ContentPrimary.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(100),
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = "1/${imagesList.size}",
-                        color = ContentInvPrimary,
-                        style = JasnifyTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .clip(SquircleShape(CornerLarge))
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            shape = SquircleShape(CornerLarge)
-                        )
-                        .background(SurfaceSecondary)
-                ) {
-                    AsyncImage(
-                        model = imagesList.getOrNull(1) ?: "image_2e5379.jpg",
-                        contentDescription = "Gallery Row 2",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Surface(
-                        color = ContentPrimary.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(100),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "2/${imagesList.size}",
-                            color = ContentInvPrimary,
-                            style = JasnifyTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .clip(SquircleShape(CornerLarge))
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            shape = SquircleShape(CornerLarge)
-                        )
-                        .background(SurfaceSecondary)
-                ) {
-                    AsyncImage(
-                        model = imagesList.getOrNull(2) ?: "image_2e5379.jpg",
-                        contentDescription = "Gallery Row 3",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Surface(
-                        color = ContentPrimary.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(100),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(8.dp)
-                    ) {
-                        Text(
-                            text = "3/${imagesList.size}",
-                            color = ContentInvPrimary,
-                            style = JasnifyTheme.typography.labelSmall,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .clip(SquircleShape(CornerLarge))
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            shape = SquircleShape(CornerLarge)
-                        )
-                        .background(SurfaceSecondary)
-                        .clickable { }
-                ) {
-                    AsyncImage(
-                        model = imagesList.getOrNull(3) ?: "image_2e5379.jpg",
-                        contentDescription = "Gallery Row OverView",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(ContentPrimary.copy(alpha = 0.8f))
-                    )
-
-                    Surface(
-                        color = ContentInvPrimary.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(100),
-                        modifier = Modifier.align(Alignment.Center)
-                    ) {
-                        Text(
-                            text = "See all",
-                            color = ContentInvPrimary,
-                            style = JasnifyTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Composable
-fun ReviewsSection(vendor: VendorCardData, reviewsData: VenueReviewsData) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Reviews",
-                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                color = ContentPrimary
-            )
-            Row(
-                modifier = Modifier.clickable { },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "See all",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Spacer(Modifier.width(2.dp))
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
+                .padding(4.dp)
+                .fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = Color(0xFF009B0A),
-                        shape = RoundedCornerShape(100)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_star),
-                                contentDescription = null,
-                                Modifier.size(12.dp),
-                                tint = ContentInvPrimary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                "${vendor.rating}",
-                                color = ContentInvPrimary,
-                                style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
-                            )
-                        }
-                    }
-                }
-                Text("${vendor.totalReviews} ratings", style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
-            }
-
-            reviewsData.ratingBreakdown.forEach { item ->
-                VerticalDivider(modifier = Modifier.height(30.dp), thickness = 1.dp, color = ContentTertiary)
-                RatingBreakdownItem(item.score, item.label)
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(reviewsData.reviews) { review ->
-                ReviewCard(review)
-            }
-        }
-    }
-}
-
-@Composable
-fun RatingBreakdownItem(rating: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(rating, style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium), color = ContentSecondary)
-        Text(label, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
-    }
-}
-
-@Composable
-fun ReviewCard(review: VenueReviewItem) {
-    Surface(
-        color = SurfaceSecondary,
-        shape = SquircleShape(CornerExtraLarge),
-        modifier = Modifier.width(280.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(SurfaceSecondary)
-                    ) {
-                        AsyncImage(
-                            model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(
-                            text = review.userName,
-                            style = JasnifyTheme.typography.labelLarge,
-                            color = ContentPrimary
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = review.relativeTime,
-                            style = JasnifyTheme.typography.labelMedium,
-                            color = ContentSecondary
-                        )
-                    }
-                }
-
-                Surface(
-                    color = Color(0xFF009B0A),
-                    shape = RoundedCornerShape(100)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_star),
-                            contentDescription = null,
-                            Modifier.size(12.dp),
-                            tint = ContentInvPrimary
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "${review.rating}",
-                            color = ContentInvPrimary,
-                            style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            Text(
-                text = review.reviewText,
-                style = JasnifyTheme.typography.labelLarge,
-                color = ContentSecondary,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+            CustomIconButton(
+                onClick = onMessageClick,
+                icon = painterResource(R.drawable.ic_message),
+                type = ButtonType.Secondary,
+                modifier = Modifier.weight(0.4f)
             )
+            Spacer(modifier = Modifier.width(4.dp))
 
-            Spacer(Modifier.height(4.dp))
-
-            Row(
-                modifier = Modifier.clickable { },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "See all",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-    }
-}
-
-
-@Composable
-fun ExploreMoreSection() {
-    val suggestionChips = listOf(
-        "How is the vibe here?",
-        "What's good here?",
-        "Do they serve alcohol?",
-        "How many guests they can serve?"
-    )
-
-    Column(
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Explore more venues",
-                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                color = ContentPrimary
+            CustomTextButton(
+                onClick = onBookCallClick,
+                text = "Book a Call",
+                type = ButtonType.Primary,
+                modifier = Modifier.weight(1.6f)
             )
-            Row(
-                modifier = Modifier.clickable { },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "See all",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        Spacer(Modifier.height(12.dp))
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(suggestionChips) { text ->
-                FilterChip(
-                    label = text,
-                    shapeStyle = ChipShapeStyle.Round,
-                    onClick = { },
-                    hasStroke = true
-                )
-            }
-        }
-        Spacer(Modifier.height(4.dp))
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            items(suggestionChips.reversed()) { text ->
-                FilterChip(
-                    label = text,
-                    shapeStyle = ChipShapeStyle.Round,
-                    onClick = { },
-                    hasStroke = true
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SimilarVenuesSection(similarVenues: List<VendorCardData>) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = "Showing similar venues",
-            style = JasnifyTheme.typography.labelLarge,
-            color = ContentSecondary,
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
-        )
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(similarVenues) { vendor ->
-                VendorCardCompact(
-                    vendor = vendor,
-                    compactCardSize = CompactCardSize.SMALL
-                )
-            }
         }
     }
 }
