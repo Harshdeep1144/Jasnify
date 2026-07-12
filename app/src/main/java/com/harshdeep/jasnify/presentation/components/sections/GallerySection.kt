@@ -21,10 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -43,9 +40,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -525,104 +520,3 @@ fun AlbumGridCard(
 
 // ======================================== Preview ==============================================
 
-@Preview(showBackground = true, name = "Album Grid Card")
-@Composable
-fun AlbumGridCardPreview() {
-    val sampleAlbum = GalleryCategoryData(
-        categoryName = "Outdoor Area",
-        imageUrls = listOf(
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
-        )
-    )
-    JasnifyTheme {
-        AlbumGridCard(album = sampleAlbum, onAlbumClick = {})
-    }
-}
-
-
-@Preview(showBackground = true, name = "Gallery Details - Hotel Imperial Inn")
-@Composable
-fun GalleryDetailScreenPreview() {
-    val sampleCategoriesData = listOf(
-        GalleryCategoryData(
-            categoryName = "Images",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
-            )
-        ),
-        GalleryCategoryData(
-            categoryName = "Outdoor Area",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" // yields +2
-            )
-        ),
-        GalleryCategoryData(
-            categoryName = "Indoor Area",
-            imageUrls = List(20) { "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500" } // yields +15
-        ),
-        GalleryCategoryData(
-            categoryName = "Rooms",
-            imageUrls = List(26) { "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" } // yields +21
-        )
-    )
-
-    JasnifyTheme {
-        GalleryDetailScreen(
-            title = "Hotel Imperial Inn",
-            galleryCategories = sampleCategoriesData,
-            onBack = {},
-            onOpenAlbum = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Gallery Section - Dashboard Component")
-@Composable
-fun GallerySectionPreview() {
-    val sampleData = listOf(
-        GalleryCategoryData(
-            categoryName = "All",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
-            )
-        ),
-        GalleryCategoryData(
-            categoryName = "Interior",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
-            )
-        ),
-        GalleryCategoryData(
-            categoryName = "Food",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
-            )
-        )
-    )
-    JasnifyTheme {
-        GallerySection(
-            galleryCategories = sampleData,
-            onSeeAllClick = {}
-        )
-    }
-}
