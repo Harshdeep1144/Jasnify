@@ -15,7 +15,7 @@ object MockData {
     val sampleVenues1 = listOf(
         VendorCardData(
             vendorName = "Hotel Imperial Inn",
-            location = "Sampatchak, Patna",
+            location = "2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar - 800007, Patna, Bihar 800007",
             vendorType = null,
             rating = 4.4,
             totalReviews = "1k",
@@ -347,6 +347,13 @@ object MockData {
                         rating = 4.5,
                         relativeTime = "2 weeks ago",
                         reviewText = "Highly satisfied with the services. The food was absolutely stellar, and managing the event flow with the staff coordinators was exceptionally smooth."
+                    ),
+                    VenueReviewItem(
+                        userName = "Priya Singh",
+                        userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100",
+                        rating = 4.0,
+                        relativeTime = "1 month ago",
+                        reviewText = "Beautiful interior arrangement and lightning facilities. The air conditioning was working well even during extreme summer peak days."
                     ),
                     VenueReviewItem(
                         userName = "Priya Singh",

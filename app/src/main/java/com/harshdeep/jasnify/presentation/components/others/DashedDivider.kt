@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -18,7 +19,7 @@ import com.harshdeep.jasnify.theme.ContentTertiary
 @Composable
 fun DashedDivider(
     modifier: Modifier = Modifier,
-    color: Color = ContentTertiary,
+    color: Color = MaterialTheme.colorScheme.outline.copy(0.16f),
     thickness: Float = 2f,
     dashLength: Float = 16f,
     gapLength: Float = 10f
