@@ -520,3 +520,104 @@ fun AlbumGridCard(
 
 // ======================================== Preview ==============================================
 
+@Preview(showBackground = true, name = "Album Grid Card")
+@Composable
+fun AlbumGridCardPreview() {
+    val sampleAlbum = GalleryCategoryData(
+        categoryName = "Outdoor Area",
+        imageUrls = listOf(
+            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
+        )
+    )
+    JasnifyTheme {
+        AlbumGridCard(album = sampleAlbum, onAlbumClick = {})
+    }
+}
+
+
+@Preview(showBackground = true, name = "Gallery Details - Hotel Imperial Inn")
+@Composable
+fun GalleryDetailScreenPreview() {
+    val sampleCategoriesData = listOf(
+        GalleryCategoryData(
+            categoryName = "Images",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            )
+        ),
+        GalleryCategoryData(
+            categoryName = "Outdoor Area",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" // yields +2
+            )
+        ),
+        GalleryCategoryData(
+            categoryName = "Indoor Area",
+            imageUrls = List(20) { "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500" } // yields +15
+        ),
+        GalleryCategoryData(
+            categoryName = "Rooms",
+            imageUrls = List(26) { "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" } // yields +21
+        )
+    )
+
+    JasnifyTheme {
+        GalleryDetailScreen(
+            title = "Hotel Imperial Inn",
+            galleryCategories = sampleCategoriesData,
+            onBack = {},
+            onOpenAlbum = {}
+        )
+    }
+}
+
+@Preview(showBackground = true, name = "Gallery Section - Dashboard Component")
+@Composable
+fun GallerySectionPreview() {
+    val sampleData = listOf(
+        GalleryCategoryData(
+            categoryName = "All",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
+            )
+        ),
+        GalleryCategoryData(
+            categoryName = "Interior",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            )
+        ),
+        GalleryCategoryData(
+            categoryName = "Food",
+            imageUrls = listOf(
+                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
+                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
+                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            )
+        )
+    )
+    JasnifyTheme {
+        GallerySection(
+            galleryCategories = sampleData,
+            onSeeAllClick = {}
+        )
+    }
+}
