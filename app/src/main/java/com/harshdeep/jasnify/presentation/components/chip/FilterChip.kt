@@ -26,6 +26,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.Matrix
+import android.graphics.SweepGradient
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.toArgb
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.theme.*
@@ -154,6 +166,7 @@ fun FilterChip(
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     hasDropdown: Boolean = false,
+    isAiMode: Boolean = false,
     onClick: () -> Unit = {},
     onTrailingIconClick: () -> Unit = {}
 ) {
@@ -164,20 +177,70 @@ fun FilterChip(
         hasStroke = hasStroke
     )
 
+    val rotationAnimatable = remember { Animatable(0f) }
+    LaunchedEffect(isAiMode) {
+        if (isAiMode) {
+            rotationAnimatable.animateTo(
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                )
+            )
+        }
+    }
+
+    val aiBorderBrush = remember(rotationAnimatable.value, isSelected) {
+        object : ShaderBrush() {
+            override fun createShader(size: Size): android.graphics.Shader {
+                val alpha = if (isSelected) 1f else 0.4f
+                val color1 = Color(0xFFE72EFF).copy(alpha = alpha).toArgb()
+                val color2 = Color(0xFF5B39AB).copy(alpha = alpha).toArgb()
+                val nativeShader = SweepGradient(
+                    size.width / 2f,
+                    size.height / 2f,
+                    intArrayOf(color1, color2, color1),
+                    null
+                )
+                val matrix = Matrix()
+                matrix.postRotate(rotationAnimatable.value, size.width / 2f, size.height / 2f)
+                nativeShader.setLocalMatrix(matrix)
+                return nativeShader
+            }
+        }
+    }
+
+    val finalBorder = if (isAiMode) {
+        BorderStroke(
+            width = 1.dp,
+            brush = aiBorderBrush
+        )
+    } else {
+        styles.border
+    }
+
     Surface(
         onClick = onClick,
         modifier = modifier.height(styles.height),
         shape = styles.shape,
         color = styles.containerColor,
         contentColor = styles.contentColor,
-        border = styles.border
+        border = finalBorder
     ) {
         Row(
             modifier = Modifier.padding(horizontal = styles.horizontalPadding, vertical = styles.verticalPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            if (leadingIcon != null) {
+            if (isAiMode) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_ai),
+                    contentDescription = "AI Recommendation",
+                    modifier = Modifier.size(styles.iconSize),
+                    tint = Color.Unspecified
+                )
+                Spacer(Modifier.width(styles.gap))
+            } else if (leadingIcon != null) {
                 Icon(
                     imageVector = leadingIcon,
                     contentDescription = null,
@@ -342,6 +405,13 @@ fun CateringItemChip(
     }
 }
 
+
+
+// ==================================================== Preview =========================================================
+
+
+
+
 @Preview(showBackground = true, name = "FilterChip & FoodChip Preview Layout")
 @Composable
 private fun ChipPreview() {
@@ -385,6 +455,24 @@ private fun ChipPreview() {
                         isSelected = true,
                         size = ChipSize.Large,
                         leadingIcon = Icons.Default.FilterList,
+                        trailingIcon = Icons.Default.Close
+                    )
+                }
+
+                // AI Mode Preview Row
+                Text("AI Mode (With Color.Unspecified Tint)", style = JasnifyTheme.typography.labelSmall, color = Color.Gray)
+                ChipRow {
+                    FilterChip(
+                        label = "Ask AI",
+                        isSelected = false,
+                        size = ChipSize.Small,
+                        isAiMode = true
+                    )
+                    FilterChip(
+                        label = "AI Recommendation",
+                        isSelected = true,
+                        size = ChipSize.Large,
+                        isAiMode = true,
                         trailingIcon = Icons.Default.Close
                     )
                 }
