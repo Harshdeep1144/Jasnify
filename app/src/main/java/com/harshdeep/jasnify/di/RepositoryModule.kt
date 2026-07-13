@@ -17,4 +17,10 @@ abstract class RepositoryModule {
     abstract fun bindChecklistRepository(
         checklistRepositoryImpl: ChecklistRepositoryImpl
     ): ChecklistRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindBudgetRepository(
+        budgetRepositoryImpl: com.harshdeep.jasnify.data.repository.BudgetRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.BudgetRepository
 }
