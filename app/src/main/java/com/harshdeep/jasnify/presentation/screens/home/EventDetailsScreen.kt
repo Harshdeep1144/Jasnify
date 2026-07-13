@@ -70,7 +70,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSlider
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
@@ -125,6 +124,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import java.time.Instant
 import java.time.ZoneId
 

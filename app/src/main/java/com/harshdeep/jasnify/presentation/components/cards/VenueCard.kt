@@ -26,6 +26,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.material.icons.outlined.MapsHomeWork
+import androidx.compose.material.icons.rounded.MapsHomeWork
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -242,7 +244,7 @@ fun VenueCardFull(
                     venue.type?.let { type ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                painter = painterResource(R.drawable.ic_building),
+                                imageVector = Icons.Outlined.MapsHomeWork,
                                 contentDescription = "Venue Type",
                                 modifier = Modifier.size(16.dp),
                                 tint = ContentSecondary
