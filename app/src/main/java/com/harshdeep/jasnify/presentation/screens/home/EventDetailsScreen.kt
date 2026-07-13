@@ -1141,7 +1141,17 @@ fun EventDetailsScreen(
                                         .height(260.dp)
                                 ) {
                                     if (pickerActiveTab == 0) {
-                                        if (timelineItems.isEmpty()) {
+                                        // Filter strictly to exclude undated AND empty name timelines
+                                        val validSavedTimelines = remember(timelineItems) {
+                                            timelineItems.filter {
+                                                it.dateString.isNotBlank() &&
+                                                        it.dateString != "Not yet decided" &&
+                                                        it.dateString != "Select a date" &&
+                                                        it.name.isNotBlank()
+                                            }
+                                        }
+
+                                        if (validSavedTimelines.isEmpty()) {
                                             Box(
                                                 modifier = Modifier.fillMaxSize()
                                                     .padding(12.dp),
@@ -1159,13 +1169,16 @@ fun EventDetailsScreen(
                                                 contentPadding = PaddingValues(12.dp),
                                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                                             ) {
-                                                itemsIndexed(timelineItems) { index, item ->
+                                                itemsIndexed(
+                                                    items = validSavedTimelines,
+                                                    key = { _, item -> item.id }
+                                                ) { index, item ->
                                                     val isDateSelected = draftSavedDateString == item.dateString
 
                                                     val rowShape = when {
-                                                        timelineItems.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
+                                                        validSavedTimelines.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
                                                         index == 0 -> SquircleShape(CornerLargeIncrease,CornerLargeIncrease,CornerExtraSmall,CornerExtraSmall)
-                                                        index == timelineItems.lastIndex -> SquircleShape(CornerExtraSmall,CornerExtraSmall,CornerLargeIncrease,CornerLargeIncrease)
+                                                        index == validSavedTimelines.lastIndex -> SquircleShape(CornerExtraSmall,CornerExtraSmall,CornerLargeIncrease,CornerLargeIncrease)
                                                         else -> RoundedCornerShape(CornerExtraSmall)
                                                     }
 
@@ -1192,13 +1205,13 @@ fun EventDetailsScreen(
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             Text(
-                                                                text = item.dateString.ifEmpty { "Undated Ceremony" },
+                                                                text = item.dateString,
                                                                 style = JasnifyTheme.typography.labelXLarge,
                                                                 color = ContentBrandDark
                                                             )
                                                             Spacer(modifier = Modifier.height(4.dp))
                                                             Text(
-                                                                text = item.name.ifEmpty { "Ceremony description" },
+                                                                text = item.name,
                                                                 style = JasnifyTheme.typography.labelLarge,
                                                                 color = ContentSecondary
                                                             )
