@@ -61,13 +61,13 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueReview
+import com.harshdeep.jasnify.domain.model.VenueReviewsData
+import com.harshdeep.jasnify.domain.model.VenueRatingBreakdown
+import com.harshdeep.jasnify.domain.model.VenueMerchantReply
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.screens.venues.MerchantReplyData
-import com.harshdeep.jasnify.presentation.screens.venues.RatingBreakdownItemData
-import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewItem
-import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewsData
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -85,11 +85,11 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
-fun ReviewsSection(
-    vendor: VendorCardData,
+fun VenueReviewsSection(
+    venue: Venue,
     reviewsData: VenueReviewsData,
     onSeeAllClick: () -> Unit,
-    onReviewCardClick: (VenueReviewItem) -> Unit,
+    onReviewCardClick: (VenueReview) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -114,7 +114,7 @@ fun ReviewsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "See more", // Updated to match image mockup
+                    text = "See more",
                     color = ContentBrandDark,
                     style = JasnifyTheme.typography.labelLarge,
                 )
@@ -137,10 +137,10 @@ fun ReviewsSection(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RatingSurface(rating = vendor.rating.toString())
+                RatingSurface(rating = venue.rating.toString())
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "${vendor.totalReviews} ratings",
+                    text = "${venue.totalReviews} ratings",
                     style = JasnifyTheme.typography.labelSmall,
                     color = ContentSecondary,
                     modifier = Modifier.padding(horizontal = 8.dp)
@@ -149,7 +149,7 @@ fun ReviewsSection(
 
             reviewsData.ratingBreakdown.forEach { item ->
                 VerticalDivider(modifier = Modifier.height(32.dp), thickness = 1.dp, color = ContentTertiary)
-                RatingBreakdownItem(item.score, item.label)
+                VenueRatingBreakdownItem(item.score, item.label)
             }
         }
 
@@ -161,9 +161,9 @@ fun ReviewsSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(reviewsData.reviews) { review ->
-                ReviewCard(
+                VenueReviewCard(
                     review = review,
-                    onCardClick = { onReviewCardClick(review) } // Fixed parameter
+                    onCardClick = { onReviewCardClick(review) }
                 )
             }
         }
@@ -209,12 +209,12 @@ fun ReviewsSection(
 }
 
 @Composable
-fun AllReviewsScreen(
+fun VenueAllReviewsScreen(
     title: String,
     reviewsData: VenueReviewsData,
     ratingValue: String,
     onBack: () -> Unit,
-    onOpenReviewPost: (VenueReviewItem) -> Unit,
+    onOpenReviewPost: (VenueReview) -> Unit,
     onLeaveReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -271,7 +271,7 @@ fun AllReviewsScreen(
                                         color = ContentTertiary
                                     )
                                 }
-                                RatingBreakdownItem(item.score, item.label)
+                                VenueRatingBreakdownItem(item.score, item.label)
                             }
                         }
                     }
@@ -295,7 +295,7 @@ fun AllReviewsScreen(
                     }
 
                     items(reviewsData.reviews) { review ->
-                        ReviewCard(
+                        VenueReviewCard(
                             review = review,
                             onCardClick = { onOpenReviewPost(review) },
                             modifier = Modifier
@@ -345,8 +345,8 @@ fun AllReviewsScreen(
 
 
 @Composable
-fun ReviewDetailPostScreen(
-    review: VenueReviewItem,
+fun VenueReviewDetailPostScreen(
+    review: VenueReview,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -431,7 +431,6 @@ fun ReviewDetailPostScreen(
                     Column(
                         modifier = Modifier.padding(horizontal = 12.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Simulating the data coming from database
                         val formattedAboutText = review.reviewText.replace(". ", ".\n\n")
 
                         Text(
@@ -454,8 +453,8 @@ fun ReviewDetailPostScreen(
                 }
 
                 item {
-                    val reply = review.merchantReply ?: MerchantReplyData(
-                        merchantName = "Hotel Imperial Inn",
+                    val reply = review.merchantReply ?: VenueMerchantReply(
+                        merchantName = "Venue Management",
                         relativeTime = "1 week ago",
                         replyText = "Thank you for your valuable feedback!"
                     )
@@ -532,8 +531,8 @@ fun ReviewDetailPostScreen(
 
 
 @Composable
-fun ReviewCard(
-    review: VenueReviewItem,
+fun VenueReviewCard(
+    review: VenueReview,
     onCardClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -787,7 +786,7 @@ fun AttachedImagesPreviewRow(
 }
 
 @Composable
-fun RatingBreakdownItem(rating: String, label: String, modifier: Modifier = Modifier) {
+fun VenueRatingBreakdownItem(rating: String, label: String, modifier: Modifier = Modifier) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Text(rating, style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium), color = ContentSecondary)
         Text(label, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
@@ -799,10 +798,10 @@ fun RatingBreakdownItem(rating: String, label: String, modifier: Modifier = Modi
 // MOCK DATA FOR PREVIEWS
 // ==========================================
 
-private val mockVendorData = VendorCardData(
-    vendorName = "Emerald Garden",
+private val mockVenueData = Venue(
+    name = "Emerald Garden",
     location = "Ashiana Nagar, Patna",
-    vendorType = null,
+    type = null,
     rating = 4.4,
     totalReviews = "760",
     services = listOf("Garden Venue", "Decor", "Parking"),
@@ -814,16 +813,16 @@ private val mockVendorData = VendorCardData(
     )
 )
 
-private val mockMerchantReply = MerchantReplyData(
-    merchantName = "Hotel Imperial Inn",
+private val mockMerchantReply = VenueMerchantReply(
+    merchantName = "Venue Management",
     relativeTime = "3 days ago",
-    replyText = "Thank you Harsh Deep for your kind words! We hope to welcome you back soon.",
+    replyText = "Thank you for your kind words! We hope to welcome you back soon.",
     merchantAvatarUrl = null,
     isVerified = true
 )
 
 private val mockReviewItems = listOf(
-    VenueReviewItem(
+    VenueReview(
         userName = "Harsh Deep",
         userAvatarUrl = null,
         isVerified = true,
@@ -833,17 +832,7 @@ private val mockReviewItems = listOf(
         attachedImages = listOf("url1", "url2", "url3", "url4"),
         merchantReply = mockMerchantReply
     ),
-    VenueReviewItem(
-        userName = "Rahul Sharma",
-        userAvatarUrl = null,
-        isVerified = false,
-        relativeTime = "2 weeks ago",
-        rating = 4.0,
-        reviewText = "Good location and cooperative staff. Food quality could be slightly improved, but overall a pleasant experience.",
-        attachedImages = emptyList(),
-        merchantReply = null
-    ),
-    VenueReviewItem(
+    VenueReview(
         userName = "Rahul Sharma",
         userAvatarUrl = null,
         isVerified = false,
@@ -856,17 +845,17 @@ private val mockReviewItems = listOf(
 )
 
 private val mockBreakdownMetrics = listOf(
-    RatingBreakdownItemData(score = "4.6", label = "Rooms"),
-    RatingBreakdownItemData(score = "4.3", label = "Service"),
-    RatingBreakdownItemData(score = "4.8", label = "Location"),
-    RatingBreakdownItemData(score = "4.1", label = "Food")
+    VenueRatingBreakdown(score = "4.6", label = "Rooms"),
+    VenueRatingBreakdown(score = "4.3", label = "Service"),
+    VenueRatingBreakdown(score = "4.8", label = "Location"),
+    VenueRatingBreakdown(score = "4.1", label = "Food")
 )
 
 private val mockVenueReviewsData = VenueReviewsData(
     reviews = mockReviewItems,
-    ratingBreakdown = mockBreakdownMetrics.take(3), // Main section layout usage
+    ratingBreakdown = mockBreakdownMetrics.take(3),
     totalRatingsCount = "1,240",
-    distribution = listOf(0.7f, 0.15f, 0.08f, 0.05f, 0.02f), // 5, 4, 3, 2, 1 stars percentages
+    distribution = listOf(0.7f, 0.15f, 0.08f, 0.05f, 0.02f),
     subMetrics = mockBreakdownMetrics
 )
 
@@ -883,17 +872,17 @@ fun RatingSurfacePreview() {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             RatingSurface(rating = "4.5")
-            RatingSurface(rating = "5.0", backgroundColor = Color(0xFFE65100))
+            RatingSurface(rating = "5.0", backgroundColor = Color(0xFF009B0A))
         }
     }
 }
 
 @Preview(showBackground = true, name = "Individual Review Card (Horizontal)")
 @Composable
-fun ReviewCardPreview() {
+fun VenueReviewCardPreview() {
     JasnifyTheme {
         Box(modifier = Modifier.padding(16.dp)) {
-            ReviewCard(
+            VenueReviewCard(
                 review = mockReviewItems.first(),
                 onCardClick = {}
             )
@@ -904,10 +893,10 @@ fun ReviewCardPreview() {
 
 @Preview(showBackground = true, name = "Main Reviews Section Widget")
 @Composable
-fun ReviewsSectionPreview() {
+fun VenueReviewsSectionPreview() {
     JasnifyTheme {
-        ReviewsSection(
-            vendor = mockVendorData,
+        VenueReviewsSection(
+            venue = mockVenueData,
             reviewsData = mockVenueReviewsData,
             onSeeAllClick = {},
             onReviewCardClick = {},
@@ -918,9 +907,9 @@ fun ReviewsSectionPreview() {
 
 @Preview(showBackground = true, name = "All Reviews Screen Panel")
 @Composable
-fun AllReviewsScreenPreview() {
+fun VenueAllReviewsScreenPreview() {
     JasnifyTheme {
-        AllReviewsScreen(
+        VenueAllReviewsScreen(
             title = "Hotel Imperial Inn",
             reviewsData = mockVenueReviewsData,
             ratingValue = "4.5",
@@ -933,9 +922,9 @@ fun AllReviewsScreenPreview() {
 
 @Preview(showBackground = true, name = "Detailed Review Thread Screen")
 @Composable
-fun ReviewDetailPostScreenPreview() {
+fun VenueReviewDetailPostScreenPreview() {
     JasnifyTheme {
-        ReviewDetailPostScreen(
+        VenueReviewDetailPostScreen(
             review = mockReviewItems.first(),
             onBack = {}
         )

@@ -1,22 +1,13 @@
 package com.harshdeep.jasnify.data.mock
 
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
-import com.harshdeep.jasnify.presentation.screens.venues.GalleryCategoryData
-import com.harshdeep.jasnify.presentation.screens.venues.RatingBreakdownItemData
-import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailData
-import com.harshdeep.jasnify.presentation.screens.venues.VenueHighlightItem
-import com.harshdeep.jasnify.presentation.screens.venues.VenueMediaItem
-import com.harshdeep.jasnify.presentation.screens.venues.VenuePricingItem
-import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewItem
-import com.harshdeep.jasnify.presentation.screens.venues.VenueReviewsData
+import com.harshdeep.jasnify.domain.model.*
 
 object MockData {
     val sampleVenues1 = listOf(
-        VendorCardData(
-            vendorName = "Hotel Imperial Inn",
+        Venue(
+            name = "Hotel Imperial Inn",
             location = "2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar - 800007, Patna, Bihar 800007",
-            vendorType = null,
             rating = 4.4,
             totalReviews = "1k",
             services = listOf("AC Rooms", "Catering", "Parking", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms", "AC Rooms"),
@@ -27,10 +18,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=3"
             )
         ),
-        VendorCardData(
-            vendorName = "Raj Palace Banquet",
+        Venue(
+            name = "Raj Palace Banquet",
             location = "Danapur, Patna",
-            vendorType = null,
             rating = 4.0,
             totalReviews = "800",
             services = listOf("Decor", "AC", "Power Backup"),
@@ -42,10 +32,9 @@ object MockData {
             ),
             enquiriesLastMonth = 32
         ),
-        VendorCardData(
-            vendorName = "Royal Garden Lawn",
+        Venue(
+            name = "Royal Garden Lawn",
             location = "Bailey Road, Patna",
-            vendorType = null,
             rating = 4.5,
             totalReviews = "950",
             services = listOf("Lawn", "Lighting", "Catering"),
@@ -56,10 +45,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=9"
             )
         ),
-        VendorCardData(
-            vendorName = "Grand Celebration Hall",
+        Venue(
+            name = "Grand Celebration Hall",
             location = "Kankarbagh, Patna",
-            vendorType = null,
             rating = 4.3,
             totalReviews = "720",
             services = listOf("Stage", "Decoration", "Parking"),
@@ -70,10 +58,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=12"
             )
         ),
-        VendorCardData(
-            vendorName = "Maharaja Banquet",
+        Venue(
+            name = "Maharaja Banquet",
             location = "Ashiana Nagar, Patna",
-            vendorType = null,
             rating = 4.2,
             totalReviews = "530",
             services = listOf("DJ", "Lighting", "Catering"),
@@ -85,10 +72,9 @@ object MockData {
             ),
             enquiriesLastMonth = 90
         ),
-        VendorCardData(
-            vendorName = "Lotus Convention Center",
+        Venue(
+            name = "Lotus Convention Center",
             location = "Patliputra Colony, Patna",
-            vendorType = null,
             rating = 4.6,
             totalReviews = "1.2k",
             services = listOf("AC Hall", "Decoration", "Parking"),
@@ -99,10 +85,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=18"
             )
         ),
-        VendorCardData(
-            vendorName = "Golden Leaf Banquet",
+        Venue(
+            name = "Golden Leaf Banquet",
             location = "Saguna More, Patna",
-            vendorType = null,
             rating = 4.1,
             totalReviews = "610",
             services = listOf("Stage", "AC Hall", "Decor"),
@@ -113,10 +98,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=21"
             )
         ),
-        VendorCardData(
-            vendorName = "Royal Heritage Lawn",
+        Venue(
+            name = "Royal Heritage Lawn",
             location = "Bihta, Patna",
-            vendorType = null,
             rating = 4.4,
             totalReviews = "770",
             services = listOf("Outdoor Lawn", "Lighting", "Parking"),
@@ -130,10 +114,9 @@ object MockData {
     )
 
     val sampleVenues2 = listOf(
-        VendorCardData(
-            vendorName = "Shahi Garden",
+        Venue(
+            name = "Shahi Garden",
             location = "Phulwari Sharif, Patna",
-            vendorType = null,
             rating = 4.1,
             totalReviews = "610",
             services = listOf("Lawn", "Decoration", "Parking"),
@@ -144,10 +127,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=27"
             )
         ),
-        VendorCardData(
-            vendorName = "Celebration Banquet",
+        Venue(
+            name = "Celebration Banquet",
             location = "Patliputra Colony, Patna",
-            vendorType = null,
             rating = 4.3,
             totalReviews = "700",
             services = listOf("AC Hall", "DJ", "Catering"),
@@ -158,10 +140,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=30"
             )
         ),
-        VendorCardData(
-            vendorName = "Green Valley Resort",
+        Venue(
+            name = "Green Valley Resort",
             location = "Danapur, Patna",
-            vendorType = null,
             rating = 4.5,
             totalReviews = "850",
             services = listOf("Resort Stay", "Pool", "Catering"),
@@ -172,10 +153,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=33"
             )
         ),
-        VendorCardData(
-            vendorName = "Royal Palace Hall",
+        Venue(
+            name = "Royal Palace Hall",
             location = "Boring Road, Patna",
-            vendorType = null,
             rating = 4.0,
             totalReviews = "540",
             services = listOf("Stage", "Lighting", "Parking"),
@@ -186,10 +166,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=36"
             )
         ),
-        VendorCardData(
-            vendorName = "Grand Lotus Banquet",
+        Venue(
+            name = "Grand Lotus Banquet",
             location = "Kankarbagh, Patna",
-            vendorType = null,
             rating = 4.2,
             totalReviews = "620",
             services = listOf("Decoration", "DJ", "AC Hall"),
@@ -200,10 +179,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=39"
             )
         ),
-        VendorCardData(
-            vendorName = "Silver Oak Lawn",
+        Venue(
+            name = "Silver Oak Lawn",
             location = "Saguna More, Patna",
-            vendorType = null,
             rating = 4.3,
             totalReviews = "710",
             services = listOf("Outdoor Lawn", "Lighting", "Catering"),
@@ -214,10 +192,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=42"
             )
         ),
-        VendorCardData(
-            vendorName = "Emerald Garden",
+        Venue(
+            name = "Emerald Garden",
             location = "Ashiana Nagar, Patna",
-            vendorType = null,
             rating = 4.4,
             totalReviews = "760",
             services = listOf("Garden Venue", "Decor", "Parking"),
@@ -228,10 +205,9 @@ object MockData {
                 "https://picsum.photos/800/400?random=45"
             )
         ),
-        VendorCardData(
-            vendorName = "Grand Palace Banquet",
+        Venue(
+            name = "Grand Palace Banquet",
             location = "Patna City, Patna",
-            vendorType = null,
             rating = 4.1,
             totalReviews = "500",
             services = listOf("AC Hall", "Decoration", "Stage"),
@@ -245,15 +221,14 @@ object MockData {
     )
 
     // Generator function that constructs robust mock detail screens for any given card.
-    fun getDetailsForVendor(vendor: VendorCardData, similar: List<VendorCardData>): VenueDetailData {
-        val detailImages = vendor.images.toMutableList()
+    fun getDetailsForVenue(venue: Venue, similar: List<Venue>): Venue {
+        val detailImages = venue.images.toMutableList()
         // Ensure we have at least 4 unique gallery image placeholders for the 4-grid layout
         while (detailImages.size < 4) {
             detailImages.add("https://picsum.photos/800/600?random=${(100..999).random()}")
         }
 
-        return VenueDetailData(
-            vendorCard = vendor,
+        return venue.copy(
             mediaItems = listOf(
                 VenueMediaItem(url = detailImages[0], isVideo = false),
                 VenueMediaItem(url = detailImages[1], isVideo = true, videoDuration = "0:45"),
@@ -263,14 +238,14 @@ object MockData {
             pricingItems = listOf(
                 VenuePricingItem(
                     title = "Veg Package Plate",
-                    price = vendor.priceStartsFrom,
+                    price = venue.priceStartsFrom,
                     unit = "Per Plate",
                     iconRes = R.drawable.ic_gallery, // Fallback drawable identifier
                     labelText = "Standard Entry Package"
                 ),
                 VenuePricingItem(
                     title = "Non-Veg Package Plate",
-                    price = "₹" + ((vendor.priceStartsFrom.replace("₹", "").replace(",", "").toIntOrNull() ?: 2000) + 400).toString(),
+                    price = "₹" + ((venue.priceStartsFrom.replace("₹", "").replace(",", "").toIntOrNull() ?: 2000) + 400).toString(),
                     unit = "Per Plate",
                     iconRes = R.drawable.ic_gallery,
                     labelText = "Premium Culinary Tier"
@@ -300,13 +275,13 @@ object MockData {
                     iconRes = R.drawable.ic_gallery
                 )
             ),
-            aboutText = "${vendor.vendorName} located around ${vendor.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams.",
+            aboutText = "${venue.name} located around ${venue.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams.",
             galleryCategories = listOf(
-                GalleryCategoryData(
+                VenueGalleryCategory(
                     categoryName = "All Photos",
                     imageUrls = detailImages
                 ),
-                GalleryCategoryData(
+                VenueGalleryCategory(
                     categoryName = "Decor",
                     imageUrls = listOf(
                         "https://picsum.photos/800/400?random=101",
@@ -315,7 +290,7 @@ object MockData {
                         "https://picsum.photos/800/400?random=104"
                     )
                 ),
-                GalleryCategoryData(
+                VenueGalleryCategory(
                     categoryName = "Seating Layout",
                     imageUrls = listOf(
                         "https://picsum.photos/800/400?random=105",
@@ -324,7 +299,7 @@ object MockData {
                         "https://picsum.photos/800/400?random=108"
                     )
                 ),
-                GalleryCategoryData(
+                VenueGalleryCategory(
                     categoryName = "Food & Catering",
                     imageUrls = listOf(
                         "https://picsum.photos/800/400?random=109",
@@ -336,26 +311,19 @@ object MockData {
             ),
             reviewsData = VenueReviewsData(
                 ratingBreakdown = listOf(
-                    RatingBreakdownItemData(score = "4.8", label = "Food Quality"),
-                    RatingBreakdownItemData(score = "4.5", label = "Staff Behavior"),
-                    RatingBreakdownItemData(score = "4.2", label = "Location Space")
+                    VenueRatingBreakdown(score = "4.8", label = "Food Quality"),
+                    VenueRatingBreakdown(score = "4.5", label = "Staff Behavior"),
+                    VenueRatingBreakdown(score = "4.2", label = "Location Space")
                 ),
                 reviews = listOf(
-                    VenueReviewItem(
+                    VenueReview(
                         userName = "Amit Kumar",
                         userAvatarUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=100",
                         rating = 4.5,
                         relativeTime = "2 weeks ago",
                         reviewText = "Highly satisfied with the services. The food was absolutely stellar, and managing the event flow with the staff coordinators was exceptionally smooth."
                     ),
-                    VenueReviewItem(
-                        userName = "Priya Singh",
-                        userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100",
-                        rating = 4.0,
-                        relativeTime = "1 month ago",
-                        reviewText = "Beautiful interior arrangement and lightning facilities. The air conditioning was working well even during extreme summer peak days."
-                    ),
-                    VenueReviewItem(
+                    VenueReview(
                         userName = "Priya Singh",
                         userAvatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=100",
                         rating = 4.0,
@@ -363,16 +331,16 @@ object MockData {
                         reviewText = "Beautiful interior arrangement and lightning facilities. The air conditioning was working well even during extreme summer peak days."
                     )
                 )
-            ),
-            similarVenues = similar.filter { it.vendorName != vendor.vendorName }
+            )
+            // similarVenues logic can be added if needed in a more production-like way
         )
     }
 
     // Lazy mapped details for quick retrieval
-    val venueDetailsMap: Map<String, VenueDetailData> by lazy {
+    val venueDetailsMap: Map<String, Venue> by lazy {
         val fullList = sampleVenues1 + sampleVenues2
         fullList.associate { venue ->
-            venue.vendorName to getDetailsForVendor(venue, fullList)
+            venue.name to getDetailsForVenue(venue, fullList)
         }
     }
 }
