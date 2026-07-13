@@ -31,15 +31,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.ChecklistItem
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.theme.*
-import java.util.UUID
-
-data class ChecklistItem(
-    val id: String = UUID.randomUUID().toString(),
-    val text: String = "",
-    val isChecked: Boolean = false
-)
 
 @Composable
 fun ChecklistItem(
@@ -68,9 +62,9 @@ fun ChecklistItem(
 
         // Custom Checker
         CustomChecker(
-            checked = item.isChecked,
+            checked = item.checked,
             onCheckedChange = onCheckedChange,
-            enabled = !item.isChecked
+            enabled = !item.checked
         )
         Spacer(Modifier.width(12.dp))
 
@@ -90,8 +84,8 @@ fun ChecklistItem(
                     .onFocusChanged { isFocused = it.isFocused },
                 textStyle = JasnifyTheme.typography.headingMedium.merge(
                     TextStyle(
-                        color = if (item.isChecked) ContentSecondary else ContentPrimary,
-                        textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
+                        color = if (item.checked) ContentSecondary else ContentPrimary,
+                        textDecoration = if (item.checked) TextDecoration.LineThrough else TextDecoration.None
                     )
                 ),
                 singleLine = true,
@@ -129,10 +123,6 @@ fun ChecklistItem(
     }
 }
 
-
-
-
-
 // --------------------------------------------- Preview ------------------------------------
 
 @Preview(showBackground = true, backgroundColor = 0xFFFFFFFF)
@@ -141,9 +131,9 @@ private fun CheckListBarPreview() {
     var items by remember {
         mutableStateOf(
             listOf(
-                ChecklistItem(id = "1", text = "Design the Jasnify core theme", isChecked = false),
-                ChecklistItem(id = "2", text = "Create custom composable widgets", isChecked = true),
-                ChecklistItem(id = "3", text = "", isChecked = false)
+                ChecklistItem(id = "1", text = "Design the Jasnify core theme", checked = false),
+                ChecklistItem(id = "2", text = "Create custom composable widgets", checked = true),
+                ChecklistItem(id = "3", text = "", checked = false)
             )
         )
     }
@@ -162,7 +152,7 @@ private fun CheckListBarPreview() {
                     items = items.map { if (it.id == item.id) it.copy(text = newText) else it }
                 },
                 onCheckedChange = { isChecked ->
-                    items = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
+                    items = items.map { if (it.id == item.id) it.copy(checked = isChecked) else it }
                 },
                 onRemove = {
                     items = items.filter { it.id != item.id }

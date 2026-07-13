@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
@@ -57,7 +58,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.Checklist
+import com.harshdeep.jasnify.domain.model.ChecklistItem
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
@@ -70,21 +76,18 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.Checklist
 import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
-import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.others.CustomToast
-import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.domain.model.User
-import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
-import com.harshdeep.jasnify.presentation.components.others.ToastData
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
-import kotlinx.coroutines.delay
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.theme.*
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
@@ -100,8 +103,12 @@ sealed interface ChecklistScreenState {
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ChecklistsTab(
+    viewModel: ChecklistViewModel = hiltViewModel(),
     onBottomBarVisibilityChange: (Boolean) -> Unit = {}
 ) {
+    val checklists by viewModel.checklists.collectAsState()
+    val archivedChecklists by viewModel.archivedChecklists.collectAsState()
+
     var isGridView by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("All") }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -203,72 +210,6 @@ fun ChecklistsTab(
         }
     }
 
-    val checklists = remember {
-        mutableStateListOf(
-            Checklist(
-                id = "1",
-                title = "Shopping for Bride",
-                dateTime = "Today, 09:30 PM",
-                items = listOf(
-                    ChecklistItem(text = "Purchase Outfits"),
-                    ChecklistItem(text = "Make Appointment for Makeup"),
-                    ChecklistItem(text = "Book Jewellery")
-                ),
-                bgColor = SoftMint,
-                isPinned = true
-            ),
-            Checklist(
-                id = "2",
-                title = "Catering Arrangement",
-                dateTime = "Today, 10:28 AM",
-                items = listOf(
-                    ChecklistItem(text = "Confirm Menu Selection"),
-                    ChecklistItem(text = "Finalize Guest List"),
-                    ChecklistItem(text = "Arrange Table Settings")
-                ),
-                bgColor = PaleLavender
-            ),
-            Checklist(
-                id = "3",
-                title = "Saturday To-Dos",
-                dateTime = "Yesterday, 04:50 PM",
-                items = listOf(
-                    ChecklistItem(text = "Pick up floral arrangements"),
-                    ChecklistItem(text = "Confirm limousine service booking"),
-                    ChecklistItem(text = "Finalize seating chart presentation")
-                ),
-                bgColor = SoftPeach
-            )
-        )
-    }
-
-    val archivedChecklists = remember {
-        mutableStateListOf(
-            Checklist(
-                id = "archived_1",
-                title = "Audio-Visual Setup",
-                dateTime = "Yesterday, 9:00 AM",
-                items = listOf(
-                    ChecklistItem(text = "Test Equipment"),
-                    ChecklistItem(text = "Confirm Speaker Arrangements"),
-                    ChecklistItem(text = "Check Lighting Levels")
-                ),
-                bgColor = PaleLavender
-            ),
-            Checklist(
-                id = "archived_2",
-                title = "Guest Transportation",
-                dateTime = "Yesterday, 11:00 AM",
-                items = listOf(
-                    ChecklistItem(text = "Book Shuttle Services"),
-                    ChecklistItem(text = "Verify Arrival Times"),
-                    ChecklistItem(text = "Coordinate with Drivers")
-                ),
-                bgColor = SoftPeach
-            )
-        )
-    }
-
     // Determine bottom sheet/dialog visibility parameters dynamically
     val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || (userToRemove != null)
 
@@ -298,17 +239,7 @@ fun ChecklistsTab(
                                     if (isEmpty && targetScreenState.isAddingNew) {
                                         showDiscardToast = true
                                     } else if (updatedChecklist.title.isNotBlank() || updatedChecklist.items.isNotEmpty()) {
-                                        val index = checklists.indexOfFirst { it.id == updatedChecklist.id }
-                                        if (index != -1) {
-                                            checklists[index] = updatedChecklist
-                                        } else {
-                                            val archIndex = archivedChecklists.indexOfFirst { it.id == updatedChecklist.id }
-                                            if (archIndex != -1) {
-                                                archivedChecklists[archIndex] = updatedChecklist
-                                            } else {
-                                                checklists.add(0, updatedChecklist)
-                                            }
-                                        }
+                                        viewModel.saveChecklist(updatedChecklist)
                                     }
                                 }
                                 selectedChecklist = null
@@ -320,8 +251,7 @@ fun ChecklistsTab(
                             },
                             onDelete = { id ->
                                 focusManager.clearFocus()
-                                checklists.removeAll { it.id == id }
-                                archivedChecklists.removeAll { it.id == id }
+                                viewModel.deleteChecklist(id)
                                 selectedChecklist = null
                                 isAddingNew = false
                                 if (navigatedFromArchives) {
@@ -329,25 +259,12 @@ fun ChecklistsTab(
                                     navigatedFromArchives = false
                                 }
                             },
-                            onTogglePin = { id ->
-                                val index = checklists.indexOfFirst { it.id == id }
-                                if (index != -1) {
-                                    checklists[index] = checklists[index].copy(isPinned = !checklists[index].isPinned)
-                                }
+                            onTogglePin = { checklist ->
+                                viewModel.togglePin(checklist)
                             },
-                            onArchive = { id ->
+                            onArchive = { checklist ->
                                 focusManager.clearFocus()
-                                val index = checklists.indexOfFirst { it.id == id }
-                                if (index != -1) {
-                                    val item = checklists.removeAt(index)
-                                    archivedChecklists.add(0, item.copy(isPinned = false))
-                                } else {
-                                    val archIndex = archivedChecklists.indexOfFirst { it.id == id }
-                                    if (archIndex != -1) {
-                                        val item = archivedChecklists.removeAt(archIndex)
-                                        checklists.add(0, item)
-                                    }
-                                }
+                                viewModel.toggleArchive(checklist)
                                 selectedChecklist = null
                                 isAddingNew = false
                                 if (navigatedFromArchives) {
@@ -574,9 +491,9 @@ fun ChecklistsTab(
                                                 it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
                                     }.let { list ->
                                         when (selectedFilter) {
-                                            "Recent First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenByDescending { it.dateTime })
-                                            "Oldest First" -> list.sortedWith(compareByDescending<Checklist> { it.isPinned }.thenBy { it.dateTime })
-                                            else -> list.sortedByDescending { it.isPinned }
+                                            "Recent First" -> list.sortedWith(compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated })
+                                            "Oldest First" -> list.sortedWith(compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated })
+                                            else -> list.sortedByDescending { it.pinned }
                                         }
                                     }
                                 }
@@ -815,8 +732,8 @@ fun ChecklistDetailScreen(
     isAddingNew: Boolean = false,
     onBackClick: (Checklist?) -> Unit,
     onDelete: (String) -> Unit = {},
-    onTogglePin: (String) -> Unit = {},
-    onArchive: (String) -> Unit = {},
+    onTogglePin: (Checklist) -> Unit = {},
+    onArchive: (Checklist) -> Unit = {},
     isArchived: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -834,9 +751,9 @@ fun ChecklistDetailScreen(
         )
     }
 
-    var bgColor by remember { mutableStateOf(checklist?.bgColor ?: SoftMint) }
+    var bgColor by remember { mutableStateOf(Color(checklist?.bgColorHex ?: SoftMint.toArgb().toLong())) }
     var colorBeforePicker by remember { mutableStateOf(bgColor) }
-    var isPinned by remember { mutableStateOf(checklist?.isPinned ?: false) }
+    var pinned by remember { mutableStateOf(checklist?.pinned ?: false) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -921,8 +838,9 @@ fun ChecklistDetailScreen(
             title = title,
             dateTime = cardDateTimeString,
             items = cleanedItems,
-            bgColor = bgColor,
-            isPinned = isPinned
+            bgColorHex = bgColor.toArgb().toLong(),
+            pinned = pinned,
+            lastUpdated = System.currentTimeMillis()
         )
         onBackClick(result)
     }
@@ -970,17 +888,18 @@ fun ChecklistDetailScreen(
                             title = title,
                             dateTime = cardDateTimeString,
                             items = cleanedItems,
-                            bgColor = bgColor,
-                            isPinned = isPinned
+                            bgColorHex = bgColor.toArgb().toLong(),
+                            pinned = pinned,
+                            lastUpdated = System.currentTimeMillis()
                         )
                         onBackClick(result)
                     },
                     backIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_check)),
-                    secondaryIcon =  if(isPinned) TopIcon.Predefined.PIN_FILLED else TopIcon.Predefined.PIN,
+                    secondaryIcon =  if(pinned) TopIcon.Predefined.PIN_FILLED else TopIcon.Predefined.PIN,
                     onSecondaryClick = {
                         focusManager.clearFocus()
-                        isPinned = !isPinned
-                        checklist?.id?.let { onTogglePin(it) }
+                        pinned = !pinned
+                        checklist?.let { onTogglePin(it) }
                     },
                     onMenuClick = {
                         focusManager.clearFocus()
@@ -1092,7 +1011,7 @@ fun ChecklistDetailScreen(
                                     saveToHistory(title, updated)
                                 },
                                 onCheckedChange = { isChecked ->
-                                    val updated = items.map { if (it.id == item.id) it.copy(isChecked = isChecked) else it }
+                                    val updated = items.map { if (it.id == item.id) it.copy(checked = isChecked) else it }
                                     items = updated
                                     saveToHistory(title, updated)
                                 },
@@ -1230,7 +1149,7 @@ fun ChecklistDetailScreen(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenu = false
-                            checklist?.id?.let { onArchive(it) }
+                            checklist?.let { onArchive(it) }
                         }
                     )
                 ),
@@ -1284,8 +1203,8 @@ fun ChecklistArchivesScreen(
                     it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
         }.let { list ->
             when (selectedFilter) {
-                "Recent First" -> list.sortedByDescending { it.dateTime }
-                "Oldest First" -> list.sortedBy { it.dateTime }
+                "Recent First" -> list.sortedByDescending { it.lastUpdated }
+                "Oldest First" -> list.sortedBy { it.lastUpdated }
                 else -> list
             }
         }
