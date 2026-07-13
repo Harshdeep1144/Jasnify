@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home.tabs
+package com.harshdeep.jasnify.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
