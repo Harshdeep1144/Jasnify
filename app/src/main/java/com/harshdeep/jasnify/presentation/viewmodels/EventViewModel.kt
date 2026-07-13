@@ -3,7 +3,6 @@ package com.harshdeep.jasnify.presentation.viewmodels
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.harshdeep.jasnify.data.models.EventData
 import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.domain.model.SubEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,6 +11,28 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+
+import java.util.UUID
+
+data class SubEventItem(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val date: Long? = null,
+    val dateString: String = "",
+    val isEditing: Boolean = false,
+    val isExisting: Boolean = false,
+    val isCompleted: Boolean = false
+)
+
+data class EventCreateUiState(
+    val selectedEventTypeId: Int? = null,
+    val eventName: String = "",
+    val isMultiDay: Boolean? = null,
+    val singleDayDate: Long? = null,
+    val singleDayDateString: String? = null,
+    val subEvents: List<SubEventItem> = listOf(SubEventItem(isEditing = true)),
+    val budget: String = ""
+)
 
 sealed class EventCreationState {
     object Idle : EventCreationState()
@@ -66,7 +87,7 @@ class EventViewModel @Inject constructor(
     /**
      * Saves the event data to Cloud Firestore.
      */
-    fun saveEventData(eventData: EventData) {
+    fun saveEventData(eventData: EventCreateUiState) {
         val user = auth.currentUser
         if (user == null) {
             _eventState.value = EventCreationState.Error("Login to save event.")

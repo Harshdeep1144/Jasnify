@@ -32,16 +32,15 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
-import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceInvPrimary
@@ -53,7 +52,6 @@ import java.time.format.DateTimeFormatter
 
 @RequiresApi(Build.VERSION_CODES.O)
 private val DisplayDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-
 private enum class TimelineState {
     EDITING,
     DISPLAY,

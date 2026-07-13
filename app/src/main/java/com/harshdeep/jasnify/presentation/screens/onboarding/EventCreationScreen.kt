@@ -30,8 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.models.EventData
-import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
@@ -53,6 +51,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.viewmodels.EventCreateUiState
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 
 @RequiresApi(Build.VERSION_CODES.O)
 private val DisplayDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
@@ -93,7 +93,7 @@ fun EventCreation(
 
     var eventData by remember {
         mutableStateOf(
-            EventData(
+            EventCreateUiState(
                 isMultiDay = true,
                 subEvents = listOf(
                     SubEventItem(
@@ -367,7 +367,7 @@ fun EventCreation(
                                     .using(SizeTransform(clip = false))
                             }, label = "Step Transition"
                         ) { (targetStep, _) ->
-                            val updateEventData: (EventData) -> Unit =
+                            val updateEventData: (EventCreateUiState) -> Unit =
                                 { updatedData -> eventData = updatedData }
 
                             when (targetStep) {
@@ -445,8 +445,8 @@ fun EventCreation(
 // ---------------------   Event Type Content -------------------------------------
 @Composable
 fun EventTypeContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit
 ) {
     val scrollState = rememberScrollState()
 
@@ -490,8 +490,8 @@ fun EventTypeContent(
 // ---------------------   Event Name Content -------------------------------------
 @Composable
 fun EventNameContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -531,8 +531,8 @@ fun EventNameContent(
 // ---------------------   Event Days Content -------------------------------------
 @Composable
 fun EventDaysContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit
 ) {
     val options = listOf(
         Pair("Yes, Multiple Days", "The event is spread across multiple days."),
@@ -578,8 +578,8 @@ fun EventDaysContent(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EventSingleDayContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit,
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit
 ) {
     var isDatePickerVisible by remember { mutableStateOf(false) }
@@ -695,8 +695,8 @@ fun EventSingleDayContent(
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EventMultiDayContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit,
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit,
     onInfoClick: () -> Unit
 ) {
@@ -813,8 +813,8 @@ fun EventMultiDayContent(
 // ---------------------   Event Budget Content -------------------------------------
 @Composable
 fun EventBudgetContent(
-    eventData: EventData,
-    updateEventData: (EventData) -> Unit,
+    eventData: EventCreateUiState,
+    updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit
 ) {
     Column(
