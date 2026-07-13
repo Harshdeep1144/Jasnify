@@ -120,31 +120,35 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.data.models.eventTypes
+import java.time.Instant
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EventDetailsScreen(
     onBackClick: () -> Unit,
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val eventId = "OBFEQO2"
-    val eventType = "Wedding"
+    val activeEvent by eventViewModel.activeEvent.collectAsState()
 
-    // --- Toast State ---
-    var toastData by remember { mutableStateOf(ToastData()) }
-    LaunchedEffect(toastData.message) {
-        if (toastData.message != null) {
-            delay(2000L.milliseconds)
-            toastData = toastData.copy(message = null)
-        }
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
     }
+
+    var eventId by remember { mutableStateOf("...") }
+    var eventType by remember { mutableStateOf("...") }
 
     // Core dynamic values driven by state
     var timelineType by remember { mutableStateOf("Multi-day") }
-    var primaryEventName by remember { mutableStateOf("Taylor & Travis's Wedding") }
+    var primaryEventName by remember { mutableStateOf("") }
     var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
 
     // Bottom Sheet Control States
@@ -160,7 +164,7 @@ fun EventDetailsScreen(
     var onDateSelectedCallback by remember { mutableStateOf<((LocalDate) -> Unit)?>(null) }
 
     // Secondary navigation steps inside bottom sheet
-    var bottomSheetStep by remember { mutableStateOf(0) }
+    var bottomSheetStep by remember { mutableIntStateOf(0) }
     var tempTimelineType by remember { mutableStateOf(timelineType) }
     var pickDateSegmentSelected by remember { mutableStateOf(true) } // true: "Pick a date", false: "Not yet decided"
     var tempSelectedDateString by remember { mutableStateOf<String?>(null) }
@@ -179,17 +183,50 @@ fun EventDetailsScreen(
     var isExistingEventName by remember { mutableStateOf(true) }
 
     val timelineItems = remember {
-        mutableStateListOf(
-            SubEventItem(id = "1", date = "09th Sept, 2025", name = "Mehendi Ceremony", isExisting = true),
-            SubEventItem(id = "3", date = "12th Sept, 2025", name = "The Wedding Day", isExisting = true),
-            SubEventItem(id = "2", date = "10th Sept, 2025", name = "Haldi & Sangeet Ceremony", isExisting = true)
-        ).apply {
-            val parsed = associate { it.id to parseFormattedDate(it.date) }
-            sortBy { parsed[it.id] }
+        mutableStateListOf<SubEventItem>()
+    }
+
+    LaunchedEffect(activeEvent) {
+        activeEvent?.let { event ->
+            eventId = event.id.take(8).uppercase()
+            primaryEventName = event.name
+            timelineType = if (event.isMultiDay) "Multi-day" else "Single-day"
+            eventType = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+
+            val uiSubEvents = event.subEvents.map { subEvent ->
+                val dateStr = subEvent.date?.let {
+                    formatToOrdinalDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                } ?: ""
+                SubEventItem(
+                    id = subEvent.id,
+                    name = subEvent.name,
+                    date = subEvent.date,
+                    dateString = dateStr,
+                    isExisting = true,
+                    isEditing = false,
+                    isCompleted = subEvent.isCompleted
+                )
+            }
+
+            timelineItems.clear()
+            timelineItems.addAll(uiSubEvents)
+            val parsed = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
+            timelineItems.sortBy { parsed[it.id] }
+
+            if (!event.isMultiDay && event.date != null) {
+                singleDaySelectedDate = formatToOrdinalDate(Instant.ofEpochMilli(event.date).atZone(ZoneId.systemDefault()).toLocalDate())
+            }
         }
     }
 
-    val nextNewId = remember { mutableIntStateOf(4) }
+    // --- Toast State ---
+    var toastData by remember { mutableStateOf(ToastData()) }
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(2000L.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
 
     // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
     val hasUnsavedEditingItem by remember {
@@ -465,8 +502,8 @@ fun EventDetailsScreen(
                                             timelineItems.add(
                                                 0,
                                                 SubEventItem(
-                                                    id = "new-${nextNewId.value++}",
-                                                    date = "",
+                                                    id = java.util.UUID.randomUUID().toString(),
+                                                    dateString = "",
                                                     name = "",
                                                     isExisting = false,
                                                     isEditing = true
@@ -555,12 +592,12 @@ fun EventDetailsScreen(
 
                                             // Trigger chronological sort instantly when date is picked (even during editing)
                                             if (oldItem.date != updatedItem.date || (!updatedItem.isEditing && oldItem.isEditing)) {
-                                                val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.date) }
+                                                val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
 
                                                 val sorted = timelineItems.sortedWith(
                                                     compareBy<SubEventItem> {
                                                         // Keep empty/undated/newly added items at the very top (index 0) so they can be edited cleanly
-                                                        if (it.date.isBlank() || it.date == "Not yet decided" || it.date == "Select a date") 0 else 1
+                                                        if (it.dateString.isBlank() || it.dateString == "Not yet decided" || it.dateString == "Select a date") 0 else 1
                                                     }.thenBy {
                                                         parsedDates[it.id] ?: LocalDate.MAX
                                                     }
@@ -1083,7 +1120,7 @@ fun EventDetailsScreen(
                                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                                             ) {
                                                 itemsIndexed(timelineItems) { index, item ->
-                                                    val isDateSelected = draftSavedDateString == item.date
+                                                    val isDateSelected = draftSavedDateString == item.dateString
 
                                                     // Dynamic Shape per element matching hierarchy rules
                                                     val rowShape = when {
@@ -1111,7 +1148,7 @@ fun EventDetailsScreen(
                                                             .clip(rowShape)
                                                             .background(rowBgColor)
                                                             .clickable {
-                                                                draftSavedDateString = item.date
+                                                                draftSavedDateString = item.dateString
                                                             }
                                                             .padding(16.dp),
                                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1119,7 +1156,7 @@ fun EventDetailsScreen(
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             Text(
-                                                                text = item.date.ifEmpty { "Undated Ceremony" },
+                                                                text = item.dateString.ifEmpty { "Undated Ceremony" },
                                                                 style = JasnifyTheme.typography.labelXLarge,
                                                                 color = ContentBrandDark
                                                             )
@@ -1133,7 +1170,7 @@ fun EventDetailsScreen(
 
                                                         CustomTextButton(
                                                             onClick = {
-                                                                draftSavedDateString = item.date
+                                                                draftSavedDateString = item.dateString
                                                             },
                                                             text = buttonText,
                                                             contentColor = buttonContentColor,
@@ -1233,9 +1270,6 @@ fun EventDetailsScreen(
 // ========================================================= Helper Functions & Utilities ===========================================================
 
 @RequiresApi(Build.VERSION_CODES.O)
-private val DateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM, yyyy", Locale.ENGLISH)
-
-@RequiresApi(Build.VERSION_CODES.O)
 fun parseFormattedDate(dateStr: String?): LocalDate {
     if (dateStr.isNullOrBlank() || dateStr == "Not yet decided" || dateStr == "Select a date") {
         // Return maximum bound so undecided/empty items sort naturally to the bottom
@@ -1252,10 +1286,12 @@ fun parseFormattedDate(dateStr: String?): LocalDate {
             .replaceFirst("nd", "")
             .replaceFirst("rd", "")
             .replace("Sept", "Sep")
+            .replace(",", "")
             .trim()
 
         val cleanedStr = "${dayPart.padStart(2, '0')} $cleanedRemaining"
-        LocalDate.parse(cleanedStr, DateFormatter)
+        val formatterWithoutComma = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+        LocalDate.parse(cleanedStr, formatterWithoutComma)
     } catch (e: Exception) {
         LocalDate.MAX
     }

@@ -84,14 +84,15 @@ fun TimeLineInput(
     LaunchedEffect(selectedDate) {
         selectedDate?.let { date ->
             val formattedDate = date.format(DisplayDateFormatter)
-            tempItemState = tempItemState.copy(date = formattedDate)
+            val timestamp = date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            tempItemState = tempItemState.copy(date = timestamp, dateString = formattedDate)
         }
     }
 
     // Determine the active state of the component
     val currentState = when {
         tempItemState.isEditing -> TimelineState.EDITING
-        tempItemState.date.isEmpty() && tempItemState.name.isEmpty() -> TimelineState.EMPTY
+        tempItemState.dateString.isEmpty() && tempItemState.name.isEmpty() -> TimelineState.EMPTY
         else -> TimelineState.DISPLAY
     }
 
@@ -136,7 +137,7 @@ fun TimeLineInput(
                         onUpdate(tempItemState.copy(isEditing = false, isExisting = true))
                     },
                     onCancel = {
-                        if (item.date.isEmpty() && item.name.isEmpty()) {
+                        if (item.dateString.isEmpty() && item.name.isEmpty()) {
                             onDelete(item)
                         } else {
                             onUpdate(item.copy(isEditing = false))
@@ -313,9 +314,9 @@ private fun EditableTimeLineCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = item.date.ifEmpty { "Select a date" },
+                    text = item.dateString.ifEmpty { "Select a date" },
                     style = JasnifyTheme.typography.labelXLarge.copy(
-                        color = if (item.date.isEmpty()) ContentSecondary.copy(alpha = 0.7f) else ContentPrimary
+                        color = if (item.dateString.isEmpty()) ContentSecondary.copy(alpha = 0.7f) else ContentPrimary
                     ),
                     modifier = Modifier.weight(1f)
                         .clickable(
@@ -395,7 +396,7 @@ private fun EditableTimeLineCard(
                         colors = ButtonDefaults.buttonColors(containerColor = SurfaceInvPrimary),
                         shape = SquircleShape(100, CornerSmoothingDefault),
                         contentPadding = PaddingValues(16.dp, 12.dp),
-                        enabled = item.name.isNotBlank() && item.date.isNotBlank() // Ensure date is also selected
+                        enabled = item.name.isNotBlank() && item.dateString.isNotBlank() // Ensure date is also selected
                     ) {
                         Text("Done", style = JasnifyTheme.typography.labelLarge.copy(ContentInvPrimary))
                     }
@@ -467,7 +468,7 @@ private fun DisplayTimeLine(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
-                val dateText = item.date.ifEmpty { "Date not set" }
+                val dateText = item.dateString.ifEmpty { "Date not set" }
 
                 Text(
                     text = dateText,
@@ -503,9 +504,9 @@ fun TimeLineInputPreview() {
     MaterialTheme() {
         val items = remember {
             mutableStateListOf(
-                SubEventItem(id = "1", date = "15 Oct 2025", name = "Project Review Meeting", isExisting = true),
-                SubEventItem(id = "2", date = "20 Nov 2025", name = "Final Deadline Prep", isExisting = true, isEditing = true),
-                SubEventItem(id = "3", date = "", name = "", isExisting = false, isEditing = false)
+                SubEventItem(id = "1", dateString = "15 Oct 2025", name = "Project Review Meeting", isExisting = true),
+                SubEventItem(id = "2", dateString = "20 Nov 2025", name = "Final Deadline Prep", isExisting = true, isEditing = true),
+                SubEventItem(id = "3", dateString = "", name = "", isExisting = false, isEditing = false)
             )
         }
 

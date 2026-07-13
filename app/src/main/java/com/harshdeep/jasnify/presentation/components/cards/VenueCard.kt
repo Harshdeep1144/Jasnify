@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.CloudWhisper
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -78,29 +79,14 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 
-data class VendorCardData(
-    val vendorName: String,
-    val location: String,
-    val vendorType: String? = null,
-    val rating: Double,
-    val totalReviews: String,
-    val services: List<String>,
-    val priceStartsFrom: String,
-    val images: List<String> = listOf(),
-    val enquiriesLastMonth: Int = 0,
-    val isFavorite: Boolean = false,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
 enum class CompactCardSize {
-    MEDIUM,
-    SMALL
+    SMALL, MEDIUM
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun VendorCardFull(
-    vendor: VendorCardData,
+fun VenueCardFull(
+    venue: Venue,
     modifier: Modifier = Modifier,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
@@ -108,7 +94,7 @@ fun VendorCardFull(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
-    val actualPageCount = vendor.images.size
+    val actualPageCount = venue.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
     val initialPage =
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
@@ -134,7 +120,7 @@ fun VendorCardFull(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .vendorShadow(borderRadius = 20.dp),
+            .venueShadow(borderRadius = 20.dp),
         shape = SquircleShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
     ) {
@@ -145,7 +131,7 @@ fun VendorCardFull(
                         .fillMaxWidth()
                         .height(230.dp)
                         .sharedElement(
-                            rememberSharedContentState(key = "image_${vendor.vendorName}"),
+                            rememberSharedContentState(key = "image_${venue.name}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                 }
@@ -161,8 +147,8 @@ fun VendorCardFull(
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                    val imageUrl = vendor.images.getOrNull(actualIndex) ?: ""
-                    VendorImage(
+                    val imageUrl = venue.images.getOrNull(actualIndex) ?: ""
+                    VenueImage(
                         url = imageUrl,
                         modifier = Modifier
                             .fillMaxSize()
@@ -186,7 +172,7 @@ fun VendorCardFull(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (vendor.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -197,7 +183,7 @@ fun VendorCardFull(
                     )
                 }
 
-                val hasEnquiries = vendor.enquiriesLastMonth > 0
+                val hasEnquiries = venue.enquiriesLastMonth > 0
                 val dotsBottomPadding = if (hasEnquiries) (26.dp + 12.dp) else 12.dp
 
                 CarouselDots(
@@ -214,7 +200,7 @@ fun VendorCardFull(
                 )
 
                 BannerRow(
-                    vendor = vendor,
+                    venue = venue,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
@@ -227,7 +213,7 @@ fun VendorCardFull(
                     .padding(12.dp),
             ) {
                 Text(
-                    text = vendor.vendorName,
+                    text = venue.name,
                     style = JasnifyTheme.typography.headingLarge,
                     color = ContentPrimary
                 )
@@ -247,17 +233,17 @@ fun VendorCardFull(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = vendor.location,
+                            text = venue.location,
                             style = JasnifyTheme.typography.labelMedium,
                             color = ContentSecondary
                         )
                     }
 
-                    vendor.vendorType?.let { type ->
+                    venue.type?.let { type ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_building),
-                                contentDescription = "Vendor Type",
+                                contentDescription = "Venue Type",
                                 modifier = Modifier.size(16.dp),
                                 tint = ContentSecondary
                             )
@@ -285,7 +271,7 @@ fun VendorCardFull(
                         color = ContentSecondary
                     )
                     Text(
-                        text = vendor.priceStartsFrom,
+                        text = venue.priceStartsFrom,
                         style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                         color = ContentBrandDark
                     )
@@ -297,8 +283,8 @@ fun VendorCardFull(
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
-fun VendorCardCompact(
-    vendor: VendorCardData,
+fun VenueCardCompact(
+    venue: Venue,
     modifier: Modifier = Modifier,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
@@ -308,7 +294,7 @@ fun VendorCardCompact(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
-    val actualPageCount = vendor.images.size
+    val actualPageCount = venue.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
     val initialPage =
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
@@ -351,7 +337,7 @@ fun VendorCardCompact(
                         .height(if (isMedium) 200.dp else 160.dp)
                         .clip(SquircleShape(20.dp))
                         .sharedElement(
-                            rememberSharedContentState(key = "image_${vendor.vendorName}"),
+                            rememberSharedContentState(key = "image_${venue.name}"),
                             animatedVisibilityScope = animatedVisibilityScope
                         )
                 }
@@ -376,8 +362,8 @@ fun VendorCardCompact(
                     userScrollEnabled = false
                 ) { page ->
                     val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                    VendorImage(
-                        url = vendor.images.getOrNull(actualIndex) ?: "",
+                    VenueImage(
+                        url = venue.images.getOrNull(actualIndex) ?: "",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -396,7 +382,7 @@ fun VendorCardCompact(
                         Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentPrimary)
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${vendor.rating}",
+                            text = "${venue.rating}",
                             color = ContentPrimary,
                             style = JasnifyTheme.typography.labelSmall
                         )
@@ -412,7 +398,7 @@ fun VendorCardCompact(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (vendor.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -450,7 +436,7 @@ fun VendorCardCompact(
                 )
             ) {
                 Text(
-                    text = vendor.vendorName,
+                    text = venue.name,
                     style = if (isMedium) JasnifyTheme.typography.headingMedium else JasnifyTheme.typography.bodyLarge,
                     color = ContentPrimary,
                     maxLines = 1
@@ -458,8 +444,8 @@ fun VendorCardCompact(
                 Spacer(Modifier.height(4.dp))
 
                 LocationAndTypeRow(
-                    location = vendor.location,
-                    type = vendor.vendorType,
+                    location = venue.location,
+                    type = venue.type,
                     compactCardSize = compactCardSize
                 )
 
@@ -471,7 +457,7 @@ fun VendorCardCompact(
                         color = ContentSecondary
                     )
                     Text(
-                        text = vendor.priceStartsFrom,
+                        text = venue.priceStartsFrom,
                         style = JasnifyTheme.typography.displaySmall,
                         color = ContentPrimary,
                         fontWeight = FontWeight.Medium
@@ -483,13 +469,13 @@ fun VendorCardCompact(
 }
 
 @Composable
-private fun VendorImage(url: String, modifier: Modifier = Modifier) {
+private fun VenueImage(url: String, modifier: Modifier = Modifier) {
     AsyncImage(
         model = ImageRequest.Builder(LocalContext.current)
             .data(url)
             .crossfade(true)
             .build(),
-        contentDescription = "Vendor Image",
+        contentDescription = "Venue Image",
         modifier = modifier,
         contentScale = ContentScale.Crop,
         placeholder = painterResource(id = R.drawable.img_onboarding_4),
@@ -533,10 +519,10 @@ private fun OfferBadge(
 
 @Composable
 private fun BannerRow(
-    vendor: VendorCardData,
+    venue: Venue,
     modifier: Modifier = Modifier
 ) {
-    val hasEnquiries = vendor.enquiriesLastMonth > 0
+    val hasEnquiries = venue.enquiriesLastMonth > 0
 
     Box(
         modifier = modifier
@@ -569,7 +555,7 @@ private fun BannerRow(
                 )
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "${vendor.enquiriesLastMonth} Enquiries last month",
+                    text = "${venue.enquiriesLastMonth} Enquiries last month",
                     style = JasnifyTheme.typography.labelMedium,
                     color = Color(0xFF6D5410)
                 )
@@ -616,7 +602,7 @@ private fun BannerRow(
                 Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), Color.White)
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    text = "${vendor.rating}",
+                    text = "${venue.rating}",
                     color = ContentInvPrimary,
                     style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
                 )
@@ -672,7 +658,7 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
     }
 }
 
-fun Modifier.vendorShadow(
+fun Modifier.venueShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
 ) = this.drawBehind {
@@ -680,10 +666,10 @@ fun Modifier.vendorShadow(
         val paint = Paint().asFrameworkPaint()
 
         val layers = listOf(
-            ShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
-            ShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
-            ShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
-            ShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
+            VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
+            VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
+            VenueShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
+            VenueShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
         )
 
         layers.forEach { layer ->
@@ -708,13 +694,13 @@ fun Modifier.vendorShadow(
     }
 }
 
-private data class ShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
+private data class VenueShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewVendorCards() {
-    val sample = VendorCardData(
-        vendorName = "The Grand Palace",
+fun PreviewVenueCards() {
+    val sample = Venue(
+        name = "The Grand Palace",
         location = "Greater Noida, UP",
         rating = 4.9,
         totalReviews = "2.4k",
@@ -725,7 +711,7 @@ fun PreviewVendorCards() {
             "https://images.unsplash.com/photo-1469334031218-e382a71b716b?auto=format&fit=crop&w=800",
             "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800"
         ),
-        vendorType = "Photographer",
+        type = "Photographer",
         isFavorite = true,
         enquiriesLastMonth = 0,
         timestamp = 1718000000000L
@@ -736,12 +722,12 @@ fun PreviewVendorCards() {
             .padding(16.dp)
             .fillMaxSize()
             .background(Color(0xFFF9F9F9))) {
-            VendorCardFull(vendor = sample)
+            VenueCardFull(venue = sample)
             Spacer(Modifier.height(40.dp))
             Row(modifier = Modifier.fillMaxWidth()) {
-                VendorCardCompact(vendor = sample)
+                VenueCardCompact(venue = sample)
                 Spacer(Modifier.width(12.dp))
-                VendorCardCompact(vendor = sample, compactCardSize = CompactCardSize.SMALL)
+                VenueCardCompact(venue = sample, compactCardSize = CompactCardSize.SMALL)
             }
         }
     }

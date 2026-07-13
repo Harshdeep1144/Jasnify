@@ -28,7 +28,7 @@ import com.harshdeep.jasnify.presentation.components.cards.HomeCard
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
-import com.harshdeep.jasnify.presentation.components.sections.VendorsCarousel
+import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
@@ -206,20 +206,20 @@ fun HomeTab(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            VendorsCarousel(
+                            VenueCarousel(
                                 title = "Trending Venues in Patna",
-                                vendors = MockData.sampleVenues1,
-                                onVendorClick = { },
+                                venues = MockData.sampleVenues1,
+                                onVenueClick = { },
                                 onFavoriteToggle = { },
                                 onOfferClick = { }
                             )
 
                             Spacer(Modifier.height(12.dp))
 
-                            VendorsCarousel(
+                            VenueCarousel(
                                 title = "Trending Venues in Patna",
-                                vendors = MockData.sampleVenues2,
-                                onVendorClick = { },
+                                venues = MockData.sampleVenues2,
+                                onVenueClick = { },
                                 onFavoriteToggle = { },
                                 onOfferClick = { }
                             )
