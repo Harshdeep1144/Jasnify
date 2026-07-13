@@ -62,7 +62,7 @@ dependencies {
     implementation(libs.androidx.graphics.shapes)
     implementation(libs.foundation)
     implementation(libs.androidx.animation.core)
-    implementation(libs.firebase.database)
+    implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth.ktx)
     implementation(libs.foundation.layout)
     implementation(libs.firebase.crashlytics.buildtools)
