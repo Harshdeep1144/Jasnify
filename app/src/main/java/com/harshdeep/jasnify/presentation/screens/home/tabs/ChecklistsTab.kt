@@ -752,7 +752,24 @@ fun ChecklistDetailScreen(
         )
     }
 
-    var bgColor by remember { mutableStateOf(Color(checklist?.bgColorHex ?: SoftMint.toArgb().toLong())) }
+    // List of possible background colors for new checklists
+    val checklistColors = remember {
+        listOf(
+            CloudWhisper, SoftMint, PaleLavender, LightSkyBlue, SoftPeach,
+            Color(0xFFE1F5FE), Color(0xFFE8F5E9), Color(0xFFFFF3E0), Color(0xFFFCE4EC),
+            Color(0xFFEDE7F6), Color(0xFFE0F7FA), Color(0xFFFFFDE7)
+        )
+    }
+
+    var bgColor by remember(checklist?.id) {
+        mutableStateOf(
+            if (checklist != null) {
+                Color(checklist.bgColorHex)
+            } else {
+                checklistColors.random()
+            }
+        )
+    }
     var colorBeforePicker by remember { mutableStateOf(bgColor) }
     var pinned by remember { mutableStateOf(checklist?.pinned ?: false) }
     var showColorPicker by remember { mutableStateOf(false) }
