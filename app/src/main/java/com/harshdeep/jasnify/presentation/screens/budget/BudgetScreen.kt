@@ -52,10 +52,16 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.harshdeep.jasnify.data.local.ExpenseEntity
+import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -161,10 +167,34 @@ data class CategorySummaryData(
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
+    viewModel: BudgetViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
+
+    val expensesEntities by viewModel.expenses.collectAsStateWithLifecycle()
+    val budgetEntity by viewModel.budgetSettings.collectAsStateWithLifecycle()
+
+    val indianLocale = Locale("en", "IN")
+    val formatter = NumberFormat.getNumberInstance(indianLocale)
+    val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.ENGLISH) }
+
+    val allExpenses = remember(expensesEntities) {
+        expensesEntities.map { entity ->
+            ExpenseItem(
+                id = entity.id,
+                title = entity.title,
+                category = entity.category,
+                amount = "₹${formatter.format(entity.amount)}",
+                emoji = entity.emoji,
+                lastUpdatedBy = entity.lastUpdatedBy,
+                lastUpdatedDate = dateFormatter.format(Date(entity.lastUpdatedDate)),
+                phoneNumber = entity.phoneNumber,
+                note = entity.note
+            )
+        }
+    }
 
     // --- Toast State Management ---
     var toastData by remember { mutableStateOf(ToastData()) }
@@ -225,7 +255,9 @@ fun BudgetScreen(
 
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
-    var budgetValue by remember { mutableStateOf("INR10000000") }
+    val budgetValue = remember(budgetEntity) {
+        budgetEntity?.let { "INR${it.totalBudget.toLong()}" } ?: "INR10000000"
+    }
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
@@ -250,30 +282,6 @@ fun BudgetScreen(
 
     var selectedSortOption by remember { mutableStateOf("Newest First") }
     var selectedFilterOptions by remember { mutableStateOf(emptySet<String>()) }
-
-    var allExpenses by remember {
-        mutableStateOf(
-            listOf(
-                ExpenseItem(id = "1", title = "The Divine Frames", category = "Vendors", amount = "₹26,10,660", emoji = "📸", lastUpdatedBy = "Anand K.", lastUpdatedDate = "Aug 24, 2025, 01:04pm", phoneNumber = "9876543210", note = "Advanced booking fee"),
-                ExpenseItem(id = "2", title = "Varun Catering", category = "Catering", amount = "₹12,45,000", emoji = "🍔"),
-                ExpenseItem(id = "3", title = "GenX Entertainment", category = "Vendors", amount = "₹45,000", emoji = "🥂"),
-                ExpenseItem(id = "4", title = "Nupur Makeup Artist", category = "Vendors", amount = "₹35,000", emoji = "🧑"),
-                ExpenseItem(id = "5", title = "Decor Elements", category = "Vendors", amount = "₹1,50,000", emoji = "🎈"),
-                ExpenseItem(id = "6", title = "Shine & Glow Makeup Studio", category = "Beauty", amount = "₹15,000", emoji = "💄"),
-                ExpenseItem(id = "7", title = "Elite Invitations & Prints", category = "Stationery", amount = "₹12,500", emoji = "✉️"),
-                ExpenseItem(id = "8", title = "Classic Gowns & Tuxedos", category = "Apparel", amount = "₹85,000", emoji = "👔"),
-                ExpenseItem(id = "9", title = "Signature Mocktail Bar", category = "Beverages", amount = "₹18,000", emoji = "🍸"),
-                ExpenseItem(id = "10", title = "Uber", category = "Transportation", amount = "₹68,000", emoji = "🚗", lastUpdatedBy = "Meera J.", lastUpdatedDate = "Aug 26, 2025, 04:30pm"),
-                ExpenseItem(id = "11", title = "Happy Travels", category = "Transportation", amount = "₹1,84,600", emoji = "🚌"),
-                ExpenseItem(id = "12", title = "Vikas Equipment Rentals", category = "Equipment Rentals", amount = "₹4,79,990", emoji = "⚙️", lastUpdatedBy = "Harsh Deep", lastUpdatedDate = "Aug 27, 2025, 11:15am"),
-                ExpenseItem(id = "13", title = "Audio Stage Setup", category = "Equipment Rentals", amount = "₹1,20,000", emoji = "🔊"),
-                ExpenseItem(id = "14", title = "LED Display Walls", category = "Equipment Rentals", amount = "₹2,40,000", emoji = "📺"),
-                ExpenseItem(id = "15", title = "Main Cook & Chef", category = "Staff & Crew", amount = "₹25,000", emoji = "🧑‍🍳"),
-                ExpenseItem(id = "16", title = "Event Coordinators", category = "Staff & Crew", amount = "₹13,000", emoji = "🙋‍♂️"),
-                ExpenseItem(id = "17", title = "Sundry Unplanned", category = "Unplanned Costs", amount = "₹24,650", emoji = "💳")
-            )
-        )
-    }
 
     var defaultCategories by remember {
         mutableStateOf(
@@ -302,8 +310,6 @@ fun BudgetScreen(
     val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
     val spentPercentage = if (totalBudget > 0) (totalSpent / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
 
-    val indianLocale = Locale("en", "IN")
-    val formatter = NumberFormat.getNumberInstance(indianLocale)
     val formattedRemaining = "₹${formatter.format(remainingFunds.toLong())}"
     val formattedTotalSpent = "₹${formatter.format(totalSpent.toLong())}"
     val formattedTotalBudget = formatter.format(totalBudget.toLong())
@@ -1494,37 +1500,27 @@ fun BudgetScreen(
                 expenseToEdit = null
             },
             onSave = { amount, receiver, category, emoji, phone, notes ->
-                val formattedAmount = "₹${formatter.format(amount)}"
                 val editingItem = expenseToEdit
                 if (editingItem != null) {
-                    allExpenses = allExpenses.map {
-                        if (it.id == editingItem.id) {
-                            it.copy(
-                                title = receiver.ifBlank { "Unnamed Receiver" },
-                                category = category.ifBlank { "Misc" },
-                                amount = formattedAmount,
-                                emoji = emoji.ifBlank { "💸" },
-                                lastUpdatedBy = "Anonymous",
-                                lastUpdatedDate = "Just now",
-                                phoneNumber = phone,
-                                note = notes
-                            )
-                        } else it
-                    }
-                    toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
-                } else {
-                    val nextUniqueId = ((allExpenses.maxOfOrNull { it.id.toIntOrNull() ?: 0 } ?: 0) + 1).toString()
-                    allExpenses = listOf(ExpenseItem(
-                        id = nextUniqueId,
+                    viewModel.updateExpense(
+                        id = editingItem.id,
                         title = receiver.ifBlank { "Unnamed Receiver" },
                         category = category.ifBlank { "Misc" },
-                        amount = formattedAmount,
+                        amount = amount.toDouble(),
                         emoji = emoji.ifBlank { "💸" },
-                        lastUpdatedBy = "Anonymous",
-                        lastUpdatedDate = "Just now",
                         phoneNumber = phone,
                         note = notes
-                    )) + allExpenses
+                    )
+                    toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
+                } else {
+                    viewModel.addExpense(
+                        title = receiver.ifBlank { "Unnamed Receiver" },
+                        category = category.ifBlank { "Misc" },
+                        amount = amount.toDouble(),
+                        emoji = emoji.ifBlank { "💸" },
+                        phoneNumber = phone,
+                        note = notes
+                    )
                     toastData = ToastData("Expense Added!", ToastType.SUCCESS)
                 }
                 showAddExpenseSheet = false
@@ -1561,9 +1557,7 @@ fun BudgetScreen(
                         } else if (!defaultCategories.contains(inputName)) {
                             defaultCategories = defaultCategories + inputName
                         }
-                        allExpenses = allExpenses.map { expense ->
-                            if (expense.category == originalName) expense.copy(category = inputName) else expense
-                        }
+                        viewModel.renameCategory(originalName, inputName)
                         if (selectedCategoryForDetails == originalName) {
                             selectedCategoryForDetails = inputName
                         }
@@ -1592,7 +1586,7 @@ fun BudgetScreen(
             onConfirmRemove = {
                 val currentExpenseId = expenseToDelete?.id
                 if (currentExpenseId != null) {
-                    allExpenses = allExpenses.filter { it.id != currentExpenseId }
+                    viewModel.deleteExpense(currentExpenseId)
                 }
                 expenseToDelete = null
             }
@@ -1607,7 +1601,9 @@ fun BudgetScreen(
                 showEditBudgetSheet = false
             },
             onUpdateBudget = { updatedValue ->
-                budgetValue = updatedValue
+                val numericPart = updatedValue.dropWhile { !it.isDigit() }
+                val totalBudget = numericPart.toDoubleOrNull() ?: 0.0
+                viewModel.updateBudget(totalBudget)
                 showEditBudgetSheet = false
             }
         )
@@ -1715,7 +1711,7 @@ fun BudgetScreen(
             onConfirmRemove = {
                 val categoryToDelete = categoryToDeleteConfirm
                 if (categoryToDelete != null) {
-                    allExpenses = allExpenses.filter { it.category != categoryToDelete }
+                    viewModel.deleteExpensesByCategory(categoryToDelete)
                     defaultCategories = defaultCategories.filter { it != categoryToDelete }
                 }
                 categoryToDeleteConfirm = null

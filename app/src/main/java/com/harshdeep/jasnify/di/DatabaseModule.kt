@@ -31,4 +31,10 @@ object DatabaseModule {
     fun provideChecklistDao(database: AppDatabase): ChecklistDao {
         return database.checklistDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideBudgetDao(database: AppDatabase): com.harshdeep.jasnify.data.local.BudgetDao {
+        return database.budgetDao()
+    }
 }

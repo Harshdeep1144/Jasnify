@@ -4,10 +4,15 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
-@Database(entities = [ChecklistEntity::class], version = 2, exportSchema = false)
+@Database(
+    entities = [ChecklistEntity::class, ExpenseEntity::class, BudgetEntity::class],
+    version = 3,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun checklistDao(): ChecklistDao
+    abstract fun budgetDao(): BudgetDao
 
     companion object {
         const val DATABASE_NAME = "jasnify_db"
