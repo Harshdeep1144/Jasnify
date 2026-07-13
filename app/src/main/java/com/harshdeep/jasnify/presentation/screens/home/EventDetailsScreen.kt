@@ -124,6 +124,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.model.SubEvent
 import java.time.Instant
 import java.time.ZoneId
 
@@ -186,35 +187,59 @@ fun EventDetailsScreen(
         mutableStateListOf<SubEventItem>()
     }
 
+    // Tracks if we are currently waiting for a database sync to complete
+    var isSyncing by remember { mutableStateOf(false) }
+
+    // Tracks if any timeline item OR the primary name is currently being edited
+    val isEditingAnyItem by remember {
+        derivedStateOf {
+            timelineItems.any { it.isEditing } || isEditingEventName
+        }
+    }
+
+    // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
+    val hasUnsavedEditingItem by remember {
+        derivedStateOf {
+            timelineItems.any { it.isEditing && !it.isExisting }
+        }
+    }
+
     LaunchedEffect(activeEvent) {
         activeEvent?.let { event ->
             eventId = event.id.take(8).uppercase()
             primaryEventName = event.name
-            timelineType = if (event.isMultiDay) "Multi-day" else "Single-day"
             eventType = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
 
-            val uiSubEvents = event.subEvents.map { subEvent ->
-                val dateStr = subEvent.date?.let {
-                    formatToOrdinalDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
-                } ?: ""
-                SubEventItem(
-                    id = subEvent.id,
-                    name = subEvent.name,
-                    date = subEvent.date,
-                    dateString = dateStr,
-                    isExisting = true,
-                    isEditing = false,
-                    isCompleted = subEvent.isCompleted
-                )
-            }
+            // Only update timeline and type if not currently editing, interacting with the sheet,
+            // or waiting for a sync to propagate. This prevents stale DB state from reverting local UI.
+            if (!showBottomSheet && !isEditingAnyItem && !isSyncing) {
+                timelineType = if (event.isMultiDay) "Multi-day" else "Single-day"
+                
+                // ...
 
-            timelineItems.clear()
-            timelineItems.addAll(uiSubEvents)
-            val parsed = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
-            timelineItems.sortBy { parsed[it.id] }
+                val uiSubEvents = event.subEvents.map { subEvent ->
+                    val dateStr = subEvent.date?.let {
+                        formatToOrdinalDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                    } ?: ""
+                    SubEventItem(
+                        id = subEvent.id,
+                        name = subEvent.name,
+                        date = subEvent.date,
+                        dateString = dateStr,
+                        isExisting = true,
+                        isEditing = false,
+                        isCompleted = subEvent.isCompleted
+                    )
+                }
 
-            if (!event.isMultiDay && event.date != null) {
-                singleDaySelectedDate = formatToOrdinalDate(Instant.ofEpochMilli(event.date).atZone(ZoneId.systemDefault()).toLocalDate())
+                timelineItems.clear()
+                timelineItems.addAll(uiSubEvents)
+                val parsed = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
+                timelineItems.sortBy { parsed[it.id] }
+
+                if (!event.isMultiDay && event.date != null) {
+                    singleDaySelectedDate = formatToOrdinalDate(Instant.ofEpochMilli(event.date).atZone(ZoneId.systemDefault()).toLocalDate())
+                }
             }
         }
     }
@@ -228,12 +253,48 @@ fun EventDetailsScreen(
         }
     }
 
-    // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
-    val hasUnsavedEditingItem by remember {
-        derivedStateOf {
-            timelineItems.any { it.isEditing && !it.isExisting }
+    fun syncEvent() {
+        val current = activeEvent ?: return
+        val isMulti = timelineType == "Multi-day"
+
+        // Set syncing flag to prevent LaunchedEffect from overwriting local state with stale DB data
+        isSyncing = true
+
+        // If we are in Single-day mode, ensure local timeline items are cleared 
+        // to prevent them from being "recovered" if the user switches back to Multi-day.
+        if (!isMulti) {
+            timelineItems.clear()
+        }
+
+        val updated = current.copy(
+            name = primaryEventName,
+            isMultiDay = isMulti,
+            date = if (!isMulti) {
+                val ld = parseFormattedDate(singleDaySelectedDate)
+                if (ld == LocalDate.MAX) null else ld.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            } else null,
+            subEvents = if (isMulti) {
+                timelineItems.map {
+                    SubEvent(
+                        id = it.id,
+                        name = it.name,
+                        date = it.date,
+                        isCompleted = it.isCompleted
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        )
+        eventViewModel.updateEvent(updated)
+        
+        // Brief delay before allowing DB updates again to ensure the sync has propagated
+        coroutineScope.launch {
+            delay(1000.milliseconds)
+            isSyncing = false
         }
     }
+
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -320,14 +381,20 @@ fun EventDetailsScreen(
                             EventNameInput(
                                 item = eventNameInputItem,
                                 onUpdate = { updatedItem ->
+                                    val wasEditing = isEditingEventName
                                     primaryEventName = updatedItem.name
                                     isEditingEventName = updatedItem.isEditing
                                     isExistingEventName = updatedItem.isExisting
+
+                                    if (wasEditing && !updatedItem.isEditing) {
+                                        syncEvent()
+                                    }
                                 },
                                 onDelete = {
                                     primaryEventName = ""
                                     isEditingEventName = false
                                     isExistingEventName = false
+                                    syncEvent()
                                 },
                                 backgroundColor = SurfacePrimary,
                                 hasBorder = false,
@@ -416,6 +483,7 @@ fun EventDetailsScreen(
                                                     datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
                                                     onDateSelectedCallback = { localDate ->
                                                         singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                        syncEvent()
                                                     }
                                                     showDatePickerSheet = true
                                                 } else {
@@ -439,6 +507,7 @@ fun EventDetailsScreen(
                                                     datePickerInitialDate = LocalDate.now()
                                                     onDateSelectedCallback = { localDate ->
                                                         singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                        syncEvent()
                                                     }
                                                     showDatePickerSheet = true
                                                 } else {
@@ -606,10 +675,15 @@ fun EventDetailsScreen(
                                                 timelineItems.clear()
                                                 timelineItems.addAll(sorted)
                                             }
+
+                                            if (!updatedItem.isEditing && oldItem.isEditing) {
+                                                syncEvent()
+                                            }
                                         }
                                     },
                                     onDelete = { itemToDelete ->
                                         timelineItems.remove(itemToDelete)
+                                        syncEvent()
                                     },
                                     backgroundColor = SurfacePrimary,
                                     hasBorder = false,
@@ -849,6 +923,7 @@ fun EventDetailsScreen(
                                                 if (wasSingleDay) {
                                                     toastData = ToastData("Changed to Multi-day!", ToastType.SUCCESS)
                                                 }
+                                                syncEvent()
                                                 coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                     showBottomSheet = false
                                                 }
@@ -954,15 +1029,6 @@ fun EventDetailsScreen(
                                     .fillMaxWidth()
                                     .padding(12.dp),
                             ) {
-                                Text(
-                                    text = "By proceeding, you allow us to delete any existing timeline.",
-                                    style = JasnifyTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
-                                    color = ContentSecondary,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(Modifier.height(12.dp))
-
                                 CustomTextButton(
                                     onClick = {
                                         if (pickDateSegmentSelected && tempSelectedDateString.isNullOrBlank()) {
@@ -973,6 +1039,7 @@ fun EventDetailsScreen(
                                                 timelineItems.clear()
                                                 timelineType = "Single-day"
                                                 singleDaySelectedDate = if (pickDateSegmentSelected) tempSelectedDateString else "Not yet decided"
+                                                syncEvent()
                                                 sheetState.hide()
                                                 if (wasMultiDay) {
                                                     toastData = ToastData("Changed to Single-day!", ToastType.SUCCESS)
@@ -1242,6 +1309,7 @@ fun EventDetailsScreen(
 
                                             if (isDirectDateEdit) {
                                                 singleDaySelectedDate = resolvedDate
+                                                syncEvent()
                                                 coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                     showBottomSheet = false
                                                 }

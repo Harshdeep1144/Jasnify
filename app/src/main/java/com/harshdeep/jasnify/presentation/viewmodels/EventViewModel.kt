@@ -106,6 +106,21 @@ class EventViewModel @Inject constructor(
             }
     }
 
+    /**
+     * Updates an existing event in Firestore.
+     */
+    fun updateEvent(event: Event) {
+        firestore.collection("events")
+            .document(event.id)
+            .set(event)
+            .addOnSuccessListener {
+                // Success - the snapshot listener will pick up the changes
+            }
+            .addOnFailureListener {
+                // Handle failure if needed
+            }
+    }
+
 
     /**
      * Checks Cloud Firestore to determine if the current user has any events.
