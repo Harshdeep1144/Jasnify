@@ -26,7 +26,6 @@ class EventViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
 ) : ViewModel() {
 
-    // State for managing the event creation process
     private val _eventState = MutableStateFlow<EventCreationState>(EventCreationState.Idle)
     val eventState: StateFlow<EventCreationState> = _eventState
 
@@ -56,9 +55,10 @@ class EventViewModel @Inject constructor(
                 if (e != null) return@addSnapshotListener
 
                 val events = snapshot?.toObjects(Event::class.java) ?: emptyList()
-                _userEvents.value = events
-                if (events.isNotEmpty()) {
-                    _activeEvent.value = events.first()
+                val sortedEvents = events.sortedByDescending { it.createdAt }
+                _userEvents.value = sortedEvents
+                if (sortedEvents.isNotEmpty()) {
+                    _activeEvent.value = sortedEvents.first()
                 }
             }
     }
@@ -76,21 +76,21 @@ class EventViewModel @Inject constructor(
         _eventState.value = EventCreationState.Loading
 
         val userId = user.uid
-        
+
         // Mapping to professional Event model
         val event = Event(
             ownerId = userId,
             name = eventData.eventName,
             typeId = eventData.selectedEventTypeId,
-            isMultiDay = eventData.isMultiDay ?: false,
+            multiDay = eventData.isMultiDay ?: false, // Updated to use renamed multiDay
             date = eventData.singleDayDate,
             budget = eventData.budget.toDoubleOrNull() ?: 0.0,
-            subEvents = eventData.subEvents.map { 
+            subEvents = eventData.subEvents.map {
                 SubEvent(
                     id = it.id,
                     name = it.name,
                     date = it.date,
-                    isCompleted = false
+                    completed = false // Updated to use renamed completed
                 )
             }
         )
@@ -121,7 +121,6 @@ class EventViewModel @Inject constructor(
             }
     }
 
-
     /**
      * Checks Cloud Firestore to determine if the current user has any events.
      */
@@ -132,7 +131,7 @@ class EventViewModel @Inject constructor(
         }
 
         val userId = user.uid
-        
+
         return try {
             val querySnapshot = firestore.collection("events")
                 .whereEqualTo("ownerId", userId)
