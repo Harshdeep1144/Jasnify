@@ -977,12 +977,22 @@ fun EventDetailsScreen(
                                     Spacer(Modifier.height(12.dp))
 
                                     if (pickDateSegmentSelected) {
+                                        // Filter strictly to exclude undated AND empty name timelines
+                                        val validSavedTimelines = remember(timelineItems) {
+                                            timelineItems.filter {
+                                                it.dateString.isNotBlank() &&
+                                                        it.dateString != "Not yet decided" &&
+                                                        it.dateString != "Select a date" &&
+                                                        it.name.isNotBlank()
+                                            }
+                                        }
+
                                         Box(
                                             modifier = Modifier
                                                 .matchParentSize()
                                                 .clip(SquircleShape(CornerLarge))
                                                 .clickable {
-                                                    if (timelineItems.isEmpty()) {
+                                                    if (timelineItems.isEmpty() || validSavedTimelines.isEmpty()) {
                                                         datePickerInitialDate = parseFormattedDate(tempSelectedDateString)
                                                         onDateSelectedCallback = { localDate ->
                                                             tempSelectedDateString = formatToOrdinalDate(localDate)
