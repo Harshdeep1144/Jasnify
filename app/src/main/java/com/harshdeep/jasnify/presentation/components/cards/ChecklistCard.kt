@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -14,20 +15,12 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.Checklist
+import com.harshdeep.jasnify.domain.model.ChecklistItem
+import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
-import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
-
-data class Checklist(
-    val id: String,
-    val title: String,
-    val dateTime: String,
-    val items: List<ChecklistItem>,
-    val bgColor: Color,
-    val isPinned: Boolean = false
-)
 
 @Composable
 fun ChecklistCard(
@@ -40,7 +33,7 @@ fun ChecklistCard(
         modifier = modifier.fillMaxWidth(),
         shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
-            containerColor = checklist.bgColor
+            containerColor = Color(checklist.bgColorHex)
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f)),
         elevation = CardDefaults.cardElevation(0.dp)
@@ -62,7 +55,7 @@ fun ChecklistCard(
                 )
                 Spacer(Modifier.width(4.dp))
 
-                if (checklist.isPinned) {
+                if (checklist.pinned) {
                     Icon(
                         painter = painterResource(R.drawable.ic_pin),
                         contentDescription = "Pinned",
@@ -88,7 +81,7 @@ fun ChecklistCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            checklist.items.sortedBy { it.isChecked }.take(3).forEach { item ->
+            checklist.items.sortedBy { it.checked }.take(3).forEach { item ->
                 ChecklistCardItem(item)
                 Spacer(modifier = Modifier.height(6.dp))
             }
@@ -103,7 +96,7 @@ fun ChecklistCardItem(item: ChecklistItem) {
         modifier = Modifier.fillMaxWidth()
     ) {
         CustomChecker(
-            checked = item.isChecked,
+            checked = item.checked,
             enabled = false,
             onCheckedChange = null,
             modifier = Modifier.size(18.dp)
@@ -115,10 +108,10 @@ fun ChecklistCardItem(item: ChecklistItem) {
             text = item.text,
             style = JasnifyTheme.typography.headingSmall.merge(
                 TextStyle(
-                    textDecoration = if (item.isChecked) TextDecoration.LineThrough else TextDecoration.None
+                    textDecoration = if (item.checked) TextDecoration.LineThrough else TextDecoration.None
                 )
             ),
-            color = if (item.isChecked) ContentSecondary else ContentPrimary,
+            color = if (item.checked) ContentSecondary else ContentPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -135,15 +128,15 @@ private fun ChecklistCardPreview() {
         title = "Shopping for Bride",
         dateTime = "Today, 09:30 PM",
         items = listOf(
-            ChecklistItem(text = "Purchase Outfits", isChecked = true),
+            ChecklistItem(text = "Purchase Outfits", checked = true),
             ChecklistItem(text = "Make Appointment for Makeup"),
             ChecklistItem(text = "Book Jewellery"),
             ChecklistItem(text = "Arrange Transportation"),
             ChecklistItem(text = "Finalize Guest List"),
             ChecklistItem(text = "Send Invitations")
         ),
-        bgColor = SoftMint,
-        isPinned = true
+        bgColorHex = SoftMint.toArgb().toLong(),
+        pinned = true
     )
 
     Column(
@@ -160,7 +153,7 @@ private fun ChecklistCardPreview() {
             )
             // Empty title preview test
             ChecklistCard(
-                checklist = sampleChecklist.copy(title = "", bgColor = PaleLavender, isPinned = false),
+                checklist = sampleChecklist.copy(title = "", bgColorHex = PaleLavender.toArgb().toLong(), pinned = false),
                 modifier = Modifier.weight(1f)
             )
         }
@@ -169,7 +162,7 @@ private fun ChecklistCardPreview() {
 
         Text("List View", style = JasnifyTheme.typography.labelSmall)
         ChecklistCard(
-            checklist = sampleChecklist.copy(title = "Saturday To-Dos", bgColor = SoftPeach, isPinned = false),
+            checklist = sampleChecklist.copy(title = "Saturday To-Dos", bgColorHex = SoftPeach.toArgb().toLong(), pinned = false),
         )
     }
 }

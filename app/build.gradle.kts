@@ -87,6 +87,14 @@ dependencies {
     kapt(libs.hilt.compiler)
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
 
+    // Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    kapt(libs.room.compiler)
+
+    // Gson
+    implementation(libs.gson)
+
     // Google services
     implementation("com.google.android.gms:play-services-auth:21.2.0")
 
