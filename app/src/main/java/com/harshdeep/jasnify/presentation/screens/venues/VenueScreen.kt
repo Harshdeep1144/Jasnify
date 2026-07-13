@@ -92,7 +92,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
-import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
@@ -127,6 +126,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
 import com.harshdeep.jasnify.theme.ContentBrandDark
