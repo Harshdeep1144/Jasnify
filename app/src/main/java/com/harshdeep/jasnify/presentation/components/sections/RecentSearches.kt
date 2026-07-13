@@ -15,17 +15,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
+import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 
 @Composable
 fun RecentSearchesSection(
-    recentVenues: List<VendorCardData>,
+    recentVenues: List<Venue>,
     onClearAll: () -> Unit,
-    onVenueClick: (VendorCardData) -> Unit,
+    onVenueClick: (Venue) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -76,8 +76,8 @@ fun RecentSearchesSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             items(recentVenues) { venue ->
-                VendorCardCompact(
-                    vendor = venue,
+                VenueCardCompact(
+                    venue = venue,
                     onCardClick = { onVenueClick(venue) },
                     compactCardSize = CompactCardSize.SMALL
                 )

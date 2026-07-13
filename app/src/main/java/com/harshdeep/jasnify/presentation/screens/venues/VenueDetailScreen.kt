@@ -100,6 +100,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.*
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -110,8 +111,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -119,12 +119,12 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
-import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
-import com.harshdeep.jasnify.presentation.components.sections.GallerySection
+import com.harshdeep.jasnify.presentation.components.sections.VenueAllReviewsScreen
+import com.harshdeep.jasnify.presentation.components.sections.VenueGalleryDetailScreen
+import com.harshdeep.jasnify.presentation.components.sections.VenueGallerySection
 import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
-import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostScreen
-import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
+import com.harshdeep.jasnify.presentation.components.sections.VenueReviewDetailPostScreen
+import com.harshdeep.jasnify.presentation.components.sections.VenueReviewsSection
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -146,83 +146,10 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 
 // ============================================================================================================================================
-// DATA MODELS & ENUMS
+// ENUMS
 // ============================================================================================================================================
 
-data class VenueMediaItem(
-    val url: String,
-    val isVideo: Boolean = false,
-    val videoDuration: String? = null
-)
-
-data class VenuePricingItem(
-    val title: String,
-    val price: String,
-    val unit: String,
-    val iconRes: Int,
-    val labelText: String = "Price Point Offer"
-)
-
-data class VenueHighlightItem(
-    val label: String,
-    val value: String,
-    val iconRes: Int
-)
-
-data class GalleryCategoryData(
-    val categoryName: String,
-    val imageUrls: List<String>
-)
-
-data class RatingBreakdownItemData(
-    val score: String,
-    val label: String
-)
-
-data class MerchantReplyData(
-    val merchantName: String,
-    val merchantAvatarUrl: String? = null,
-    val relativeTime: String,
-    val replyText: String,
-    val isVerified: Boolean = true
-)
-
-data class VenueReviewItem(
-    val userName: String,
-    val userAvatarUrl: String? = null,
-    val rating: Double,
-    val relativeTime: String,
-    val reviewText: String,
-    val isVerified: Boolean = false,
-    val attachedImages: List<String> = emptyList(),
-    val merchantReply: MerchantReplyData? = null
-)
-
-data class VenueReviewsData(
-    val ratingBreakdown: List<RatingBreakdownItemData>,
-    val reviews: List<VenueReviewItem>,
-    val totalRatingsCount: String = "1.4k+",
-    val distribution: List<Float> = listOf(0.85f, 0.60f, 0.15f, 0.10f, 0.25f), // 5-star to 1-star
-    val subMetrics: List<RatingBreakdownItemData> = listOf(
-        RatingBreakdownItemData("4.8", "Hospitality"),
-        RatingBreakdownItemData("4.4", "Food"),
-        RatingBreakdownItemData("4.1", "Ambience"),
-        RatingBreakdownItemData("4.2", "Banquets")
-    )
-)
-
-data class VenueDetailData(
-    val vendorCard: VendorCardData,
-    val mediaItems: List<VenueMediaItem> = emptyList(),
-    val pricingItems: List<VenuePricingItem>? = null,
-    val highlightItems: List<VenueHighlightItem>? = null,
-    val aboutText: String? = null,
-    val galleryCategories: List<GalleryCategoryData>? = null,
-    val reviewsData: VenueReviewsData? = null,
-    val similarVenues: List<VendorCardData>? = null
-)
-
-enum class ActiveScreen {
+enum class VenueActiveScreen {
     DETAIL, REVIEWS, GALLERY, POST
 }
 
@@ -233,17 +160,17 @@ enum class ActiveScreen {
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun VenueDetailScreen(
-    venueDetail: VenueDetailData,
+    venueDetail: Venue,
     onBackClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     // Dynamic stack to keep track of screens locally
-    var screenStack by remember { mutableStateOf(listOf(ActiveScreen.DETAIL)) }
+    var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
     val currentScreen = screenStack.last()
 
-    var selectedReviewForPost by remember { mutableStateOf<VenueReviewItem?>(null) }
+    var selectedReviewForPost by remember { mutableStateOf<VenueReview?>(null) }
 
     // Intercepts the back gesture ONLY when there is a screen to pop locally
     BackHandler(enabled = screenStack.size > 1) {
@@ -253,7 +180,7 @@ fun VenueDetailScreen(
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            if (targetState != ActiveScreen.DETAIL) {
+            if (targetState != VenueActiveScreen.DETAIL) {
                 slideInHorizontally(
                     initialOffsetX = { it },
                     animationSpec = tween(400)
@@ -274,47 +201,47 @@ fun VenueDetailScreen(
         label = "VenueNavigationTransition"
     ) { screen ->
         when (screen) {
-            ActiveScreen.DETAIL -> {
+            VenueActiveScreen.DETAIL -> {
                 VenueDetailContent(
                     venueDetail = venueDetail,
                     onBackClick = onBackClick,
-                    onSeeAllReviewsClick = { screenStack = screenStack + ActiveScreen.REVIEWS },
-                    onSeeAllGalleryClick = { screenStack = screenStack + ActiveScreen.GALLERY },
+                    onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
+                    onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
                     onOpenReviewPost = { review ->
                         selectedReviewForPost = review
-                        screenStack = screenStack + ActiveScreen.POST
+                        screenStack = screenStack + VenueActiveScreen.POST
                     },
                     modifier = modifier,
                     sharedTransitionScope = sharedTransitionScope,
                     animatedVisibilityScope = animatedVisibilityScope
                 )
             }
-            ActiveScreen.REVIEWS -> {
-                AllReviewsScreen(
-                    title = venueDetail.vendorCard.vendorName,
-                    reviewsData = venueDetail.reviewsData ?: VenueReviewsData(emptyList(), emptyList()),
-                    ratingValue = venueDetail.vendorCard.rating.toString(),
+            VenueActiveScreen.REVIEWS -> {
+                VenueAllReviewsScreen(
+                    title = venueDetail.name,
+                    reviewsData = venueDetail.reviewsData ?: VenueReviewsData(),
+                    ratingValue = venueDetail.rating.toString(),
                     onBack = { screenStack = screenStack.dropLast(1) },
                     onOpenReviewPost = { review ->
                         selectedReviewForPost = review
-                        screenStack = screenStack + ActiveScreen.POST
+                        screenStack = screenStack + VenueActiveScreen.POST
                     },
                     onLeaveReview = {
                         // Navigation to Write Review Screen
                     }
                 )
             }
-            ActiveScreen.GALLERY -> {
-                GalleryDetailScreen(
-                    title = venueDetail.vendorCard.vendorName,
-                    galleryCategories = venueDetail.galleryCategories ?: emptyList(),
+            VenueActiveScreen.GALLERY -> {
+                VenueGalleryDetailScreen(
+                    title = venueDetail.name,
+                    galleryCategories = venueDetail.galleryCategories,
                     onBack = { screenStack = screenStack.dropLast(1) },
                     onOpenAlbum = { }
                 )
             }
-            ActiveScreen.POST -> {
-                ReviewDetailPostScreen(
-                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull() ?: VenueReviewItem(
+            VenueActiveScreen.POST -> {
+                VenueReviewDetailPostScreen(
+                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull() ?: VenueReview(
                         userName = "Anand K.",
                         rating = 4.4,
                         relativeTime = "1 week ago",
@@ -334,18 +261,18 @@ fun VenueDetailScreen(
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VenueDetailContent(
-    venueDetail: VenueDetailData,
+    venueDetail: Venue,
     onBackClick: () -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
-    onOpenReviewPost: (VenueReviewItem) -> Unit,
+    onOpenReviewPost: (VenueReview) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val vendor = venueDetail.vendorCard
+    val venue = venueDetail
 
     val addressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAddressSheet by remember { mutableStateOf(false) }
@@ -368,7 +295,7 @@ private fun VenueDetailContent(
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
     var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
-    var isFavoriteState by remember { mutableStateOf(vendor.isFavorite) }
+    var isFavoriteState by remember { mutableStateOf(venue.isFavorite) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail) {
@@ -403,7 +330,7 @@ private fun VenueDetailContent(
                 add("gallery")
                 add("div_gallery")
             }
-            if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+            if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
                 add("reviews")
                 add("div_reviews")
             }
@@ -497,7 +424,7 @@ private fun VenueDetailContent(
             mediaItems = venueDetail.mediaItems,
             isMuted = isMuted,
             onMuteToggle = { isMuted = !isMuted },
-            vendor = vendor,
+            venue = venue,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             sharedTransitionScope = sharedTransitionScope,
             animatedVisibilityScope = animatedVisibilityScope,
@@ -555,7 +482,7 @@ private fun VenueDetailContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item(key = "info") {
-                    VenueInfoSection(vendor = vendor, onAddressClick = { showAddressSheet = true })
+                    VenueInfoSection(venue = venue, onAddressClick = { showAddressSheet = true })
                 }
 
                 item(key = "suggestions") {
@@ -596,7 +523,7 @@ private fun VenueDetailContent(
 
                 if (!venueDetail.pricingItems.isNullOrEmpty()) {
                     item(key = "pricings") {
-                        PricingsSection(vendor = vendor, pricingItems = venueDetail.pricingItems)
+                        VenuePricingsSection(venue = venue, pricingItems = venueDetail.pricingItems)
                     }
                     item(key = "div_pricings") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -605,7 +532,7 @@ private fun VenueDetailContent(
 
                 if (!venueDetail.highlightItems.isNullOrEmpty()) {
                     item(key = "highlights") {
-                        HighlightsSection(highlightItems = venueDetail.highlightItems)
+                        VenueHighlightsSection(highlightItems = venueDetail.highlightItems)
                     }
                     item(key = "div_highlights") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -614,9 +541,9 @@ private fun VenueDetailContent(
 
                 if (venueDetail.aboutText != null) {
                     item(key = "about") {
-                        AboutSection(
-                            vendor = vendor,
-                            aboutText = venueDetail.aboutText,
+                        VenueAboutSection(
+                            venue = venue,
+                            aboutText = venueDetail.aboutText!!,
                             onReadMoreClick = { showAboutSheet = true }
                         )
                     }
@@ -626,7 +553,7 @@ private fun VenueDetailContent(
                 }
 
                 item(key = "ask_ai") {
-                    AskAISection()
+                    VenueAskAISection()
                 }
                 item(key = "div_ask_ai") {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -634,7 +561,7 @@ private fun VenueDetailContent(
 
                 if (!venueDetail.galleryCategories.isNullOrEmpty()) {
                     item(key = "gallery") {
-                        GallerySection(
+                        VenueGallerySection(
                             galleryCategories = venueDetail.galleryCategories,
                             onSeeAllClick = onSeeAllGalleryClick
                         )
@@ -644,14 +571,14 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+                if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
                     item(key = "reviews") {
-                        ReviewsSection(
-                            vendor = vendor,
-                            reviewsData = venueDetail.reviewsData,
+                        VenueReviewsSection(
+                            venue = venue,
+                            reviewsData = venueDetail.reviewsData!!,
                             onSeeAllClick = onSeeAllReviewsClick,
                             onReviewCardClick = onOpenReviewPost,
-                            onWriteReviewClick = {}
+                            onWriteReviewClick = { }
                         )
                     }
                     item(key = "div_reviews") {
@@ -661,7 +588,7 @@ private fun VenueDetailContent(
 
                 if (!venueDetail.similarVenues.isNullOrEmpty()) {
                     item(key = "explore_more_and_similar") {
-                        ExploreMoreSection(similarVenues = venueDetail.similarVenues)
+                        VenueExploreMoreSection(similarVenues = venueDetail.similarVenues!!)
                     }
                 }
 
@@ -798,7 +725,7 @@ private fun VenueDetailContent(
                                 Spacer(modifier = Modifier.height(12.dp))
 
                                 Text(
-                                    text = vendor.vendorName,
+                                    text = venue.name,
                                     style = JasnifyTheme.typography.displayMedium,
                                     color = ContentPrimary
                                 )
@@ -817,7 +744,7 @@ private fun VenueDetailContent(
 
                     CustomTextButton(
                         onClick = {
-                            val mapQuery = "${vendor.vendorName}, 2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar 800007"
+                            val mapQuery = "${venue.name}, 2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar 800007"
                             val encodedQuery = Uri.encode(mapQuery)
                             val mapUri = "geo:0,0?q=$encodedQuery".toUri()
                             val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
@@ -867,14 +794,14 @@ private fun VenueDetailContent(
                         .padding(12.dp),
                 ) {
                     Text(
-                        text = "About ${vendor.vendorName}",
+                        text = "About ${venue.name}",
                         style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                         color = ContentPrimary
                     )
                     Spacer(Modifier.height(16.dp))
 
                     // Simulating the data coming from database
-                    val aboutVenueFromDb = "Discover the charm of ${vendor.vendorName}, located in Sampatchak, Patna. This inviting hotel blends comfort with elegance, making it the perfect choice for both business and leisure travelers. Experience our stylish rooms equipped with modern amenities and enjoy exceptional service that ensures a relaxing stay. Whether you're visiting for work or a getaway, ${vendor.vendorName} is your ideal retreat in Patna."
+                    val aboutVenueFromDb = "Discover the charm of ${venue.name}, located in Sampatchak, Patna. This inviting hotel blends comfort with elegance, making it the perfect choice for both business and leisure travelers. Experience our stylish rooms equipped with modern amenities and enjoy exceptional service that ensures a relaxing stay. Whether you're visiting for work or a getaway, ${venue.name} is your ideal retreat in Patna."
                     val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
 
                     Text(
@@ -914,7 +841,7 @@ fun VenueMediaSlider(
     mediaItems: List<VenueMediaItem>,
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
-    vendor: VendorCardData,
+    venue: Venue,
     onSeeAllGalleryClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
@@ -935,7 +862,7 @@ fun VenueMediaSlider(
                         Modifier
                             .fillMaxSize()
                             .sharedElement(
-                                rememberSharedContentState(key = "image_${vendor.vendorName}"),
+                                rememberSharedContentState(key = "image_${venue.name}"),
                                 animatedVisibilityScope = animatedVisibilityScope
                             )
                     }
@@ -1034,7 +961,7 @@ fun VenueMediaSlider(
 
 @Composable
 fun VenueInfoSection(
-    vendor: VendorCardData,
+    venue: Venue,
     onAddressClick: () -> Unit
 ) {
     var hasOverflow by remember { mutableStateOf(false) }
@@ -1051,7 +978,7 @@ fun VenueInfoSection(
                 .padding(end = 16.dp)
         ) {
             Text(
-                text = vendor.vendorName,
+                text = venue.name,
                 style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                 color = ContentPrimary
             )
@@ -1065,7 +992,7 @@ fun VenueInfoSection(
                 verticalAlignment = Alignment.Bottom
             ) {
                 Text(
-                    text = "${vendor.location}, India",
+                    text = "${venue.location}, India",
                     style = JasnifyTheme.typography.bodyMedium,
                     color = ContentSecondary,
                     maxLines = 2,
@@ -1096,11 +1023,11 @@ fun VenueInfoSection(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             RatingSurface(
-                rating = vendor.rating.toString(),
+                rating = venue.rating.toString(),
                 shape = RoundedCornerShape(CornerMedium, CornerMedium, 0.dp, 0.dp)
             )
             Text(
-                text = vendor.totalReviews,
+                text = venue.totalReviews,
                 style = JasnifyTheme.typography.labelSmall,
                 color = ContentSecondary,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -1111,7 +1038,7 @@ fun VenueInfoSection(
 
 
 @Composable
-fun PricingsSection(vendor: VendorCardData, pricingItems: List<VenuePricingItem>) {
+fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1160,7 +1087,7 @@ fun PricingsSection(vendor: VendorCardData, pricingItems: List<VenuePricingItem>
 
 
 @Composable
-fun HighlightsSection(highlightItems: List<VenueHighlightItem>) {
+fun VenueHighlightsSection(highlightItems: List<VenueHighlightItem>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1174,15 +1101,15 @@ fun HighlightsSection(highlightItems: List<VenueHighlightItem>) {
         )
 
         highlightItems.forEach { highlight ->
-            HighlightItemRow(highlight)
+            HighlightItemRow(data = highlight)
             Spacer(Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
-fun AboutSection(
-    vendor: VendorCardData,
+fun VenueAboutSection(
+    venue: Venue,
     aboutText: String,
     onReadMoreClick: () -> Unit
 ) {
@@ -1227,7 +1154,7 @@ fun AboutSection(
 }
 
 @Composable
-fun AskAISection() {
+fun VenueAskAISection() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1328,8 +1255,8 @@ fun AskAISection() {
 
 
 @Composable
-fun ExploreMoreSection(
-    similarVenues: List<VendorCardData>,
+fun VenueExploreMoreSection(
+    similarVenues: List<Venue>,
     modifier: Modifier = Modifier
 ) {
     val filters = remember {
@@ -1445,9 +1372,9 @@ fun ExploreMoreSection(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(filteredVenues) { vendor ->
-                VendorCardCompact(
-                    vendor = vendor,
+            items(filteredVenues) { venueItem ->
+                VenueCardCompact(
+                    venue = venueItem,
                     compactCardSize = CompactCardSize.SMALL
                 )
             }
@@ -1555,7 +1482,7 @@ fun PricingCard(
     title: String,
     price: String,
     unit: String,
-    iconRes: Int,
+    iconRes: Int?,
     labelText: String,
     shape: SquircleShape = SquircleShape(CornerExtraSmall)
 ) {
@@ -1572,7 +1499,7 @@ fun PricingCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.TopCenter) {
                     Icon(
-                        painter = painterResource(iconRes),
+                        painter = painterResource(iconRes ?: R.drawable.ic_gallery),
                         contentDescription = null,
                         tint = Color.Unspecified,
                         modifier = Modifier.size(24.dp)
@@ -1625,7 +1552,7 @@ fun HighlightItemRow(data: VenueHighlightItem) {
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    painter = painterResource(data.iconRes),
+                    painter = painterResource(data.iconRes ?: R.drawable.ic_gallery),
                     contentDescription = null,
                     tint = ContentBrandDark,
                     modifier = Modifier.size(24.dp)

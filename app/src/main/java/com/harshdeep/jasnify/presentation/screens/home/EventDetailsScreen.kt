@@ -120,18 +120,126 @@ import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import androidx.compose.runtime.collectAsState
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.model.SubEvent
+import java.time.Instant
+import java.time.ZoneId
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun EventDetailsScreen(
     onBackClick: () -> Unit,
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val eventId = "OBFEQO2"
-    val eventType = "Wedding"
+    val activeEvent by eventViewModel.activeEvent.collectAsState()
+
+    // Trigger loading user events on initial composition
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    var eventId by remember { mutableStateOf("...") }
+    var eventType by remember { mutableStateOf("...") }
+
+    // Core dynamic values driven by state
+    var timelineType by remember { mutableStateOf("Multi-day") }
+    var primaryEventName by remember { mutableStateOf("") }
+    var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
+
+    // Bottom Sheet Control States
+    var showBottomSheet by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    // --- Timeline Info Sheet State ---
+    var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
+
+    // Dedicated Custom Date Picker Sheet States
+    var showDatePickerSheet by remember { mutableStateOf(false) }
+    var datePickerInitialDate by remember { mutableStateOf(LocalDate.now()) }
+    var onDateSelectedCallback by remember { mutableStateOf<((LocalDate) -> Unit)?>(null) }
+
+    // Secondary navigation steps inside bottom sheet
+    var bottomSheetStep by remember { mutableIntStateOf(0) }
+    var tempTimelineType by remember { mutableStateOf(timelineType) }
+    var pickDateSegmentSelected by remember { mutableStateOf(true) }
+    var tempSelectedDateString by remember { mutableStateOf<String?>(null) }
+
+    // Tab-isolated draft selections preserving saved versus custom picked dates
+    var draftSavedDateString by remember { mutableStateOf<String?>(null) }
+    var draftCustomDateString by remember { mutableStateOf<String?>(null) }
+
+    // Tracks if calendar tab sheet was opened directly via the Event Date widget
+    var isDirectDateEdit by remember { mutableStateOf(false) }
+
+    var pickerActiveTab by remember { mutableIntStateOf(0) }
+
+    // Primary Event Name State
+    var isEditingEventName by remember { mutableStateOf(false) }
+    var isExistingEventName by remember { mutableStateOf(true) }
+
+    val timelineItems = remember {
+        mutableStateListOf<SubEventItem>()
+    }
+
+    // Tracks if we are currently waiting for a database sync to complete
+    var isSyncing by remember { mutableStateOf(false) }
+
+    // Tracks if any timeline item OR the primary name is currently being edited
+    val isEditingAnyItem by remember {
+        derivedStateOf {
+            timelineItems.any { it.isEditing } || isEditingEventName
+        }
+    }
+
+    // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
+    val hasUnsavedEditingItem by remember {
+        derivedStateOf {
+            timelineItems.any { it.isEditing && !it.isExisting }
+        }
+    }
+
+    LaunchedEffect(activeEvent) {
+        activeEvent?.let { event ->
+            eventId = event.id.take(8).uppercase()
+            primaryEventName = event.name
+            eventType = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+
+            if (!showBottomSheet && !isEditingAnyItem && !isSyncing) {
+                timelineType = if (event.multiDay) "Multi-day" else "Single-day"
+
+                val uiSubEvents = event.subEvents.map { subEvent ->
+                    val dateStr = subEvent.date?.let {
+                        formatToOrdinalDate(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                    } ?: ""
+                    SubEventItem(
+                        id = subEvent.id,
+                        name = subEvent.name,
+                        date = subEvent.date,
+                        dateString = dateStr,
+                        isExisting = true,
+                        isEditing = false,
+                        isCompleted = subEvent.completed
+                    )
+                }
+
+                timelineItems.clear()
+                timelineItems.addAll(uiSubEvents)
+                val parsed = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
+                timelineItems.sortBy { parsed[it.id] }
+
+                if (!event.multiDay && event.date != null) {
+                    singleDaySelectedDate = formatToOrdinalDate(Instant.ofEpochMilli(event.date).atZone(ZoneId.systemDefault()).toLocalDate())
+                }
+            }
+        }
+    }
 
     // --- Toast State ---
     var toastData by remember { mutableStateOf(ToastData()) }
@@ -142,61 +250,45 @@ fun EventDetailsScreen(
         }
     }
 
-    // Core dynamic values driven by state
-    var timelineType by remember { mutableStateOf("Multi-day") }
-    var primaryEventName by remember { mutableStateOf("Taylor & Travis's Wedding") }
-    var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
+    fun syncEvent() {
+        val current = activeEvent ?: return
+        val isMulti = timelineType == "Multi-day"
 
-    // Bottom Sheet Control States
-    var showBottomSheet by remember { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        isSyncing = true
 
-    // --- Timeline Info Sheet State ---
-    var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
+        if (!isMulti) {
+            timelineItems.clear()
+        }
 
-    // Dedicated Custom Date Picker Sheet States (Triggers directly if no timelines available)
-    var showDatePickerSheet by remember { mutableStateOf(false) }
-    var datePickerInitialDate by remember { mutableStateOf(LocalDate.now()) }
-    var onDateSelectedCallback by remember { mutableStateOf<((LocalDate) -> Unit)?>(null) }
+        val updated = current.copy(
+            name = primaryEventName,
+            multiDay = isMulti,
+            date = if (!isMulti) {
+                val ld = parseFormattedDate(singleDaySelectedDate)
+                if (ld == LocalDate.MAX) null else ld.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            } else null,
+            subEvents = if (isMulti) {
+                timelineItems.filter { it.name.isNotBlank() && it.date != null }.map {
+                    SubEvent(
+                        id = it.id,
+                        name = it.name,
+                        date = it.date,
+                        completed = it.isCompleted
+                    )
+                }
+            } else {
+                emptyList()
+            }
+        )
+        eventViewModel.updateEvent(updated)
 
-    // Secondary navigation steps inside bottom sheet
-    var bottomSheetStep by remember { mutableStateOf(0) }
-    var tempTimelineType by remember { mutableStateOf(timelineType) }
-    var pickDateSegmentSelected by remember { mutableStateOf(true) } // true: "Pick a date", false: "Not yet decided"
-    var tempSelectedDateString by remember { mutableStateOf<String?>(null) }
-
-    // Tab-isolated draft selections preserving saved versus custom picked dates
-    var draftSavedDateString by remember { mutableStateOf<String?>(null) }
-    var draftCustomDateString by remember { mutableStateOf<String?>(null) }
-
-    // Tracks if calendar tab sheet was opened directly via the Event Date widget
-    var isDirectDateEdit by remember { mutableStateOf(false) }
-
-    var pickerActiveTab by remember { mutableIntStateOf(0) } // 0: Saved Timelines, 1: Custom Date
-
-    // Primary Event Name State
-    var isEditingEventName by remember { mutableStateOf(false) }
-    var isExistingEventName by remember { mutableStateOf(true) }
-
-    val timelineItems = remember {
-        mutableStateListOf(
-            SubEventItem(id = "1", date = "09th Sept, 2025", name = "Mehendi Ceremony", isExisting = true),
-            SubEventItem(id = "3", date = "12th Sept, 2025", name = "The Wedding Day", isExisting = true),
-            SubEventItem(id = "2", date = "10th Sept, 2025", name = "Haldi & Sangeet Ceremony", isExisting = true)
-        ).apply {
-            val parsed = associate { it.id to parseFormattedDate(it.date) }
-            sortBy { parsed[it.id] }
+        // Brief delay before allowing DB updates again to ensure the sync has propagated
+        coroutineScope.launch {
+            delay(1000.milliseconds)
+            isSyncing = false
         }
     }
 
-    val nextNewId = remember { mutableIntStateOf(4) }
-
-    // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
-    val hasUnsavedEditingItem by remember {
-        derivedStateOf {
-            timelineItems.any { it.isEditing && !it.isExisting }
-        }
-    }
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -226,7 +318,7 @@ fun EventDetailsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(0.dp) // Manual spacing to optimize list placement animations
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     item {
                         Row(
@@ -262,7 +354,6 @@ fun EventDetailsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Joined Card Group: Primary Event Name, Event Timeline Type, and Event Date
                     item {
                         Column(
                             modifier = Modifier
@@ -283,14 +374,20 @@ fun EventDetailsScreen(
                             EventNameInput(
                                 item = eventNameInputItem,
                                 onUpdate = { updatedItem ->
+                                    val wasEditing = isEditingEventName
                                     primaryEventName = updatedItem.name
                                     isEditingEventName = updatedItem.isEditing
                                     isExistingEventName = updatedItem.isExisting
+
+                                    if (wasEditing && !updatedItem.isEditing) {
+                                        syncEvent()
+                                    }
                                 },
                                 onDelete = {
                                     primaryEventName = ""
                                     isEditingEventName = false
                                     isExistingEventName = false
+                                    syncEvent()
                                 },
                                 backgroundColor = SurfacePrimary,
                                 hasBorder = false,
@@ -379,6 +476,7 @@ fun EventDetailsScreen(
                                                     datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
                                                     onDateSelectedCallback = { localDate ->
                                                         singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                        syncEvent()
                                                     }
                                                     showDatePickerSheet = true
                                                 } else {
@@ -402,6 +500,7 @@ fun EventDetailsScreen(
                                                     datePickerInitialDate = LocalDate.now()
                                                     onDateSelectedCallback = { localDate ->
                                                         singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                        syncEvent()
                                                     }
                                                     showDatePickerSheet = true
                                                 } else {
@@ -427,7 +526,6 @@ fun EventDetailsScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
-                    // Render Event Timeline lists and setups ONLY if Multi-day is active
                     if (timelineType == "Multi-day") {
                         // Timeline Section Header
                         item {
@@ -461,12 +559,11 @@ fun EventDetailsScreen(
                                 Row(
                                     modifier = Modifier
                                         .clickable(enabled = !hasUnsavedEditingItem) {
-                                            // Inserts a new timeline event at the top of the list instantly
                                             timelineItems.add(
                                                 0,
                                                 SubEventItem(
-                                                    id = "new-${nextNewId.value++}",
-                                                    date = "",
+                                                    id = java.util.UUID.randomUUID().toString(),
+                                                    dateString = "",
                                                     name = "",
                                                     isExisting = false,
                                                     isEditing = true
@@ -500,7 +597,6 @@ fun EventDetailsScreen(
                         ) { index, item ->
                             val isEditing = item.isEditing
 
-                            // Dynamic margins/paddings target values
                             val targetTopPadding = if (isEditing && index > 0 && !timelineItems[index - 1].isEditing) 12.dp else 0.dp
                             val targetBottomPadding = if (isEditing && index == 0) {
                                 12.dp
@@ -510,7 +606,6 @@ fun EventDetailsScreen(
                                 0.dp
                             }
 
-                            // Animating paddings smoothly using animateDpAsState to avoid harsh vertical layout jumps
                             val animatedTopPadding by animateDpAsState(
                                 targetValue = targetTopPadding,
                                 label = "TimelineItemTopPadding"
@@ -520,8 +615,6 @@ fun EventDetailsScreen(
                                 label = "TimelineItemBottomPadding"
                             )
 
-                            // Dynamic Shape Assignment: Editing items pop out with full squircle corners.
-                            // Neighboring items seamlessly adjust their outer boundaries around them.
                             val shape = if (isEditing) {
                                 SquircleShape(CornerLargeIncrease)
                             } else {
@@ -538,7 +631,7 @@ fun EventDetailsScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .animateItem() // Built-in Compose transition engine handles reordering slide animations
+                                    .animateItem()
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp)
                                     .padding(top = animatedTopPadding, bottom = animatedBottomPadding + 2.dp)
@@ -553,14 +646,12 @@ fun EventDetailsScreen(
                                             val oldItem = timelineItems[indexToUpdate]
                                             timelineItems[indexToUpdate] = updatedItem
 
-                                            // Trigger chronological sort instantly when date is picked (even during editing)
                                             if (oldItem.date != updatedItem.date || (!updatedItem.isEditing && oldItem.isEditing)) {
-                                                val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.date) }
+                                                val parsedDates = timelineItems.associate { it.id to parseFormattedDate(it.dateString) }
 
                                                 val sorted = timelineItems.sortedWith(
                                                     compareBy<SubEventItem> {
-                                                        // Keep empty/undated/newly added items at the very top (index 0) so they can be edited cleanly
-                                                        if (it.date.isBlank() || it.date == "Not yet decided" || it.date == "Select a date") 0 else 1
+                                                        if (it.dateString.isBlank() || it.dateString == "Not yet decided" || it.dateString == "Select a date") 0 else 1
                                                     }.thenBy {
                                                         parsedDates[it.id] ?: LocalDate.MAX
                                                     }
@@ -569,10 +660,15 @@ fun EventDetailsScreen(
                                                 timelineItems.clear()
                                                 timelineItems.addAll(sorted)
                                             }
+
+                                            if (!updatedItem.isEditing && oldItem.isEditing) {
+                                                syncEvent()
+                                            }
                                         }
                                     },
                                     onDelete = { itemToDelete ->
                                         timelineItems.remove(itemToDelete)
+                                        syncEvent()
                                     },
                                     backgroundColor = SurfacePrimary,
                                     hasBorder = false,
@@ -606,7 +702,6 @@ fun EventDetailsScreen(
                                 color = ContentSecondary
                             )
                         }
-
                     }
                 }
             }
@@ -631,7 +726,7 @@ fun EventDetailsScreen(
         }
     }
 
-    // ================================================= Dedicated Custom Date Picker Bottom Sheet ==========================================
+    // ========================================== Dedicated Custom Date Picker Bottom Sheet ==========================================
 
     if (showDatePickerSheet) {
         DatePickerSheet(
@@ -643,7 +738,7 @@ fun EventDetailsScreen(
         )
     }
 
-    // =================================================== Event Timeline Info Bottom Sheet =================================================
+    // ============================================= Event Timeline Info Bottom Sheet ===============================================
 
     if (isTimelineInfoSheetVisible) {
         EventTimeLineInfoSheet(
@@ -651,7 +746,7 @@ fun EventDetailsScreen(
         )
     }
 
-    // ============================================================= Bottom Sheet ============================================================
+    // ======================================================= Bottom Sheet ==========================================================
 
     if (showBottomSheet) {
         ModalBottomSheet(
@@ -677,30 +772,25 @@ fun EventDetailsScreen(
                 }
 
                 dialogWindow?.let { w ->
-                    // Set navigation bar color to blend with SurfacePrimary (bottom sheet container)
                     val colorInt = SurfacePrimary.toArgb()
                     w.navigationBarColor = colorInt
 
-                    // Disable default gray tint scrim introduced in Android Q+ for light/colored system bars
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         w.isNavigationBarContrastEnforced = false
                     }
 
-                    // Dynamically set dark or light system icon themes depending on background luminance
                     val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
                     WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
                 }
                 onDispose {}
             }
 
-            // This outer column coordinates drawing the custom toast above the actual bottom sheet
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Aligns right above the sheet container ---
                 androidx.compose.animation.AnimatedVisibility(
                     visible = toastData.message != null,
                     enter = slideInVertically(initialOffsetY = { it }),
@@ -725,7 +815,6 @@ fun EventDetailsScreen(
                         .background(SurfacePrimary)
                         .navigationBarsPadding()
                 ) {
-                    // Custom Drag Handle inside the container
                     Box(
                         modifier = Modifier
                             .align(Alignment.CenterHorizontally)
@@ -765,7 +854,6 @@ fun EventDetailsScreen(
                                     )
                                 }
 
-                                // Steps Body content
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -812,6 +900,7 @@ fun EventDetailsScreen(
                                                 if (wasSingleDay) {
                                                     toastData = ToastData("Changed to Multi-day!", ToastType.SUCCESS)
                                                 }
+                                                syncEvent()
                                                 coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                     showBottomSheet = false
                                                 }
@@ -888,19 +977,28 @@ fun EventDetailsScreen(
                                     Spacer(Modifier.height(12.dp))
 
                                     if (pickDateSegmentSelected) {
+                                        // Filter strictly to exclude undated AND empty name timelines
+                                        val validSavedTimelines = remember(timelineItems) {
+                                            timelineItems.filter {
+                                                it.dateString.isNotBlank() &&
+                                                        it.dateString != "Not yet decided" &&
+                                                        it.dateString != "Select a date" &&
+                                                        it.name.isNotBlank()
+                                            }
+                                        }
+
                                         Box(
                                             modifier = Modifier
                                                 .matchParentSize()
                                                 .clip(SquircleShape(CornerLarge))
                                                 .clickable {
-                                                    if (timelineItems.isEmpty()) {
+                                                    if (timelineItems.isEmpty() || validSavedTimelines.isEmpty()) {
                                                         datePickerInitialDate = parseFormattedDate(tempSelectedDateString)
                                                         onDateSelectedCallback = { localDate ->
                                                             tempSelectedDateString = formatToOrdinalDate(localDate)
                                                         }
                                                         showDatePickerSheet = true
                                                     } else {
-                                                        // Initialize separate draft trackers
                                                         draftSavedDateString = tempSelectedDateString
                                                         draftCustomDateString = tempSelectedDateString
                                                         bottomSheetStep = 2
@@ -917,15 +1015,6 @@ fun EventDetailsScreen(
                                     .fillMaxWidth()
                                     .padding(12.dp),
                             ) {
-                                Text(
-                                    text = "By proceeding, you allow us to delete any existing timeline.",
-                                    style = JasnifyTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
-                                    color = ContentSecondary,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                                Spacer(Modifier.height(12.dp))
-
                                 CustomTextButton(
                                     onClick = {
                                         if (pickDateSegmentSelected && tempSelectedDateString.isNullOrBlank()) {
@@ -936,6 +1025,7 @@ fun EventDetailsScreen(
                                                 timelineItems.clear()
                                                 timelineType = "Single-day"
                                                 singleDaySelectedDate = if (pickDateSegmentSelected) tempSelectedDateString else "Not yet decided"
+                                                syncEvent()
                                                 sheetState.hide()
                                                 if (wasMultiDay) {
                                                     toastData = ToastData("Changed to Single-day!", ToastType.SUCCESS)
@@ -1005,14 +1095,11 @@ fun EventDetailsScreen(
                                                 indication = null
                                             ) {
                                                 pickerActiveTab = 1
-                                                // Sync the saved selection over to custom date so the slider coordinates starting point
                                                 if (draftSavedDateString != null) {
                                                     draftCustomDateString = draftSavedDateString
                                                 } else if (draftCustomDateString == null) {
-                                                    // Fallback to today's date if no custom date was selected yet
                                                     draftCustomDateString = formatToOrdinalDate(LocalDate.now())
                                                 }
-                                                // Clear the draftSavedDateString selection so it resets completely when they slide/come back
                                                 draftSavedDateString = null
                                             },
                                         horizontalAlignment = Alignment.CenterHorizontally,
@@ -1064,7 +1151,17 @@ fun EventDetailsScreen(
                                         .height(260.dp)
                                 ) {
                                     if (pickerActiveTab == 0) {
-                                        if (timelineItems.isEmpty()) {
+                                        // Filter strictly to exclude undated AND empty name timelines
+                                        val validSavedTimelines = remember(timelineItems) {
+                                            timelineItems.filter {
+                                                it.dateString.isNotBlank() &&
+                                                        it.dateString != "Not yet decided" &&
+                                                        it.dateString != "Select a date" &&
+                                                        it.name.isNotBlank()
+                                            }
+                                        }
+
+                                        if (validSavedTimelines.isEmpty()) {
                                             Box(
                                                 modifier = Modifier.fillMaxSize()
                                                     .padding(12.dp),
@@ -1082,18 +1179,19 @@ fun EventDetailsScreen(
                                                 contentPadding = PaddingValues(12.dp),
                                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                                             ) {
-                                                itemsIndexed(timelineItems) { index, item ->
-                                                    val isDateSelected = draftSavedDateString == item.date
+                                                itemsIndexed(
+                                                    items = validSavedTimelines,
+                                                    key = { _, item -> item.id }
+                                                ) { index, item ->
+                                                    val isDateSelected = draftSavedDateString == item.dateString
 
-                                                    // Dynamic Shape per element matching hierarchy rules
                                                     val rowShape = when {
-                                                        timelineItems.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
+                                                        validSavedTimelines.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
                                                         index == 0 -> SquircleShape(CornerLargeIncrease,CornerLargeIncrease,CornerExtraSmall,CornerExtraSmall)
-                                                        index == timelineItems.lastIndex -> SquircleShape(CornerExtraSmall,CornerExtraSmall,CornerLargeIncrease,CornerLargeIncrease)
+                                                        index == validSavedTimelines.lastIndex -> SquircleShape(CornerExtraSmall,CornerExtraSmall,CornerLargeIncrease,CornerLargeIncrease)
                                                         else -> RoundedCornerShape(CornerExtraSmall)
                                                     }
 
-                                                    // Custom Dynamic Button Configuration for rows
                                                     val buttonText = if (isDateSelected) "Selected" else "Select date"
                                                     val buttonBgColor = when {
                                                         isDateSelected -> SurfaceInvPrimary
@@ -1101,8 +1199,6 @@ fun EventDetailsScreen(
                                                         else -> SurfaceBrandPrimary
                                                     }
                                                     val buttonContentColor = ContentInvPrimary
-
-                                                    // Dynamic container background based on selection
                                                     val rowBgColor = if (isDateSelected) SurfaceBrandSecondary else SurfaceSecondary
 
                                                     Row(
@@ -1111,7 +1207,7 @@ fun EventDetailsScreen(
                                                             .clip(rowShape)
                                                             .background(rowBgColor)
                                                             .clickable {
-                                                                draftSavedDateString = item.date
+                                                                draftSavedDateString = item.dateString
                                                             }
                                                             .padding(16.dp),
                                                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -1119,13 +1215,13 @@ fun EventDetailsScreen(
                                                     ) {
                                                         Column(modifier = Modifier.weight(1f)) {
                                                             Text(
-                                                                text = item.date.ifEmpty { "Undated Ceremony" },
+                                                                text = item.dateString,
                                                                 style = JasnifyTheme.typography.labelXLarge,
                                                                 color = ContentBrandDark
                                                             )
                                                             Spacer(modifier = Modifier.height(4.dp))
                                                             Text(
-                                                                text = item.name.ifEmpty { "Ceremony description" },
+                                                                text = item.name,
                                                                 style = JasnifyTheme.typography.labelLarge,
                                                                 color = ContentSecondary
                                                             )
@@ -1133,7 +1229,7 @@ fun EventDetailsScreen(
 
                                                         CustomTextButton(
                                                             onClick = {
-                                                                draftSavedDateString = item.date
+                                                                draftSavedDateString = item.dateString
                                                             },
                                                             text = buttonText,
                                                             contentColor = buttonContentColor,
@@ -1146,7 +1242,6 @@ fun EventDetailsScreen(
                                             }
                                         }
                                     } else {
-                                        // Custom Date picker Tab implementation
                                         val currentParsedDate = remember(draftCustomDateString) {
                                             parseFormattedDate(draftCustomDateString)
                                         }
@@ -1194,7 +1289,6 @@ fun EventDetailsScreen(
                                         modifier = Modifier.weight(1f)
                                     )
 
-                                    // Updated to CustomTextButton for Done Action
                                     CustomTextButton(
                                         onClick = {
                                             val resolvedDate = if (pickerActiveTab == 0) {
@@ -1205,6 +1299,7 @@ fun EventDetailsScreen(
 
                                             if (isDirectDateEdit) {
                                                 singleDaySelectedDate = resolvedDate
+                                                syncEvent()
                                                 coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                     showBottomSheet = false
                                                 }
@@ -1230,15 +1325,11 @@ fun EventDetailsScreen(
     }
 }
 
-// ========================================================= Helper Functions & Utilities ===========================================================
-
-@RequiresApi(Build.VERSION_CODES.O)
-private val DateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM, yyyy", Locale.ENGLISH)
+// ============================================== Helper Functions & Utilities ==============================================
 
 @RequiresApi(Build.VERSION_CODES.O)
 fun parseFormattedDate(dateStr: String?): LocalDate {
     if (dateStr.isNullOrBlank() || dateStr == "Not yet decided" || dateStr == "Select a date") {
-        // Return maximum bound so undecided/empty items sort naturally to the bottom
         return LocalDate.MAX
     }
     return try {
@@ -1252,10 +1343,12 @@ fun parseFormattedDate(dateStr: String?): LocalDate {
             .replaceFirst("nd", "")
             .replaceFirst("rd", "")
             .replace("Sept", "Sep")
+            .replace(",", "")
             .trim()
 
         val cleanedStr = "${dayPart.padStart(2, '0')} $cleanedRemaining"
-        LocalDate.parse(cleanedStr, DateFormatter)
+        val formatterWithoutComma = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+        LocalDate.parse(cleanedStr, formatterWithoutComma)
     } catch (e: Exception) {
         LocalDate.MAX
     }

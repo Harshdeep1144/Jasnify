@@ -18,6 +18,7 @@ foundationVersion = "1.9.3"
 animationCore = "1.9.3"
 googleGmsGoogleServices = "4.4.4"
 firebaseDatabase = "22.0.1"
+firebaseFirestore = "25.1.4"
 firebaseAuthKtx = "22.1.1"
 foundationLayoutVersion = "1.9.3"
 firebaseCrashlyticsBuildtools = "3.0.6"
@@ -54,6 +55,7 @@ androidx-graphics-shapes = { group = "androidx.graphics", name = "graphics-shape
 foundation = { group = "androidx.compose.foundation", name = "foundation", version.ref = "foundationVersion" }
 androidx-animation-core = { group = "androidx.compose.animation", name = "animation-core", version.ref = "animationCore" }
 firebase-database = { group = "com.google.firebase", name = "firebase-database", version.ref = "firebaseDatabase" }
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx", version.ref = "firebaseFirestore" }
 firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx", version.ref = "firebaseAuthKtx" }
 foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayoutVersion" }
 firebase-crashlytics-buildtools = { group = "com.google.firebase", name = "firebase-crashlytics-buildtools", version.ref = "firebaseCrashlyticsBuildtools" }

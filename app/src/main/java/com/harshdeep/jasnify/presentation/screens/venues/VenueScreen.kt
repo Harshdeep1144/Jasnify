@@ -95,6 +95,8 @@ import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.SubEventItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
@@ -105,9 +107,9 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
+ import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -154,11 +156,11 @@ private fun getRecentSearches(context: Context): List<String> {
     return if (raw.isEmpty()) emptyList() else raw.split("|||")
 }
 
-private fun saveRecentSearch(context: Context, vendorName: String) {
+private fun saveRecentSearch(context: Context, name: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = getRecentSearches(context).toMutableList()
-    current.remove(vendorName)
-    current.add(0, vendorName)
+    current.remove(name)
+    current.add(0, name)
     val limited = current.take(8)
     prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
 }
@@ -168,19 +170,12 @@ private fun clearRecentSearches(context: Context) {
     prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
 }
 
-data class TimelineEvent(
-    val id: String,
-    val date: String,
-    val event: String,
-    val venues: List<VendorCardData>
-)
-
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueScreen(
     selectedLocation: String = "City, State",
-    onVenueClick: (VendorCardData) -> Unit,
+    onVenueClick: (Venue) -> Unit,
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true
 ) {
@@ -188,7 +183,7 @@ fun VenueScreen(
     var isLocationPickerVisible by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("explore") }
-    var selectedVenueForDetail by remember { mutableStateOf<VendorCardData?>(null) }
+    var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
 
     var venueRoomUsers by remember {
         mutableStateOf(
@@ -210,19 +205,19 @@ fun VenueScreen(
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
 
-    var activeTargetVenue by remember { mutableStateOf<VendorCardData?>(null) }
+    var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
     var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
     var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
-    var lastSavedVenue by remember { mutableStateOf<VendorCardData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<Venue?>(null) }
 
     var timelineEvents by remember {
         mutableStateOf(
             listOf(
-                TimelineEvent("1", "09th Sept, 2025", "Mehendi Ceremony", emptyList()),
-                TimelineEvent("2", "10th Sept, 2025", "Haldi & Sangeet Ceremony", emptyList()),
-                TimelineEvent("3", "12th Sept, 2025", "The Wedding Day", emptyList()),
-                TimelineEvent("4", "15th Sept, 2025", "Reception Dinner", emptyList())
+                TimelineEvent("1", "09th Sept, 2025", "Mehendi Ceremony", emptyList<Venue>()),
+                TimelineEvent("2", "10th Sept, 2025", "Haldi & Sangeet Ceremony", emptyList<Venue>()),
+                TimelineEvent("3", "12th Sept, 2025", "The Wedding Day", emptyList<Venue>()),
+                TimelineEvent("4", "15th Sept, 2025", "Reception Dinner", emptyList<Venue>())
             )
         )
     }
@@ -321,8 +316,8 @@ fun VenueScreen(
                     "detail" -> {
                         selectedVenueForDetail?.let { venue ->
                             val detailData = remember(venue) {
-                                MockData.venueDetailsMap[venue.vendorName]
-                                    ?: MockData.getDetailsForVendor(venue, MockData.sampleVenues1 + MockData.sampleVenues2)
+                                MockData.venueDetailsMap[venue.name]
+                                    ?: MockData.getDetailsForVenue(venue, MockData.sampleVenues1 + MockData.sampleVenues2)
                             }
                             VenueDetailScreen(
                                 venueDetail = detailData,
@@ -415,7 +410,7 @@ fun VenueScreen(
                         toastData = null
                         lastSavedVenue?.let { venue ->
                             activeTargetVenue = venue
-                            val currentDest = venueSavedDestinations[venue.vendorName]
+                            val currentDest = venueSavedDestinations[venue.name]
                             isMySavedListChecked = currentDest == "mysaved"
                             selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
                             showSaveListBottomSheet = true
@@ -494,7 +489,7 @@ fun VenueScreen(
 @Composable
 fun VenueMainContent(
     selectedLocation: String,
-    onVenueClick: (VendorCardData) -> Unit,
+    onVenueClick: (Venue) -> Unit,
     onLocationSelectorClick: () -> Unit,
     onManageRoomAccessClick: () -> Unit,
     onBackClick: () -> Unit,
@@ -509,16 +504,16 @@ fun VenueMainContent(
     onShowMenuSheetChange: (Boolean) -> Unit,
     timelineEvents: List<TimelineEvent>,
     onTimelineEventsChange: (List<TimelineEvent>) -> Unit,
-    activeTargetVenue: VendorCardData?,
-    onActiveTargetVenueChange: (VendorCardData?) -> Unit,
+    activeTargetVenue: Venue?,
+    onActiveTargetVenueChange: (Venue?) -> Unit,
     isMySavedListChecked: Boolean,
     onMySavedListCheckedChange: (Boolean) -> Unit,
     selectedSaveEventId: String?,
     onSelectedSaveEventIdChange: (String?) -> Unit,
     venueSavedDestinations: Map<String, String>,
     onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
-    lastSavedVenue: VendorCardData?,
-    onLastSavedVenueChange: (VendorCardData?) -> Unit,
+    lastSavedVenue: Venue?,
+    onLastSavedVenueChange: (Venue?) -> Unit,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -545,39 +540,39 @@ fun VenueMainContent(
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val saveListSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+ 
+    val exploreVenues = remember { MockData.sampleVenues1 as List<Venue> }
 
-    val exploreVenues = remember { MockData.sampleVenues1 }
-
-    val recentVenuesList = remember(recentSearches, exploreVenues) {
+    val recentVenuesList = remember<List<Venue>>(recentSearches, exploreVenues) {
         recentSearches.mapNotNull { name ->
-            exploreVenues.find { it.vendorName == name }
+            exploreVenues.find { it.name == name }
         }
     }
 
-    val handleVenueClick: (VendorCardData) -> Unit = { venue ->
-        saveRecentSearch(context, venue.vendorName)
+    val handleVenueClick: (Venue) -> Unit = { venue ->
+        saveRecentSearch(context, venue.name)
         recentSearches = getRecentSearches(context)
         onVenueClick(venue)
     }
 
-    val handleFavoriteToggle: (VendorCardData) -> Unit = { venue ->
-        val alreadySaved = venueSavedDestinations.containsKey(venue.vendorName)
+    val handleFavoriteToggle: (Venue) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
         if (alreadySaved) {
             onActiveTargetVenueChange(venue)
-            val currentDestination = venueSavedDestinations[venue.vendorName]
+            val currentDestination = venueSavedDestinations[venue.name]
             onMySavedListCheckedChange(currentDestination == "mysaved")
             onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
             onShowSaveListBottomSheetChange(true)
         } else {
-            onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to "mysaved"))
+            onVenueSavedDestinationsChange(venueSavedDestinations + (venue.name to "mysaved"))
             onLastSavedVenueChange(venue)
             onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
         }
     }
 
-    val savedVenuesList = remember(venueSavedDestinations) {
+    val savedVenuesList = remember<List<Venue>>(venueSavedDestinations) {
         exploreVenues.filter { venue ->
-            venueSavedDestinations.containsKey(venue.vendorName)
+            venueSavedDestinations.containsKey(venue.name)
         }.map { venue ->
             venue.copy(isFavorite = true)
         }
@@ -604,16 +599,16 @@ fun VenueMainContent(
     )
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
-    val filteredAndSortedExploreVenues = remember(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
+    val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
         var result = exploreVenues.map { venue ->
-            venue.copy(isFavorite = venueSavedDestinations.containsKey(venue.vendorName))
+            venue.copy(isFavorite = venueSavedDestinations.containsKey(venue.name))
         }
 
         if (appliedFilterOptions.isNotEmpty()) {
             result = result.filter { venue ->
                 appliedFilterOptions.any { filter ->
                     venue.services.any { it.equals(filter, ignoreCase = true) } ||
-                            venue.vendorType?.equals(filter, ignoreCase = true) == true
+                            venue.type?.equals(filter, ignoreCase = true) == true
                 }
             }
         }
@@ -641,7 +636,7 @@ fun VenueMainContent(
         val list = mutableListOf<TimelineEvent>()
 
         val defaultSavedVenues = exploreVenues.filter { venue ->
-            venueSavedDestinations[venue.vendorName] == "mysaved"
+            venueSavedDestinations[venue.name] == "mysaved"
         }.map { venue ->
             venue.copy(isFavorite = true)
         }
@@ -659,7 +654,7 @@ fun VenueMainContent(
 
         val eventSections = timelineEvents.map { event ->
             val eventVenues = exploreVenues.filter { venue ->
-                venueSavedDestinations[venue.vendorName] == event.id
+                venueSavedDestinations[venue.name] == event.id
             }.map { venue ->
                 venue.copy(isFavorite = true)
             }
@@ -793,11 +788,14 @@ fun VenueMainContent(
                         }
 
                         if (!isSearchActive) {
-                            items(filteredAndSortedExploreVenues, key = { it.vendorName }) { venue ->
-                                VendorCardFull(
-                                    vendor = venue,
-                                    onFavoriteToggle = { handleFavoriteToggle(venue) },
-                                    onCardClick = { handleVenueClick(venue) },
+                            items(
+                                items = filteredAndSortedExploreVenues,
+                                key = { it.name }
+                            ) { venueItem ->
+                                VenueCardFull(
+                                    venue = venueItem,
+                                    onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                    onCardClick = { handleVenueClick(venueItem) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 12.dp),
@@ -872,11 +870,14 @@ fun VenueMainContent(
                                     EmptySavedState()
                                 }
                             } else {
-                                items(savedVenuesList, key = { it.vendorName }) { venue ->
-                                    VendorCardFull(
-                                        vendor = venue,
-                                        onFavoriteToggle = { handleFavoriteToggle(venue) },
-                                        onCardClick = { handleVenueClick(venue) },
+                                items(
+                                    items = savedVenuesList,
+                                    key = { it.name }
+                                ) { venueItem ->
+                                    VenueCardFull(
+                                        venue = venueItem,
+                                        onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                        onCardClick = { handleVenueClick(venueItem) },
                                         sharedTransitionScope = sharedTransitionScope,
                                         animatedVisibilityScope = animatedVisibilityScope
                                     )
@@ -926,7 +927,7 @@ fun VenueMainContent(
             },
             onAddNewEvent = { name, date ->
                 val newId = (timelineEvents.size + 1).toString()
-                onTimelineEventsChange(listOf(TimelineEvent(newId, date, name, emptyList())) + timelineEvents)
+                onTimelineEventsChange(listOf(TimelineEvent(newId, date, name, emptyList<Venue>())) + timelineEvents)
                 onSelectedSaveEventIdChange(newId)
                 onMySavedListCheckedChange(false)
             },
@@ -935,11 +936,11 @@ fun VenueMainContent(
                 activeTargetVenue?.let { venue ->
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
-                        onVenueSavedDestinationsChange(venueSavedDestinations + (venue.vendorName to destination))
+                        onVenueSavedDestinationsChange(venueSavedDestinations + (venue.name to destination))
                         onLastSavedVenueChange(venue)
                         onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
                     } else {
-                        onVenueSavedDestinationsChange(venueSavedDestinations - venue.vendorName)
+                        onVenueSavedDestinationsChange(venueSavedDestinations - venue.name)
                         onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
                     }
                 }
@@ -1119,7 +1120,7 @@ fun SaveListBottomSheet(
                             modifier = Modifier.clickable {
                                 draftNewEvent = SubEventItem(
                                     id = "temp-new-item",
-                                    date = "",
+                                    dateString = "",
                                     name = "",
                                     isExisting = false,
                                     isEditing = true
@@ -1150,7 +1151,7 @@ fun SaveListBottomSheet(
                             onUpdate = { updatedItem ->
                                 if (!updatedItem.isEditing) {
                                     if (updatedItem.isExisting) {
-                                        onAddNewEvent(updatedItem.name, updatedItem.date)
+                                        onAddNewEvent(updatedItem.name, updatedItem.dateString)
                                     }
                                     draftNewEvent = null
                                 } else {
@@ -1247,9 +1248,9 @@ fun SaveListBottomSheet(
 fun TimelineSection(
     date: String,
     event: String,
-    venues: List<VendorCardData>,
-    onVenueClick: (VendorCardData) -> Unit,
-    onFavoriteToggle: (VendorCardData) -> Unit,
+    venues: List<Venue>,
+    onVenueClick: (Venue) -> Unit,
+    onFavoriteToggle: (Venue) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope
@@ -1295,8 +1296,8 @@ fun TimelineSection(
                     .padding(bottom = 16.dp)
             ) {
                 items(venues) { venue ->
-                    VendorCardCompact(
-                        vendor = venue,
+                    VenueCardCompact(
+                        venue = venue,
                         removeBg = true,
                         onCardClick = { onVenueClick(venue) },
                         onFavoriteToggle = { onFavoriteToggle(venue) },

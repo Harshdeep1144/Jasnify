@@ -163,7 +163,7 @@ fun EventCreation(
 
     // Determine if the timeline is fully valid and saved
     val isTimelineValid = remember(eventData.subEvents) {
-        eventData.subEvents.all { !it.isEditing && it.name.isNotBlank() && it.date.isNotBlank() }
+        eventData.subEvents.all { !it.isEditing && it.name.isNotBlank() && it.dateString.isNotBlank() }
     }
 
     // Dynamic state control to enable or disable the main Action button

@@ -13,19 +13,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardData
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
+import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.theme.*
 
 @Composable
-fun VendorsCarousel(
+fun VenueCarousel(
     title: String,
-    vendors: List<VendorCardData>, 
+    venues: List<Venue>, 
     modifier: Modifier = Modifier,
     onSeeAllClick: () -> Unit = {},
-    onVendorClick: (VendorCardData) -> Unit = {},
-    onFavoriteToggle: (VendorCardData) -> Unit = {},
-    onOfferClick: (VendorCardData) -> Unit = {}
+    onVenueClick: (Venue) -> Unit = {},
+    onFavoriteToggle: (Venue) -> Unit = {},
+    onOfferClick: (Venue) -> Unit = {}
 ) {
     Column(
         modifier = modifier
@@ -62,12 +62,12 @@ fun VendorsCarousel(
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(vendors) { vendor ->
-                VendorCardCompact(
-                    vendor = vendor,
-                    onCardClick = { onVendorClick(vendor) },
-                    onFavoriteToggle = { onFavoriteToggle(vendor) },
-                    onOfferClick = { onOfferClick(vendor) }
+            items(venues) { venue ->
+                VenueCardCompact(
+                    venue = venue,
+                    onCardClick = { onVenueClick(venue) },
+                    onFavoriteToggle = { onFavoriteToggle(venue) },
+                    onOfferClick = { onOfferClick(venue) }
                 )
             }
         }
@@ -76,12 +76,12 @@ fun VendorsCarousel(
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewVendorsCarousel() {
+fun PreviewVenueCarousel() {
     val sampleVenues = List(5) {
-        VendorCardData(
-            vendorName = "Hotel Imperial Inn",
+        Venue(
+            name = "Hotel Imperial Inn",
             location = "Sampatchak, Patna",
-            vendorType = null,
+            type = null,
             rating = 4.4,
             totalReviews = "1k",
             services = listOf(),
@@ -90,10 +90,10 @@ fun PreviewVendorsCarousel() {
         )
     }
 
-    VendorsCarousel(
+    VenueCarousel(
         title = "Trending Venues in Patna",
-        vendors = sampleVenues,
-        onVendorClick = { /* Handle click */ },
+        venues = sampleVenues,
+        onVenueClick = { /* Handle click */ },
         onFavoriteToggle = { /* Handle favorite */ },
         onOfferClick = { /* Handle offer click */ }
     )
