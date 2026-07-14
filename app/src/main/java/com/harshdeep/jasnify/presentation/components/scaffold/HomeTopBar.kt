@@ -52,6 +52,7 @@ fun HomeTopBar(
 
     // Calculate the status subtitle based on the event date relative to now
     val subtitle = remember(dateString) {
+        if (dateString.isBlank() || dateString.contains("Date")) return@remember ""
         try {
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val eventDate = LocalDate.parse(dateString, formatter).atStartOfDay()
@@ -104,23 +105,25 @@ fun HomeTopBar(
                 color = contentColor,
             )
 
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.AccessTime,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = contentColor
-                )
+            if (subtitle.isNotBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccessTime,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = contentColor
+                    )
 
-                Text(
-                    text = subtitle,
-                    style = JasnifyTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Normal,
-                    color = contentColor,
-                )
+                    Text(
+                        text = subtitle,
+                        style = JasnifyTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Normal,
+                        color = contentColor,
+                    )
+                }
             }
         }
 

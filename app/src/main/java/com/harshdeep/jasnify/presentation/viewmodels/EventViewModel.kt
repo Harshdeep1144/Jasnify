@@ -90,14 +90,19 @@ class EventViewModel @Inject constructor(
                 val sortedEvents = events.sortedByDescending { it.createdAt }
                 _userEvents.value = sortedEvents
                 
-                // Only set activeEvent if none is currently selected or if the currently selected one is updated
                 val currentActive = _activeEvent.value
-                if (currentActive == null && sortedEvents.isNotEmpty()) {
-                    _activeEvent.value = sortedEvents.first()
-                } else if (currentActive != null) {
-                    val updatedVersion = sortedEvents.find { it.id == currentActive.id }
-                    if (updatedVersion != null) {
-                        _activeEvent.value = updatedVersion
+                val latest = sortedEvents.firstOrNull()
+
+                if (latest != null) {
+                    // Switch to latest if none active OR if a newer event was created
+                    if (currentActive == null || latest.createdAt > currentActive.createdAt) {
+                        _activeEvent.value = latest
+                    } else {
+                        // Otherwise just refresh the current active event data
+                        val updatedVersion = sortedEvents.find { it.id == currentActive.id }
+                        if (updatedVersion != null) {
+                            _activeEvent.value = updatedVersion
+                        }
                     }
                 }
             }
@@ -141,6 +146,7 @@ class EventViewModel @Inject constructor(
             .document(event.id)
             .set(event)
             .addOnSuccessListener {
+                _activeEvent.value = event // Set as active immediately
                 viewModelScope.launch {
                     val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
                     try {

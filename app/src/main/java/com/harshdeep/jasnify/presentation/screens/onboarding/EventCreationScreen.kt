@@ -48,6 +48,7 @@ import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -682,7 +683,11 @@ fun EventSingleDayContent(
                 onDismiss = { isDatePickerVisible = false },
                 onDateSelected = { date ->
                     val dateString = date.format(PersistenceDateFormatter)
-                    updateEventData(eventData.copy(singleDayDateString = dateString))
+                    val millis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    updateEventData(eventData.copy(
+                        singleDayDateString = dateString,
+                        singleDayDate = millis
+                    ))
                     isDatePickerVisible = false
                 },
                 initialDate = selectedDate ?: LocalDate.now()
