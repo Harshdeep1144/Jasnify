@@ -4,15 +4,34 @@ import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -21,6 +40,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
@@ -32,24 +53,85 @@ import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
+import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
 private val FADE_DISTANCE_DP = 160.dp
 private val HEADER_HEIGHT = 350.dp
 private const val PARALLAX_RATE = 0.5f
 
-@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun HomeTab(
     onMenuClick: () -> Unit,
-    onBottomBarVisibilityChange: (Boolean) -> Unit
+    onBottomBarVisibilityChange: (Boolean) -> Unit,
+    eventViewModel: EventViewModel = hiltViewModel(),
+    budgetViewModel: BudgetViewModel = hiltViewModel()
 ) {
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    
+    // Fetch user events on mount to ensure real-time updates are active
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    // Sync eventId to BudgetViewModel to get accurate budget summary
+    LaunchedEffect(activeEvent?.id) {
+        activeEvent?.id?.let { id ->
+            budgetViewModel.setEventId(id)
+        }
+    }
+
+    val budgetEntity by budgetViewModel.budgetSettings.collectAsStateWithLifecycle()
+    val expensesEntities by budgetViewModel.expenses.collectAsStateWithLifecycle()
+
+    val totalSpent = remember(expensesEntities) {
+        expensesEntities.sumOf { it.amount }
+    }
+    
+    val totalBudget = remember(budgetEntity, activeEvent) {
+        budgetEntity?.totalBudget ?: activeEvent?.budget ?: 0.0
+    }
+
+    val remainingFunds = (totalBudget - totalSpent).coerceAtLeast(0.0)
+    val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
+
+    // Budget formatting logic (100, 1k, 45L, 23Cr) - No decimal points
+    fun formatBudgetShorthand(amount: Double): String {
+        return when {
+            amount >= 10_000_000 -> "${(amount / 10_000_000).toLong()}Cr"
+            amount >= 100_000 -> "${(amount / 100_000).toLong()}L"
+            amount >= 1000 -> "${(amount / 1000).toLong()}k"
+            else -> "${amount.toLong()}"
+        }
+    }
+
+    val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
+
     var currentScreen by remember { mutableStateOf("home") }
     val coroutineScope = rememberCoroutineScope()
+
+    // Date formatting for the top bar - Using java.time for better consistency with HomeTopBar
+    val eventDateString = remember(activeEvent?.date) {
+        activeEvent?.date?.let {
+            try {
+                Instant.ofEpochMilli(it)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            } catch (e: Exception) {
+                ""
+            }
+        } ?: ""
+    }
 
     // Professional touch response: A tiny delay of 80ms allows the ripple animation to render
     val navigateTo: (String) -> Unit = remember {
@@ -112,8 +194,8 @@ fun HomeTab(
                 Scaffold(
                     topBar = {
                         HomeTopBar(
-                            title = "Taylor & Travis’s Wedding",
-                            dateString = "2026-11-21",
+                            title = activeEvent?.name ?: "",
+                            dateString = eventDateString,
                             alpha = topBarAlpha,
                             onMenuClick = onMenuClick
                         )
@@ -140,8 +222,8 @@ fun HomeTab(
                                 insight = "See your budget",
                                 heading = "Budget Tracker",
                                 illustration = painterResource(R.drawable.ill_budget_tracker_card),
-                                progress = 0.45f,
-                                amountText = "₹46L",
+                                progress = remainingPercentage,
+                                amountText = amountText,
                                 labelText = "left",
                                 onClick = { navigateTo("budget") }
                             )
@@ -217,7 +299,7 @@ fun HomeTab(
                             Spacer(Modifier.height(12.dp))
 
                             VenueCarousel(
-                                title = "Trending Venues in Patna",
+                                title = "More Venues to Explore",
                                 venues = MockData.sampleVenues2,
                                 onVenueClick = { },
                                 onFavoriteToggle = { },
@@ -234,10 +316,10 @@ fun HomeTab(
                     "budget" -> BudgetScreen(
                         onBackClick = { currentScreen = "home" },
                     )
-                    "venue" -> VenueScreen(
+                    "venues" -> VenueScreen(
+                        selectedLocation = "City, State",
                         onVenueClick = {},
-                        onBackClick = { currentScreen = "home" },
-                        isScreenActive = currentScreen == "venue"
+                        onBackClick = { currentScreen = "home" }
                     )
                     "catering" -> CateringMenuScreen(
                         onBackClick = { currentScreen = "home" },

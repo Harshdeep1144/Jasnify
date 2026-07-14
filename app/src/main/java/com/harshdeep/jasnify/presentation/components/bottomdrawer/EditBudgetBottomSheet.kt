@@ -168,12 +168,10 @@ fun EditBudgetBottomSheet(
                             hasStroke = true,
                             onClick = {
                                 val updatedValue = (numericValue + amountToAdd).coerceAtMost(999999999999.0)
-                                val formattedValue = if (updatedValue % 1 == 0.0) {
-                                    updatedValue.toLong().toString()
-                                } else {
-                                    updatedValue.toString()
-                                }
-                                budgetValue = currencyCode + formattedValue
+                                // Use java.math.BigDecimal to avoid scientific notation
+                                val plainString = java.math.BigDecimal.valueOf(updatedValue).toPlainString()
+                                val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
+                                budgetValue = currencyCode + cleanString
                             },
                             modifier = Modifier.background(Color.Transparent)
                         )
