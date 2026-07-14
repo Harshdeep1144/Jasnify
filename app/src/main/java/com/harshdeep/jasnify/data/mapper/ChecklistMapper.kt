@@ -8,6 +8,7 @@ fun ChecklistEntity.toChecklist(): Checklist {
     return Checklist(
         id = id,
         ownerId = ownerId,
+        eventId = eventId,
         title = title,
         dateTime = dateTime,
         items = items,
@@ -22,6 +23,7 @@ fun Checklist.toChecklistEntity(): ChecklistEntity {
     return ChecklistEntity(
         id = id,
         ownerId = ownerId,
+        eventId = eventId,
         title = title,
         dateTime = dateTime,
         items = items,

@@ -5,11 +5,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ChecklistDao {
-    @Query("SELECT * FROM checklists WHERE archived = 0 ORDER BY pinned DESC, lastUpdated DESC")
-    fun getAllChecklists(): Flow<List<ChecklistEntity>>
+    @Query("SELECT * FROM checklists WHERE archived = 0 AND (eventId = :eventId OR eventId IS NULL) ORDER BY pinned DESC, lastUpdated DESC")
+    fun getAllChecklists(eventId: String): Flow<List<ChecklistEntity>>
 
-    @Query("SELECT * FROM checklists WHERE archived = 1 ORDER BY lastUpdated DESC")
-    fun getArchivedChecklists(): Flow<List<ChecklistEntity>>
+    @Query("SELECT * FROM checklists WHERE archived = 1 AND (eventId = :eventId OR eventId IS NULL) ORDER BY lastUpdated DESC")
+    fun getArchivedChecklists(eventId: String): Flow<List<ChecklistEntity>>
 
     @Query("SELECT * FROM checklists WHERE id = :id")
     suspend fun getChecklistById(id: String): ChecklistEntity?

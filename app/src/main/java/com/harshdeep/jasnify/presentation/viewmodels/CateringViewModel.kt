@@ -24,14 +24,25 @@ class CateringViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val cateringItems: StateFlow<List<CateringItemEntity>> = _eventId
         .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getCateringItems(id)
+            if (id == null) {
+                flowOf(null) // Emit null to indicate "no event context yet"
+            } else {
+                _isLoading.value = true // Reset loading when eventId changes
+                repository.getCateringItems(id).map { it as List<CateringItemEntity>? }
+            }
         }
-        .onEach { _isLoading.value = false }
+        .onEach { 
+            if (it != null) {
+                _isLoading.value = false 
+            }
+        }
+        .map { it ?: emptyList() }
         .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
     fun setEventId(id: String) {
-        _eventId.value = id
+        if (_eventId.value != id) {
+            _eventId.value = id
+        }
     }
 
     fun addItem(name: String, dietary: Dietary, type: String, cuisine: String) {

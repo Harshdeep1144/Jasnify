@@ -1083,12 +1083,10 @@ fun SkeletonMenuCategoryCard(
     )
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color.Transparent, SquircleShape(CornerExtraLarge)),
-            shape = SquircleShape(CornerExtraLarge),
+        modifier = modifier.fillMaxWidth(),
+        shape = SquircleShape(CornerExtraLarge),
         colors = CardDefaults.cardColors(
-            containerColor = ContentTertiary.copy(alpha = 0.05f)
+            containerColor = ContentTertiary.copy(alpha = 0.1f)
         ),
     ) {
         Column(

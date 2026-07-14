@@ -5,7 +5,7 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "budget_settings")
 data class BudgetEntity(
-    @PrimaryKey val id: Int = 0, // Singleton-like entity
+    @PrimaryKey val eventId: String,
     val totalBudget: Double,
     val currency: String = "INR"
 )
