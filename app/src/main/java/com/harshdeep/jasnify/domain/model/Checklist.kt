@@ -5,6 +5,7 @@ import java.util.UUID
 data class Checklist(
     val id: String = UUID.randomUUID().toString(),
     val ownerId: String = "",
+    val eventId: String? = null, // Add eventId
     val title: String = "",
     val dateTime: String = "",
     val items: List<ChecklistItem> = emptyList(),

@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
+import com.harshdeep.jasnify.domain.repository.BudgetRepository
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.repository.CateringRepository
 import androidx.lifecycle.viewModelScope
@@ -49,7 +50,8 @@ sealed class EventCreationState {
 class EventViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
-    private val cateringRepository: CateringRepository
+    private val cateringRepository: CateringRepository,
+    private val budgetRepository: BudgetRepository
 ) : ViewModel() {
 
     private val _eventState = MutableStateFlow<EventCreationState>(EventCreationState.Idle)
@@ -63,6 +65,10 @@ class EventViewModel @Inject constructor(
 
     private val _userEvents = MutableStateFlow<List<Event>>(emptyList())
     val userEvents: StateFlow<List<Event>> = _userEvents.asStateFlow()
+
+    fun setActiveEvent(event: Event) {
+        _activeEvent.value = event
+    }
 
     fun resetEventState() {
         _eventState.value = EventCreationState.Idle
@@ -83,8 +89,16 @@ class EventViewModel @Inject constructor(
                 val events = snapshot?.toObjects(Event::class.java) ?: emptyList()
                 val sortedEvents = events.sortedByDescending { it.createdAt }
                 _userEvents.value = sortedEvents
-                if (sortedEvents.isNotEmpty()) {
+                
+                // Only set activeEvent if none is currently selected or if the currently selected one is updated
+                val currentActive = _activeEvent.value
+                if (currentActive == null && sortedEvents.isNotEmpty()) {
                     _activeEvent.value = sortedEvents.first()
+                } else if (currentActive != null) {
+                    val updatedVersion = sortedEvents.find { it.id == currentActive.id }
+                    if (updatedVersion != null) {
+                        _activeEvent.value = updatedVersion
+                    }
                 }
             }
     }
@@ -103,6 +117,8 @@ class EventViewModel @Inject constructor(
 
         val userId = user.uid
 
+        val budgetValue = eventData.budget.dropWhile { !it.isDigit() && it != '.' }.toDoubleOrNull() ?: 0.0
+
         // Mapping to professional Event model
         val event = Event(
             ownerId = userId,
@@ -110,7 +126,7 @@ class EventViewModel @Inject constructor(
             typeId = eventData.selectedEventTypeId,
             multiDay = eventData.isMultiDay ?: false, // Updated to use renamed multiDay
             date = eventData.singleDayDate,
-            budget = eventData.budget.toDoubleOrNull() ?: 0.0,
+            budget = budgetValue,
             subEvents = eventData.subEvents.map {
                 SubEvent(
                     id = it.id,
@@ -127,9 +143,21 @@ class EventViewModel @Inject constructor(
             .addOnSuccessListener {
                 viewModelScope.launch {
                     val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
-                    cateringRepository.seedDefaultItems(eventTypeLabel, event.id)
+                    try {
+                        cateringRepository.seedDefaultItems(eventTypeLabel, event.id)
+                    } catch (e: Exception) {
+                        // Log seeding error but proceed
+                    }
+                    
+                    try {
+                        // Also seed budget settings
+                        budgetRepository.updateBudget(event.budget, event.id)
+                    } catch (e: Exception) {
+                        // Log budget error
+                    }
+                    
+                    _eventState.value = EventCreationState.Success("'${event.name}' event created!")
                 }
-                _eventState.value = EventCreationState.Success("'${event.name}' event created!")
             }
             .addOnFailureListener { e ->
                 _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event.")
