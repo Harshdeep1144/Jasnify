@@ -120,8 +120,20 @@ fun HomeTab(
     val coroutineScope = rememberCoroutineScope()
 
     // Date formatting for the top bar - Using java.time for better consistency with HomeTopBar
-    val eventDateString = remember(activeEvent?.date) {
-        activeEvent?.date?.let {
+    val eventDateString = remember(activeEvent) {
+        val now = System.currentTimeMillis()
+        val effectiveDate = if (activeEvent?.multiDay == true) {
+            val dates = activeEvent?.subEvents?.mapNotNull { it.date } ?: emptyList()
+            if (dates.isEmpty()) null
+            else {
+                val upcoming = dates.filter { it >= now }.minOrNull()
+                upcoming ?: dates.maxOrNull()
+            }
+        } else {
+            activeEvent?.date
+        }
+
+        effectiveDate?.let {
             try {
                 Instant.ofEpochMilli(it)
                     .atZone(ZoneId.systemDefault())
