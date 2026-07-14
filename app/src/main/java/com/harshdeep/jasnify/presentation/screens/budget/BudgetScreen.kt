@@ -251,8 +251,12 @@ fun BudgetScreen(
 
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
-    val budgetValue = remember(budgetEntity) {
-        budgetEntity?.let { "INR${it.totalBudget}" } ?: "INR0"
+    val budgetValue = remember(budgetEntity, activeEvent) {
+        val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget ?: 0.0
+        val plainString = java.math.BigDecimal.valueOf(rawValue).toPlainString()
+        // Remove trailing .0 if it's an integer value for cleaner input
+        val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
+        "INR$cleanString"
     }
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
