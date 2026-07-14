@@ -8,6 +8,7 @@ import com.harshdeep.jasnify.domain.model.ChecklistItem
 data class ChecklistEntity(
     @PrimaryKey val id: String,
     val ownerId: String,
+    val eventId: String? = null, // Add eventId
     val title: String,
     val dateTime: String,
     val items: List<ChecklistItem>,

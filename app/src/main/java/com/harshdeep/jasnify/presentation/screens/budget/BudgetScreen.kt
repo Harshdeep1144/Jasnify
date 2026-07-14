@@ -149,7 +149,8 @@ enum class BudgetScreenView {
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
-    viewModel: BudgetViewModel = hiltViewModel()
+    viewModel: BudgetViewModel = hiltViewModel(),
+    eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -157,6 +158,19 @@ fun BudgetScreen(
 
     val expensesEntities by viewModel.expenses.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.budgetSettings.collectAsStateWithLifecycle()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+
+    // Fetch user events to ensure we have an active event
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    // Sync eventId to BudgetViewModel
+    LaunchedEffect(activeEvent) {
+        activeEvent?.id?.let { id ->
+            viewModel.setEventId(id)
+        }
+    }
 
     val indianLocale = Locale("en", "IN")
     val formatter = NumberFormat.getNumberInstance(indianLocale)
@@ -238,7 +252,7 @@ fun BudgetScreen(
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
     val budgetValue = remember(budgetEntity) {
-        budgetEntity?.let { "INR${it.totalBudget.toLong()}" } ?: "INR10000000"
+        budgetEntity?.let { "INR${it.totalBudget}" } ?: "INR0"
     }
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
