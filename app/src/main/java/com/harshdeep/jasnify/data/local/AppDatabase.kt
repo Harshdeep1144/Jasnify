@@ -5,8 +5,14 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [ChecklistEntity::class, ExpenseEntity::class, BudgetEntity::class, CateringItemEntity::class],
-    version = 4,
+    entities = [
+        ChecklistEntity::class, 
+        ExpenseEntity::class, 
+        BudgetEntity::class, 
+        CateringItemEntity::class, 
+        CateringMetadataEntity::class
+    ],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
