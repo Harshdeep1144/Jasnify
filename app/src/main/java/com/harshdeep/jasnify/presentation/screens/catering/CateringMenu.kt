@@ -7,6 +7,10 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -20,18 +24,22 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -82,10 +90,16 @@ import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.harshdeep.jasnify.data.models.eventTypes
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 data class MenuItem(
+    val id: String,
     val name: String,
     val dietary: Dietary,
     val type: String,
@@ -101,9 +115,40 @@ enum class CateringMenuView {
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
+    cateringViewModel: CateringViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+
+    val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
+    val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+
+    val allMenuItems = remember(cateringItemsEntities) {
+        cateringItemsEntities.map { entity ->
+            MenuItem(
+                id = entity.id,
+                name = entity.name,
+                dietary = entity.dietary,
+                type = entity.type,
+                cuisine = entity.cuisine
+            )
+        }
+    }
+
+    // Fetch user events to ensure we have an active event for seeding
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    // Seed default items if empty based on active event type
+    LaunchedEffect(activeEvent) {
+        activeEvent?.let { event ->
+            val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+            cateringViewModel.seedDefaultMenu(eventTypeLabel, event.id)
+        }
+    }
 
     var searchText by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -189,51 +234,21 @@ fun CateringMenuScreen(
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
-    val allMenuItems = remember {
-        mutableStateListOf(
-            // Starters
-            MenuItem("Chicken Malai Tikka", Dietary.NonVeg, "Starters", "Mughlai"),
-            MenuItem("Crispy Chilli Potato", Dietary.Veg, "Starters", "Chinese"),
-            MenuItem("Mutton Seekh Kebab", Dietary.NonVeg, "Starters", "Mughlai"),
-            MenuItem("Amritsari Fish Fry", Dietary.NonVeg, "Starters", "Punjabi"),
-            MenuItem("Hara Bhara Kebab", Dietary.Veg, "Starters", "North Indian"),
-            MenuItem("Chicken 65", Dietary.NonVeg, "Starters", "South Indian"),
-            MenuItem("Cheese Corn Balls", Dietary.Veg, "Starters", "Continental"),
-            MenuItem("Garlic Butter Prawns", Dietary.NonVeg, "Starters", "Continental"),
-
-            // Beverages
-            MenuItem("Mango Lassi", Dietary.Veg, "Beverages", "Punjabi"),
-            MenuItem("Masala Lemonade", Dietary.Veg, "Beverages", "North Indian"),
-            MenuItem("Virgin Mojito", Dietary.Veg, "Beverages", "Italian"),
-            MenuItem("Cold Coffee with Ice Cream", Dietary.Veg, "Beverages", "Continental"),
-            MenuItem("Iced Peach Tea", Dietary.Veg, "Beverages", "Continental"),
-            MenuItem("Blue Lagoon Mocktail", Dietary.Veg, "Beverages", "Continental"),
-
-            // Desserts
-            MenuItem("Warm Chocolate Brownie", Dietary.Veg, "Desserts", "Continental"),
-            MenuItem("Kesari Phirni", Dietary.Veg, "Desserts", "North Indian"),
-            MenuItem("Tiramisu Cups", Dietary.Veg, "Desserts", "Italian"),
-            MenuItem("Fresh Fruit Cream", Dietary.Veg, "Desserts", "Continental"),
-            MenuItem("Shahi Tukda", Dietary.Veg, "Desserts", "Awadhi"),
-            MenuItem("Vanilla Bean Ice Cream", Dietary.Veg, "Desserts", "Continental")
-        )
-    }
-
-    val cuisineOptions by remember {
+    val cuisineOptions by remember(allMenuItems) {
         derivedStateOf {
             (listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean") +
                     allMenuItems.map { it.cuisine }).distinct().sorted()
         }
     }
 
-    val typeOptions by remember {
+    val typeOptions by remember(allMenuItems) {
         derivedStateOf {
             (listOf("Starters", "Beverages", "Main Course", "Desserts") +
                     allMenuItems.map { it.type }).distinct().sorted()
         }
     }
 
-    val filteredItems by remember {
+    val filteredItems by remember(allMenuItems, searchText, selectedFilterTab, selectedCuisines, selectedTypes) {
         derivedStateOf {
             allMenuItems.filter { item ->
                 val matchesSearch = item.name.contains(searchText, ignoreCase = true) ||
@@ -254,7 +269,7 @@ fun CateringMenuScreen(
         }
     }
 
-    val categorizedItems by remember {
+    val categorizedItems by remember(filteredItems) {
         derivedStateOf {
             filteredItems.groupBy { it.type }
         }
@@ -441,7 +456,23 @@ fun CateringMenuScreen(
 
                                 Spacer(modifier = Modifier.height(12.dp))
 
-                                if (categorizedItems.isEmpty()) {
+                                if (isLoading) {
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .weight(1f),
+                                        contentPadding = PaddingValues(
+                                            bottom = 80.dp
+                                        ),
+                                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        items(3) {
+                                            SkeletonMenuCategoryCard(
+                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                            )
+                                        }
+                                    }
+                                } else if (categorizedItems.isEmpty()) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -661,7 +692,7 @@ fun CateringMenuScreen(
             },
             onConfirmRemove = {
                 focusManager.clearFocus()
-                allMenuItems.remove(itemToDelete)
+                itemToDelete?.let { cateringViewModel.deleteItem(it.id) }
                 showDeleteConfirmationSheet = false
                 itemToDelete = null
                 toastData = ToastData("Item removed from menu", ToastType.SUCCESS)
@@ -827,13 +858,6 @@ fun CateringMenuScreen(
                         onSubmitClick = {
                             focusManager.clearFocus()
                             if (newItemName.isNotBlank()) {
-                                val updatedOrNewItem = MenuItem(
-                                    name = newItemName,
-                                    dietary = newItemDietary,
-                                    type = newItemType,
-                                    cuisine = newItemCuisine
-                                )
-
                                 successMessage = if (editingItem != null) {
                                     "Item has been updated"
                                 } else {
@@ -841,12 +865,20 @@ fun CateringMenuScreen(
                                 }
 
                                 if (editingItem != null) {
-                                    val editIndex = allMenuItems.indexOf(editingItem)
-                                    if (editIndex != -1) {
-                                        allMenuItems[editIndex] = updatedOrNewItem
-                                    }
+                                    cateringViewModel.updateItem(
+                                        id = editingItem!!.id,
+                                        name = newItemName,
+                                        dietary = newItemDietary,
+                                        type = newItemType,
+                                        cuisine = newItemCuisine
+                                    )
                                 } else {
-                                    allMenuItems.add(updatedOrNewItem)
+                                    cateringViewModel.addItem(
+                                        name = newItemName,
+                                        dietary = newItemDietary,
+                                        type = newItemType,
+                                        cuisine = newItemCuisine
+                                    )
                                 }
 
                                 showAddItemSheet = false
@@ -1015,7 +1047,88 @@ fun CateringMenuScreen(
 }
 
 
-// --------------- Category Card components & other helpers ---------------------
+
+// =========================================== Category Card components & other helpers ========================================
+
+
+
+@Composable
+fun SkeletonMenuCategoryCard(
+    modifier: Modifier = Modifier
+) {
+    // Shimmer transition setup to create the smooth sweeping reflection animation
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmer_anim"
+    )
+
+    // High-fidelity shimmer color stops to match modern loading UI styles
+    val shimmerColors = listOf(
+        Color.LightGray.copy(alpha = 0.6f),
+        Color.LightGray.copy(alpha = 0.2f),
+        Color.LightGray.copy(alpha = 0.6f),
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset(translateAnim - 300f, translateAnim - 300f),
+        end = Offset(translateAnim, translateAnim),
+        tileMode = TileMode.Clamp
+    )
+
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Transparent, SquircleShape(CornerExtraLarge)),
+            shape = SquircleShape(CornerExtraLarge),
+        colors = CardDefaults.cardColors(
+            containerColor = ContentTertiary.copy(alpha = 0.05f)
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.5f)
+                    .height(28.dp)
+                    .padding(vertical = 4.dp)
+                    .clip(RoundedCornerShape(CornerLarge))
+                    .background(brush)
+            )
+            DashedDivider(
+                color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                dashLength = 20f,
+                gapLength = 6f
+            )
+
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                repeat(4) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp)
+                            .clip(RoundedCornerShape(CornerSmall))
+                            .background(brush)
+                    )
+                }
+            }
+        }
+    }
+}
 
 @Composable
 fun MenuCategoryCard(
@@ -1028,8 +1141,8 @@ fun MenuCategoryCard(
 
     Card(
         modifier = modifier.fillMaxWidth()
-            .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(28.dp)),
-        shape = SquircleShape(28.dp),
+            .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(CornerExtraLarge)),
+        shape = SquircleShape(CornerExtraLarge),
         colors = CardDefaults.cardColors(
             containerColor = BackgroundBrand
         ),
