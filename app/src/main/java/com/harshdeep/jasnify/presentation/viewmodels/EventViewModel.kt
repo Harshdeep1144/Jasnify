@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
+import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.repository.CateringRepository
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 import java.util.UUID
@@ -45,6 +49,7 @@ sealed class EventCreationState {
 class EventViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore,
+    private val cateringRepository: CateringRepository
 ) : ViewModel() {
 
     private val _eventState = MutableStateFlow<EventCreationState>(EventCreationState.Idle)
@@ -120,6 +125,10 @@ class EventViewModel @Inject constructor(
             .document(event.id)
             .set(event)
             .addOnSuccessListener {
+                viewModelScope.launch {
+                    val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+                    cateringRepository.seedDefaultItems(eventTypeLabel, event.id)
+                }
                 _eventState.value = EventCreationState.Success("'${event.name}' event created!")
             }
             .addOnFailureListener { e ->

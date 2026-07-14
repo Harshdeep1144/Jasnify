@@ -23,4 +23,10 @@ abstract class RepositoryModule {
     abstract fun bindBudgetRepository(
         budgetRepositoryImpl: com.harshdeep.jasnify.data.repository.BudgetRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.BudgetRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCateringRepository(
+        cateringRepositoryImpl: com.harshdeep.jasnify.data.repository.CateringRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.CateringRepository
 }

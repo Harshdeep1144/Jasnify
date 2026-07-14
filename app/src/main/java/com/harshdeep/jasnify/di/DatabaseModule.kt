@@ -37,4 +37,10 @@ object DatabaseModule {
     fun provideBudgetDao(database: AppDatabase): com.harshdeep.jasnify.data.local.BudgetDao {
         return database.budgetDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideCateringDao(database: AppDatabase): com.harshdeep.jasnify.data.local.CateringDao {
+        return database.cateringDao()
+    }
 }

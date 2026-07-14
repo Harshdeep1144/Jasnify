@@ -81,6 +81,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.CategorySummaryData
+import com.harshdeep.jasnify.domain.model.ExpenseItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
@@ -142,26 +144,6 @@ enum class BudgetScreenView {
     CATEGORY_DETAIL,
     MANAGE_ROOM_ACCESS
 }
-
-data class ExpenseItem(
-    val id: String,
-    val title: String,
-    val category: String,
-    val amount: String,
-    val emoji: String = "💸",
-    val lastUpdatedBy: String? = null,
-    val lastUpdatedDate: String? = null,
-    val phoneNumber: String? = null,
-    val note: String? = null
-)
-
-data class CategorySummaryData(
-    val name: String,
-    val amountFormatted: String,
-    val amountRaw: Double,
-    val emojis: List<String>,
-    val totalCount: Int
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
