@@ -96,7 +96,6 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import sv.lib.squircleshape.SquircleShape
-import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 data class MenuItem(
@@ -145,9 +144,9 @@ fun CateringMenuScreen(
 
     // Seed default items if empty based on active event type
     LaunchedEffect(activeEvent) {
-        activeEvent?.typeId?.let { typeId ->
-            val eventTypeLabel = eventTypes.find { it.id == typeId }?.label ?: "Others"
-            cateringViewModel.seedDefaultMenu(eventTypeLabel)
+        activeEvent?.let { event ->
+            val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+            cateringViewModel.seedDefaultMenu(eventTypeLabel, event.id)
         }
     }
 
