@@ -21,4 +21,14 @@ class Converters {
         val type = object : TypeToken<List<ChecklistItem>>() {}.type
         return gson.fromJson(value, type)
     }
+
+    @TypeConverter
+    fun fromDietary(dietary: com.harshdeep.jasnify.presentation.components.chip.Dietary): String {
+        return dietary.name
+    }
+
+    @TypeConverter
+    fun toDietary(value: String): com.harshdeep.jasnify.presentation.components.chip.Dietary {
+        return com.harshdeep.jasnify.presentation.components.chip.Dietary.valueOf(value)
+    }
 }
