@@ -19,9 +19,9 @@ class BudgetRepositoryImpl @Inject constructor(
 
     private val externalScope = CoroutineScope(Dispatchers.IO)
 
-    override fun getAllExpenses(): Flow<List<ExpenseEntity>> = budgetDao.getAllExpenses()
+    override fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>> = budgetDao.getAllExpenses(eventId)
 
-    override fun getBudgetSettings(): Flow<BudgetEntity?> = budgetDao.getBudgetSettings()
+    override fun getBudgetSettings(eventId: String): Flow<BudgetEntity?> = budgetDao.getBudgetSettings(eventId)
 
     override suspend fun addExpense(expense: ExpenseEntity) {
         // 1. Update Room Instantly
@@ -31,7 +31,7 @@ class BudgetRepositoryImpl @Inject constructor(
         externalScope.launch {
             try {
                 firestore.collection("budgets")
-                    .document("default_room") // Using a placeholder for room ID
+                    .document(expense.eventId)
                     .collection("expenses")
                     .document(expense.id)
                     .set(expense)
@@ -45,7 +45,7 @@ class BudgetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun deleteExpense(expenseId: String) {
+    override suspend fun deleteExpense(expenseId: String, eventId: String) {
         // 1. Update Room Instantly
         budgetDao.deleteExpenseById(expenseId)
 
@@ -53,7 +53,7 @@ class BudgetRepositoryImpl @Inject constructor(
         externalScope.launch {
             try {
                 firestore.collection("budgets")
-                    .document("default_room")
+                    .document(eventId)
                     .collection("expenses")
                     .document(expenseId)
                     .delete()
@@ -64,34 +64,44 @@ class BudgetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateBudget(totalBudget: Double) {
-        val budgetSettings = BudgetEntity(totalBudget = totalBudget)
+    override suspend fun updateBudget(totalBudget: Double, eventId: String) {
+        android.util.Log.d("BudgetRepo", "Updating budget for event $eventId to $totalBudget")
+        val budgetSettings = BudgetEntity(eventId = eventId, totalBudget = totalBudget)
         budgetDao.updateBudgetSettings(budgetSettings)
 
         externalScope.launch {
             try {
+                // Update specific budget document
                 firestore.collection("budgets")
-                    .document("default_room")
-                    .set(mapOf("totalBudget" to totalBudget))
+                    .document(eventId)
+                    .set(mapOf("totalBudget" to totalBudget), com.google.firebase.firestore.SetOptions.merge())
                     .await()
+                android.util.Log.d("BudgetRepo", "Successfully updated budgets/$eventId")
+
+                // Sync with the event document's budget field
+                firestore.collection("events")
+                    .document(eventId)
+                    .update("budget", totalBudget)
+                    .await()
+                android.util.Log.d("BudgetRepo", "Successfully updated events/$eventId")
+                    
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("BudgetRepo", "Error updating budget in Firestore: ${e.message}", e)
             }
         }
     }
 
-    override suspend fun renameCategory(oldName: String, newName: String) {
-        budgetDao.renameCategory(oldName, newName)
+    override suspend fun renameCategory(oldName: String, newName: String, eventId: String) {
+        budgetDao.renameCategory(oldName, newName, eventId)
         // Cloud sync for category rename would require a batch update in Firestore
     }
 
-    override suspend fun deleteExpensesByCategory(category: String) {
-        budgetDao.deleteExpensesByCategory(category)
+    override suspend fun deleteExpensesByCategory(category: String, eventId: String) {
+        budgetDao.deleteExpensesByCategory(category, eventId)
         // Cloud sync for delete by category would require a batch delete in Firestore
     }
 
     override suspend fun syncWithCloud() {
         // Implementation for pulling data from Firestore if needed
-        // For now, focusing on the Push logic described in the diagram
     }
 }

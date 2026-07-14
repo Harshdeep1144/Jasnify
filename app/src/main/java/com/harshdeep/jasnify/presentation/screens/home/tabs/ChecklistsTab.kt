@@ -86,6 +86,8 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
@@ -105,10 +107,24 @@ sealed interface ChecklistScreenState {
 @Composable
 fun ChecklistsTab(
     viewModel: ChecklistViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
     onBottomBarVisibilityChange: (Boolean) -> Unit = {}
 ) {
-    val checklists by viewModel.checklists.collectAsState()
-    val archivedChecklists by viewModel.archivedChecklists.collectAsState()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    
+    // Fetch user events to ensure we have an active event context
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+    
+    LaunchedEffect(activeEvent) {
+        activeEvent?.id?.let { id ->
+            viewModel.setEventId(id)
+        }
+    }
+
+    val checklists by viewModel.checklists.collectAsStateWithLifecycle()
+    val archivedChecklists by viewModel.archivedChecklists.collectAsStateWithLifecycle()
 
     var isGridView by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("All") }
