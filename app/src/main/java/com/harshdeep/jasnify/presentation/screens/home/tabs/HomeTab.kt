@@ -262,7 +262,7 @@ fun HomeTab(
                                     cardBgColor = Color(0xFFD3CDE8),
                                     waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
                                     insightColor = Color(0xFF6448D6),
-                                    onClick = { navigateTo("venue") }
+                                    onClick = { navigateTo("venues") }
                                 )
                             }
 
