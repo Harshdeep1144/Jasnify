@@ -6,6 +6,8 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -198,6 +200,9 @@ fun EventDetailsScreen(
         }
     }
 
+    // Tracks if this is the first load to suppress "top to bottom" entry animations
+    var isInitialLoad by remember { mutableStateOf(true) }
+
     // Check if any item is currently unsaved and being edited to avoid duplicate blank inserts
     val hasUnsavedEditingItem by remember {
         derivedStateOf {
@@ -236,6 +241,13 @@ fun EventDetailsScreen(
 
                 if (!event.multiDay && event.date != null) {
                     singleDaySelectedDate = formatToOrdinalDate(Instant.ofEpochMilli(event.date).atZone(ZoneId.systemDefault()).toLocalDate())
+                }
+
+                if (isInitialLoad) {
+                    coroutineScope.launch {
+                        delay(500.milliseconds)
+                        isInitialLoad = false
+                    }
                 }
             }
         }
@@ -631,7 +643,7 @@ fun EventDetailsScreen(
 
                             Box(
                                 modifier = Modifier
-                                    .animateItem()
+                                    .then(if (isInitialLoad) Modifier else Modifier.animateItem())
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp)
                                     .padding(top = animatedTopPadding, bottom = animatedBottomPadding + 2.dp)
