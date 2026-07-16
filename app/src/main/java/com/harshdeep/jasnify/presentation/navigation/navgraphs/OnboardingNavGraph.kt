@@ -57,12 +57,20 @@ fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
         // 2. Authentication Screen: Login or Signup
         composable(
             route = Screen.LoginOrSignUp.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("eventId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
             enterTransition = { smoothSlideInFromRight },
             exitTransition = { smoothSlideOutToLeft },
             popEnterTransition = { smoothSlideInFromLeft },
             popExitTransition = { smoothSlideOutToRight }
-        ) {
-            LoginOrSignup(mainNavController)
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId")
+            LoginOrSignup(mainNavController, eventId)
         }
 
         // 3. Event Creation: Setup the first wedding/event details

@@ -54,6 +54,7 @@ import java.util.UUID
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.viewmodels.EventCreateUiState
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
+import kotlin.time.Duration.Companion.milliseconds
 
 @RequiresApi(Build.VERSION_CODES.O)
 private val DisplayDateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
@@ -138,9 +139,9 @@ fun EventCreation(
                 val successMessage = (eventState as EventCreationState.Success).message
                 toastData = ToastData(successMessage, ToastType.SUCCESS)
 
-                delay(500L)
+                delay(500L.milliseconds)
 
-                navController.navigate(Screen.MainAppGraph.route) {
+                navController.navigate(Screen.MainAppScreen.route) {
                     popUpTo(Screen.OnboardingGraph.route) {
                         inclusive = true
                     }

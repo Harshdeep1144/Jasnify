@@ -126,6 +126,12 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.firebase.auth.FirebaseAuth
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
@@ -177,29 +183,39 @@ fun VenueScreen(
     selectedLocation: String = "City, State",
     onVenueClick: (Venue) -> Unit,
     onBackClick: () -> Unit,
-    isScreenActive: Boolean = true
+    isScreenActive: Boolean = true,
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
     var selectedTab by remember { mutableStateOf("explore") }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
+    
+    val auth = FirebaseAuth.getInstance()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
 
-    var venueRoomUsers by remember {
-        mutableStateOf(
-            listOf(
-                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
-            )
-        )
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    LaunchedEffect(activeEvent) {
+        activeEvent?.let { event ->
+            roomViewModel.loadRoomUsers(event.id, "Venue")
+        }
+    }
+
+    LaunchedEffect(activeEvent) {
+        activeEvent?.let { event ->
+            roomViewModel.loadRoomUsers(event.id, "Venue")
+        }
     }
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showRoomAccessBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
@@ -280,23 +296,49 @@ fun VenueScreen(
                         )
                     }
                     "room" -> {
+                        val currentUserUid = auth.currentUser?.uid ?: ""
+                        val isOwner = activeEvent?.ownerId == currentUserUid
+                        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+                        val currentUserRole = when {
+                            isOwner -> UserRole.OWNER
+                            currentUserInRoom != null -> currentUserInRoom.role
+                            else -> UserRole.VIEWER
+                        }
+
+                        // Ensure current user is in the list shown, even if not yet in Firestore access collection
+                        val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                            val self = User(
+                                uid = currentUserUid,
+                                name = auth.currentUser?.displayName ?: "Me",
+                                email = auth.currentUser?.email ?: "",
+                                role = currentUserRole,
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                            )
+                            (listOf(self) + roomUsers).distinctBy { it.uid }
+                        } else {
+                            roomUsers
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(SurfaceSecondary)
                         ) {
                             RoomScreen(
-                                allUsers = venueRoomUsers,
-                                currentUserRole = UserRole.OWNER,
-                                isSelf = { it.username == "viratanand" },
+                                allUsers = displayUsers,
+                                currentUserRole = currentUserRole,
+                                isSelf = { it.uid == currentUserUid },
                                 onBackClick = { showRoomAccess = false },
                                 onMenuClick = {
                                     focusManager.clearFocus()
                                     showRoomMenuBottomSheet = true
                                 },
+                                onAddMemberClick = {
+                                    showRoomAccessBottomSheet = true
+                                },
                                 onRoleChange = { targetUser, newRole ->
-                                    venueRoomUsers = venueRoomUsers.map { user ->
-                                        if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                    activeEvent?.id?.let { eventId ->
+                                        roomViewModel.grantAccess(eventId, "Venue", targetUser.email, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
@@ -306,6 +348,9 @@ fun VenueScreen(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
+                                    activeEvent?.id?.let { eventId ->
+                                        roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
+                                    }
                                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                                     showRoomAccess = false
                                 },
@@ -464,6 +509,19 @@ fun VenueScreen(
         )
     }
 
+    if (showRoomAccessBottomSheet) {
+        RoomAccessBottomSheet(
+            onDismissRequest = { showRoomAccessBottomSheet = false },
+            onGrantAccess = { email, role ->
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.grantAccess(eventId, "Venue", email, role)
+                }
+            },
+            searchResults = searchResults,
+            onSearch = { roomViewModel.searchUsers(it) }
+        )
+    }
+
     if (userToRemove != null) {
         CustomDeleteSheet(
             heading = "Remove Member from Venue Room?",
@@ -474,8 +532,8 @@ fun VenueScreen(
             },
             onConfirmRemove = {
                 val target = userToRemove
-                if (target != null) {
-                    venueRoomUsers = venueRoomUsers.filter { it.username != target.username }
+                if (target != null && activeEvent != null) {
+                    roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null

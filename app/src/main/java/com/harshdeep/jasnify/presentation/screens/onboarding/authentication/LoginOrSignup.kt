@@ -72,6 +72,7 @@ enum class AuthTab {
 @Composable
 fun LoginOrSignup(
     navController: NavController,
+    eventId: String? = null,
     viewModel: AuthViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel()
 ) {
@@ -109,7 +110,7 @@ fun LoginOrSignup(
             val account = task.getResult(ApiException::class.java)
 
             if (account.idToken != null) {
-                viewModel.signInWithGoogle(account)
+                viewModel.signInWithGoogle(account, eventId)
             } else {
                 toastData = ToastData("Sign-in failed", ToastType.ERROR)
             }
@@ -136,14 +137,17 @@ fun LoginOrSignup(
 
                 val hasCompletedEventCreation = eventViewModel.checkIfUserHasEventsInDatabase()
 
-                val destination = if (hasCompletedEventCreation) {
+                val destination = if (eventId != null) {
+                    // If we joined via Event ID, pass it to MainAppScreen
+                    Screen.MainAppScreen.route + "?eventId=$eventId"
+                } else if (hasCompletedEventCreation) {
                     Screen.MainAppScreen.route
                 } else {
                     Screen.EventCreationScreen.route
                 }
 
                 navController.navigate(destination) {
-                    popUpTo(Screen.LoginOrSignUp.route) { inclusive = true }
+                    popUpTo(Screen.OnboardingGraph.route) { inclusive = true }
                 }
                 viewModel.resetAuthState()
             }
@@ -317,7 +321,7 @@ fun LoginOrSignup(
                                 }
 
                                 if (isValid) {
-                                    viewModel.handleEmailAuth(email, password)
+                                    viewModel.handleEmailAuth(email, password, eventId)
                                 } else {
                                     toastData = ToastData(errorMessage, ToastType.ERROR)
                                 }
