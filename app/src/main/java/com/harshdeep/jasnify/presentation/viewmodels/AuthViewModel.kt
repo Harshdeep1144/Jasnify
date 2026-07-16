@@ -18,6 +18,11 @@ import java.util.concurrent.TimeUnit
 import android.content.Context
 import javax.inject.Inject
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.repository.UserRepository
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
 
 
 sealed class AuthState {
@@ -31,7 +36,8 @@ sealed class AuthState {
 
 @HiltViewModel
 class AuthViewModel @Inject constructor(
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val userRepository: UserRepository
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -81,26 +87,78 @@ class AuthViewModel @Inject constructor(
 
     // --- 2. Email/Password Authentication Logic ---
 
-    fun handleEmailAuth(email: String, password: String) {
+    fun handleEmailAuth(email: String, password: String, eventId: String? = null) {
         _authState.value = AuthState.Loading
         // Attempt to sign in first
         auth.signInWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    _authState.value = AuthState.Success("Successfully logged in!")
+                    val firebaseUser = auth.currentUser
+                    if (firebaseUser != null) {
+                        viewModelScope.launch {
+                            val userEmail = firebaseUser.email ?: email
+                            val hasAccess = if (eventId != null) {
+                                userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                            } else true
+
+                            if (hasAccess) {
+                                // 1. Grant access if joined via specific Event ID (for existing users)
+                                eventId?.let { eid ->
+                                    val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+                                    rooms.forEach { room ->
+                                        userRepository.grantRoomAccess(eid, room, userEmail, UserRole.VIEWER)
+                                    }
+                                }
+
+                                // 2. Create profile if it doesn't exist
+                                createProfileIfNeeded(
+                                    uid = firebaseUser.uid,
+                                    email = userEmail,
+                                    name = firebaseUser.displayName ?: email.substringBefore("@"),
+                                    joiningEventId = eventId
+                                )
+                                _authState.value = AuthState.Success("Successfully logged in!")
+                            } else {
+                                auth.signOut()
+                                _authState.value = AuthState.Error("You don't have access to this event.")
+                            }
+                        }
+                    }
                 } else {
                     // If login fails, attempt to create a new user (Sign Up)
-                    signUpWithEmailAndPassword(email, password)
+                    signUpWithEmailAndPassword(email, password, eventId)
                 }
             }
     }
 
-    private fun signUpWithEmailAndPassword(email: String, password: String) {
+    private fun signUpWithEmailAndPassword(email: String, password: String, eventId: String? = null) {
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    // Changed message to clearly indicate sign-up/creation
-                    _authState.value = AuthState.Success("Account created!")
+                    val firebaseUser = auth.currentUser
+                    if (firebaseUser != null) {
+                        viewModelScope.launch {
+                            val userEmail = firebaseUser.email ?: email
+                            val hasAccess = if (eventId != null) {
+                                userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                            } else true
+
+                            if (hasAccess) {
+                                createProfileIfNeeded(
+                                    uid = firebaseUser.uid,
+                                    email = userEmail,
+                                    name = firebaseUser.displayName ?: email.substringBefore("@"),
+                                    joiningEventId = eventId
+                                )
+                                _authState.value = AuthState.Success("Account created!")
+                            } else {
+                                // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
+                                // Or we could restrict signup entirely - based on requirements
+                                createProfileIfNeeded(firebaseUser.uid, userEmail, email.substringBefore("@"))
+                                _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
+                            }
+                        }
+                    }
                 } else {
                     _authState.value = AuthState.Error("Sign up failed")
                 }
@@ -110,17 +168,81 @@ class AuthViewModel @Inject constructor(
 
     // --- 3. Google Sign-In Authentication Logic ---
 
-    fun signInWithGoogle(account: GoogleSignInAccount) {
+    fun signInWithGoogle(account: GoogleSignInAccount, eventId: String? = null) {
         _authState.value = AuthState.Loading
         val credential = GoogleAuthProvider.getCredential(account.idToken, null)
         auth.signInWithCredential(credential)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
-                    _authState.value = AuthState.Success("logged in!")
+                    val firebaseUser = auth.currentUser
+                    if (firebaseUser != null) {
+                        viewModelScope.launch {
+                            val userEmail = firebaseUser.email ?: ""
+                            val hasAccess = if (eventId != null) {
+                                userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                            } else true
+
+                            if (hasAccess) {
+                                createProfileIfNeeded(
+                                    uid = firebaseUser.uid,
+                                    email = userEmail,
+                                    name = firebaseUser.displayName ?: "",
+                                    joiningEventId = eventId
+                                )
+                                _authState.value = AuthState.Success("logged in!")
+                            } else {
+                                auth.signOut()
+                                _authState.value = AuthState.Error("You don't have access to this event.")
+                            }
+                        }
+                    }
                 } else {
                     _authState.value = AuthState.Error( "Sign-In failed")
                 }
             }
+    }
+
+    private fun createProfileIfNeeded(uid: String, email: String, name: String, joiningEventId: String? = null) {
+        viewModelScope.launch {
+            try {
+                val existingProfile = userRepository.getUserProfile(uid)
+                if (existingProfile == null) {
+                    val username = generateUsernameFromEmail(email)
+                    val newUser = User(
+                        uid = uid,
+                        name = name.ifBlank { username },
+                        email = email.lowercase().trim(),
+                        username = username,
+                        role = UserRole.VIEWER
+                    )
+                    userRepository.createUserProfile(newUser)
+                    
+                    // 1. If joined via specific Event ID, grant VIEWER access to all rooms
+                    joiningEventId?.let { eventId ->
+                        val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+                        rooms.forEach { room ->
+                            userRepository.grantRoomAccess(eventId, room, email, UserRole.VIEWER)
+                        }
+                    }
+
+                    // 2. Check pending access (invitations) and process them
+                    val pending = userRepository.checkPendingAccess(email)
+                    if (pending.isNotEmpty()) {
+                        pending.forEach { access ->
+                            userRepository.grantRoomAccess(access.eventId, access.roomType, email, access.role)
+                        }
+                        userRepository.deletePendingAccess(email)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private fun generateUsernameFromEmail(email: String): String {
+        val base = email.substringBefore("@").filter { it.isLetterOrDigit() }
+        return base.lowercase() + (100..999).random().toString()
     }
 
 
