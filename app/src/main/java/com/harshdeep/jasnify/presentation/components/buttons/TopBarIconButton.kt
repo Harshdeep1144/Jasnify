@@ -50,6 +50,7 @@ sealed interface TopIcon {
         MENU_HORIZONTAL, // Horizontal Dots (...)
         MENU_MODERN,
         SEARCH,          // Magnifying Glass
+        PLUS,            // Plus icon
         PIN,             // Pushpin/Thumbtack
         PIN_FILLED,
         CHECKLIST        // Document with Checklist
@@ -85,6 +86,7 @@ fun TopBarIconButton(
         TopIcon.Predefined.MENU_HORIZONTAL -> rememberVectorPainter(Icons.Rounded.MoreHoriz)
         TopIcon.Predefined.MENU_MODERN -> painterResource(R.drawable.ic_menu_modern)
         TopIcon.Predefined.SEARCH -> rememberVectorPainter(Icons.Rounded.Search)
+        TopIcon.Predefined.PLUS -> painterResource(R.drawable.ic_plus)
         TopIcon.Predefined.PIN -> painterResource(R.drawable.ic_pin)
         TopIcon.Predefined.PIN_FILLED -> painterResource(R.drawable.ic_pin_filled)
         TopIcon.Predefined.CHECKLIST -> painterResource(R.drawable.ic_checklists)

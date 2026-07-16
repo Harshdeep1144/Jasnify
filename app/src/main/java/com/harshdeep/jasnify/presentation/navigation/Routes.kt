@@ -15,7 +15,7 @@ sealed class Screen(val route: String) {
 
     // --- Onboarding Screens ---
     data object OnboardingType : Screen("onboarding_type_screen")
-    data object LoginOrSignUp : Screen("login_or_signup_screen")
+    data object LoginOrSignUp : Screen("login_or_signup_screen?eventId={eventId}")
     data object EventCreationScreen : Screen("event_creation_screen")
     data object OtpVerification : Screen("otp_verification_screen/{phoneNumber}")
 

@@ -22,6 +22,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 
 object NavAnimations {
     private const val DURATION = 500
@@ -58,11 +60,19 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
     ) {
         // The core Host screen containing the Bottom Navigation Scaffold
         composable(
-            route = Screen.MainAppScreen.route,
+            route = Screen.MainAppScreen.route + "?eventId={eventId}",
+            arguments = listOf(
+                androidx.navigation.navArgument("eventId") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            ),
             enterTransition = { fadeIn(tween(500)) },
             exitTransition = { fadeOut(tween(500)) }
-        ) {
-            HomeScreen(mainNavController = mainNavController)
+        ) { backStackEntry ->
+            val eventId = backStackEntry.arguments?.getString("eventId")
+            HomeScreen(mainNavController = mainNavController, joinedEventId = eventId)
         }
 
         // --- Event Details Graphs ---
