@@ -87,15 +87,17 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.google.firebase.auth.FirebaseAuth
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -117,14 +119,18 @@ enum class CateringMenuView {
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
     cateringViewModel: CateringViewModel = hiltViewModel(),
-    eventViewModel: EventViewModel = hiltViewModel()
+    eventViewModel: EventViewModel = hiltViewModel(),
+    roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+    val auth = FirebaseAuth.getInstance()
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
     val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
 
     val allMenuItems = remember(cateringItemsEntities) {
         cateringItemsEntities.map { entity ->
@@ -148,6 +154,7 @@ fun CateringMenuScreen(
         activeEvent?.let { event ->
             val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
             cateringViewModel.seedDefaultMenu(eventTypeLabel, event.id)
+            roomViewModel.loadRoomUsers(event.id, "Catering")
         }
     }
 
@@ -579,6 +586,29 @@ fun CateringMenuScreen(
                 }
 
                 CateringMenuView.MANAGE_ROOM_ACCESS -> {
+                    val currentUserUid = auth.currentUser?.uid ?: ""
+                    val isOwner = activeEvent?.ownerId == currentUserUid
+                    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+                    val currentUserRole = when {
+                        isOwner -> UserRole.OWNER
+                        currentUserInRoom != null -> currentUserInRoom.role
+                        else -> UserRole.VIEWER
+                    }
+
+                    // Ensure current user is in the list shown
+                    val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                        val self = User(
+                            uid = currentUserUid,
+                            name = auth.currentUser?.displayName ?: "Me",
+                            email = auth.currentUser?.email ?: "",
+                            role = currentUserRole,
+                            username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                        )
+                        (listOf(self) + roomUsers).distinctBy { it.uid }
+                    } else {
+                        roomUsers
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -588,9 +618,9 @@ fun CateringMenuScreen(
                             }
                     ) {
                         RoomScreen(
-                            allUsers = cateringRoomUsers,
-                            currentUserRole = UserRole.OWNER,
-                            isSelf = { it.username == "viratanand" },
+                            allUsers = displayUsers,
+                            currentUserRole = currentUserRole,
+                            isSelf = { it.uid == currentUserUid },
                             onBackClick = {
                                 currentView = CateringMenuView.MENU
                                 focusManager.clearFocus()
@@ -600,8 +630,8 @@ fun CateringMenuScreen(
                                 focusManager.clearFocus()
                             },
                             onRoleChange = { targetUser, newRole ->
-                                cateringRoomUsers = cateringRoomUsers.map { user ->
-                                    if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                activeEvent?.id?.let { eventId ->
+                                    roomViewModel.grantAccess(eventId, "Catering", targetUser.email, newRole)
                                 }
                             },
                             onRemove = { targetUser ->
@@ -611,8 +641,19 @@ fun CateringMenuScreen(
                                 toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                             },
                             onLeave = {
+                                activeEvent?.id?.let { eventId ->
+                                    roomViewModel.removeAccess(eventId, "Catering", currentUserUid)
+                                }
                                 toastData = ToastData("You left the room", ToastType.DEFAULT)
                                 currentView = CateringMenuView.MENU
+                            },
+                            searchResults = searchResults,
+                            onSearch = { roomViewModel.searchUsers(it) },
+                            onGrantAccess = { email, role ->
+                                activeEvent?.id?.let { id ->
+                                    roomViewModel.grantAccess(id, "Catering", email, role)
+                                    toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                }
                             },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -1047,7 +1088,7 @@ fun CateringMenuScreen(
             onConfirmRemove = {
                 val target = userToRemove
                 if (target != null && activeEvent != null) {
-//                    roomViewModel.removeAccess(activeEvent!!.id, "Catering", target.uid)
+                    roomViewModel.removeAccess(activeEvent!!.id, "Catering", target.uid)
                     toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null

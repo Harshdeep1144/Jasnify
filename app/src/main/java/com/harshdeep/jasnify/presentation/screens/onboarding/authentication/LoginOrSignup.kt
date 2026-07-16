@@ -139,6 +139,7 @@ fun LoginOrSignup(
 
                 val destination = if (eventId != null) {
                     // If we joined via Event ID, pass it to MainAppScreen
+                    android.util.Log.d("LoginOrSignup", "Navigating with Event ID: $eventId")
                     Screen.MainAppScreen.route + "?eventId=$eventId"
                 } else if (hasCompletedEventCreation) {
                     Screen.MainAppScreen.route

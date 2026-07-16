@@ -30,8 +30,16 @@ class BudgetRepositoryImpl @Inject constructor(
         // 2. Trigger Background Sync to Firestore
         externalScope.launch {
             try {
-                firestore.collection("budgets")
+                // Ensure parent document exists to prevent console display issues
+                firestore.collection("events").document(expense.eventId)
+                    .collection("rooms").document("Budget")
+                    .set(mapOf("updatedAt" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
+                    .await()
+
+                firestore.collection("events")
                     .document(expense.eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .collection("expenses")
                     .document(expense.id)
                     .set(expense)
@@ -40,7 +48,7 @@ class BudgetRepositoryImpl @Inject constructor(
                 // Mark as synced in local DB
                 budgetDao.insertExpense(expense.copy(isSynced = true))
             } catch (e: Exception) {
-                // Log or handle error - Room already has the data so UI stays updated
+                android.util.Log.e("BudgetRepo", "Error syncing expense: ${e.message}")
             }
         }
     }
@@ -52,8 +60,10 @@ class BudgetRepositoryImpl @Inject constructor(
         // 2. Trigger Background Sync
         externalScope.launch {
             try {
-                firestore.collection("budgets")
+                firestore.collection("events")
                     .document(eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .collection("expenses")
                     .document(expenseId)
                     .delete()
@@ -71,12 +81,14 @@ class BudgetRepositoryImpl @Inject constructor(
 
         externalScope.launch {
             try {
-                // Update specific budget document
-                firestore.collection("budgets")
+                // Update specific budget document in the room
+                firestore.collection("events")
                     .document(eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .set(mapOf("totalBudget" to totalBudget), com.google.firebase.firestore.SetOptions.merge())
                     .await()
-                android.util.Log.d("BudgetRepo", "Successfully updated budgets/$eventId")
+                android.util.Log.d("BudgetRepo", "Successfully updated events/$eventId/rooms/Budget")
 
                 // Sync with the event document's budget field
                 firestore.collection("events")
@@ -84,7 +96,7 @@ class BudgetRepositoryImpl @Inject constructor(
                     .update("budget", totalBudget)
                     .await()
                 android.util.Log.d("BudgetRepo", "Successfully updated events/$eventId")
-                    
+
             } catch (e: Exception) {
                 android.util.Log.e("BudgetRepo", "Error updating budget in Firestore: ${e.message}", e)
             }

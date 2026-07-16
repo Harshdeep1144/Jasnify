@@ -48,54 +48,97 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getUserByEmail(email: String): User? {
+        val cleanEmail = email.lowercase().trim()
         return try {
             firestore.collection("users")
-                .whereEqualTo("email", email)
+                .whereEqualTo("email", cleanEmail)
                 .get().await()
                 .toObjects(User::class.java).firstOrNull()
         } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error getting user by email: $cleanEmail", e)
             null
         }
     }
 
+    private fun getUserCollectionName(roomType: String): String {
+        val name = when (roomType.lowercase()) {
+            "budget" -> "budget_room_users"
+            "catering" -> "catering_room_users"
+            "checklist" -> "checklist_room_users"
+            "vendors" -> "vendors_room_users"
+            "venue" -> "venue_room_users"
+            else -> "room_users"
+        }
+        return name
+    }
+
     override suspend fun grantRoomAccess(eventId: String, roomType: String, email: String, role: UserRole) {
-        val user = getUserByEmail(email)
-        if (user != null) {
-            val accessData = mapOf(
-                "uid" to user.uid,
-                "email" to email,
-                "role" to role.name,
-                "name" to user.name,
-                "username" to user.username,
-                "profilePictureUrl" to user.profilePictureUrl
-            )
+        if (eventId.isBlank()) {
+            android.util.Log.e("UserRepository", "grantRoomAccess: eventId is blank!")
+            return
+        }
+        val cleanEmail = email.lowercase().trim()
+        val user = getUserByEmail(cleanEmail)
+        val collectionName = getUserCollectionName(roomType)
+        
+        try {
+            // CRITICAL: Explicitly create/update the room document so it's a "real" parent.
+            // This prevents console display bugs where subcollections "hide" each other.
             firestore.collection("events").document(eventId)
                 .collection("rooms").document(roomType)
-                .collection("access").document(user.uid)
-                .set(accessData).await()
-        } else {
-            // User doesn't exist, store in pending access
-            val pendingData = mapOf(
-                "eventId" to eventId,
-                "roomType" to roomType,
-                "role" to role.name,
-                "email" to email
-            )
-            firestore.collection("pending_access").add(pendingData).await()
+                .set(mapOf(
+                    "id" to roomType,
+                    "updatedAt" to System.currentTimeMillis()
+                ), com.google.firebase.firestore.SetOptions.merge())
+                .await()
+
+            if (user != null) {
+                val accessData = mapOf(
+                    "uid" to user.uid,
+                    "email" to cleanEmail,
+                    "role" to role.name,
+                    "name" to user.name,
+                    "username" to user.username,
+                    "profilePictureUrl" to user.profilePictureUrl
+                )
+                android.util.Log.d("UserRepository", "Writing to $collectionName for ${user.uid}")
+                firestore.collection("events").document(eventId)
+                    .collection("rooms").document(roomType)
+                    .collection(collectionName).document(user.uid)
+                    .set(accessData).await()
+            } else {
+                val pendingData = mapOf(
+                    "eventId" to eventId,
+                    "roomType" to roomType,
+                    "role" to role.name,
+                    "email" to cleanEmail
+                )
+                android.util.Log.d("UserRepository", "Writing to pending_access for $cleanEmail")
+                firestore.collection("events").document(eventId)
+                    .collection("rooms").document(roomType)
+                    .collection("pending_access").document(cleanEmail)
+                    .set(pendingData).await()
+            }
+            android.util.Log.d("UserRepository", "Successfully processed access for $cleanEmail in $roomType")
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "CRITICAL: Failed write for $cleanEmail in $roomType", e)
+            throw e
         }
     }
 
     override suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String) {
+        val collectionName = getUserCollectionName(roomType)
         firestore.collection("events").document(eventId)
             .collection("rooms").document(roomType)
-            .collection("access").document(uid)
+            .collection(collectionName).document(uid)
             .delete().await()
     }
 
     override fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>> = callbackFlow {
+        val collectionName = getUserCollectionName(roomType)
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document(roomType)
-            .collection("access")
+            .collection(collectionName)
             .addSnapshotListener { snapshot, _ ->
                 if (snapshot != null) {
                     val users = snapshot.documents.mapNotNull { doc ->
@@ -124,10 +167,13 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun checkPendingAccess(email: String): List<PendingAccess> {
         return try {
-            val snapshot = firestore.collection("pending_access")
+            // Use collectionGroup for nested pending_access lookups across all events/rooms
+            android.util.Log.d("UserRepository", "Checking global pending access for: $email")
+            val snapshot = firestore.collectionGroup("pending_access")
                 .whereEqualTo("email", email)
                 .get().await()
             
+            android.util.Log.d("UserRepository", "Found ${snapshot.size()} pending invitations")
             snapshot.documents.map { doc ->
                 PendingAccess(
                     eventId = doc.getString("eventId") ?: "",
@@ -136,12 +182,13 @@ class UserRepositoryImpl @Inject constructor(
                 )
             }
         } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error checking pending access: ${e.message}")
             emptyList()
         }
     }
 
     override suspend fun deletePendingAccess(email: String) {
-        val snapshot = firestore.collection("pending_access")
+        val snapshot = firestore.collectionGroup("pending_access")
             .whereEqualTo("email", email)
             .get().await()
         
@@ -163,9 +210,10 @@ class UserRepositoryImpl @Inject constructor(
             // 3. Check specific Room Access subcollections
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
             for (room in rooms) {
+                val collectionName = getUserCollectionName(room)
                 val accessDoc = firestore.collection("events").document(eventId)
                     .collection("rooms").document(room)
-                    .collection("access").document(uid).get().await()
+                    .collection(collectionName).document(uid).get().await()
                 if (accessDoc.exists()) return true
             }
         } catch (e: Exception) {

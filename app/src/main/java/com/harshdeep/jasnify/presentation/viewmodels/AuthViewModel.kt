@@ -242,7 +242,9 @@ class AuthViewModel @Inject constructor(
 
     private fun generateUsernameFromEmail(email: String): String {
         val base = email.substringBefore("@").filter { it.isLetterOrDigit() }
-        return base.lowercase() + (100..999).random().toString()
+        // Ensure a minimum length for base if possible, or just append random digits
+        val cleanBase = if (base.isEmpty()) "user" else base.lowercase()
+        return cleanBase + (1000..9999).random().toString()
     }
 
 

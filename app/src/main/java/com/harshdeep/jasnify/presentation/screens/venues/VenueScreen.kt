@@ -333,9 +333,6 @@ fun VenueScreen(
                                     focusManager.clearFocus()
                                     showRoomMenuBottomSheet = true
                                 },
-                                onAddMemberClick = {
-                                    showRoomAccessBottomSheet = true
-                                },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { eventId ->
                                         roomViewModel.grantAccess(eventId, "Venue", targetUser.email, newRole)

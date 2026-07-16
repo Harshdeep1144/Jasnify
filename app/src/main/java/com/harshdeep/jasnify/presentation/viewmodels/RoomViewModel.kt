@@ -51,7 +51,7 @@ class RoomViewModel @Inject constructor(
             try {
                 userRepository.grantRoomAccess(eventId, roomType, email, role)
             } catch (e: Exception) {
-                // Log error
+                android.util.Log.e("RoomViewModel", "Error granting access to $email in $roomType", e)
             }
         }
     }
@@ -61,7 +61,7 @@ class RoomViewModel @Inject constructor(
             try {
                 userRepository.removeRoomAccess(eventId, roomType, uid)
             } catch (e: Exception) {
-                // Log error
+                android.util.Log.e("RoomViewModel", "Error removing access for $uid in $roomType", e)
             }
         }
     }
