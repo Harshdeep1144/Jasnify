@@ -95,6 +95,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -164,13 +165,8 @@ fun CateringMenuScreen(
     var cateringRoomUsers by remember {
         mutableStateOf(
             listOf(
-                User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+                User("Anand K.", "viratanand", "", "",UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+                User("Steve R.", "captainamerica", "", "",UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
             )
         )
     }
@@ -232,6 +228,7 @@ fun CateringMenuScreen(
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showRoomAccessBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
     val cuisineOptions by remember(allMenuItems) {
@@ -1026,6 +1023,19 @@ fun CateringMenuScreen(
         )
     }
 
+    if (showRoomAccessBottomSheet) {
+//        RoomAccessBottomSheet(
+//            onDismissRequest = { showRoomAccessBottomSheet = false },
+//            onGrantAccess = { email, role ->
+//                activeEvent?.id?.let { eventId ->
+//                    roomViewModel.grantAccess(eventId, "Catering", email, role)
+//                }
+//            },
+//            searchResults = searchResults,
+//            onSearch = { roomViewModel.searchUsers(it) }
+//        )
+    }
+
     if (userToRemove != null) {
         CustomDeleteSheet(
             heading = "Remove Member from Catering Menu?",
@@ -1036,8 +1046,8 @@ fun CateringMenuScreen(
             },
             onConfirmRemove = {
                 val target = userToRemove
-                if (target != null) {
-                    cateringRoomUsers = cateringRoomUsers.filter { it.username != target.username }
+                if (target != null && activeEvent != null) {
+//                    roomViewModel.removeAccess(activeEvent!!.id, "Catering", target.uid)
                     toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null

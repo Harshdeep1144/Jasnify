@@ -25,20 +25,17 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -56,16 +53,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -73,9 +66,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -87,9 +82,11 @@ import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundBrand
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -99,6 +96,8 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -108,9 +107,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
-import com.harshdeep.jasnify.presentation.components.others.ToastData
-import com.harshdeep.jasnify.theme.CornerExtraSmall
-import com.harshdeep.jasnify.theme.CornerLarge
 
 enum class OnboardingState {
     CAROUSEL,
@@ -121,11 +117,13 @@ enum class OnboardingState {
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun OnboardingType(
-    navController: NavController
+    navController: NavController,
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     // Current screen navigation state
     var currentScreenState by remember { mutableStateOf(OnboardingState.CAROUSEL) }
     var eventIdValue by remember { mutableStateOf("") }
+    var verifiedEvent by remember { mutableStateOf<Event?>(null) }
 
     // State for Custom Toast
     var toastData by remember { mutableStateOf(ToastData()) }
@@ -255,7 +253,15 @@ fun OnboardingType(
                             onEventIdChange = { eventIdValue = it },
                             onVerifyClick = {
                                 if (eventIdValue.isNotEmpty()) {
-                                    currentScreenState = OnboardingState.EVENT_DETAILS
+                                    coroutineScope.launch {
+                                        val event = eventViewModel.getEventById(eventIdValue)
+                                        if (event != null) {
+                                            verifiedEvent = event
+                                            currentScreenState = OnboardingState.EVENT_DETAILS
+                                        } else {
+                                            toastData = ToastData("Event ID not found", ToastType.ERROR)
+                                        }
+                                    }
                                 } else {
                                     toastData = ToastData("Please enter a valid Event ID", ToastType.ERROR)
                                 }
@@ -265,9 +271,11 @@ fun OnboardingType(
                     OnboardingState.EVENT_DETAILS -> {
                         EventDetailsScreen(
                             eventId = eventIdValue,
+                            eventName = verifiedEvent?.name ?: "Event",
                             onEditClick = { currentScreenState = OnboardingState.ENTER_EVENT_ID },
                             onLoginSignupClick = {
-                                navController.navigate(Screen.LoginOrSignUp.route)
+                                val fullId = verifiedEvent?.id ?: eventIdValue
+                                navController.navigate(Screen.LoginOrSignUp.route.replace("{eventId}", fullId))
                             }
                         )
                     }
@@ -556,6 +564,7 @@ fun EnterEventIdScreen(
 @Composable
 fun EventDetailsScreen(
     eventId: String,
+    eventName: String,
     onEditClick: () -> Unit,
     onLoginSignupClick: () -> Unit
 ) {
@@ -582,7 +591,7 @@ fun EventDetailsScreen(
 
         // Event Details Headings
         Text(
-            text = "Taylor & Travis’s Wedding",
+            text = eventName,
             style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
             textAlign = TextAlign.Center,
             color = ContentPrimary

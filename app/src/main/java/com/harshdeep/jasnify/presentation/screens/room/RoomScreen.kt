@@ -56,12 +56,15 @@ fun RoomScreen(
     onRemove: (User) -> Unit,
     onReport: (User) -> Unit,
     onLeave: () -> Unit,
+    onAddMemberClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
     var showBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
+
+    val isAdmin = currentUserRole == UserRole.OWNER
 
     // Efficiently filter users only when allUsers list or search query changes
     val filteredUsers = remember(allUsers, searchQuery) {
@@ -86,8 +89,8 @@ fun RoomScreen(
                 CustomTopBar(
                     title = "Manage Room Access",
                     onBackClick = onBackClick,
-                    menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                    onMenuClick = onMenuClick,
+                    menuIcon = if (isAdmin) TopIcon.Predefined.PLUS else TopIcon.Predefined.MENU_VERTICAL,
+                    onMenuClick = if (isAdmin) onAddMemberClick else onMenuClick,
                     backIcon = TopIcon.Predefined.BACK,
                     buttonStyle = ButtonBackground.TRANSLUCENT,
                     translucentAlpha = 0.5f
@@ -177,30 +180,30 @@ fun RoomScreen(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun RoomScreenPreview() {
-    val sampleUsers = listOf(
-        User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
-        User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
-    )
-
-    JasnifyTheme {
-        RoomScreen(
-            allUsers = sampleUsers,
-            currentUserRole = UserRole.OWNER,
-            isSelf = { it.username == "viratanand" },
-            onBackClick = {},
-            onMenuClick = {},
-            onRoleChange = { _, _ -> },
-            onRemove = {},
-            onReport = {},
-            onLeave = {}
-        )
-    }
-}
+//@Preview(showBackground = true)
+//@Composable
+//fun RoomScreenPreview() {
+//    val sampleUsers = listOf(
+//        User("Anand K.", "viratanand", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Steve R.", "captainamerica", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Tony S.", "ironman", UserRole.EDITOR, "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Bruce B.", "hulk", UserRole.VIEWER, "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Thor O.", "thor", UserRole.EDITOR, "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Natasha R.", "blackwidow", UserRole.VIEWER, "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"),
+//        User("Clint B.", "hawkeye", UserRole.VIEWER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80")
+//    )
+//
+//    JasnifyTheme {
+//        RoomScreen(
+//            allUsers = sampleUsers,
+//            currentUserRole = UserRole.OWNER,
+//            isSelf = { it.username == "viratanand" },
+//            onBackClick = {},
+//            onMenuClick = {},
+//            onRoleChange = { _, _ -> },
+//            onRemove = {},
+//            onReport = {},
+//            onLeave = {}
+//        )
+//    }
+//}
