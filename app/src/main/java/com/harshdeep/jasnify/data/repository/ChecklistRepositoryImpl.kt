@@ -48,12 +48,13 @@ class ChecklistRepositoryImpl @Inject constructor(
         val userId = auth.currentUser?.uid ?: return
         Log.d("ChecklistRepo", "Fetching from Firestore for user: $userId, eventId: $eventId")
         
-        var query = firestore.collection("checklists")
-            .whereEqualTo("ownerId", userId)
-            
-        if (eventId.isNotEmpty()) {
-            query = query.whereEqualTo("eventId", eventId)
-        }
+        if (eventId.isEmpty()) return
+
+        val query = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Checklist")
+            .collection("items")
 
         query.addSnapshotListener { snapshot, e ->
             if (e != null) {
@@ -77,25 +78,7 @@ class ChecklistRepositoryImpl @Inject constructor(
             }
         }
         
-        // Also fetch legacy checklists with no eventId to migrate them
-        if (eventId.isNotEmpty()) {
-            firestore.collection("checklists")
-                .whereEqualTo("ownerId", userId)
-                .whereEqualTo("eventId", null)
-                .get()
-                .addOnSuccessListener { snapshot ->
-                    Log.d("ChecklistRepo", "Found ${snapshot.size()} legacy checklists in Firestore")
-                    snapshot.documents.forEach { doc ->
-                        val checklist = doc.toObject(Checklist::class.java)
-                        if (checklist != null) {
-                            scope.launch {
-                                // Save to local with current eventId to migrate or just save as is
-                                dao.insertChecklist(checklist.toChecklistEntity())
-                            }
-                        }
-                    }
-                }
-        }
+        // Migrate legacy checklists if needed (Optional, keeping simple for now)
     }
 
     override suspend fun saveChecklist(checklist: Checklist) {
@@ -107,7 +90,13 @@ class ChecklistRepositoryImpl @Inject constructor(
                 checklist
             }
 
-            Log.d("ChecklistRepo", "Saving checklist: ${checklistToSave.title} (eventId: ${checklistToSave.eventId})")
+            val eventId = checklistToSave.eventId
+            if (eventId.isNullOrEmpty()) {
+                Log.e("ChecklistRepo", "Cannot save checklist without eventId")
+                return@withContext
+            }
+
+            Log.d("ChecklistRepo", "Saving checklist: ${checklistToSave.title} (eventId: $eventId)")
 
             // 1. Update Room Instantly
             try {
@@ -121,7 +110,11 @@ class ChecklistRepositoryImpl @Inject constructor(
             if (currentUserId.isNotEmpty()) {
                 scope.launch {
                     try {
-                        firestore.collection("checklists")
+                        firestore.collection("events")
+                            .document(eventId)
+                            .collection("rooms")
+                            .document("Checklist")
+                            .collection("items")
                             .document(checklistToSave.id)
                             .set(checklistToSave)
                             .await()
@@ -135,11 +128,19 @@ class ChecklistRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteChecklist(id: String) {
+        val checklist = dao.getChecklistById(id)
         dao.deleteChecklistById(id)
         
+        val eventId = checklist?.eventId
+        if (eventId.isNullOrEmpty()) return
+
         scope.launch {
             try {
-                firestore.collection("checklists")
+                firestore.collection("events")
+                    .document(eventId)
+                    .collection("rooms")
+                    .document("Checklist")
+                    .collection("items")
                     .document(id)
                     .delete()
                     .await()

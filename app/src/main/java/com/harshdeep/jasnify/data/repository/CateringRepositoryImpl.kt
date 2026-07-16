@@ -38,8 +38,10 @@ class CateringRepositoryImpl @Inject constructor(
         cateringDao.deleteItemById(itemId)
         externalScope.launch {
             try {
-                firestore.collection("catering")
+                firestore.collection("events")
                     .document(eventId)
+                    .collection("rooms")
+                    .document("Catering")
                     .collection("items")
                     .document(itemId)
                     .delete()
@@ -51,8 +53,10 @@ class CateringRepositoryImpl @Inject constructor(
     private fun syncItemToCloud(item: CateringItemEntity) {
         externalScope.launch {
             try {
-                firestore.collection("catering")
+                firestore.collection("events")
                     .document(item.eventId)
+                    .collection("rooms")
+                    .document("Catering")
                     .collection("items")
                     .document(item.id)
                     .set(item)
@@ -68,8 +72,10 @@ class CateringRepositoryImpl @Inject constructor(
 
         // 2. Check remote metadata (Backup)
         try {
-            val doc = firestore.collection("catering_metadata")
+            val doc = firestore.collection("events")
                 .document(eventId)
+                .collection("rooms")
+                .document("Catering")
                 .get()
                 .await()
 
@@ -86,9 +92,11 @@ class CateringRepositoryImpl @Inject constructor(
         // 4. Mark as seeded in Firestore
         externalScope.launch {
             try {
-                firestore.collection("catering_metadata")
+                firestore.collection("events")
                     .document(eventId)
-                    .set(mapOf("isSeeded" to true))
+                    .collection("rooms")
+                    .document("Catering")
+                    .set(mapOf("isSeeded" to true), com.google.firebase.firestore.SetOptions.merge())
                     .await()
             } catch (e: Exception) {}
         }

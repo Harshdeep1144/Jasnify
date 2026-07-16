@@ -188,8 +188,9 @@ class EventViewModel @Inject constructor(
                                 userRepository.grantRoomAccess(event.id, room, currentUserEmail, UserRole.OWNER)
                             }
                         }
+                        android.util.Log.d("EventViewModel", "Successfully granted owner access to all rooms for ${event.id}")
                     } catch (e: Exception) {
-                        // Log access error
+                        android.util.Log.e("EventViewModel", "Failed to grant room access: ${e.message}")
                     }
                     
                     _eventState.value = EventCreationState.Success("'${event.name}' event created!")

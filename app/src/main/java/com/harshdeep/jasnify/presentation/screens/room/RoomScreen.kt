@@ -35,6 +35,7 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.UserListItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
@@ -56,12 +57,15 @@ fun RoomScreen(
     onRemove: (User) -> Unit,
     onReport: (User) -> Unit,
     onLeave: () -> Unit,
-    onAddMemberClick: () -> Unit = {},
+    searchResults: List<User> = emptyList(),
+    onSearch: (String) -> Unit = {},
+    onGrantAccess: (String, UserRole) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
-    var showBottomSheet by remember { mutableStateOf(false) }
+    var showProfileBottomSheet by remember { mutableStateOf(false) }
+    var showAccessBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
 
     val isAdmin = currentUserRole == UserRole.OWNER
@@ -90,7 +94,13 @@ fun RoomScreen(
                     title = "Manage Room Access",
                     onBackClick = onBackClick,
                     menuIcon = if (isAdmin) TopIcon.Predefined.PLUS else TopIcon.Predefined.MENU_VERTICAL,
-                    onMenuClick = if (isAdmin) onAddMemberClick else onMenuClick,
+                    onMenuClick = {
+                        if (isAdmin) {
+                            showAccessBottomSheet = true
+                        } else {
+                            onMenuClick()
+                        }
+                    },
                     backIcon = TopIcon.Predefined.BACK,
                     buttonStyle = ButtonBackground.TRANSLUCENT,
                     translucentAlpha = 0.5f
@@ -144,7 +154,7 @@ fun RoomScreen(
                         shape = itemShape,
                         onClick = {
                             selectedUser = user
-                            showBottomSheet = true
+                            showProfileBottomSheet = true
                         },
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
@@ -153,28 +163,41 @@ fun RoomScreen(
         }
     }
 
-    if (showBottomSheet && selectedUser != null) {
+    if (showAccessBottomSheet) {
+        focusManager.clearFocus()
+        RoomAccessBottomSheet(
+            onDismissRequest = { showAccessBottomSheet = false },
+            onGrantAccess = { email, role ->
+                onGrantAccess(email, role)
+                showAccessBottomSheet = false
+            },
+            searchResults = searchResults,
+            onSearch = onSearch
+        )
+    }
+
+    if (showProfileBottomSheet && selectedUser != null) {
         focusManager.clearFocus()
         RoomProfileBottomSheet(
             user = selectedUser!!,
             currentUserRole = currentUserRole,
             isSelf = isSelf(selectedUser!!),
-            onDismissRequest = { showBottomSheet = false },
+            onDismissRequest = { showProfileBottomSheet = false },
             onRoleChange = { newRole ->
                 onRoleChange(selectedUser!!, newRole)
-                showBottomSheet = false
+                showProfileBottomSheet = false
             },
             onRemove = {
                 onRemove(selectedUser!!)
-                showBottomSheet = false
+                showProfileBottomSheet = false
             },
             onReport = {
                 onReport(selectedUser!!)
-                showBottomSheet = false
+                showProfileBottomSheet = false
             },
             onLeave = {
                 onLeave()
-                showBottomSheet = false
+                showProfileBottomSheet = false
             }
         )
     }
