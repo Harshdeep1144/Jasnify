@@ -161,6 +161,7 @@ fun BudgetScreen(
     val expensesEntities by viewModel.expenses.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.budgetSettings.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     
@@ -171,10 +172,10 @@ fun BudgetScreen(
         eventViewModel.fetchUserEvents()
     }
 
-    // Sync eventId to BudgetViewModel and RoomViewModel
-    LaunchedEffect(activeEvent) {
-        activeEvent?.id?.let { id ->
-            android.util.Log.d("BudgetScreen", "Syncing Event ID: $id")
+    // Sync eventId to BudgetViewModel and RoomViewModel using the most direct source (the ID)
+    LaunchedEffect(activeEventId) {
+        activeEventId?.let { id ->
+            android.util.Log.d("BudgetScreen", "Syncing with Event ID: $id")
             viewModel.setEventId(id)
             roomViewModel.loadRoomUsers(id, "Budget")
         }

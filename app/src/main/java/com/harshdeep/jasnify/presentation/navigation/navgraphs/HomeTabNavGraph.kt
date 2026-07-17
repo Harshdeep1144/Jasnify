@@ -9,22 +9,29 @@ import androidx.compose.runtime.LaunchedEffect
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.tabs.*
 
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+
 @RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.homeNavGraph(
     mainNavController: NavHostController,
-    onBottomBarVisibilityChange: (Boolean) -> Unit
+    onBottomBarVisibilityChange: (Boolean) -> Unit,
+    eventViewModel: EventViewModel
 ) {
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
             onMenuClick = {
                 mainNavController.navigate((Screen.EventDetail.route))
             },
-            onBottomBarVisibilityChange = onBottomBarVisibilityChange
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            eventViewModel = eventViewModel
         )
     }
 
     composable(route = Screen.HomeTabScreen.Checklists.route) {
-        ChecklistsTab(onBottomBarVisibilityChange = onBottomBarVisibilityChange)
+        ChecklistsTab(
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            eventViewModel = eventViewModel
+        )
     }
 
     composable(route = Screen.HomeTabScreen.Vendors.route) {

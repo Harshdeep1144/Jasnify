@@ -327,14 +327,17 @@ fun HomeTab(
                 when (screen) {
                     "budget" -> BudgetScreen(
                         onBackClick = { currentScreen = "home" },
+                        eventViewModel = eventViewModel
                     )
                     "venues" -> VenueScreen(
                         selectedLocation = "City, State",
                         onVenueClick = {},
-                        onBackClick = { currentScreen = "home" }
+                        onBackClick = { currentScreen = "home" },
+                        eventViewModel = eventViewModel
                     )
                     "catering" -> CateringMenuScreen(
                         onBackClick = { currentScreen = "home" },
+                        eventViewModel = eventViewModel
                     )
                 }
             }

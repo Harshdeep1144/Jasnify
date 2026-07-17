@@ -113,6 +113,7 @@ fun ChecklistsTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit = {}
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val auth = FirebaseAuth.getInstance()
@@ -122,9 +123,9 @@ fun ChecklistsTab(
         eventViewModel.fetchUserEvents()
     }
     
-    LaunchedEffect(activeEvent) {
-        activeEvent?.id?.let { id ->
-            viewModel.setEventId(id)
+    LaunchedEffect(activeEventId) {
+        viewModel.setEventId(activeEventId)
+        activeEventId?.let { id ->
             roomViewModel.loadRoomUsers(id, "Checklist")
         }
     }

@@ -129,6 +129,7 @@ fun CateringMenuScreen(
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
     val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
 
@@ -149,12 +150,18 @@ fun CateringMenuScreen(
         eventViewModel.fetchUserEvents()
     }
 
-    // Seed default items if empty based on active event type
+    // Seed default items if empty based on active event context
+    LaunchedEffect(activeEventId) {
+        activeEventId?.let { id ->
+            cateringViewModel.setEventId(id)
+            roomViewModel.loadRoomUsers(id, "Catering")
+        }
+    }
+
     LaunchedEffect(activeEvent) {
         activeEvent?.let { event ->
             val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
             cateringViewModel.seedDefaultMenu(eventTypeLabel, event.id)
-            roomViewModel.loadRoomUsers(event.id, "Catering")
         }
     }
 
