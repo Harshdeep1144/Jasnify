@@ -91,12 +91,14 @@ class ChecklistRepositoryImpl @Inject constructor(
             }
 
             val eventId = checklistToSave.eventId
+            Log.d("ChecklistRepo", "Attempting to save checklist: ${checklistToSave.title} (ID: ${checklistToSave.id}) with eventId: $eventId")
+            
             if (eventId.isNullOrEmpty()) {
-                Log.e("ChecklistRepo", "Cannot save checklist without eventId")
+                Log.e("ChecklistRepo", "ABORTING SAVE: Cannot save checklist without eventId")
                 return@withContext
             }
 
-            Log.d("ChecklistRepo", "Saving checklist: ${checklistToSave.title} (eventId: $eventId)")
+            Log.d("ChecklistRepo", "Proceeding to save to Room and Firestore...")
 
             // 1. Update Room Instantly
             try {

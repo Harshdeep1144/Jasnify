@@ -124,6 +124,7 @@ fun OnboardingType(
     var currentScreenState by remember { mutableStateOf(OnboardingState.CAROUSEL) }
     var eventIdValue by remember { mutableStateOf("") }
     var verifiedEvent by remember { mutableStateOf<Event?>(null) }
+    var isVerifying by remember { mutableStateOf(false) }
 
     // State for Custom Toast
     var toastData by remember { mutableStateOf(ToastData()) }
@@ -252,20 +253,28 @@ fun OnboardingType(
                             eventId = eventIdValue,
                             onEventIdChange = { eventIdValue = it },
                             onVerifyClick = {
-                                if (eventIdValue.isNotEmpty()) {
+                                if (eventIdValue.trim().isNotEmpty()) {
+                                    isVerifying = true
                                     coroutineScope.launch {
-                                        val event = eventViewModel.getEventById(eventIdValue)
-                                        if (event != null) {
-                                            verifiedEvent = event
-                                            currentScreenState = OnboardingState.EVENT_DETAILS
-                                        } else {
-                                            toastData = ToastData("Event ID not found", ToastType.ERROR)
+                                        try {
+                                            val event = eventViewModel.getEventById(eventIdValue.trim())
+                                            if (event != null) {
+                                                verifiedEvent = event
+                                                currentScreenState = OnboardingState.EVENT_DETAILS
+                                            } else {
+                                                toastData = ToastData("Event ID not found. Please check and try again.", ToastType.ERROR)
+                                            }
+                                        } catch (e: Exception) {
+                                            toastData = ToastData("Connection error. Please try again.", ToastType.ERROR)
+                                        } finally {
+                                            isVerifying = false
                                         }
                                     }
                                 } else {
-                                    toastData = ToastData("Please enter a valid Event ID", ToastType.ERROR)
+                                    toastData = ToastData("Please enter an Event ID", ToastType.ERROR)
                                 }
-                            }
+                            },
+                            isVerifying = isVerifying
                         )
                     }
                     OnboardingState.EVENT_DETAILS -> {
@@ -507,7 +516,8 @@ fun CarouselOnboardingScreen(
 fun EnterEventIdScreen(
     eventId: String,
     onEventIdChange: (String) -> Unit,
-    onVerifyClick: () -> Unit
+    onVerifyClick: () -> Unit,
+    isVerifying: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -537,7 +547,7 @@ fun EnterEventIdScreen(
 
             PrimaryInput(
                 value = eventId,
-                onValueChange = onEventIdChange,
+                onValueChange = onVerifyClick.let { onEventIdChange }, // Just keep it simple
                 placeholder = "Enter the event ID",
                 shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
             )
@@ -550,7 +560,8 @@ fun EnterEventIdScreen(
         ){
             CustomTextButton(
                 onClick = onVerifyClick,
-                text = "Verify & Continue",
+                text = if (isVerifying) "Verifying..." else "Verify & Continue",
+                enabled = !isVerifying,
                 modifier = Modifier.fillMaxWidth()
                     .padding(12.dp),
                 shapeStyle = ButtonShapeStyle.Square,

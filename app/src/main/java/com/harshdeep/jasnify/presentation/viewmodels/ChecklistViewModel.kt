@@ -41,20 +41,26 @@ class ChecklistViewModel @Inject constructor(
             initialValue = emptyList()
         )
 
-    fun setEventId(id: String) {
-        android.util.Log.d("ChecklistVM", "Setting eventId: $id")
-        _eventId.value = id
+    fun setEventId(id: String?) {
+        android.util.Log.d("ChecklistVM", "setEventId called with: $id")
+        if (_eventId.value != id) {
+            android.util.Log.d("ChecklistVM", "Updating _eventId from ${_eventId.value} to $id")
+            _eventId.value = id
+        }
     }
 
     fun saveChecklist(checklist: Checklist) {
         val eventId = _eventId.value
-        android.util.Log.d("ChecklistVM", "Saving checklist. Current eventId in VM: $eventId")
-        val checklistWithEvent = if (checklist.eventId == null) {
-            android.util.Log.d("ChecklistVM", "Attaching eventId $eventId to checklist")
+        android.util.Log.d("ChecklistVM", "saveChecklist called. Current _eventId in VM: $eventId")
+        
+        val checklistWithEvent = if (checklist.eventId.isNullOrEmpty()) {
+            android.util.Log.d("ChecklistVM", "Attaching eventId '$eventId' to checklist")
             checklist.copy(eventId = eventId)
         } else {
+            android.util.Log.d("ChecklistVM", "Checklist already has eventId: ${checklist.eventId}")
             checklist
         }
+
         viewModelScope.launch {
             repository.saveChecklist(checklistWithEvent)
         }

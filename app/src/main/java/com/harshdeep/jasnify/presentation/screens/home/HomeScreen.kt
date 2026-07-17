@@ -71,7 +71,8 @@ fun HomeScreen(
             // All tab routes are now managed in this extension function
             homeNavGraph(
                 mainNavController = mainNavController,
-                onBottomBarVisibilityChange = { showBottomBar = it }
+                onBottomBarVisibilityChange = { showBottomBar = it },
+                eventViewModel = eventViewModel
             )
         }
     }

@@ -33,19 +33,35 @@ fun SplashScreen(
     eventViewModel: EventViewModel = hiltViewModel()
 ) {
     LaunchedEffect(Unit) {
-        delay(200L) // short delay before auth check
-        val isLoggedIn = authViewModel.isUserLoggedIn()
+        delay(500L) // Wait for auth state to stabilize
+        var isLoggedIn = authViewModel.isUserLoggedIn()
+        
+        // If not immediately logged in, wait a bit longer (Firebase initialization)
+        if (!isLoggedIn) {
+            delay(500L)
+            isLoggedIn = authViewModel.isUserLoggedIn()
+        }
 
         val destination = when {
             !isLoggedIn -> Screen.OnboardingGraph.route
             else -> {
-//                delay(50L) // let Firebase initialize user session
-                val hasCompletedEventCreation = eventViewModel.checkIfUserHasEventsInDatabase()
-
-                if (hasCompletedEventCreation) {
+                // 1. Check local cache for immediate redirection
+                val cachedEventId = eventViewModel.getLocalActiveEventId()
+                if (cachedEventId != null) {
+                    android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting to MainApp.")
+                    eventViewModel.fetchAndSetActiveEvent(cachedEventId)
                     Screen.MainAppScreen.route
                 } else {
-                    Screen.EventCreationScreen.route
+                    // 2. Fallback to deep database check
+                    android.util.Log.d("SplashScreen", "No cache. Performing participation check...")
+                    val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
+                    if (hasEventParticipation) {
+                        android.util.Log.d("SplashScreen", "Participation confirmed. Redirecting to MainApp.")
+                        Screen.MainAppScreen.route
+                    } else {
+                        android.util.Log.d("SplashScreen", "No events found. Redirecting to Creation.")
+                        Screen.EventCreationScreen.route
+                    }
                 }
             }
         }

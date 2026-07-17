@@ -21,8 +21,47 @@ class CateringRepositoryImpl @Inject constructor(
 
     private val externalScope = CoroutineScope(Dispatchers.IO)
 
-    override fun getCateringItems(eventId: String): Flow<List<CateringItemEntity>> = 
-        cateringDao.getCateringItemsForEvent(eventId)
+    override fun getCateringItems(eventId: String): Flow<List<CateringItemEntity>> {
+        fetchItemsFromFirestore(eventId)
+        return cateringDao.getCateringItemsForEvent(eventId)
+    }
+
+    private fun fetchItemsFromFirestore(eventId: String) {
+        if (eventId.isEmpty()) return
+        
+        // 1. Listen for items
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Catering")
+            .collection("items")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) return@addSnapshotListener
+                
+                snapshot?.documents?.forEach { doc ->
+                    val item = doc.toObject(CateringItemEntity::class.java)
+                    if (item != null) {
+                        externalScope.launch {
+                            cateringDao.insertItem(item.copy(isSynced = true))
+                        }
+                    }
+                }
+            }
+
+        // 2. Listen for metadata (isSeeded)
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Catering")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+                if (snapshot.getBoolean("isSeeded") == true) {
+                    externalScope.launch {
+                        cateringDao.insertMetadata(CateringMetadataEntity(eventId, true))
+                    }
+                }
+            }
+    }
 
     override suspend fun addItem(item: CateringItemEntity) {
         cateringDao.insertItem(item)

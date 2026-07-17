@@ -19,9 +19,59 @@ class BudgetRepositoryImpl @Inject constructor(
 
     private val externalScope = CoroutineScope(Dispatchers.IO)
 
-    override fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>> = budgetDao.getAllExpenses(eventId)
+    override fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>> {
+        // Trigger background sync whenever expenses are requested
+        fetchExpensesFromFirestore(eventId)
+        return budgetDao.getAllExpenses(eventId)
+    }
 
-    override fun getBudgetSettings(eventId: String): Flow<BudgetEntity?> = budgetDao.getBudgetSettings(eventId)
+    override fun getBudgetSettings(eventId: String): Flow<BudgetEntity?> {
+        fetchBudgetSettingsFromFirestore(eventId)
+        return budgetDao.getBudgetSettings(eventId)
+    }
+
+    private fun fetchExpensesFromFirestore(eventId: String) {
+        if (eventId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Budget")
+            .collection("expenses")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    android.util.Log.e("BudgetRepo", "Error listening to expenses", e)
+                    return@addSnapshotListener
+                }
+                
+                snapshot?.documents?.forEach { doc ->
+                    val expense = doc.toObject(ExpenseEntity::class.java)
+                    if (expense != null) {
+                        externalScope.launch {
+                            budgetDao.insertExpense(expense.copy(isSynced = true))
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun fetchBudgetSettingsFromFirestore(eventId: String) {
+        if (eventId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Budget")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+                
+                val totalBudget = snapshot.getDouble("totalBudget") ?: return@addSnapshotListener
+                val settings = BudgetEntity(eventId = eventId, totalBudget = totalBudget)
+                externalScope.launch {
+                    budgetDao.updateBudgetSettings(settings)
+                }
+            }
+    }
 
     override suspend fun addExpense(expense: ExpenseEntity) {
         // 1. Update Room Instantly
