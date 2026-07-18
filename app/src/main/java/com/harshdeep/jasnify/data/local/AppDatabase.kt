@@ -13,7 +13,7 @@ import androidx.room.TypeConverters
         CateringMetadataEntity::class,
         RoomAccessEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

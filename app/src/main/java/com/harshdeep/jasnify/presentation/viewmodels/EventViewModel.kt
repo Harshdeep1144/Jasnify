@@ -183,7 +183,7 @@ class EventViewModel @Inject constructor(
 
         val userId = user.uid
 
-        val budgetValue = eventData.budget.dropWhile { !it.isDigit() && it != '.' }.toDoubleOrNull() ?: 0.0
+        val budgetValue = eventData.budget.dropWhile { !it.isDigit() && it != '.' }.toDoubleOrNull()
 
         // Mapping to professional Event model
         val event = Event(

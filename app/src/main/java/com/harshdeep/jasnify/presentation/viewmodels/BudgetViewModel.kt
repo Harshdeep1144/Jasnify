@@ -99,7 +99,7 @@ class BudgetViewModel @Inject constructor(
         }
     }
 
-    fun updateBudget(totalBudget: Double) {
+    fun updateBudget(totalBudget: Double?) {
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
             repository.updateBudget(totalBudget, eventId)

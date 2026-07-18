@@ -190,7 +190,7 @@ fun EventCreation(
                 currentStep = EventCreationStep.EVENT_BUDGET
             }
             EventCreationStep.EVENT_BUDGET -> {
-                val updatedData = eventData.copy(budget = "0")
+                val updatedData = eventData.copy(budget = "")
                 eventData = updatedData
                 eventViewModel.saveEventData(updatedData)
             }

@@ -9,7 +9,7 @@ data class Event(
     val typeId: Int? = null,
     val multiDay: Boolean = false, // Renamed from isMultiDay to prevent Firestore mapping issues
     val date: Long? = null, // Using timestamp in milliseconds
-    val budget: Double = 0.0,
+    val budget: Double? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val subEvents: List<SubEvent> = emptyList()
 )

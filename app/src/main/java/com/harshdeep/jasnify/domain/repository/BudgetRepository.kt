@@ -9,7 +9,7 @@ interface BudgetRepository {
     fun getBudgetSettings(eventId: String): Flow<BudgetEntity?>
     suspend fun addExpense(expense: ExpenseEntity)
     suspend fun deleteExpense(expenseId: String, eventId: String)
-    suspend fun updateBudget(totalBudget: Double, eventId: String)
+    suspend fun updateBudget(totalBudget: Double?, eventId: String)
     suspend fun renameCategory(oldName: String, newName: String, eventId: String)
     suspend fun deleteExpensesByCategory(category: String, eventId: String)
     suspend fun syncWithCloud()
