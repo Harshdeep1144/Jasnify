@@ -2,14 +2,18 @@ package com.harshdeep.jasnify.presentation.components.scaffold
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.MarqueeSpacing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Icon
@@ -100,11 +104,15 @@ fun HomeTopBar(
         ) {
             Text(
                 text = title,
+                modifier = Modifier.basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                    repeatDelayMillis = 1500,
+                    spacing = MarqueeSpacing(32.dp)
+                ),
                 style = JasnifyTheme.typography.displayMedium,
                 fontWeight = FontWeight.Medium,
                 color = contentColor,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
             )
 
             if (subtitle.isNotBlank()) {
@@ -128,6 +136,7 @@ fun HomeTopBar(
                 }
             }
         }
+        Spacer(Modifier.width(32.dp))
 
         TopBarIconButton(
             icon = TopIcon.Predefined.MENU_MODERN,
