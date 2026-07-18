@@ -472,27 +472,6 @@ fun VenueScreen(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
-                        text = "Copy Link",
-                        icon = painterResource(R.drawable.ic_link),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Add New Members",
-                        icon = painterResource(R.drawable.ic_plus),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
                         text = "Leave Room",
                         icon = painterResource(R.drawable.ic_logout),
                         iconPlacement = IconPlacement.Left,

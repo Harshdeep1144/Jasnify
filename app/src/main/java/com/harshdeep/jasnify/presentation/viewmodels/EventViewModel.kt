@@ -117,6 +117,14 @@ class EventViewModel @Inject constructor(
                 _activeEvent.value = event
                 isManuallyJoined = true
                 android.util.Log.d("EventViewModel", "Active event loaded and prioritized: ${event.id}")
+                
+                // REQUIREMENT: Promote user if they have pending invitations for this event
+                val user = auth.currentUser
+                if (user != null) {
+                    val userEmail = user.email ?: ""
+                    android.util.Log.d("EventViewModel", "Triggering promotion for $userEmail in event ${event.id}")
+                    userRepository.grantAccessFromPending(event.id, userEmail, user.uid)
+                }
             }
         }
     }

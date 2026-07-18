@@ -145,12 +145,21 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun grantAccessFromPending(eventId: String, email: String, uid: String) {
+    override suspend fun grantAccessFromPending(eventId: String, email: String, uid: String, userProfile: User?) {
         val cleanEmail = email.lowercase().trim()
-        val user = getUserProfile(uid) ?: return
+        android.util.Log.d("UserRepository", "grantAccessFromPending: email=$cleanEmail, uid=$uid, eventId=$eventId")
+        
+        // Use provided profile or fetch it
+        val user = userProfile ?: getUserProfile(uid)
+
+        if (user == null) {
+            android.util.Log.w("UserRepository", "grantAccessFromPending: User profile not found for $uid. Cannot promote.")
+            return
+        }
 
         // 1. Primary Attempt: Efficient Collection Group Query (Requires Index)
         try {
+            android.util.Log.d("UserRepository", "Attempting collectionGroup search for pending_access with email: $cleanEmail")
             val snapshot = firestore.collectionGroup("pending_access")
                 .whereEqualTo("email", cleanEmail)
                 .get().await()
@@ -159,20 +168,25 @@ class UserRepositoryImpl @Inject constructor(
                 android.util.Log.d("UserRepository", "Index-based promotion found ${snapshot.size()} docs")
                 for (doc in snapshot.documents) {
                     val docEventId = doc.getString("eventId") ?: ""
+                    android.util.Log.d("UserRepository", "Checking doc with docEventId: $docEventId against input eventId: $eventId")
                     
                     // If eventId is provided, we only process invitations for that specific event.
-                    if (eventId.isNotBlank() && docEventId != eventId) continue
+                    if (eventId.isNotBlank() && docEventId != eventId) {
+                        android.util.Log.d("UserRepository", "Skipping doc: ID mismatch")
+                        continue
+                    }
                     
                     promoteInvitation(doc, user, cleanEmail)
                 }
                 return // Success via primary method
+            } else {
+                android.util.Log.d("UserRepository", "No documents found in collectionGroup search for $cleanEmail")
             }
         } catch (e: Exception) {
-            android.util.Log.w("UserRepository", "Collection Group query failed (likely missing index). Falling back to room-by-room check: ${e.message}")
+            android.util.Log.w("UserRepository", "Collection Group query failed: ${e.message}")
         }
 
         // 2. Fallback: Manual Room-by-Room Check (Works without Index)
-        // Only works if eventId is provided, which is true for the "Join Event" flow
         if (eventId.isNotBlank()) {
             android.util.Log.d("UserRepository", "Running fallback room-by-room promotion for event $eventId")
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
@@ -184,6 +198,7 @@ class UserRepositoryImpl @Inject constructor(
                         .get().await()
 
                     if (pendingDoc.exists()) {
+                        android.util.Log.d("UserRepository", "Found pending invitation in $roomType. Promoting...")
                         promoteInvitation(pendingDoc, user, cleanEmail)
                     }
                 } catch (e: Exception) {

@@ -134,7 +134,7 @@ fun CateringMenuScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
-    
+
     val currentUserUid = auth.currentUser?.uid ?: ""
 
     val allMenuItems = remember(cateringItemsEntities) {
@@ -1073,16 +1073,16 @@ fun CateringMenuScreen(
     }
 
     if (showRoomAccessBottomSheet) {
-//        RoomAccessBottomSheet(
-//            onDismissRequest = { showRoomAccessBottomSheet = false },
-//            onGrantAccess = { email, role ->
-//                activeEvent?.id?.let { eventId ->
-//                    roomViewModel.grantAccess(eventId, "Catering", email, role)
-//                }
-//            },
-//            searchResults = searchResults,
-//            onSearch = { roomViewModel.searchUsers(it) }
-//        )
+        RoomAccessBottomSheet(
+            onDismissRequest = { showRoomAccessBottomSheet = false },
+            onGrantAccess = { email, role ->
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.grantAccess(eventId, "Catering", email, role)
+                }
+            },
+            searchResults = searchResults,
+            onSearch = { roomViewModel.searchUsers(it) }
+        )
     }
 
     if (userToRemove != null) {
