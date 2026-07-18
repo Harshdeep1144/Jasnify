@@ -90,23 +90,26 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
-import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
- import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
@@ -119,6 +122,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
@@ -126,12 +130,8 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
-import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.google.firebase.auth.FirebaseAuth
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
@@ -197,6 +197,9 @@ fun VenueScreen(
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    
+    val currentUserUid = auth.currentUser?.uid ?: ""
 
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
@@ -204,12 +207,7 @@ fun VenueScreen(
 
     LaunchedEffect(activeEvent) {
         activeEvent?.let { event ->
-            roomViewModel.loadRoomUsers(event.id, "Venue")
-        }
-    }
-
-    LaunchedEffect(activeEvent) {
-        activeEvent?.let { event ->
+            roomViewModel.verifyAccess(event.id, "Venue", currentUserUid)
             roomViewModel.loadRoomUsers(event.id, "Venue")
         }
     }
@@ -270,13 +268,18 @@ fun VenueScreen(
         modifier = Modifier.fillMaxSize()
     ) {
         SharedTransitionLayout {
-            AnimatedContent(
-                targetState = when {
-                    isLocationPickerVisible -> "picker"
-                    showRoomAccess -> "room"
-                    selectedVenueForDetail != null -> "detail"
-                    else -> "main"
-                },
+            RoomAccessGuardian(
+                hasAccess = hasAccess,
+                roomName = "Venue",
+                onBackClick = onBackClick
+            ) {
+                AnimatedContent(
+                    targetState = when {
+                        isLocationPickerVisible -> "picker"
+                        showRoomAccess -> "room"
+                        selectedVenueForDetail != null -> "detail"
+                        else -> "main"
+                    },
                 transitionSpec = {
                     fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
                 },
@@ -410,6 +413,7 @@ fun VenueScreen(
                 }
             }
         }
+    }
 
         AnimatedVisibility(
             visible = toastData?.message != null && !isSavedListToast && !isAnySheetVisible,

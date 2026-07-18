@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -164,8 +165,10 @@ fun BudgetScreen(
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     
     val auth = FirebaseAuth.getInstance()
+    val currentUserUid = auth.currentUser?.uid ?: ""
 
     // Fetch user events to ensure we have an active event
     LaunchedEffect(Unit) {
@@ -177,6 +180,7 @@ fun BudgetScreen(
         activeEventId?.let { id ->
             android.util.Log.d("BudgetScreen", "Syncing with Event ID: $id")
             viewModel.setEventId(id)
+            roomViewModel.verifyAccess(id, "Budget", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Budget")
         }
     }
@@ -421,8 +425,13 @@ fun BudgetScreen(
         }
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    RoomAccessGuardian(
+        hasAccess = hasAccess,
+        roomName = "Budget",
+        onBackClick = onBackClick
+    ) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = Modifier
             .fillMaxSize()
             .clickable(
@@ -1503,6 +1512,7 @@ fun BudgetScreen(
                 )
             }
         }
+    }
     }
 
     if (showBottomSheet) {

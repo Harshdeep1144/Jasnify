@@ -19,6 +19,11 @@ interface UserRepository {
     suspend fun checkPendingAccess(email: String): List<PendingAccess>
     suspend fun deletePendingAccess(email: String)
     suspend fun checkUserHasAccessToEvent(eventId: String, email: String, uid: String): Boolean
+    suspend fun checkRoomAccess(eventId: String, roomType: String, uid: String): Boolean
+
+    // Caching
+    suspend fun getCachedRoomAccess(eventId: String, roomType: String, uid: String): Boolean?
+    suspend fun cacheRoomAccess(eventId: String, roomType: String, uid: String, hasAccess: Boolean)
 }
 
 data class PendingAccess(

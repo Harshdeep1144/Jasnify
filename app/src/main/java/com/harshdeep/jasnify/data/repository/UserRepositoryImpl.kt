@@ -1,6 +1,8 @@
 package com.harshdeep.jasnify.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.harshdeep.jasnify.data.local.RoomAccessDao
+import com.harshdeep.jasnify.data.local.RoomAccessEntity
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.PendingAccess
@@ -12,7 +14,8 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
 class UserRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val roomAccessDao: RoomAccessDao
 ) : UserRepository {
 
     override suspend fun createUserProfile(user: User) {
@@ -145,48 +148,79 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun grantAccessFromPending(eventId: String, email: String, uid: String) {
         val cleanEmail = email.lowercase().trim()
         val user = getUserProfile(uid) ?: return
-        
+
+        // 1. Primary Attempt: Efficient Collection Group Query (Requires Index)
         try {
-            // 1. Find all pending invitations for this email in this specific event
-            // Note: A user could be invited to multiple rooms in the same event
-            val snapshot = firestore.collection("events").document(eventId)
-                .collection("rooms")
+            val snapshot = firestore.collectionGroup("pending_access")
+                .whereEqualTo("email", cleanEmail)
                 .get().await()
 
-            for (roomDoc in snapshot.documents) {
-                val roomType = roomDoc.id
-                val pendingDoc = firestore.collection("events").document(eventId)
-                    .collection("rooms").document(roomType)
-                    .collection("pending_access").document(cleanEmail)
-                    .get().await()
-
-                if (pendingDoc.exists()) {
-                    val roleStr = pendingDoc.getString("role") ?: UserRole.VIEWER.name
-                    val role = try { UserRole.valueOf(roleStr) } catch (e: Exception) { UserRole.VIEWER }
-                    val collectionName = getUserCollectionName(roomType)
-
-                    val accessData = mapOf(
-                        "uid" to user.uid,
-                        "email" to cleanEmail,
-                        "role" to role.name,
-                        "name" to user.name,
-                        "username" to user.username,
-                        "profilePictureUrl" to user.profilePictureUrl
-                    )
-
-                    // Write to real user collection
-                    firestore.collection("events").document(eventId)
-                        .collection("rooms").document(roomType)
-                        .collection(collectionName).document(user.uid)
-                        .set(accessData).await()
-
-                    // Delete from pending
-                    pendingDoc.reference.delete().await()
-                    android.util.Log.d("UserRepository", "Granted real access to $cleanEmail in $roomType")
+            if (!snapshot.isEmpty) {
+                android.util.Log.d("UserRepository", "Index-based promotion found ${snapshot.size()} docs")
+                for (doc in snapshot.documents) {
+                    val docEventId = doc.getString("eventId") ?: ""
+                    
+                    // If eventId is provided, we only process invitations for that specific event.
+                    if (eventId.isNotBlank() && docEventId != eventId) continue
+                    
+                    promoteInvitation(doc, user, cleanEmail)
                 }
+                return // Success via primary method
             }
         } catch (e: Exception) {
-            android.util.Log.e("UserRepository", "Error granting access from pending", e)
+            android.util.Log.w("UserRepository", "Collection Group query failed (likely missing index). Falling back to room-by-room check: ${e.message}")
+        }
+
+        // 2. Fallback: Manual Room-by-Room Check (Works without Index)
+        // Only works if eventId is provided, which is true for the "Join Event" flow
+        if (eventId.isNotBlank()) {
+            android.util.Log.d("UserRepository", "Running fallback room-by-room promotion for event $eventId")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+            for (roomType in rooms) {
+                try {
+                    val pendingDoc = firestore.collection("events").document(eventId)
+                        .collection("rooms").document(roomType)
+                        .collection("pending_access").document(cleanEmail)
+                        .get().await()
+
+                    if (pendingDoc.exists()) {
+                        promoteInvitation(pendingDoc, user, cleanEmail)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("UserRepository", "Error checking room $roomType for fallback promotion", e)
+                }
+            }
+        }
+    }
+
+    private suspend fun promoteInvitation(doc: com.google.firebase.firestore.DocumentSnapshot, user: User, cleanEmail: String) {
+        val docEventId = doc.getString("eventId") ?: return
+        val roomType = doc.getString("roomType") ?: return
+        val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
+        val role = try { UserRole.valueOf(roleStr) } catch (e: Exception) { UserRole.VIEWER }
+        val collectionName = getUserCollectionName(roomType)
+
+        val accessData = mapOf(
+            "uid" to user.uid,
+            "email" to cleanEmail,
+            "role" to role.name,
+            "name" to user.name,
+            "username" to user.username,
+            "profilePictureUrl" to user.profilePictureUrl
+        )
+
+        try {
+            // 1. Write to real user collection for this room
+            firestore.collection("events").document(docEventId)
+                .collection("rooms").document(roomType)
+                .collection(collectionName).document(user.uid)
+                .set(accessData).await()
+
+            // 2. Delete the pending invitation
+            doc.reference.delete().await()
+            android.util.Log.d("UserRepository", "Promoted $cleanEmail to real user in $roomType of event $docEventId")
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Failed to promote invitation for $roomType", e)
         }
     }
 
@@ -360,5 +394,38 @@ class UserRepositoryImpl @Inject constructor(
         android.util.Log.w("UserRepository", "Access DENIED for $cleanEmail to event $eventId")
         android.util.Log.d("UserRepository", "--- END ACCESS CHECK ---")
         return false
+    }
+
+    override suspend fun checkRoomAccess(eventId: String, roomType: String, uid: String): Boolean {
+        try {
+            // 1. Owner check
+            val event = firestore.collection("events").document(eventId).get().await()
+            if (event.getString("ownerId") == uid) {
+                cacheRoomAccess(eventId, roomType, uid, true)
+                return true
+            }
+
+            // 2. Room membership check
+            val colName = getUserCollectionName(roomType)
+            val membership = firestore.collection("events").document(eventId)
+                .collection("rooms").document(roomType)
+                .collection(colName).document(uid).get().await()
+
+            val hasAccess = membership.exists()
+            cacheRoomAccess(eventId, roomType, uid, hasAccess)
+            return hasAccess
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error in checkRoomAccess for $roomType", e)
+            return false
+        }
+    }
+
+    override suspend fun getCachedRoomAccess(eventId: String, roomType: String, uid: String): Boolean? {
+        return roomAccessDao.getAccess(eventId, roomType, uid)?.hasAccess
+    }
+
+    override suspend fun cacheRoomAccess(eventId: String, roomType: String, uid: String, hasAccess: Boolean) {
+        val compositeKey = "$eventId-$roomType-$uid"
+        roomAccessDao.insertAccess(RoomAccessEntity(compositeKey, eventId, roomType, uid, hasAccess))
     }
 }

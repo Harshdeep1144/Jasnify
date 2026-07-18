@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.harshdeep.jasnify.data.local.AppDatabase
 import com.harshdeep.jasnify.data.local.ChecklistDao
+import com.harshdeep.jasnify.data.local.RoomAccessDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -42,5 +43,11 @@ object DatabaseModule {
     @Singleton
     fun provideCateringDao(database: AppDatabase): com.harshdeep.jasnify.data.local.CateringDao {
         return database.cateringDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideRoomAccessDao(database: AppDatabase): RoomAccessDao {
+        return database.roomAccessDao()
     }
 }
