@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -70,8 +71,8 @@ fun RoomAccessBottomSheet(
     // Determine the target sheet height dynamically based on active visual states
     val targetHeight = when {
         isShowingResults -> 420.dp
-        isShowingInvite -> 280.dp
-        isUserSelected -> 280.dp
+        isShowingInvite -> 290.dp
+        isUserSelected -> 290.dp
         else -> 220.dp
     }
 
@@ -185,22 +186,23 @@ fun RoomAccessBottomSheetContent(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Outlined.PersonAddAlt,
+                                    painter = painterResource(R.drawable.ic_user_profile),
                                     contentDescription = null,
-                                    tint = ContentBrandDark
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(48.dp)
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Text(
                                     text = "Invite '$searchQuery'",
                                     color = ContentPrimary,
-                                    style = JasnifyTheme.typography.bodyLarge
+                                    style = JasnifyTheme.typography.labelXLarge
                                 )
                             }
                         }
                     }
                 }
             } else if (selectedUser != null) {
-                Column(modifier = Modifier.padding(vertical = 0.dp)) {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     UserSearchItem(
                         user = selectedUser,
                         onClick = { onSelectedUserChange(null) },

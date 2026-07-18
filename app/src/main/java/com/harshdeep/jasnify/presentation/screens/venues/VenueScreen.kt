@@ -338,7 +338,7 @@ fun VenueScreen(
                                 },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { eventId ->
-                                        roomViewModel.grantAccess(eventId, "Venue", targetUser.email, newRole)
+                                        roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
