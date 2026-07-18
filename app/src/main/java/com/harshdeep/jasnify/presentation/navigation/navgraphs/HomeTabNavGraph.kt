@@ -14,6 +14,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 @RequiresApi(Build.VERSION_CODES.O)
 fun NavGraphBuilder.homeNavGraph(
     mainNavController: NavHostController,
+    navController: NavHostController,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel
 ) {
@@ -30,7 +31,12 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Checklists.route) {
         ChecklistsTab(
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-            eventViewModel = eventViewModel
+            eventViewModel = eventViewModel,
+            onBackClick = {
+                navController.navigate(Screen.HomeTabScreen.Home.route) {
+                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                }
+            }
         )
     }
 
