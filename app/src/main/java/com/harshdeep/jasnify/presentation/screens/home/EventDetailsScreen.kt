@@ -869,6 +869,7 @@ fun EventDetailsScreen(
                                     TopBarIconButton(
                                         backgroundStyle = ButtonBackground.OPAQUE,
                                         icon = TopIcon.Predefined.CLOSE,
+                                        iconSize = 18.dp,
                                         onClick = {
                                             coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
                                                 showBottomSheet = false
