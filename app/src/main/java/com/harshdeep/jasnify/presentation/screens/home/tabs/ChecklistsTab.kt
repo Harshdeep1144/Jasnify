@@ -402,7 +402,7 @@ fun ChecklistsTab(
                                 },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { id ->
-                                        roomViewModel.grantAccess(id, "Checklist", targetUser.email, newRole)
+                                        roomViewModel.updateRole(id, "Checklist", targetUser, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->

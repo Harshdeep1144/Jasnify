@@ -1391,7 +1391,7 @@ fun BudgetScreen(
                                 },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { id ->
-                                        roomViewModel.grantAccess(id, "Budget", targetUser.email, newRole)
+                                        roomViewModel.updateRole(id, "Budget", targetUser, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->

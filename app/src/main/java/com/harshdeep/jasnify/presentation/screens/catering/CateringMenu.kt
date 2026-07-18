@@ -638,7 +638,7 @@ fun CateringMenuScreen(
                             },
                             onRoleChange = { targetUser, newRole ->
                                 activeEvent?.id?.let { eventId ->
-                                    roomViewModel.grantAccess(eventId, "Catering", targetUser.email, newRole)
+                                    roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
                                 }
                             },
                             onRemove = { targetUser ->
