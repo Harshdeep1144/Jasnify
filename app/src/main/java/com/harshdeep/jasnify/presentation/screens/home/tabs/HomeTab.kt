@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -66,8 +67,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
-private val FADE_DISTANCE_DP = 140.dp
-private val HEADER_HEIGHT = 350.dp
 private const val PARALLAX_RATE = 0.5f
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -156,6 +155,7 @@ fun HomeTab(
     )
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeTabContent(
@@ -169,6 +169,15 @@ fun HomeTabContent(
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     val coroutineScope = rememberCoroutineScope()
+
+    // Determine proportions based on device screen height dynamically
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenHeight = configuration.screenHeightDp.dp
+
+    // Calculate dynamic heights relative to overall screen height
+    val headerHeight = remember(screenHeight) { screenHeight * 0.42f }
+    val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.24f }
 
     // Professional touch response: A tiny delay of 80ms allows the ripple animation to render
     val navigateTo: (String) -> Unit = remember {
@@ -200,11 +209,13 @@ fun HomeTabContent(
 
         if (screen == "home") {
             val scrollState = rememberScrollState()
-            val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
+            val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
             val topBarAlpha by remember {
                 derivedStateOf {
-                    (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+                    if (fadeDistancePx > 0f) {
+                        (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+                    } else 0f
                 }
             }
 
@@ -219,12 +230,14 @@ fun HomeTabContent(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(HEADER_HEIGHT)
+                        .height(headerHeight)
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
                             val scrollOffset = scrollState.value
                             translationY = -scrollOffset * PARALLAX_RATE
-                            alpha = (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                            alpha = if (fadeDistancePx > 0f) {
+                                (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                            } else 1f
                         }
                 )
 
@@ -247,8 +260,8 @@ fun HomeTabContent(
                             .padding(paddingValues)
                             .verticalScroll(scrollState)
                     ) {
-                        // The spacing spacer is kept perfectly outside the curve sheet
-                        Spacer(modifier = Modifier.height(HEADER_HEIGHT - 210.dp))
+                        // The spacing spacer height is bound directly to the dynamic visible offset
+                        Spacer(modifier = Modifier.height(visibleBackgroundOffset))
 
                         Column(
                             modifier = Modifier
