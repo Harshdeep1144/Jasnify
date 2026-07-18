@@ -48,6 +48,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -70,6 +72,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -82,6 +85,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
@@ -886,6 +890,8 @@ fun ChecklistDetailScreen(
     // Focus Requester specifically mapped to the first checklist item
     val firstItemFocusRequester = remember { FocusRequester() }
 
+    var itemToFocusId by remember { mutableStateOf<String?>(null) }
+
     // Generate/Reuse the active card timestamp dynamically
     val cardDateTimeString = remember {
         checklist?.dateTime ?: run {
@@ -1073,6 +1079,9 @@ fun ChecklistDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(sharedTitleModifier),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                    keyboardActions = KeyboardActions(onNext = { focusManager.moveFocus(FocusDirection.Down) }),
                     decorationBox = { innerTextField ->
                         if (title.isEmpty()) {
                             Text(
@@ -1100,6 +1109,14 @@ fun ChecklistDetailScreen(
                     itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
                         // Dedicate the firstItemFocusRequester to the first index
                         val focusRequester = if (index == 0) firstItemFocusRequester else remember { FocusRequester() }
+
+                        LaunchedEffect(itemToFocusId) {
+                            if (itemToFocusId == item.id) {
+                                focusRequester.requestFocus()
+                                itemToFocusId = null
+                            }
+                        }
+
                         val isDragging = draggedItemIndex == index
                         val currentIndex by rememberUpdatedState(index)
                         val density = LocalDensity.current
@@ -1133,6 +1150,14 @@ fun ChecklistDetailScreen(
                                     val updated = items.filter { it.id != item.id }
                                     items = updated
                                     saveToHistory(title, updated)
+                                },
+                                onEnterPressed = {
+                                    val newItem = ChecklistItem(id = UUID.randomUUID().toString())
+                                    val newItems = items.toMutableList()
+                                    newItems.add(index + 1, newItem)
+                                    items = newItems
+                                    itemToFocusId = newItem.id
+                                    saveToHistory(title, newItems)
                                 },
                                 modifier = Modifier.pointerInput(item.id) {
                                     detectDragGesturesAfterLongPress(
