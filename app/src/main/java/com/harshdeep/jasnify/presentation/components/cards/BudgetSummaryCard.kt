@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -33,6 +34,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
@@ -116,6 +118,7 @@ fun BudgetSummaryCard(
                         color = ContentPrimary
                     )
                 }
+                Spacer(Modifier.height(16.dp))
 
                 CustomTextButton(
                     onClick = onEditBudgetClick,
@@ -257,6 +260,43 @@ fun BudgetSummaryCard(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
+    }
+}
+
+
+
+
+@Preview(showBackground = true, name = "Budget Set")
+@Composable
+fun BudgetSummaryCard_Set_Preview() {
+    JasnifyTheme {
+        Row(
+            modifier = Modifier
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            BudgetSummaryCard(
+                isBudgetNotSet = true,
+                formattedTotalBudget = "$0.00",
+                formattedRemaining = "$0.00",
+                remainingPercentage = 0f,
+                onEditBudgetClick = {},
+                onViewSummaryClick = {},
+                modifier = Modifier.weight(1f)
+            )
+
+            // State 2: Low Remaining Budget (e.g., 15% left)
+            BudgetSummaryCard(
+                isBudgetNotSet = false,
+                formattedTotalBudget = "$2,500.00",
+                formattedRemaining = "$375.00",
+                remainingPercentage = 0.15f,
+                onEditBudgetClick = {},
+                onViewSummaryClick = {},
+                modifier = Modifier.weight(1f)
+            )
+
         }
     }
 }

@@ -42,6 +42,7 @@ fun ChecklistItem(
     onTextChanged: (String) -> Unit,
     onCheckedChange: (Boolean) -> Unit,
     onRemove: () -> Unit,
+    onEnterPressed: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -77,7 +78,13 @@ fun ChecklistItem(
         ) {
             BasicTextField(
                 value = item.text,
-                onValueChange = onTextChanged,
+                onValueChange = { 
+                    if (it.contains("\n")) {
+                        onEnterPressed()
+                    } else {
+                        onTextChanged(it)
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
@@ -88,8 +95,8 @@ fun ChecklistItem(
                         textDecoration = if (item.checked) TextDecoration.LineThrough else TextDecoration.None
                     )
                 ),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                maxLines = 1,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.None),
                 decorationBox = { innerTextField ->
                     if (item.text.isEmpty()) {
                         Text(

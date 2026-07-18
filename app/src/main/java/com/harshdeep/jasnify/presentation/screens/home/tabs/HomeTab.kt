@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -37,8 +38,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -56,6 +59,7 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -63,8 +67,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
-private val FADE_DISTANCE_DP = 160.dp
-private val HEADER_HEIGHT = 350.dp
 private const val PARALLAX_RATE = 0.5f
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -77,7 +79,7 @@ fun HomeTab(
     budgetViewModel: BudgetViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
-    
+
     // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
@@ -96,7 +98,7 @@ fun HomeTab(
     val totalSpent = remember(expensesEntities) {
         expensesEntities.sumOf { it.amount }
     }
-    
+
     val totalBudget = remember(budgetEntity, activeEvent) {
         budgetEntity?.totalBudget ?: activeEvent?.budget ?: 0.0
     }
@@ -115,9 +117,6 @@ fun HomeTab(
     }
 
     val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
-
-    var currentScreen by remember { mutableStateOf("home") }
-    val coroutineScope = rememberCoroutineScope()
 
     // Date formatting for the top bar - Using java.time for better consistency with HomeTopBar
     val eventDateString = remember(activeEvent) {
@@ -144,6 +143,41 @@ fun HomeTab(
             }
         } ?: ""
     }
+
+    HomeTabContent(
+        eventName = activeEvent?.name ?: "",
+        eventDateString = eventDateString,
+        remainingPercentage = remainingPercentage,
+        amountText = amountText,
+        onMenuClick = onMenuClick,
+        onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+        eventViewModel = eventViewModel
+    )
+}
+
+@SuppressLint("ConfigurationScreenWidthHeight")
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun HomeTabContent(
+    eventName: String,
+    eventDateString: String,
+    remainingPercentage: Float,
+    amountText: String,
+    onMenuClick: () -> Unit,
+    onBottomBarVisibilityChange: (Boolean) -> Unit,
+    eventViewModel: EventViewModel? = null
+) {
+    var currentScreen by remember { mutableStateOf("home") }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Determine proportions based on device screen height dynamically
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenHeight = configuration.screenHeightDp.dp
+
+    // Calculate dynamic heights relative to overall screen height
+    val headerHeight = remember(screenHeight) { screenHeight * 0.42f }
+    val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.24f }
 
     // Professional touch response: A tiny delay of 80ms allows the ripple animation to render
     val navigateTo: (String) -> Unit = remember {
@@ -175,11 +209,13 @@ fun HomeTab(
 
         if (screen == "home") {
             val scrollState = rememberScrollState()
-            val fadeDistancePx = with(LocalDensity.current) { FADE_DISTANCE_DP.toPx() }
+            val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
             val topBarAlpha by remember {
                 derivedStateOf {
-                    (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+                    if (fadeDistancePx > 0f) {
+                        (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+                    } else 0f
                 }
             }
 
@@ -194,19 +230,21 @@ fun HomeTab(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(HEADER_HEIGHT)
+                        .height(headerHeight)
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
                             val scrollOffset = scrollState.value
                             translationY = -scrollOffset * PARALLAX_RATE
-                            alpha = (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                            alpha = if (fadeDistancePx > 0f) {
+                                (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                            } else 1f
                         }
                 )
 
                 Scaffold(
                     topBar = {
                         HomeTopBar(
-                            title = activeEvent?.name ?: "",
+                            title = eventName,
                             dateString = eventDateString,
                             alpha = topBarAlpha,
                             onMenuClick = onMenuClick
@@ -222,125 +260,155 @@ fun HomeTab(
                             .padding(paddingValues)
                             .verticalScroll(scrollState)
                     ) {
+                        // The spacing spacer height is bound directly to the dynamic visible offset
+                        Spacer(modifier = Modifier.height(visibleBackgroundOffset))
+
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp, 12.dp, 12.dp, 0.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                .background(
+                                    color = BackgroundPrimary,
+                                    shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge)
+                                )
                         ) {
-                            Spacer(modifier = Modifier.height(HEADER_HEIGHT - 210.dp))
-
-                            BudgetTrackerCard(
-                                insight = "See your budget",
-                                heading = "Budget Tracker",
-                                illustration = painterResource(R.drawable.ill_budget_tracker_card),
-                                progress = remainingPercentage,
-                                amountText = amountText,
-                                labelText = "left",
-                                onClick = { navigateTo("budget") }
-                            )
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.fillMaxWidth()
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp, 12.dp, 12.dp, 0.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                HomeCard(
-                                    insight = "Delicious and Elegant",
-                                    heading = "Catering Menu",
-                                    illustration = painterResource(R.drawable.ill_catering_menu_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFC4D4C2),
-                                    waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF47671A),
-                                    onClick = { navigateTo("catering") }
+                                BudgetTrackerCard(
+                                    insight = "See your budget",
+                                    heading = "Budget Tracker",
+                                    illustration = painterResource(R.drawable.ill_budget_tracker_card),
+                                    progress = remainingPercentage,
+                                    amountText = amountText,
+                                    labelText = "left",
+                                    onClick = { navigateTo("budget") }
                                 )
-                                HomeCard(
-                                    insight = "Perfect Event Spaces",
-                                    heading = "Venue",
-                                    illustration = painterResource(R.drawable.ill_venue_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFD3CDE8),
-                                    waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF6448D6),
-                                    onClick = { navigateTo("venues") }
-                                )
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    HomeCard(
+                                        insight = "Delicious and Elegant",
+                                        heading = "Catering Menu",
+                                        illustration = painterResource(R.drawable.ill_catering_menu_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFC4D4C2),
+                                        waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF47671A),
+                                        onClick = { navigateTo("catering") }
+                                    )
+                                    HomeCard(
+                                        insight = "Perfect Event Spaces",
+                                        heading = "Venue",
+                                        illustration = painterResource(R.drawable.ill_venue_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFD3CDE8),
+                                        waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF6448D6),
+                                        onClick = { navigateTo("venues") }
+                                    )
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    HomeCard(
+                                        insight = "Capture and Smile",
+                                        heading = "Moments",
+                                        illustration = painterResource(R.drawable.ill_moments_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFC3D4E8),
+                                        waveColor = Color(0x1A014594).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF3D58B4),
+                                        onClick = {}
+                                    )
+
+                                    HomeCard(
+                                        insight = "Invite and Celebrate",
+                                        heading = "Cards & Guests",
+                                        illustration = painterResource(R.drawable.ill_cards_and_guests_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFE8D0CE),
+                                        waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF5D1D1B),
+                                        onClick = {}
+                                    )
+                                }
+
+                                OrDivider(dividerGap = 12.dp, text = "EXPLORE")
                             }
 
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                HomeCard(
-                                    insight = "Capture and Smile",
-                                    heading = "Moments",
-                                    illustration = painterResource(R.drawable.ill_moments_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFC3D4E8),
-                                    waveColor = Color(0x1A014594).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF3D58B4),
-                                    onClick = {}
+                                VenueCarousel(
+                                    title = "Trending Venues in Patna",
+                                    venues = MockData.sampleVenues1,
+                                    onVenueClick = { },
+                                    onFavoriteToggle = { },
+                                    onOfferClick = { }
                                 )
 
-                                HomeCard(
-                                    insight = "Invite and Celebrate",
-                                    heading = "Cards & Guests",
-                                    illustration = painterResource(R.drawable.ill_cards_and_guests_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFE8D0CE),
-                                    waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF5D1D1B),
-                                    onClick = {}
+                                Spacer(Modifier.height(12.dp))
+
+                                VenueCarousel(
+                                    title = "More Venues to Explore",
+                                    venues = MockData.sampleVenues2,
+                                    onVenueClick = { },
+                                    onFavoriteToggle = { },
+                                    onOfferClick = { }
                                 )
                             }
-
-                            OrDivider(dividerGap = 12.dp, text = "EXPLORE")
+                            FooterJansify()
                         }
-
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            VenueCarousel(
-                                title = "Trending Venues in Patna",
-                                venues = MockData.sampleVenues1,
-                                onVenueClick = { },
-                                onFavoriteToggle = { },
-                                onOfferClick = { }
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-
-                            VenueCarousel(
-                                title = "More Venues to Explore",
-                                venues = MockData.sampleVenues2,
-                                onVenueClick = { },
-                                onFavoriteToggle = { },
-                                onOfferClick = { }
-                            )
-                        }
-                        FooterJansify()
                     }
                 }
             }
         } else {
             Box(modifier = Modifier.fillMaxSize()) {
                 when (screen) {
-                    "budget" -> BudgetScreen(
-                        onBackClick = { currentScreen = "home" },
-                        eventViewModel = eventViewModel
-                    )
-                    "venues" -> VenueScreen(
-                        selectedLocation = "City, State",
-                        onVenueClick = {},
-                        onBackClick = { currentScreen = "home" },
-                        eventViewModel = eventViewModel
-                    )
-                    "catering" -> CateringMenuScreen(
-                        onBackClick = { currentScreen = "home" },
-                        eventViewModel = eventViewModel
-                    )
+                    "budget" -> eventViewModel?.let { vm ->
+                        BudgetScreen(
+                            onBackClick = { currentScreen = "home" },
+                            eventViewModel = vm
+                        )
+                    }
+                    "venues" -> eventViewModel?.let { vm ->
+                        VenueScreen(
+                            selectedLocation = "City, State",
+                            onVenueClick = {},
+                            onBackClick = { currentScreen = "home" },
+                            eventViewModel = vm
+                        )
+                    }
+                    "catering" -> eventViewModel?.let { vm ->
+                        CateringMenuScreen(
+                            onBackClick = { currentScreen = "home" },
+                            eventViewModel = vm
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
+@Composable
+fun HomeTabContentPreview() {
+    HomeTabContent(
+        eventName = "Taylor & Travis’s Wedding",
+        eventDateString = "2026-11-20",
+        remainingPercentage = 0.65f,
+        amountText = "₹46L",
+        onMenuClick = {},
+        onBottomBarVisibilityChange = {}
+    )
 }
