@@ -31,6 +31,7 @@ import kotlinx.coroutines.yield
 fun EditBudgetBottomSheet(
     initialBudgetValue: String,
     sheetState: SheetState,
+    isBudgetNotSet: Boolean = false,
     onDismiss: () -> Unit,
     onUpdateBudget: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -89,7 +90,7 @@ fun EditBudgetBottomSheet(
     )
 
     CustomBottomSheet(
-        heading = "Edit Budget",
+        heading = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
         sheetState = sheetState,
         onDismiss = onDismiss,
         sheetHeight = dynamicSheetHeight
@@ -183,7 +184,7 @@ fun EditBudgetBottomSheet(
 
             CustomTextButton(
                 onClick = { onUpdateBudget(budgetValue) },
-                text = "Update Budget",
+                text = if (isBudgetNotSet) "Add Budget" else "Update Budget",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp),

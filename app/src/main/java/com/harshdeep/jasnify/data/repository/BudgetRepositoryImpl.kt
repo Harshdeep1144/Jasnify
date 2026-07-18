@@ -65,7 +65,7 @@ class BudgetRepositoryImpl @Inject constructor(
             .addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
                 
-                val totalBudget = snapshot.getDouble("totalBudget") ?: return@addSnapshotListener
+                val totalBudget = snapshot.getDouble("totalBudget")
                 val settings = BudgetEntity(eventId = eventId, totalBudget = totalBudget)
                 externalScope.launch {
                     budgetDao.updateBudgetSettings(settings)
@@ -124,7 +124,7 @@ class BudgetRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateBudget(totalBudget: Double, eventId: String) {
+    override suspend fun updateBudget(totalBudget: Double?, eventId: String) {
         android.util.Log.d("BudgetRepo", "Updating budget for event $eventId to $totalBudget")
         val budgetSettings = BudgetEntity(eventId = eventId, totalBudget = totalBudget)
         budgetDao.updateBudgetSettings(budgetSettings)
