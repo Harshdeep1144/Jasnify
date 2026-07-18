@@ -64,7 +64,8 @@ fun ExpenseCard(
     onDeleteClick: () -> Unit = {},
     onModifyClick: () -> Unit = {},
     emoji: String = "💸",
-    cardShape: SquircleShape = SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+    cardShape: SquircleShape = SquircleShape(CornerExtraSmall, CornerSmoothingDefault),
+    isEditable: Boolean = true
 ) {
     val leftButtonShape = RoundedCornerShape(CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerLarge)
     val rightButtonShape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge)
@@ -158,41 +159,43 @@ fun ExpenseCard(
             )
         ) {
             Column {
-                Spacer(modifier = Modifier.height(16.dp))
+                if (isEditable) {
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    CustomTextButton(
-                        onClick = onDeleteClick,
-                        text = "Delete",
-                        size = ButtonSize.Medium,
-                        type = ButtonType.Tertiary,
-                        shapeStyle = ButtonShapeStyle.Square,
-                        leadingIcon = painterResource(R.drawable.ic_delete),
-                        containerColor = Color.Transparent, // Transparent background so our outer modifier draws the custom corners
-                        contentColor = MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(leftButtonShape)
-                            .background(color = SurfaceSecondary)
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        CustomTextButton(
+                            onClick = onDeleteClick,
+                            text = "Delete",
+                            size = ButtonSize.Medium,
+                            type = ButtonType.Tertiary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            leadingIcon = painterResource(R.drawable.ic_delete),
+                            containerColor = Color.Transparent, // Transparent background so our outer modifier draws the custom corners
+                            contentColor = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(leftButtonShape)
+                                .background(color = SurfaceSecondary)
+                        )
 
-                    Spacer(modifier = Modifier.width(2.dp))
+                        Spacer(modifier = Modifier.width(2.dp))
 
-                    CustomTextButton(
-                        onClick = onModifyClick,
-                        text = "Modify",
-                        size = ButtonSize.Medium,
-                        type = ButtonType.Tertiary,
-                        shapeStyle = ButtonShapeStyle.Square,
-                        leadingIcon = painterResource(R.drawable.ic_edit),
-                        containerColor = Color.Transparent, // Transparent background so our outer modifier draws the custom corners
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(rightButtonShape)
-                            .background(color = SurfaceSecondary)
-                    )
+                        CustomTextButton(
+                            onClick = onModifyClick,
+                            text = "Modify",
+                            size = ButtonSize.Medium,
+                            type = ButtonType.Tertiary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            leadingIcon = painterResource(R.drawable.ic_edit),
+                            containerColor = Color.Transparent, // Transparent background so our outer modifier draws the custom corners
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(rightButtonShape)
+                                .background(color = SurfaceSecondary)
+                        )
+                    }
                 }
 
                 // --- Card Metadata Info Footer ---
@@ -241,7 +244,8 @@ private fun ExpenseCardPreview() {
             category = "Category",
             amount = "₹0",
             emoji = "💍",
-            showActions = false
+            showActions = false,
+            isEditable = true
         )
 
         ExpenseCard(
@@ -251,7 +255,8 @@ private fun ExpenseCardPreview() {
             emoji = "💸",
             showActions = true,
             lastUpdatedBy = "Anand K.",
-            lastUpdatedDate = "Aug 24, 2025, 01:04pm"
+            lastUpdatedDate = "Aug 24, 2025, 01:04pm",
+            isEditable = true
         )
     }
 }

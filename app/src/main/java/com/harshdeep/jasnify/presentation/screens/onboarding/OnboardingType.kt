@@ -725,7 +725,8 @@ fun SlideOneContent() {
                 category = "Equipment Rentals",
                 amount = "₹68,000",
                 emoji = "🎼",
-                showActions = false
+                showActions = false,
+                isEditable = true
             )
         }
     }
