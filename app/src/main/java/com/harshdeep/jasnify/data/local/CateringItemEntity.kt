@@ -6,12 +6,12 @@ import com.harshdeep.jasnify.presentation.components.chip.Dietary
 
 @Entity(tableName = "catering_items")
 data class CateringItemEntity(
-    @PrimaryKey val id: String,
-    val eventId: String,
-    val name: String,
-    val dietary: Dietary,
-    val type: String,
-    val cuisine: String,
+    @PrimaryKey val id: String = "",
+    val eventId: String = "",
+    val name: String = "",
+    val dietary: Dietary = Dietary.Veg,
+    val type: String = "",
+    val cuisine: String = "",
     val isSynced: Boolean = false,
     val lastUpdated: Long = System.currentTimeMillis()
 )

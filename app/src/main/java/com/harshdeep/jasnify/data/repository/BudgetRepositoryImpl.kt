@@ -19,9 +19,59 @@ class BudgetRepositoryImpl @Inject constructor(
 
     private val externalScope = CoroutineScope(Dispatchers.IO)
 
-    override fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>> = budgetDao.getAllExpenses(eventId)
+    override fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>> {
+        // Trigger background sync whenever expenses are requested
+        fetchExpensesFromFirestore(eventId)
+        return budgetDao.getAllExpenses(eventId)
+    }
 
-    override fun getBudgetSettings(eventId: String): Flow<BudgetEntity?> = budgetDao.getBudgetSettings(eventId)
+    override fun getBudgetSettings(eventId: String): Flow<BudgetEntity?> {
+        fetchBudgetSettingsFromFirestore(eventId)
+        return budgetDao.getBudgetSettings(eventId)
+    }
+
+    private fun fetchExpensesFromFirestore(eventId: String) {
+        if (eventId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Budget")
+            .collection("expenses")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    android.util.Log.e("BudgetRepo", "Error listening to expenses", e)
+                    return@addSnapshotListener
+                }
+                
+                snapshot?.documents?.forEach { doc ->
+                    val expense = doc.toObject(ExpenseEntity::class.java)
+                    if (expense != null) {
+                        externalScope.launch {
+                            budgetDao.insertExpense(expense.copy(isSynced = true))
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun fetchBudgetSettingsFromFirestore(eventId: String) {
+        if (eventId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Budget")
+            .addSnapshotListener { snapshot, e ->
+                if (e != null || snapshot == null) return@addSnapshotListener
+                
+                val totalBudget = snapshot.getDouble("totalBudget") ?: return@addSnapshotListener
+                val settings = BudgetEntity(eventId = eventId, totalBudget = totalBudget)
+                externalScope.launch {
+                    budgetDao.updateBudgetSettings(settings)
+                }
+            }
+    }
 
     override suspend fun addExpense(expense: ExpenseEntity) {
         // 1. Update Room Instantly
@@ -30,8 +80,16 @@ class BudgetRepositoryImpl @Inject constructor(
         // 2. Trigger Background Sync to Firestore
         externalScope.launch {
             try {
-                firestore.collection("budgets")
+                // Ensure parent document exists to prevent console display issues
+                firestore.collection("events").document(expense.eventId)
+                    .collection("rooms").document("Budget")
+                    .set(mapOf("updatedAt" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
+                    .await()
+
+                firestore.collection("events")
                     .document(expense.eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .collection("expenses")
                     .document(expense.id)
                     .set(expense)
@@ -40,7 +98,7 @@ class BudgetRepositoryImpl @Inject constructor(
                 // Mark as synced in local DB
                 budgetDao.insertExpense(expense.copy(isSynced = true))
             } catch (e: Exception) {
-                // Log or handle error - Room already has the data so UI stays updated
+                android.util.Log.e("BudgetRepo", "Error syncing expense: ${e.message}")
             }
         }
     }
@@ -52,8 +110,10 @@ class BudgetRepositoryImpl @Inject constructor(
         // 2. Trigger Background Sync
         externalScope.launch {
             try {
-                firestore.collection("budgets")
+                firestore.collection("events")
                     .document(eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .collection("expenses")
                     .document(expenseId)
                     .delete()
@@ -71,12 +131,14 @@ class BudgetRepositoryImpl @Inject constructor(
 
         externalScope.launch {
             try {
-                // Update specific budget document
-                firestore.collection("budgets")
+                // Update specific budget document in the room
+                firestore.collection("events")
                     .document(eventId)
+                    .collection("rooms")
+                    .document("Budget")
                     .set(mapOf("totalBudget" to totalBudget), com.google.firebase.firestore.SetOptions.merge())
                     .await()
-                android.util.Log.d("BudgetRepo", "Successfully updated budgets/$eventId")
+                android.util.Log.d("BudgetRepo", "Successfully updated events/$eventId/rooms/Budget")
 
                 // Sync with the event document's budget field
                 firestore.collection("events")
@@ -84,7 +146,7 @@ class BudgetRepositoryImpl @Inject constructor(
                     .update("budget", totalBudget)
                     .await()
                 android.util.Log.d("BudgetRepo", "Successfully updated events/$eventId")
-                    
+
             } catch (e: Exception) {
                 android.util.Log.e("BudgetRepo", "Error updating budget in Firestore: ${e.message}", e)
             }

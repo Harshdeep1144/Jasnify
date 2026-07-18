@@ -2,27 +2,44 @@ package com.harshdeep.jasnify.presentation.components.inputfield
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
@@ -61,7 +78,8 @@ fun EventNameInput(
     onDelete: (EventNameInputItem) -> Unit,
     modifier: Modifier = Modifier,
     backgroundColor: Color = SurfaceSecondary,
-    hasBorder: Boolean = true
+    hasBorder: Boolean = true,
+    isEditable: Boolean = true
 ) {
     var tempItemState by remember { mutableStateOf(item) }
 
@@ -70,34 +88,16 @@ fun EventNameInput(
     }
 
     val currentState = when {
-        tempItemState.isEditing -> EventNameState.EDITING
-        tempItemState.name.isEmpty() -> EventNameState.EMPTY
-        else -> EventNameState.DISPLAY
+        tempItemState.name.isNotEmpty() && !tempItemState.isEditing -> EventNameState.DISPLAY
+        tempItemState.isEditing && isEditable -> EventNameState.EDITING
+        else -> EventNameState.EMPTY
     }
 
     AnimatedContent(
         targetState = currentState,
         transitionSpec = {
-            val enterTransition = fadeIn(
-                animationSpec = tween(durationMillis = 220, delayMillis = 80)
-            ) + expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = tween(durationMillis = 300)
-            )
-
-            val exitTransition = fadeOut(
-                animationSpec = tween(durationMillis = 150)
-            ) + shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = tween(durationMillis = 300)
-            )
-
-            enterTransition.togetherWith(exitTransition)
-                .using(
-                    SizeTransform(clip = true, sizeAnimationSpec = { _, _ ->
-                        tween(durationMillis = 300)
-                    })
-                )
+            (fadeIn(animationSpec = tween(400)) + expandVertically(animationSpec = tween(400)))
+                .togetherWith(fadeOut(animationSpec = tween(400)) + shrinkVertically(animationSpec = tween(400)))
         },
         label = "EventNameInputTransition"
     ) { state ->
@@ -126,8 +126,9 @@ fun EventNameInput(
                     backgroundColor = backgroundColor,
                     hasBorder = hasBorder,
                     onEdit = {
-                        onUpdate(item.copy(isEditing = true))
+                        if (isEditable) onUpdate(item.copy(isEditing = true))
                     },
+                    isEditable = isEditable,
                     modifier = modifier
                 )
             }
@@ -139,6 +140,7 @@ fun EventNameInput(
                     onEdit = {
                         onUpdate(item.copy(isEditing = true))
                     },
+                    isEditable = isEditable,
                     modifier = modifier
                 )
             }
@@ -151,6 +153,7 @@ private fun EmptyDisplayEventName(
     backgroundColor: Color,
     hasBorder: Boolean,
     onEdit: () -> Unit,
+    isEditable: Boolean,
     modifier: Modifier = Modifier
 ) {
     val borderModifier = if (hasBorder) {
@@ -167,11 +170,11 @@ private fun EmptyDisplayEventName(
         color = backgroundColor,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
+            .then(if (isEditable) Modifier.clickable(
                 onClick = onEdit,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            )
+            ) else Modifier)
             .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     ) {
@@ -183,7 +186,7 @@ private fun EmptyDisplayEventName(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Enter primary event name",
+                text = if (isEditable) "Enter primary event name" else "Event Name",
                 style = JasnifyTheme.typography.labelXLarge.copy(
                     color = ContentSecondary.copy(alpha = 0.7f)
                 ),
@@ -276,6 +279,7 @@ private fun DisplayEventName(
     backgroundColor: Color,
     hasBorder: Boolean,
     onEdit: () -> Unit,
+    isEditable: Boolean,
     modifier: Modifier = Modifier
 ) {
     val borderModifier = if (hasBorder) {
@@ -316,13 +320,15 @@ private fun DisplayEventName(
                 )
             }
 
-            CustomIconButton(
-                onClick = onEdit,
-                icon = painterResource(id = R.drawable.ic_edit),
-                containerColor = SurfacePrimary,
-                contentColor = ContentPrimary,
-                size = ButtonSize.Small
-            )
+            if (isEditable) {
+                CustomIconButton(
+                    onClick = onEdit,
+                    icon = painterResource(id = R.drawable.ic_edit),
+                    containerColor = SurfacePrimary,
+                    contentColor = ContentPrimary,
+                    size = ButtonSize.Small
+                )
+            }
         }
     }
 }
