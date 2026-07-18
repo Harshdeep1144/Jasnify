@@ -1,6 +1,5 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
-import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -10,9 +9,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -43,7 +40,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -53,16 +49,10 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.google.firebase.auth.FirebaseAuth
-import androidx.hilt.navigation.compose.hiltViewModel
-import java.text.SimpleDateFormat
-import java.util.Date
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,16 +61,18 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CategorySummaryData
 import com.harshdeep.jasnify.domain.model.ExpenseItem
@@ -99,8 +91,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.BudgetSummaryCard
 import com.harshdeep.jasnify.presentation.components.cards.CategoryCard
 import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
@@ -113,29 +104,31 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -251,11 +244,13 @@ fun BudgetScreen(
     // Dynamic Edit Budget Sheet state integrations
     var showEditBudgetSheet by remember { mutableStateOf(false) }
     val budgetValue = remember(budgetEntity, activeEvent) {
-        val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget ?: 0.0
-        val plainString = java.math.BigDecimal.valueOf(rawValue).toPlainString()
-        // Remove trailing .0 if it's an integer value for cleaner input
-        val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
-        "INR$cleanString"
+        val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget
+        if (rawValue == null) "INR" else {
+            val plainString = java.math.BigDecimal.valueOf(rawValue).toPlainString()
+            // Remove trailing .0 if it's an integer value for cleaner input
+            val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
+            "INR$cleanString"
+        }
     }
     val editBudgetSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -296,9 +291,13 @@ fun BudgetScreen(
         amountStr.replace("₹", "").replace(",", "").toDoubleOrNull() ?: 0.0
     }
 
+    val isBudgetNotSet = remember(budgetEntity, activeEvent) {
+        budgetEntity?.totalBudget == null && activeEvent?.budget == null
+    }
+
     val totalBudget = remember(budgetValue) {
         val numericPart = budgetValue.dropWhile { !it.isDigit() }
-        numericPart.toDoubleOrNull() ?: 10000000.0
+        numericPart.toDoubleOrNull() ?: 0.0
     }
 
     val totalSpent = remember(allExpenses) {
@@ -526,109 +525,14 @@ fun BudgetScreen(
                                             )
                                             .padding(12.dp)
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
-                                                .background(SurfaceBrandSecondary)
-                                                .border(
-                                                    1.dp,
-                                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                                    SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
-                                                )
-                                        ) {
-                                            Image(
-                                                painter = painterResource(R.drawable.bg_budget_pattern),
-                                                contentDescription = null,
-                                                modifier = Modifier.matchParentSize(),
-                                                contentScale = ContentScale.Crop,
-                                            )
-
-                                            Column(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(16.dp),
-                                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                                            ) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.Top
-                                                ) {
-                                                    Column {
-                                                        Text(
-                                                            text = "TOTAL BUDGET",
-                                                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                                            color = ContentSecondary,
-                                                            letterSpacing = 1.sp
-                                                        )
-                                                        Spacer(modifier = Modifier.height(8.dp))
-                                                        Text(
-                                                            text = formattedTotalBudget,
-                                                            style = JasnifyTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                                                            color = ContentPrimary
-                                                        )
-                                                    }
-
-                                                    TopBarIconButton(
-                                                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_edit)),
-                                                        onClick = { showEditBudgetSheet = true },
-                                                        backgroundStyle = ButtonBackground.TRANSPARENT,
-                                                        iconSize = 20.dp,
-                                                    )
-                                                }
-
-                                                HorizontalDivider(
-                                                    thickness = 1.dp,
-                                                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
-                                                )
-
-                                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                    Text(
-                                                        text = "REMAINING FUNDS",
-                                                        style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                                        color = ContentSecondary,
-                                                        letterSpacing = 1.sp
-                                                    )
-
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = formattedRemaining,
-                                                            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                                                            color = ContentPrimary
-                                                        )
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.ic_info),
-                                                            contentDescription = "Remaining Funds Info",
-                                                            tint = ContentPrimary,
-                                                            modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-
-                                                    LinearProgressIndicator(
-                                                        progress = { remainingPercentage },
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .height(4.dp)
-                                                            .clip(CircleShape),
-                                                        color = ContentBrand,
-                                                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                                    )
-                                                }
-
-                                                CustomTextButton(
-                                                    onClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
-                                                    text = "View Summary",
-                                                    size = ButtonSize.Medium,
-                                                    type = ButtonType.Primary,
-                                                    shapeStyle = ButtonShapeStyle.Square,
-                                                    modifier = Modifier.fillMaxWidth()
-                                                )
-                                            }
-                                        }
+                                        BudgetSummaryCard(
+                                            isBudgetNotSet = isBudgetNotSet,
+                                            formattedTotalBudget = formattedTotalBudget,
+                                            formattedRemaining = formattedRemaining,
+                                            remainingPercentage = remainingPercentage,
+                                            onEditBudgetClick = { showEditBudgetSheet = true },
+                                            onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY }
+                                        )
                                     }
                                 }
 
@@ -645,75 +549,109 @@ fun BudgetScreen(
                                             color = ContentPrimary
                                         )
 
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            CustomSearchBar(
-                                                value = searchQuery,
-                                                placeholder = "Search with AI",
-                                                onValueChange = { searchQuery = it },
-                                                isAiSearch = true,
-                                                modifier = Modifier
-                                                    .weight(1.0f)
-                                                    .onFocusChanged { focusState ->
-                                                        if (focusState.isFocused && !isSearchBarFocused) {
-                                                            coroutineScope.launch {
-                                                                delay(150)
-                                                                listState.animateScrollToItem(index = 1, scrollOffset = -8)
+                                        if (!isBudgetNotSet && allExpenses.isNotEmpty()) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                CustomSearchBar(
+                                                    value = searchQuery,
+                                                    placeholder = "Search with AI",
+                                                    onValueChange = { searchQuery = it },
+                                                    isAiSearch = true,
+                                                    modifier = Modifier
+                                                        .weight(1.0f)
+                                                        .onFocusChanged { focusState ->
+                                                            if (focusState.isFocused && !isSearchBarFocused) {
+                                                                coroutineScope.launch {
+                                                                    delay(150)
+                                                                    listState.animateScrollToItem(
+                                                                        index = 1,
+                                                                        scrollOffset = -8
+                                                                    )
+                                                                }
                                                             }
-                                                        }
-                                                        isSearchBarFocused = focusState.isFocused
-                                                    },
-                                                backgroundColor = SurfacePrimary
-                                            )
+                                                            isSearchBarFocused = focusState.isFocused
+                                                        },
+                                                    backgroundColor = SurfacePrimary
+                                                )
 
-                                            FilterButton(
-                                                onClick = { showBottomSheet = true },
-                                                backgroundColor = SurfacePrimary
-                                            )
+                                                FilterButton(
+                                                    onClick = { showBottomSheet = true },
+                                                    backgroundColor = SurfacePrimary
+                                                )
+                                            }
                                         }
                                     }
                                 }
 
-                                items(filteredExpenses, key = { it.id }) { item ->
-                                    val isFirst = filteredExpenses.firstOrNull()?.id == item.id
-                                    val isLast = filteredExpenses.lastOrNull()?.id == item.id
-
-                                    val itemShape = when {
-                                        isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
-                                        isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
-                                        isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
-                                        else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
-                                    }
-
-                                    ExpenseCard(
-                                        title = item.title,
-                                        category = item.category,
-                                        amount = item.amount,
-                                        emoji = item.emoji,
-                                        lastUpdatedBy = item.lastUpdatedBy,
-                                        lastUpdatedDate = item.lastUpdatedDate,
-                                        showActions = (expandedCardId == item.id),
-                                        cardShape = itemShape,
-                                        modifier = Modifier
-                                            .padding(horizontal = 12.dp, vertical = 1.dp)
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
-                                                focusManager.clearFocus()
-                                                expandedCardId = if (expandedCardId == item.id) null else item.id
-                                            },
-                                        onDeleteClick = {
-                                            expenseToDelete = item
-                                        },
-                                        onModifyClick = {
-                                            expenseToEdit = item
-                                            showAddExpenseSheet = true
+                                if (allExpenses.isEmpty()) {
+                                    item {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 80.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_receipt),
+                                                contentDescription = "No expenses",
+                                                tint = ContentTertiary,
+                                                modifier = Modifier.size(84.dp)
+                                            )
+                                            Spacer(modifier = Modifier.height(12.dp))
+                                            Text(
+                                                text = "Your expenses will \n appear here",
+                                                style = JasnifyTheme.typography.displayMedium.copy(
+                                                    fontWeight = FontWeight.Medium
+                                                ),
+                                                color = ContentTertiary,
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.padding(horizontal = 32.dp)
+                                            )
                                         }
-                                    )
+                                    }
+                                } else {
+                                    items(filteredExpenses, key = { it.id }) { item ->
+                                        val isFirst = filteredExpenses.firstOrNull()?.id == item.id
+                                        val isLast = filteredExpenses.lastOrNull()?.id == item.id
+
+                                        val itemShape = when {
+                                            isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
+                                            isFirst -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault)
+                                            isLast -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge, CornerSmoothingDefault)
+                                            else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+                                        }
+
+                                        ExpenseCard(
+                                            title = item.title,
+                                            category = item.category,
+                                            amount = item.amount,
+                                            emoji = item.emoji,
+                                            lastUpdatedBy = item.lastUpdatedBy,
+                                            lastUpdatedDate = item.lastUpdatedDate,
+                                            showActions = (expandedCardId == item.id),
+                                            cardShape = itemShape,
+                                            modifier = Modifier
+                                                .padding(horizontal = 12.dp, vertical = 1.dp)
+                                                .clickable(
+                                                    interactionSource = remember { MutableInteractionSource() },
+                                                    indication = null
+                                                ) {
+                                                    focusManager.clearFocus()
+                                                    expandedCardId = if (expandedCardId == item.id) null else item.id
+                                                },
+                                            onDeleteClick = {
+                                                expenseToDelete = item
+                                            },
+                                            onModifyClick = {
+                                                expenseToEdit = item
+                                                showAddExpenseSheet = true
+                                            }
+                                        )
+                                    }
                                 }
 
                                 item {
@@ -1636,6 +1574,7 @@ fun BudgetScreen(
         EditBudgetBottomSheet(
             initialBudgetValue = budgetValue,
             sheetState = editBudgetSheetState,
+            isBudgetNotSet = isBudgetNotSet,
             onDismiss = {
                 showEditBudgetSheet = false
             },
@@ -1653,8 +1592,8 @@ fun BudgetScreen(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
-                        text = "Edit Budget",
-                        icon = painterResource(R.drawable.ic_edit),
+                        text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
+                        icon = if (isBudgetNotSet) painterResource(R.drawable.ic_plus) else painterResource(R.drawable.ic_edit),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuBottomSheet = false

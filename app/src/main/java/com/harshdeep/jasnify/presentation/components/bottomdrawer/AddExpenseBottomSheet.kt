@@ -567,13 +567,14 @@ fun AddExpenseSheetContent(
                             modifier = Modifier
                                 .width(textWidthDp + 6.dp),
                             decorationBox = { innerTextField ->
-                                if (amountTextFieldValue.text.isEmpty()) {
-                                    Text(
-                                        text = "0",
-                                        style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
-                                        color = ContentPrimary
-                                    )
-                                } else {
+                                Box(contentAlignment = Alignment.CenterStart) {
+                                    if (amountTextFieldValue.text.isEmpty()) {
+                                        Text(
+                                            text = "0",
+                                            style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
+                                            color = ContentPrimary.copy(alpha = 0.5f) // Set as hint
+                                        )
+                                    }
                                     innerTextField()
                                 }
                             }
@@ -846,8 +847,7 @@ fun AddExpenseSheetContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(SurfacePrimary)
-                .padding(12.dp, 12.dp, 12.dp, 0.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             CustomTextButton(
@@ -858,15 +858,6 @@ fun AddExpenseSheetContent(
                 text = "Save Details",
                 size = ButtonSize.Medium,
                 type = ButtonType.Primary,
-                shapeStyle = ButtonShapeStyle.Square,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            CustomTextButton(
-                onClick = onDismiss,
-                text = "Cancel",
-                size = ButtonSize.Medium,
-                type = ButtonType.Tertiary,
                 shapeStyle = ButtonShapeStyle.Square,
                 modifier = Modifier.fillMaxWidth(),
             )
