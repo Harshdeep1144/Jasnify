@@ -180,23 +180,7 @@ fun VenueDetailScreen(
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            if (targetState != VenueActiveScreen.DETAIL) {
-                slideInHorizontally(
-                    initialOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeIn() togetherWith slideOutHorizontally(
-                    targetOffsetX = { -it },
-                    animationSpec = tween(400)
-                ) + fadeOut()
-            } else {
-                slideInHorizontally(
-                    initialOffsetX = { -it },
-                    animationSpec = tween(400)
-                ) + fadeIn() togetherWith slideOutHorizontally(
-                    targetOffsetX = { it },
-                    animationSpec = tween(400)
-                ) + fadeOut()
-            }
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
         },
         label = "VenueNavigationTransition"
     ) { screen ->
@@ -300,8 +284,8 @@ private fun VenueDetailContent(
 
     val activeTabs = remember(venueDetail) {
         buildList {
-            if (!venueDetail.pricingItems.isNullOrEmpty()) add("Pricings")
-            if (!venueDetail.highlightItems.isNullOrEmpty()) add("Highlights")
+            if (venueDetail.pricingItems.isNotEmpty()) add("Pricings")
+            if (venueDetail.highlightItems.isNotEmpty()) add("Highlights")
             if (venueDetail.aboutText != null) add("About")
             add("Ask AI")
         }
@@ -312,11 +296,11 @@ private fun VenueDetailContent(
             add("info")
             add("suggestions")
             add("tabs")
-            if (!venueDetail.pricingItems.isNullOrEmpty()) {
+            if (venueDetail.pricingItems.isNotEmpty()) {
                 add("pricings")
                 add("div_pricings")
             }
-            if (!venueDetail.highlightItems.isNullOrEmpty()) {
+            if (venueDetail.highlightItems.isNotEmpty()) {
                 add("highlights")
                 add("div_highlights")
             }
@@ -326,11 +310,11 @@ private fun VenueDetailContent(
             }
             add("ask_ai")
             add("div_ask_ai")
-            if (!venueDetail.galleryCategories.isNullOrEmpty()) {
+            if (venueDetail.galleryCategories.isNotEmpty()) {
                 add("gallery")
                 add("div_gallery")
             }
-            if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
+            if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
                 add("reviews")
                 add("div_reviews")
             }
@@ -440,22 +424,6 @@ private fun VenueDetailContent(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, sheetOffsetPx.roundToInt()) }
-                .then(
-                    if (animatedVisibilityScope != null) {
-                        with(animatedVisibilityScope) {
-                            Modifier.animateEnterExit(
-                                enter = slideInVertically(
-                                    initialOffsetY = { it },
-                                    animationSpec = tween(500)
-                                ) + fadeIn(animationSpec = tween(500)),
-                                exit = slideOutVertically(
-                                    targetOffsetY = { it },
-                                    animationSpec = tween(500)
-                                ) + fadeOut(animationSpec = tween(500))
-                            )
-                        }
-                    } else Modifier
-                )
                 .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .shadow(24.dp, SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .background(
@@ -619,22 +587,6 @@ private fun VenueDetailContent(
         Column(
             modifier = Modifier
                 .statusBarsPadding()
-                .then(
-                    if (animatedVisibilityScope != null) {
-                        with(animatedVisibilityScope) {
-                            Modifier.animateEnterExit(
-                                enter = slideInVertically(
-                                    initialOffsetY = { -it },
-                                    animationSpec = tween(500)
-                                ) + fadeIn(animationSpec = tween(500)),
-                                exit = slideOutVertically(
-                                    targetOffsetY = { -it },
-                                    animationSpec = tween(500)
-                                ) + fadeOut(animationSpec = tween(500))
-                            )
-                        }
-                    } else Modifier
-                )
         ) {
             CustomTopBar(
                 onBackClick = onBackClick,
@@ -656,22 +608,6 @@ private fun VenueDetailContent(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .then(
-                    if (animatedVisibilityScope != null) {
-                        with(animatedVisibilityScope) {
-                            Modifier.animateEnterExit(
-                                enter = slideInVertically(
-                                    initialOffsetY = { it },
-                                    animationSpec = tween(600)
-                                ) + fadeIn(animationSpec = tween(600)),
-                                exit = slideOutVertically(
-                                    targetOffsetY = { it },
-                                    animationSpec = tween(600)
-                                ) + fadeOut(animationSpec = tween(600))
-                            )
-                        }
-                    } else Modifier
-                )
         )
 
 // ============================================================= Bottom Sheets ===============================================
@@ -863,7 +799,8 @@ fun VenueMediaSlider(
                             .fillMaxSize()
                             .sharedElement(
                                 rememberSharedContentState(key = "image_${venue.name}"),
-                                animatedVisibilityScope = animatedVisibilityScope
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                renderInOverlayDuringTransition = false
                             )
                     }
                 } else {
@@ -911,23 +848,7 @@ fun VenueMediaSlider(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 34.dp)
-                .then(
-                    if (animatedVisibilityScope != null) {
-                        with(animatedVisibilityScope) {
-                            Modifier.animateEnterExit(
-                                enter = slideInVertically(
-                                    initialOffsetY = { it },
-                                    animationSpec = tween(500)
-                                ) + fadeIn(animationSpec = tween(500)),
-                                exit = slideOutVertically(
-                                    targetOffsetY = { it },
-                                    animationSpec = tween(500)
-                                ) + fadeOut(animationSpec = tween(500))
-                            )
-                        }
-                    } else Modifier
-                ),
+                .padding(horizontal = 12.dp, vertical = 34.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
