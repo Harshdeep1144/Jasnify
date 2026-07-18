@@ -423,87 +423,121 @@ fun ActionsSection(
     }
 }
 
-//@Preview(showBackground = true)
-//@Composable
-//fun RoomProfileCardPreview_OwnerViewingViewer() {
-//    JasnifyTheme {
-//        RoomProfileContent(
-//            user = User("Natasha R.", "blackwidow", UserRole.VIEWER),
-//            currentUserRole = UserRole.OWNER,
-//            isSelf = false,
-//            onClose = {},
-//            onRoleChange = {},
-//            onRemove = {},
-//            onReport = {},
-//            onLeave = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun RoomProfileCardPreview_OwnerViewingSelf() {
-//    JasnifyTheme {
-//        RoomProfileContent(
-//            user = User("Anand K.", "viratanand", UserRole.OWNER),
-//            currentUserRole = UserRole.OWNER,
-//            isSelf = true,
-//            onClose = {},
-//            onRoleChange = {},
-//            onRemove = {},
-//            onReport = {},
-//            onLeave = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun RoomProfileCardPreview_ViewerViewingOwner() {
-//    JasnifyTheme {
-//        RoomProfileContent(
-//            user = User("Anand K.", "viratanand", UserRole.OWNER),
-//            currentUserRole = UserRole.VIEWER,
-//            isSelf = false,
-//            onClose = {},
-//            onRoleChange = {},
-//            onRemove = {},
-//            onReport = {},
-//            onLeave = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun RoomProfileCardPreview_ViewerViewingSelf() {
-//    JasnifyTheme {
-//        RoomProfileContent(
-//            user = User("Natasha R.", "blackwidow", UserRole.VIEWER),
-//            currentUserRole = UserRole.VIEWER,
-//            isSelf = true,
-//            onClose = {},
-//            onRoleChange = {},
-//            onRemove = {},
-//            onReport = {},
-//            onLeave = {}
-//        )
-//    }
-//}
-//
-//@Preview(showBackground = true)
-//@Composable
-//fun RoomProfileCardPreview_EditorViewingViewer() {
-//    JasnifyTheme {
-//        RoomProfileContent(
-//            user = User("Natasha R.", "blackwidow", UserRole.VIEWER),
-//            currentUserRole = UserRole.EDITOR,
-//            isSelf = false,
-//            onClose = {},
-//            onRoleChange = {},
-//            onRemove = {},
-//            onReport = {},
-//            onLeave = {}
-//        )
-//    }
-//}
+
+// ================================================= Preview ======================================================
+
+
+@Preview(showBackground = true)
+@Composable
+fun RoomProfileCardPreview_OwnerViewingViewer() {
+    JasnifyTheme {
+        RoomProfileContent(
+            user = User(
+                uid = "1",
+                name = "Natasha R.",
+                email = "natasha@jasnify.com",
+                username = "blackwidow",
+                role = UserRole.VIEWER
+            ),
+            currentUserRole = UserRole.OWNER,
+            isSelf = false,
+            onClose = {},
+            onRoleChange = {},
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RoomProfileCardPreview_OwnerViewingSelf() {
+    JasnifyTheme {
+        RoomProfileContent(
+            user = User(
+                uid = "2",
+                name = "Anand K.",
+                email = "anand@jasnify.com",
+                username = "viratanand",
+                role = UserRole.OWNER
+            ),
+            currentUserRole = UserRole.OWNER,
+            isSelf = true,
+            onClose = {},
+            onRoleChange = {},
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RoomProfileCardPreview_ViewerViewingOwner() {
+    JasnifyTheme {
+        RoomProfileContent(
+            user = User(
+                uid = "2",
+                name = "Anand K.",
+                email = "anand@jasnify.com",
+                username = "viratanand",
+                role = UserRole.OWNER
+            ),
+            currentUserRole = UserRole.VIEWER,
+            isSelf = false,
+            onClose = {},
+            onRoleChange = {},
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RoomProfileCardPreview_ViewerViewingSelf() {
+    JasnifyTheme {
+        RoomProfileContent(
+            user = User(
+                uid = "1",
+                name = "Natasha R.",
+                email = "natasha@jasnify.com",
+                username = "blackwidow",
+                role = UserRole.VIEWER
+            ),
+            currentUserRole = UserRole.VIEWER,
+            isSelf = true,
+            onClose = {},
+            onRoleChange = {},
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun RoomProfileCardPreview_EditorViewingViewer() {
+    JasnifyTheme {
+        RoomProfileContent(
+            user = User(
+                uid = "1",
+                name = "Natasha R.",
+                email = "natasha@jasnify.com",
+                username = "blackwidow",
+                role = UserRole.VIEWER
+            ),
+            currentUserRole = UserRole.EDITOR,
+            isSelf = false,
+            onClose = {},
+            onRoleChange = {},
+            onRemove = {},
+            onReport = {},
+            onLeave = {}
+        )
+    }
+}
