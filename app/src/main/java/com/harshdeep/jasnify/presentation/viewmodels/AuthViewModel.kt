@@ -88,9 +88,11 @@ class AuthViewModel @Inject constructor(
     // --- 2. Email/Password Authentication Logic ---
 
     fun handleEmailAuth(email: String, password: String, eventId: String? = null) {
+        val cleanEmail = email.lowercase().trim()
+        android.util.Log.d("AuthViewModel", "handleEmailAuth: email=$cleanEmail, eventId=$eventId")
         _authState.value = AuthState.Loading
         // Attempt to sign in first
-        auth.signInWithEmailAndPassword(email, password)
+        auth.signInWithEmailAndPassword(cleanEmail, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val firebaseUser = auth.currentUser
@@ -98,27 +100,24 @@ class AuthViewModel @Inject constructor(
                         viewModelScope.launch {
                             val userEmail = firebaseUser.email ?: email
                             val hasAccess = if (eventId != null) {
-                                userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                                val result = userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                                android.util.Log.d("AuthViewModel", "Access check result for event $eventId: $result")
+                                result
                             } else true
 
                             if (hasAccess) {
-                                // 1. Grant access if joined via specific Event ID (for existing users)
-                                eventId?.let { eid ->
-                                    val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
-                                    rooms.forEach { room ->
-                                        userRepository.grantRoomAccess(eid, room, userEmail, UserRole.VIEWER)
-                                    }
-                                }
+                                // REQUIREMENT: Always promote pending access to real membership on login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
 
                                 // 2. Create profile if it doesn't exist
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: email.substringBefore("@"),
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
                                 _authState.value = AuthState.Success("Successfully logged in!")
                             } else {
+                                android.util.Log.w("AuthViewModel", "Access DENIED. Signing out.")
                                 auth.signOut()
                                 _authState.value = AuthState.Error("You don't have access to this event.")
                             }
@@ -126,41 +125,50 @@ class AuthViewModel @Inject constructor(
                     }
                 } else {
                     // If login fails, attempt to create a new user (Sign Up)
-                    signUpWithEmailAndPassword(email, password, eventId)
+                    android.util.Log.d("AuthViewModel", "Login failed, attempting Sign Up")
+                    signUpWithEmailAndPassword(cleanEmail, password, eventId)
                 }
             }
     }
 
     private fun signUpWithEmailAndPassword(email: String, password: String, eventId: String? = null) {
-        auth.createUserWithEmailAndPassword(email, password)
+        val cleanEmail = email.lowercase().trim()
+        auth.createUserWithEmailAndPassword(cleanEmail, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val firebaseUser = auth.currentUser
                     if (firebaseUser != null) {
                         viewModelScope.launch {
-                            val userEmail = firebaseUser.email ?: email
+                            val userEmail = firebaseUser.email ?: cleanEmail
+                            android.util.Log.d("AuthViewModel", "Sign Up successful. Checking access for $userEmail to event $eventId")
+                            
                             val hasAccess = if (eventId != null) {
-                                userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                                val result = userRepository.checkUserHasAccessToEvent(eventId, userEmail, firebaseUser.uid)
+                                android.util.Log.d("AuthViewModel", "Access check result for event $eventId: $result")
+                                result
                             } else true
 
                             if (hasAccess) {
+                                // REQUIREMENT: Always promote pending access to real membership on signup
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
+
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: email.substringBefore("@"),
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
                                 _authState.value = AuthState.Success("Account created!")
                             } else {
                                 // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
-                                // Or we could restrict signup entirely - based on requirements
-                                createProfileIfNeeded(firebaseUser.uid, userEmail, email.substringBefore("@"))
+                                android.util.Log.w("AuthViewModel", "User signed up via ID but no invitation found for $userEmail")
+                                createProfileIfNeeded(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"))
                                 _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
                             }
                         }
                     }
                 } else {
-                    _authState.value = AuthState.Error("Sign up failed")
+                    android.util.Log.e("AuthViewModel", "Sign up failed: ${task.exception?.message}")
+                    _authState.value = AuthState.Error("Sign up failed: ${task.exception?.message}")
                 }
             }
     }
@@ -183,11 +191,13 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
+                                // REQUIREMENT: Always promote pending access to real membership on Google login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
+
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: "",
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: ""
                                 )
                                 _authState.value = AuthState.Success("logged in!")
                             } else {
@@ -202,7 +212,7 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    private fun createProfileIfNeeded(uid: String, email: String, name: String, joiningEventId: String? = null) {
+    private fun createProfileIfNeeded(uid: String, email: String, name: String) {
         viewModelScope.launch {
             try {
                 val existingProfile = userRepository.getUserProfile(uid)
@@ -216,23 +226,6 @@ class AuthViewModel @Inject constructor(
                         role = UserRole.VIEWER
                     )
                     userRepository.createUserProfile(newUser)
-                    
-                    // 1. If joined via specific Event ID, grant VIEWER access to all rooms
-                    joiningEventId?.let { eventId ->
-                        val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
-                        rooms.forEach { room ->
-                            userRepository.grantRoomAccess(eventId, room, email, UserRole.VIEWER)
-                        }
-                    }
-
-                    // 2. Check pending access (invitations) and process them
-                    val pending = userRepository.checkPendingAccess(email)
-                    if (pending.isNotEmpty()) {
-                        pending.forEach { access ->
-                            userRepository.grantRoomAccess(access.eventId, access.roomType, email, access.role)
-                        }
-                        userRepository.deletePendingAccess(email)
-                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -242,7 +235,9 @@ class AuthViewModel @Inject constructor(
 
     private fun generateUsernameFromEmail(email: String): String {
         val base = email.substringBefore("@").filter { it.isLetterOrDigit() }
-        return base.lowercase() + (100..999).random().toString()
+        // Ensure a minimum length for base if possible, or just append random digits
+        val cleanBase = if (base.isEmpty()) "user" else base.lowercase()
+        return cleanBase + (1000..9999).random().toString()
     }
 
 

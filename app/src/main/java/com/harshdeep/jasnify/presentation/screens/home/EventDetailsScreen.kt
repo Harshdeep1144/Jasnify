@@ -6,8 +6,6 @@ import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -45,6 +43,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -54,6 +53,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.google.firebase.auth.FirebaseAuth
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.focusProperties
@@ -71,9 +71,12 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSlider
+import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSlider
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -92,8 +95,11 @@ import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -112,23 +118,16 @@ import com.harshdeep.jasnify.theme.SurfaceInvPrimary
 import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
-import java.time.LocalDate
-import java.time.Month
-import java.time.format.TextStyle as JavaTextStyle
-import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
-import kotlin.time.Duration.Companion.milliseconds
-import com.harshdeep.jasnify.presentation.components.others.ToastData
-import androidx.compose.runtime.collectAsState
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import com.harshdeep.jasnify.data.models.eventTypes
-import com.harshdeep.jasnify.domain.model.SubEvent
-import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import java.time.Instant
+import java.time.LocalDate
+import java.time.Month
 import java.time.ZoneId
+import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
+import java.time.format.TextStyle as JavaTextStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -142,6 +141,10 @@ fun EventDetailsScreen(
 
     val activeEvent by eventViewModel.activeEvent.collectAsState()
 
+    val isAdmin by remember(activeEvent) {
+        derivedStateOf { activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid }
+    }
+
     // Trigger loading user events on initial composition
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
@@ -152,7 +155,7 @@ fun EventDetailsScreen(
 
     // Core dynamic values driven by state
     var timelineType by remember { mutableStateOf("Multi-day") }
-    var primaryEventName by remember { mutableStateOf("") }
+    var primaryEventName by remember { mutableStateOf("...") }
     var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
 
     // Bottom Sheet Control States
@@ -403,6 +406,7 @@ fun EventDetailsScreen(
                                 },
                                 backgroundColor = SurfacePrimary,
                                 hasBorder = false,
+                                isEditable = isAdmin,
                                 modifier = Modifier
                                     .clip(SquircleShape(CornerLargeIncrease, CornerLargeIncrease,CornerExtraSmall,CornerExtraSmall))
                                     .background(SurfacePrimary)
@@ -436,20 +440,22 @@ fun EventDetailsScreen(
                                         color = ContentSecondary
                                     )
                                 }
-                                CustomIconButton(
-                                    onClick = {
-                                        isDirectDateEdit = false
-                                        bottomSheetStep = 0
-                                        tempTimelineType = timelineType
-                                        tempSelectedDateString = singleDaySelectedDate
-                                        pickDateSegmentSelected = singleDaySelectedDate != "Not yet decided"
-                                        showBottomSheet = true
-                                    },
-                                    icon = painterResource(id = R.drawable.ic_edit),
-                                    containerColor = SurfacePrimary,
-                                    contentColor = ContentPrimary,
-                                    size = ButtonSize.Small
-                                )
+                                if (isAdmin) {
+                                    CustomIconButton(
+                                        onClick = {
+                                            isDirectDateEdit = false
+                                            bottomSheetStep = 0
+                                            tempTimelineType = timelineType
+                                            tempSelectedDateString = singleDaySelectedDate
+                                            pickDateSegmentSelected = singleDaySelectedDate != "Not yet decided"
+                                            showBottomSheet = true
+                                        },
+                                        icon = painterResource(id = R.drawable.ic_edit),
+                                        containerColor = SurfacePrimary,
+                                        contentColor = ContentPrimary,
+                                        size = ButtonSize.Small
+                                    )
+                                }
                             }
 
                             // Dynamically Render Event Date Card
@@ -481,56 +487,58 @@ fun EventDetailsScreen(
                                         )
                                     }
 
-                                    if (isDateAdded) {
-                                        CustomIconButton(
-                                            onClick = {
-                                                if (timelineItems.isEmpty()) {
-                                                    datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
-                                                    onDateSelectedCallback = { localDate ->
-                                                        singleDaySelectedDate = formatToOrdinalDate(localDate)
-                                                        syncEvent()
+                                    if (isAdmin) {
+                                        if (isDateAdded) {
+                                            CustomIconButton(
+                                                onClick = {
+                                                    if (timelineItems.isEmpty()) {
+                                                        datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
+                                                        onDateSelectedCallback = { localDate ->
+                                                            singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                            syncEvent()
+                                                        }
+                                                        showDatePickerSheet = true
+                                                    } else {
+                                                        isDirectDateEdit = true
+                                                        draftSavedDateString = singleDaySelectedDate
+                                                        draftCustomDateString = singleDaySelectedDate
+                                                        pickerActiveTab = 0
+                                                        bottomSheetStep = 2
+                                                        showBottomSheet = true
                                                     }
-                                                    showDatePickerSheet = true
-                                                } else {
-                                                    isDirectDateEdit = true
-                                                    draftSavedDateString = singleDaySelectedDate
-                                                    draftCustomDateString = singleDaySelectedDate
-                                                    pickerActiveTab = 0
-                                                    bottomSheetStep = 2
-                                                    showBottomSheet = true
-                                                }
-                                            },
-                                            icon = painterResource(id = R.drawable.ic_edit),
-                                            containerColor = SurfacePrimary,
-                                            contentColor = ContentPrimary,
-                                            size = ButtonSize.Small
-                                        )
-                                    } else {
-                                        CustomTextButton(
-                                            onClick = {
-                                                if (timelineItems.isEmpty()) {
-                                                    datePickerInitialDate = LocalDate.now()
-                                                    onDateSelectedCallback = { localDate ->
-                                                        singleDaySelectedDate = formatToOrdinalDate(localDate)
-                                                        syncEvent()
+                                                },
+                                                icon = painterResource(id = R.drawable.ic_edit),
+                                                containerColor = SurfacePrimary,
+                                                contentColor = ContentPrimary,
+                                                size = ButtonSize.Small
+                                            )
+                                        } else {
+                                            CustomTextButton(
+                                                onClick = {
+                                                    if (timelineItems.isEmpty()) {
+                                                        datePickerInitialDate = LocalDate.now()
+                                                        onDateSelectedCallback = { localDate ->
+                                                            singleDaySelectedDate = formatToOrdinalDate(localDate)
+                                                            syncEvent()
+                                                        }
+                                                        showDatePickerSheet = true
+                                                    } else {
+                                                        isDirectDateEdit = true
+                                                        draftSavedDateString = null
+                                                        draftCustomDateString = formatToOrdinalDate(LocalDate.now())
+                                                        pickerActiveTab = 1
+                                                        bottomSheetStep = 2
+                                                        showBottomSheet = true
                                                     }
-                                                    showDatePickerSheet = true
-                                                } else {
-                                                    isDirectDateEdit = true
-                                                    draftSavedDateString = null
-                                                    draftCustomDateString = formatToOrdinalDate(LocalDate.now())
-                                                    pickerActiveTab = 1
-                                                    bottomSheetStep = 2
-                                                    showBottomSheet = true
-                                                }
-                                            },
-                                            text = "Add date",
-                                            size = ButtonSize.Small,
-                                            type = ButtonType.Primary,
-                                            shapeStyle = ButtonShapeStyle.Round,
-                                            containerColor = Color(0xFF517576),
-                                            contentColor = Color.White
-                                        )
+                                                },
+                                                text = "Add date",
+                                                size = ButtonSize.Small,
+                                                type = ButtonType.Primary,
+                                                shapeStyle = ButtonShapeStyle.Round,
+                                                containerColor = Color(0xFF517576),
+                                                contentColor = Color.White
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -568,35 +576,37 @@ fun EventDetailsScreen(
                                 }
 
                                 // Dynamically active "Add" button linked to lists
-                                Row(
-                                    modifier = Modifier
-                                        .clickable(enabled = !hasUnsavedEditingItem) {
-                                            timelineItems.add(
-                                                0,
-                                                SubEventItem(
-                                                    id = java.util.UUID.randomUUID().toString(),
-                                                    dateString = "",
-                                                    name = "",
-                                                    isExisting = false,
-                                                    isEditing = true
+                                if (isAdmin) {
+                                    Row(
+                                        modifier = Modifier
+                                            .clickable(enabled = !hasUnsavedEditingItem) {
+                                                timelineItems.add(
+                                                    0,
+                                                    SubEventItem(
+                                                        id = java.util.UUID.randomUUID().toString(),
+                                                        dateString = "",
+                                                        name = "",
+                                                        isExisting = false,
+                                                        isEditing = true
+                                                    )
                                                 )
-                                            )
-                                        }
-                                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_plus),
-                                        contentDescription = "Add Timeline",
-                                        tint = if (hasUnsavedEditingItem) ContentSecondary else ContentBrandDark,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = "Add",
-                                        color = if (hasUnsavedEditingItem) ContentSecondary else ContentBrandDark,
-                                        style = JasnifyTheme.typography.labelXLarge
-                                    )
+                                            }
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_plus),
+                                            contentDescription = "Add Timeline",
+                                            tint = if (hasUnsavedEditingItem) ContentSecondary else ContentBrandDark,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Add",
+                                            color = if (hasUnsavedEditingItem) ContentSecondary else ContentBrandDark,
+                                            style = JasnifyTheme.typography.labelXLarge
+                                        )
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.height(8.dp))
@@ -684,6 +694,7 @@ fun EventDetailsScreen(
                                     },
                                     backgroundColor = SurfacePrimary,
                                     hasBorder = false,
+                                    isEditable = isAdmin,
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }

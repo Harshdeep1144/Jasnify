@@ -24,12 +24,32 @@ class RoomViewModel @Inject constructor(
     private val _searchResults = MutableStateFlow<List<User>>(emptyList())
     val searchResults: StateFlow<List<User>> = _searchResults.asStateFlow()
 
+    private val _hasAccess = MutableStateFlow<Boolean?>(null)
+    val hasAccess: StateFlow<Boolean?> = _hasAccess.asStateFlow()
+
     fun loadRoomUsers(eventId: String, roomType: String) {
         viewModelScope.launch {
             userRepository.getRoomUsers(eventId, roomType).collectLatest { users ->
                 _roomUsers.value = users
             }
         }
+    }
+
+    fun verifyAccess(eventId: String, roomType: String, uid: String) {
+        viewModelScope.launch {
+            // 1. Try to load from cache first for instant UI response
+            val cached = userRepository.getCachedRoomAccess(eventId, roomType, uid)
+            if (cached != null) {
+                _hasAccess.value = cached
+            }
+
+            // 2. Perform network check to ensure access is still valid
+            _hasAccess.value = userRepository.checkRoomAccess(eventId, roomType, uid)
+        }
+    }
+
+    fun resetAccessState() {
+        _hasAccess.value = null
     }
 
     fun searchUsers(query: String) {
@@ -51,7 +71,7 @@ class RoomViewModel @Inject constructor(
             try {
                 userRepository.grantRoomAccess(eventId, roomType, email, role)
             } catch (e: Exception) {
-                // Log error
+                android.util.Log.e("RoomViewModel", "Error granting access to $email in $roomType", e)
             }
         }
     }
@@ -61,7 +81,7 @@ class RoomViewModel @Inject constructor(
             try {
                 userRepository.removeRoomAccess(eventId, roomType, uid)
             } catch (e: Exception) {
-                // Log error
+                android.util.Log.e("RoomViewModel", "Error removing access for $uid in $roomType", e)
             }
         }
     }

@@ -1,33 +1,48 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -35,8 +50,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,8 +77,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -59,15 +88,17 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.ChecklistItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -82,17 +113,32 @@ import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.CloudWhisper
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.LightSkyBlue
+import com.harshdeep.jasnify.theme.PaleLavender
+import com.harshdeep.jasnify.theme.SoftMint
+import com.harshdeep.jasnify.theme.SoftPeach
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -103,23 +149,33 @@ sealed interface ChecklistScreenState {
     object ManageRoomAccess : ChecklistScreenState
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ChecklistsTab(
     viewModel: ChecklistViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    onBottomBarVisibilityChange: (Boolean) -> Unit = {}
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+
+    val auth = FirebaseAuth.getInstance()
+    val currentUserUid = auth.currentUser?.uid ?: ""
 
     // Fetch user events to ensure we have an active event context
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
     }
-    
-    LaunchedEffect(activeEvent) {
-        activeEvent?.id?.let { id ->
-            viewModel.setEventId(id)
+
+    LaunchedEffect(activeEventId) {
+        viewModel.setEventId(activeEventId)
+        activeEventId?.let { id ->
+            roomViewModel.verifyAccess(id, "Checklist", currentUserUid)
+            roomViewModel.loadRoomUsers(id, "Checklist")
         }
     }
 
@@ -143,16 +199,6 @@ fun ChecklistsTab(
             delay(3000.milliseconds)
             toastData = toastData.copy(message = null)
         }
-    }
-
-    // User Directory State
-    var budgetRoomUsers by remember {
-        mutableStateOf(
-            listOf(
-                User("Anand K.", "viratanand", "", "" ,UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Steve R.", "captainamerica", "", "", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-            )
-        )
     }
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
@@ -186,8 +232,8 @@ fun ChecklistsTab(
         }
     }
 
-    LaunchedEffect(currentScreen) {
-        onBottomBarVisibilityChange(currentScreen == ChecklistScreenState.List)
+    LaunchedEffect(Unit) {
+        onBottomBarVisibilityChange(false)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -225,10 +271,15 @@ fun ChecklistsTab(
     // Determine bottom sheet/dialog visibility parameters dynamically
     val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || (userToRemove != null)
 
-    Box(
-        modifier = Modifier.fillMaxSize()
+    RoomAccessGuardian(
+        hasAccess = hasAccess,
+        roomName = "Checklist",
+        onBackClick = onBackClick
     ) {
-        SharedTransitionLayout {
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            SharedTransitionLayout {
             AnimatedContent(
                 targetState = currentScreen,
                 transitionSpec = {
@@ -305,15 +356,38 @@ fun ChecklistsTab(
                         )
                     }
                     ChecklistScreenState.ManageRoomAccess -> {
+                        val currentUserUid = auth.currentUser?.uid ?: ""
+                        val isOwner = activeEvent?.ownerId == currentUserUid
+                        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+                        val currentUserRole = when {
+                            isOwner -> UserRole.OWNER
+                            currentUserInRoom != null -> currentUserInRoom.role
+                            else -> UserRole.VIEWER
+                        }
+
+                        // Ensure current user is in the list shown, even if not yet in Firestore
+                        val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                            val self = User(
+                                uid = currentUserUid,
+                                name = auth.currentUser?.displayName ?: "Me",
+                                email = auth.currentUser?.email ?: "",
+                                role = currentUserRole,
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                            )
+                            (listOf(self) + roomUsers).distinctBy { it.uid }
+                        } else {
+                            roomUsers
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(SurfaceSecondary)
                         ){
                             RoomScreen(
-                                allUsers = budgetRoomUsers,
-                                currentUserRole = UserRole.OWNER,
-                                isSelf = { it.username == "viratanand" },
+                                allUsers = displayUsers,
+                                currentUserRole = currentUserRole,
+                                isSelf = { it.uid == currentUserUid },
                                 onBackClick = {
                                     focusManager.clearFocus()
                                     showRoomAccess = false
@@ -323,8 +397,8 @@ fun ChecklistsTab(
                                     showRoomMenuBottomSheet = true
                                 },
                                 onRoleChange = { targetUser, newRole ->
-                                    budgetRoomUsers = budgetRoomUsers.map { user ->
-                                        if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.grantAccess(id, "Checklist", targetUser.email, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
@@ -336,9 +410,19 @@ fun ChecklistsTab(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
-                                    focusManager.clearFocus()
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.removeAccess(id, "Checklist", currentUserUid)
+                                    }
                                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                                     showRoomAccess = false
+                                },
+                                searchResults = searchResults,
+                                onSearch = { roomViewModel.searchUsers(it) },
+                                onGrantAccess = { email, role ->
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.grantAccess(id, "Checklist", email, role)
+                                        toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                    }
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -706,8 +790,8 @@ fun ChecklistsTab(
                 },
                 onConfirmRemove = {
                     val target = userToRemove
-                    if (target != null) {
-                        budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
+                    if (target != null && activeEvent != null) {
+                        roomViewModel.removeAccess(activeEvent!!.id, "Checklist", target.uid)
                         toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
                     userToRemove = null
@@ -732,6 +816,7 @@ fun ChecklistsTab(
                 type = toastData.type
             )
         }
+    }
     }
 }
 

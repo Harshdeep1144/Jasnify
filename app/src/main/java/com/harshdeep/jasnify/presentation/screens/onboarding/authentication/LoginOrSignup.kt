@@ -13,13 +13,33 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -33,11 +53,15 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.*
-import com.harshdeep.jasnify.presentation.components.inputfield.PhoneNumberInput
+import com.harshdeep.jasnify.presentation.components.buttons.AuthButton
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
@@ -47,23 +71,12 @@ import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
-import kotlinx.coroutines.delay
-import kotlin.time.Duration.Companion.milliseconds
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.sp
-import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
-import com.harshdeep.jasnify.theme.ContentBrand
-import com.harshdeep.jasnify.theme.Pattaya
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MailOutline
-import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class AuthTab {
     SIGN_UP, LOG_IN
@@ -135,12 +148,13 @@ fun LoginOrSignup(
                 val message = (authState as AuthState.Success).message
                 toastData = ToastData(message, ToastType.SUCCESS)
 
-                val hasCompletedEventCreation = eventViewModel.checkIfUserHasEventsInDatabase()
+                val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
 
                 val destination = if (eventId != null) {
                     // If we joined via Event ID, pass it to MainAppScreen
+                    android.util.Log.d("LoginOrSignup", "Navigating with Event ID: $eventId")
                     Screen.MainAppScreen.route + "?eventId=$eventId"
-                } else if (hasCompletedEventCreation) {
+                } else if (hasEventParticipation) {
                     Screen.MainAppScreen.route
                 } else {
                     Screen.EventCreationScreen.route

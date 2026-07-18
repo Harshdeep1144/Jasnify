@@ -18,6 +18,7 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
@@ -72,7 +73,9 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             exitTransition = { fadeOut(tween(500)) }
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getString("eventId")
-            HomeScreen(mainNavController = mainNavController, joinedEventId = eventId)
+            val graphEntry = remember(backStackEntry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
+            HomeScreen(mainNavController = mainNavController, joinedEventId = eventId, eventViewModel = eventViewModel)
         }
 
         // --- Event Details Graphs ---
@@ -82,7 +85,9 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             exitTransition = { NavAnimations.slideOutToRight },
             popEnterTransition = { NavAnimations.slideInFromRight },
             popExitTransition = { NavAnimations.slideOutToLeft }
-        ) {
+        ) { entry ->
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
             EventDetailsScreen(
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
@@ -99,6 +104,9 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             val savedStateHandle = entry.savedStateHandle
             val selectedLocation by savedStateHandle.getStateFlow("selected_location", "City, State").collectAsState()
 
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
+
             VenueScreen(
                 selectedLocation = selectedLocation,
                 onVenueClick = { /* Handle venue click */ },
@@ -106,7 +114,8 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                }
+                },
+                eventViewModel = eventViewModel
             )
         }
 
@@ -134,24 +143,32 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // Catering Feature
         composable(
             route = Screen.CateringRoot.route,
-        ) {
+        ) { entry ->
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
+            
             CateringMenuScreen(
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                }
+                },
+                eventViewModel = eventViewModel
             )
         }
 
         // Budget Feature
-        composable(Screen.BudgetRoot.route) {
+        composable(Screen.BudgetRoot.route) { entry ->
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
+            
             BudgetScreen(
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                }
+                },
+                eventViewModel = eventViewModel
             )
         }
     }

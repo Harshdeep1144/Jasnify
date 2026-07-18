@@ -13,12 +13,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.*
 
 @Composable
 fun ProfileTab(
     mainNavController: NavHostController,
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -37,6 +39,7 @@ fun ProfileTab(
         Spacer(Modifier.height(20.dp))
         Button(onClick = {
             authViewModel.logout(context)
+            eventViewModel.clearActiveEvent()
             mainNavController.navigate(Screen.LoginOrSignUp.route) {
                 popUpTo(Screen.MainAppGraph.route) { inclusive = true }
             }

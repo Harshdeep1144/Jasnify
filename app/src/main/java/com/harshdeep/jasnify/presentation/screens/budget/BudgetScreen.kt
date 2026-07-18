@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -57,8 +58,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.harshdeep.jasnify.data.local.ExpenseEntity
-import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.google.firebase.auth.FirebaseAuth
 import androidx.hilt.navigation.compose.hiltViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -116,6 +117,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -150,7 +152,8 @@ enum class BudgetScreenView {
 fun BudgetScreen(
     onBackClick: () -> Unit,
     viewModel: BudgetViewModel = hiltViewModel(),
-    eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel()
+    eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel(),
+    roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -159,16 +162,26 @@ fun BudgetScreen(
     val expensesEntities by viewModel.expenses.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.budgetSettings.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    
+    val auth = FirebaseAuth.getInstance()
+    val currentUserUid = auth.currentUser?.uid ?: ""
 
     // Fetch user events to ensure we have an active event
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
     }
 
-    // Sync eventId to BudgetViewModel
-    LaunchedEffect(activeEvent) {
-        activeEvent?.id?.let { id ->
+    // Sync eventId to BudgetViewModel and RoomViewModel using the most direct source (the ID)
+    LaunchedEffect(activeEventId) {
+        activeEventId?.let { id ->
+            android.util.Log.d("BudgetScreen", "Syncing with Event ID: $id")
             viewModel.setEventId(id)
+            roomViewModel.verifyAccess(id, "Budget", currentUserUid)
+            roomViewModel.loadRoomUsers(id, "Budget")
         }
     }
 
@@ -199,15 +212,6 @@ fun BudgetScreen(
             delay(3000.milliseconds)
             toastData = toastData.copy(message = null)
         }
-    }
-
-    var budgetRoomUsers by remember {
-        mutableStateOf(
-            listOf(
-                User("Anand K.", "viratanand", "", "", UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Steve R.", "captainamerica", "", "", UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-            )
-        )
     }
 
     // SYSTEM BACK BUTTON HANDLER
@@ -421,8 +425,13 @@ fun BudgetScreen(
         }
     }
 
-    Scaffold(
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+    RoomAccessGuardian(
+        hasAccess = hasAccess,
+        roomName = "Budget",
+        onBackClick = onBackClick
+    ) {
+        Scaffold(
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = Modifier
             .fillMaxSize()
             .clickable(
@@ -1405,23 +1414,46 @@ fun BudgetScreen(
 
 
                     BudgetScreenView.MANAGE_ROOM_ACCESS -> {
+                        val currentUserUid = auth.currentUser?.uid ?: ""
+                        val isOwner = activeEvent?.ownerId == currentUserUid
+                        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+                        val currentUserRole = when {
+                            isOwner -> UserRole.OWNER
+                            currentUserInRoom != null -> currentUserInRoom.role
+                            else -> UserRole.VIEWER
+                        }
+
+                        // Ensure current user is in the list shown, even if not yet in Firestore access collection
+                        val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                            val self = User(
+                                uid = currentUserUid,
+                                name = auth.currentUser?.displayName ?: "Me",
+                                email = auth.currentUser?.email ?: "",
+                                role = currentUserRole,
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                            )
+                            (listOf(self) + roomUsers).distinctBy { it.uid }
+                        } else {
+                            roomUsers
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(SurfaceSecondary)
                         ) {
                             RoomScreen(
-                                allUsers = budgetRoomUsers,
-                                currentUserRole = UserRole.OWNER,
-                                isSelf = { it.username == "viratanand" },
+                                allUsers = displayUsers,
+                                currentUserRole = currentUserRole,
+                                isSelf = { it.uid == currentUserUid },
                                 onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
                                 onMenuClick = {
                                     focusManager.clearFocus()
                                     showRoomMenuBottomSheet = true
                                 },
                                 onRoleChange = { targetUser, newRole ->
-                                    budgetRoomUsers = budgetRoomUsers.map { user ->
-                                        if (user.username == targetUser.username) user.copy(role = newRole) else user
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.grantAccess(id, "Budget", targetUser.email, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
@@ -1431,8 +1463,19 @@ fun BudgetScreen(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.removeAccess(id, "Budget", currentUserUid)
+                                    }
                                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                                     currentView = BudgetScreenView.BUDGET_TRACKER
+                                },
+                                searchResults = searchResults,
+                                onSearch = { roomViewModel.searchUsers(it) },
+                                onGrantAccess = { email, role ->
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.grantAccess(id, "Budget", email, role)
+                                        toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                    }
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -1469,6 +1512,7 @@ fun BudgetScreen(
                 )
             }
         }
+    }
     }
 
     if (showBottomSheet) {
@@ -1768,8 +1812,10 @@ fun BudgetScreen(
             onConfirmRemove = {
                 val target = userToRemove
                 if (target != null) {
-                    budgetRoomUsers = budgetRoomUsers.filter { it.username != target.username }
-                    toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                    activeEvent?.id?.let { id ->
+                        roomViewModel.removeAccess(id, "Budget", target.uid)
+                        toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                    }
                 }
                 userToRemove = null
             }
