@@ -154,14 +154,15 @@ fun ChecklistsTab(
     viewModel: ChecklistViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
-    onBottomBarVisibilityChange: (Boolean) -> Unit = {}
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
-    
+
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -169,7 +170,7 @@ fun ChecklistsTab(
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
     }
-    
+
     LaunchedEffect(activeEventId) {
         viewModel.setEventId(activeEventId)
         activeEventId?.let { id ->
@@ -231,8 +232,8 @@ fun ChecklistsTab(
         }
     }
 
-    LaunchedEffect(currentScreen) {
-        onBottomBarVisibilityChange(currentScreen == ChecklistScreenState.List)
+    LaunchedEffect(Unit) {
+        onBottomBarVisibilityChange(false)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -273,7 +274,7 @@ fun ChecklistsTab(
     RoomAccessGuardian(
         hasAccess = hasAccess,
         roomName = "Checklist",
-        onBackClick = { /* Handle back click if needed or just keep empty */ }
+        onBackClick = onBackClick
     ) {
         Box(
             modifier = Modifier.fillMaxSize()

@@ -66,7 +66,8 @@ fun TimeLineInput(
     onDelete: (SubEventItem) -> Unit,
     modifier: Modifier = Modifier,
     backgroundColor: Color = SurfaceSecondary,
-    hasBorder: Boolean = true
+    hasBorder: Boolean = true,
+    isEditable: Boolean = true
 ) {
     var tempItemState by remember { mutableStateOf(item) }
 
@@ -89,7 +90,7 @@ fun TimeLineInput(
 
     // Determine the active state of the component
     val currentState = when {
-        tempItemState.isEditing -> TimelineState.EDITING
+        tempItemState.isEditing && isEditable -> TimelineState.EDITING
         tempItemState.dateString.isEmpty() && tempItemState.name.isEmpty() -> TimelineState.EMPTY
         else -> TimelineState.DISPLAY
     }
@@ -151,8 +152,9 @@ fun TimeLineInput(
                     backgroundColor = backgroundColor,
                     hasBorder = hasBorder,
                     onEdit = {
-                        onUpdate(item.copy(isEditing = true))
+                        if (isEditable) onUpdate(item.copy(isEditing = true))
                     },
+                    isEditable = isEditable,
                     modifier = modifier
                 )
             }
@@ -164,6 +166,7 @@ fun TimeLineInput(
                     onEdit = {
                         onUpdate(item.copy(isEditing = true))
                     },
+                    isEditable = isEditable,
                     modifier = modifier
                 )
             }
@@ -171,7 +174,7 @@ fun TimeLineInput(
     }
 
     // Show the date picker bottom sheet when needed
-    if (isDatePickerVisible) {
+    if (isDatePickerVisible && isEditable) {
         DatePickerSheet(
             onDismiss = { isDatePickerVisible = false },
             onDateSelected = { date ->
@@ -183,6 +186,7 @@ fun TimeLineInput(
 }
 
 
+
 //--------------------------------------- Helper Functions ----------------------------------------
 
 
@@ -192,6 +196,7 @@ private fun EmptyDisplayTimeLine(
     backgroundColor: Color,
     hasBorder: Boolean,
     onEdit: () -> Unit,
+    isEditable: Boolean,
     modifier: Modifier = Modifier
 ) {
     val borderModifier = if (hasBorder) {
@@ -208,11 +213,11 @@ private fun EmptyDisplayTimeLine(
         color = backgroundColor,
         modifier = modifier
             .fillMaxWidth()
-            .clickable(
+            .then(if (isEditable) Modifier.clickable(
                 onClick = onEdit,
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
-            )
+            ) else Modifier)
             .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     ) {
@@ -440,6 +445,7 @@ private fun DisplayTimeLine(
     backgroundColor: Color,
     hasBorder: Boolean,
     onEdit: () -> Unit,
+    isEditable: Boolean,
     modifier: Modifier = Modifier
 ) {
     val borderModifier = if (hasBorder) {
@@ -481,13 +487,15 @@ private fun DisplayTimeLine(
                 )
             }
 
-            CustomIconButton(
-                onClick = onEdit,
-                icon = painterResource(R.drawable.ic_edit),
-                containerColor = backgroundColor,
-                contentColor = ContentPrimary,
-                size = ButtonSize.Small
-            )
+            if (isEditable) {
+                CustomIconButton(
+                    onClick = onEdit,
+                    icon = painterResource(R.drawable.ic_edit),
+                    containerColor = backgroundColor,
+                    contentColor = ContentPrimary,
+                    size = ButtonSize.Small
+                )
+            }
         }
     }
 }
