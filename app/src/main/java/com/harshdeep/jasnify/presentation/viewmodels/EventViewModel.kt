@@ -147,7 +147,7 @@ class EventViewModel @Inject constructor(
                 val events = snapshot?.toObjects(Event::class.java) ?: emptyList()
                 val sortedEvents = events.sortedByDescending { it.createdAt }
                 _userEvents.value = sortedEvents
-                
+
                 val currentActive = _activeEvent.value
                 val latest = sortedEvents.firstOrNull()
 
@@ -217,7 +217,7 @@ class EventViewModel @Inject constructor(
                     } catch (e: Exception) {
                         // Log seeding error but proceed
                     }
-                    
+
                     try {
                         // Also seed budget settings
                         budgetRepository.updateBudget(event.budget, event.id)
@@ -239,7 +239,7 @@ class EventViewModel @Inject constructor(
                     } catch (e: Exception) {
                         android.util.Log.e("EventViewModel", "Failed to grant room access: ${e.message}")
                     }
-                    
+
                     _eventState.value = EventCreationState.Success("'${event.name}' event created!")
                 }
             }
@@ -272,7 +272,7 @@ class EventViewModel @Inject constructor(
     suspend fun getEventById(eventId: String): Event? {
         val inputId = eventId.trim()
         if (inputId.isEmpty()) return null
-        
+
         val lowercaseId = inputId.lowercase()
         val uppercaseId = inputId.uppercase()
 
@@ -311,7 +311,7 @@ class EventViewModel @Inject constructor(
                     .whereGreaterThanOrEqualTo("id", prefix)
                     .whereLessThanOrEqualTo("id", prefix + "\uf8ff")
                     .limit(1).get().await()
-                
+
                 if (!pQuery.isEmpty()) {
                     val doc = pQuery.documents.first()
                     val found = doc.toObject(Event::class.java)
@@ -351,7 +351,7 @@ class EventViewModel @Inject constructor(
             val ownedQuery = firestore.collection("events")
                 .whereEqualTo("ownerId", userId)
                 .limit(1).get().await()
-            
+
             if (!ownedQuery.isEmpty) {
                 _hasEventsState.value = true
                 return true
@@ -369,12 +369,12 @@ class EventViewModel @Inject constructor(
                     "venue" -> "venue_room_users"
                     else -> "room_users"
                 }
-                
+
                 // Using collectionGroup to find the user's membership across all events
                 val memberQuery = firestore.collectionGroup(collectionName)
                     .whereEqualTo("uid", userId)
                     .limit(1).get().await()
-                
+
                 if (!memberQuery.isEmpty) {
                     _hasEventsState.value = true
                     return true

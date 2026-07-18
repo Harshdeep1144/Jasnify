@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.catering
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -132,6 +133,9 @@ fun CateringMenuScreen(
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    
+    val currentUserUid = auth.currentUser?.uid ?: ""
 
     val allMenuItems = remember(cateringItemsEntities) {
         cateringItemsEntities.map { entity ->
@@ -154,6 +158,7 @@ fun CateringMenuScreen(
     LaunchedEffect(activeEventId) {
         activeEventId?.let { id ->
             cateringViewModel.setEventId(id)
+            roomViewModel.verifyAccess(id, "Catering", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Catering")
         }
     }
@@ -174,16 +179,6 @@ fun CateringMenuScreen(
     }
 
     var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
-
-    // User Directory State initialized inside Catering Menu
-    var cateringRoomUsers by remember {
-        mutableStateOf(
-            listOf(
-                User("Anand K.", "viratanand", "", "",UserRole.OWNER, "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"),
-                User("Steve R.", "captainamerica", "", "",UserRole.EDITOR, "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"),
-            )
-        )
-    }
 
     // SYSTEM BACK BUTTON HANDLER
     BackHandler(enabled = currentView != CateringMenuView.MENU) {
@@ -292,7 +287,12 @@ fun CateringMenuScreen(
         label = "SearchBarParent_Bg"
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    RoomAccessGuardian(
+        hasAccess = hasAccess,
+        roomName = "Catering",
+        onBackClick = onBackClick
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = currentView,
             transitionSpec = {
@@ -686,6 +686,7 @@ fun CateringMenuScreen(
                 type = toastData.type
             )
         }
+    }
     }
 
     // --- Detail Bottom Sheet ---

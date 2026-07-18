@@ -106,18 +106,14 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: If joined via Event ID, grant real access from pending
-                                eventId?.let { eid ->
-                                    android.util.Log.d("AuthViewModel", "Granting access from pending for event $eid")
-                                    userRepository.grantAccessFromPending(eid, userEmail, firebaseUser.uid)
-                                }
+                                // REQUIREMENT: Always promote pending access to real membership on login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
 
                                 // 2. Create profile if it doesn't exist
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
                                 _authState.value = AuthState.Success("Successfully logged in!")
                             } else {
@@ -153,16 +149,13 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: If joined via Event ID, grant real access from pending
-                                eventId?.let { eid ->
-                                    userRepository.grantAccessFromPending(eid, userEmail, firebaseUser.uid)
-                                }
+                                // REQUIREMENT: Always promote pending access to real membership on signup
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
 
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
                                 _authState.value = AuthState.Success("Account created!")
                             } else {
@@ -198,16 +191,13 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: If joined via Event ID, grant real access from pending
-                                eventId?.let { eid ->
-                                    userRepository.grantAccessFromPending(eid, userEmail, firebaseUser.uid)
-                                }
+                                // REQUIREMENT: Always promote pending access to real membership on Google login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
 
                                 createProfileIfNeeded(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: "",
-                                    joiningEventId = eventId
+                                    name = firebaseUser.displayName ?: ""
                                 )
                                 _authState.value = AuthState.Success("logged in!")
                             } else {
@@ -222,7 +212,7 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    private fun createProfileIfNeeded(uid: String, email: String, name: String, joiningEventId: String? = null) {
+    private fun createProfileIfNeeded(uid: String, email: String, name: String) {
         viewModelScope.launch {
             try {
                 val existingProfile = userRepository.getUserProfile(uid)
@@ -236,23 +226,6 @@ class AuthViewModel @Inject constructor(
                         role = UserRole.VIEWER
                     )
                     userRepository.createUserProfile(newUser)
-                    
-                    // 1. If joined via specific Event ID, grant real access from pending
-                    joiningEventId?.let { eid ->
-                        userRepository.grantAccessFromPending(eid, email, uid)
-                    }
-
-                    // 2. Check ANY other global pending access (from direct email invites without Event ID)
-                    // and process them
-                    val pending = userRepository.checkPendingAccess(email)
-                    if (pending.isNotEmpty()) {
-                        pending.forEach { access ->
-                            // This part grants real access for global invitations
-                            // But we should also delete them properly
-                            userRepository.grantAccessFromPending(access.eventId, email, uid)
-                        }
-                        // Note: userRepository.grantAccessFromPending already deletes the specific pending doc
-                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
