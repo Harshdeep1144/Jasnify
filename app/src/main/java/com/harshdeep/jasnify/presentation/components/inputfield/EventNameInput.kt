@@ -88,34 +88,16 @@ fun EventNameInput(
     }
 
     val currentState = when {
+        tempItemState.name.isNotEmpty() && !tempItemState.isEditing -> EventNameState.DISPLAY
         tempItemState.isEditing && isEditable -> EventNameState.EDITING
-        tempItemState.name.isEmpty() -> EventNameState.EMPTY
-        else -> EventNameState.DISPLAY
+        else -> EventNameState.EMPTY
     }
 
     AnimatedContent(
         targetState = currentState,
         transitionSpec = {
-            val enterTransition = fadeIn(
-                animationSpec = tween(durationMillis = 220, delayMillis = 80)
-            ) + expandVertically(
-                expandFrom = Alignment.Top,
-                animationSpec = tween(durationMillis = 300)
-            )
-
-            val exitTransition = fadeOut(
-                animationSpec = tween(durationMillis = 150)
-            ) + shrinkVertically(
-                shrinkTowards = Alignment.Top,
-                animationSpec = tween(durationMillis = 300)
-            )
-
-            enterTransition.togetherWith(exitTransition)
-                .using(
-                    SizeTransform(clip = true, sizeAnimationSpec = { _, _ ->
-                        tween(durationMillis = 300)
-                    })
-                )
+            (fadeIn(animationSpec = tween(400)) + expandVertically(animationSpec = tween(400)))
+                .togetherWith(fadeOut(animationSpec = tween(400)) + shrinkVertically(animationSpec = tween(400)))
         },
         label = "EventNameInputTransition"
     ) { state ->

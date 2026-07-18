@@ -155,7 +155,7 @@ fun EventDetailsScreen(
 
     // Core dynamic values driven by state
     var timelineType by remember { mutableStateOf("Multi-day") }
-    var primaryEventName by remember { mutableStateOf("") }
+    var primaryEventName by remember { mutableStateOf("...") }
     var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
 
     // Bottom Sheet Control States
