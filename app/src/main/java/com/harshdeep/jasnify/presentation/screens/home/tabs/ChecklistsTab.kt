@@ -342,11 +342,11 @@ fun ChecklistsTab(
                                 }
                             },
                             onTogglePin = { checklist ->
-                                viewModel.togglePin(checklist)
+                                viewModel.togglePin(checklist, isViewer)
                             },
                             onArchive = { checklist ->
                                 focusManager.clearFocus()
-                                viewModel.toggleArchive(checklist)
+                                viewModel.toggleArchive(checklist, isViewer)
                                 selectedChecklist = null
                                 isAddingNew = false
                                 if (navigatedFromArchives) {

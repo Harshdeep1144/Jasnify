@@ -78,15 +78,25 @@ class ChecklistViewModel @Inject constructor(
         }
     }
 
-    fun togglePin(checklist: Checklist) {
+    fun togglePin(checklist: Checklist, isViewer: Boolean) {
         viewModelScope.launch {
-            repository.saveChecklistLocally(checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis()))
+            val updated = checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis())
+            if (isViewer) {
+                repository.saveChecklistLocally(updated)
+            } else {
+                repository.saveChecklist(updated)
+            }
         }
     }
 
-    fun toggleArchive(checklist: Checklist) {
+    fun toggleArchive(checklist: Checklist, isViewer: Boolean) {
         viewModelScope.launch {
-            repository.saveChecklistLocally(checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis()))
+            val updated = checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis())
+            if (isViewer) {
+                repository.saveChecklistLocally(updated)
+            } else {
+                repository.saveChecklist(updated)
+            }
         }
     }
 }
