@@ -66,6 +66,12 @@ class ChecklistViewModel @Inject constructor(
         }
     }
 
+    fun saveChecklistLocally(checklist: Checklist) {
+        viewModelScope.launch {
+            repository.saveChecklistLocally(checklist)
+        }
+    }
+
     fun deleteChecklist(id: String) {
         viewModelScope.launch {
             repository.deleteChecklist(id)
@@ -73,10 +79,14 @@ class ChecklistViewModel @Inject constructor(
     }
 
     fun togglePin(checklist: Checklist) {
-        saveChecklist(checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis()))
+        viewModelScope.launch {
+            repository.saveChecklistLocally(checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis()))
+        }
     }
 
     fun toggleArchive(checklist: Checklist) {
-        saveChecklist(checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis()))
+        viewModelScope.launch {
+            repository.saveChecklistLocally(checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis()))
+        }
     }
 }

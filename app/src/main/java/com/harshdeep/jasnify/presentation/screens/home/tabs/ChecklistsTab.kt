@@ -82,6 +82,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -169,6 +170,15 @@ fun ChecklistsTab(
 
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
+
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val isOwner = activeEvent?.ownerId == currentUserUid
+    val currentUserRole = when {
+        isOwner -> UserRole.OWNER
+        currentUserInRoom != null -> currentUserInRoom.role
+        else -> UserRole.VIEWER
+    }
+    val isViewer = currentUserRole == UserRole.VIEWER
 
     // Fetch user events to ensure we have an active event context
     LaunchedEffect(Unit) {
@@ -297,6 +307,7 @@ fun ChecklistsTab(
                         ChecklistDetailScreen(
                             checklist = targetScreenState.checklist,
                             isAddingNew = targetScreenState.isAddingNew,
+                            isViewer = isViewer,
                             onBackClick = { updatedChecklist ->
                                 focusManager.clearFocus()
                                 if (updatedChecklist != null) {
@@ -306,7 +317,11 @@ fun ChecklistsTab(
                                     if (isEmpty && targetScreenState.isAddingNew) {
                                         showDiscardToast = true
                                     } else if (updatedChecklist.title.isNotBlank() || updatedChecklist.items.isNotEmpty()) {
-                                        viewModel.saveChecklist(updatedChecklist)
+                                        if (isViewer) {
+                                            viewModel.saveChecklistLocally(updatedChecklist)
+                                        } else {
+                                            viewModel.saveChecklist(updatedChecklist)
+                                        }
                                     }
                                 }
                                 selectedChecklist = null
@@ -511,18 +526,20 @@ fun ChecklistsTab(
                                 }
                             },
                             floatingActionButton = {
-                                CustomIconButton(
-                                    onClick = {
-                                        focusManager.clearFocus()
-                                        isAddingNew = true
-                                    },
-                                    icon = painterResource(R.drawable.ic_plus),
-                                    size = ButtonSize.Large,
-                                    modifier = Modifier
-                                        .offset(y = 20.dp)
-                                        .padding(12.dp)
-                                        .shadow(16.dp, CircleShape)
-                                )
+                                if (!isViewer) {
+                                    CustomIconButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            isAddingNew = true
+                                        },
+                                        icon = painterResource(R.drawable.ic_plus),
+                                        size = ButtonSize.Large,
+                                        modifier = Modifier
+                                            .offset(y = 20.dp)
+                                            .padding(12.dp)
+                                            .shadow(16.dp, CircleShape)
+                                    )
+                                }
                             },
                             containerColor = BackgroundPrimary,
                             modifier = Modifier
@@ -814,6 +831,7 @@ fun ChecklistDetailScreen(
     onTogglePin: (Checklist) -> Unit = {},
     onArchive: (Checklist) -> Unit = {},
     isArchived: Boolean = false,
+    isViewer: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -850,6 +868,7 @@ fun ChecklistDetailScreen(
     }
     var colorBeforePicker by remember { mutableStateOf(bgColor) }
     var pinned by remember { mutableStateOf(checklist?.pinned ?: false) }
+    var archived by remember { mutableStateOf(checklist?.archived ?: isArchived) }
     var showColorPicker by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
@@ -938,6 +957,7 @@ fun ChecklistDetailScreen(
             items = cleanedItems,
             bgColorHex = bgColor.toArgb().toLong(),
             pinned = pinned,
+            archived = archived,
             lastUpdated = System.currentTimeMillis()
         )
         onBackClick(result)
@@ -988,6 +1008,7 @@ fun ChecklistDetailScreen(
                             items = cleanedItems,
                             bgColorHex = bgColor.toArgb().toLong(),
                             pinned = pinned,
+                            archived = archived,
                             lastUpdated = System.currentTimeMillis()
                         )
                         onBackClick(result)
@@ -1046,9 +1067,12 @@ fun ChecklistDetailScreen(
                 BasicTextField(
                     value = title,
                     onValueChange = {
-                        title = it
-                        saveToHistory(it, items)
+                        if (!isViewer) {
+                            title = it
+                            saveToHistory(it, items)
+                        }
                     },
+                    readOnly = isViewer,
                     textStyle = JasnifyTheme.typography.headingXLarge.copy(
                         fontWeight = if (isBoldActive) FontWeight.Bold else FontWeight.Medium,
                         fontStyle = if (isItalicActive) FontStyle.Italic else FontStyle.Normal,
@@ -1114,6 +1138,7 @@ fun ChecklistDetailScreen(
                             ChecklistItem(
                                 item = item,
                                 focusRequester = focusRequester,
+                                isViewer = isViewer,
                                 onTextChanged = { newText ->
                                     val updated = items.map { if (it.id == item.id) it.copy(text = newText) else it }
                                     items = updated
@@ -1138,103 +1163,109 @@ fun ChecklistDetailScreen(
                                     saveToHistory(title, newItems)
                                 },
                                 modifier = Modifier.pointerInput(item.id) {
-                                    detectDragGesturesAfterLongPress(
-                                        onDragStart = {
-                                            focusManager.clearFocus()
-                                            draggedItemIndex = currentIndex
-                                            dragOffset = 0f
-                                        },
-                                        onDrag = { change, dragAmount ->
-                                            change.consume()
-                                            dragOffset += dragAmount.y
+                                    if (!isViewer) {
+                                        detectDragGesturesAfterLongPress(
+                                            onDragStart = {
+                                                focusManager.clearFocus()
+                                                draggedItemIndex = currentIndex
+                                                dragOffset = 0f
+                                            },
+                                            onDrag = { change, dragAmount ->
+                                                change.consume()
+                                                dragOffset += dragAmount.y
 
-                                            val activeIndex = draggedItemIndex
-                                            if (activeIndex != null) {
-                                                val targetIndex = if (dragOffset > itemHeightPx) {
-                                                    activeIndex + 1
-                                                } else if (dragOffset < -itemHeightPx) {
-                                                    activeIndex - 1
-                                                } else {
-                                                    activeIndex
-                                                }
-
-                                                if (targetIndex in items.indices && targetIndex != activeIndex) {
-                                                    val newList = items.toMutableList()
-                                                    val movingItem = newList.removeAt(activeIndex)
-                                                    newList.add(targetIndex, movingItem)
-                                                    items = newList
-
-                                                    if (targetIndex > activeIndex) {
-                                                        dragOffset -= itemHeightPx
+                                                val activeIndex = draggedItemIndex
+                                                if (activeIndex != null) {
+                                                    val targetIndex = if (dragOffset > itemHeightPx) {
+                                                        activeIndex + 1
+                                                    } else if (dragOffset < -itemHeightPx) {
+                                                        activeIndex - 1
                                                     } else {
-                                                        dragOffset += itemHeightPx
+                                                        activeIndex
                                                     }
-                                                    draggedItemIndex = targetIndex
+
+                                                    if (targetIndex in items.indices && targetIndex != activeIndex) {
+                                                        val newList = items.toMutableList()
+                                                        val movingItem = newList.removeAt(activeIndex)
+                                                        newList.add(targetIndex, movingItem)
+                                                        items = newList
+
+                                                        if (targetIndex > activeIndex) {
+                                                            dragOffset -= itemHeightPx
+                                                        } else {
+                                                            dragOffset += itemHeightPx
+                                                        }
+                                                        draggedItemIndex = targetIndex
+                                                    }
                                                 }
+                                            },
+                                            onDragEnd = {
+                                                draggedItemIndex = null
+                                                dragOffset = 0f
+                                            },
+                                            onDragCancel = {
+                                                draggedItemIndex = null
+                                                dragOffset = 0f
                                             }
-                                        },
-                                        onDragEnd = {
-                                            draggedItemIndex = null
-                                            dragOffset = 0f
-                                        },
-                                        onDragCancel = {
-                                            draggedItemIndex = null
-                                            dragOffset = 0f
-                                        }
-                                    )
+                                        )
+                                    }
                                 }
                             )
                         }
                     }
 
                     item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    val updated = items + ChecklistItem(id = UUID.randomUUID().toString())
-                                    items = updated
-                                    saveToHistory(title, updated)
-                                }
-                                .padding(start = 32.dp, 8.dp, 8.dp, 8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Add,
-                                contentDescription = null,
-                                tint = ContentPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Add item",
-                                style = JasnifyTheme.typography.headingMedium,
-                                color = ContentSecondary
-                            )
+                        if (!isViewer) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val updated = items + ChecklistItem(id = UUID.randomUUID().toString())
+                                        items = updated
+                                        saveToHistory(title, updated)
+                                    }
+                                    .padding(start = 32.dp, 8.dp, 8.dp, 8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Add,
+                                    contentDescription = null,
+                                    tint = ContentPrimary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Add item",
+                                    style = JasnifyTheme.typography.headingMedium,
+                                    color = ContentSecondary
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            ChecklistDetailToolbar(
-                isFormattingActive = isFormattingActive,
-                onFormattingActiveChange = { isFormattingActive = it },
-                isBoldActive = isBoldActive,
-                onBoldChange = { isBoldActive = it },
-                isItalicActive = isItalicActive,
-                onItalicChange = { isItalicActive = it },
-                isUnderlineActive = isUnderlineActive,
-                onUnderlineChange = { isUnderlineActive = it },
-                canUndo = historyIndex > 0,
-                canRedo = historyIndex < history.size - 1,
-                onUndo = { performUndo() },
-                onRedo = { performRedo() },
-                onColorClick = {
-                    focusManager.clearFocus()
-                    colorBeforePicker = bgColor // Keep a snapshot of original color before previewing
-                    showColorPicker = true
-                }
-            )
+            if (!isViewer) {
+                ChecklistDetailToolbar(
+                    isFormattingActive = isFormattingActive,
+                    onFormattingActiveChange = { isFormattingActive = it },
+                    isBoldActive = isBoldActive,
+                    onBoldChange = { isBoldActive = it },
+                    isItalicActive = isItalicActive,
+                    onItalicChange = { isItalicActive = it },
+                    isUnderlineActive = isUnderlineActive,
+                    onUnderlineChange = { isUnderlineActive = it },
+                    canUndo = historyIndex > 0,
+                    canRedo = historyIndex < history.size - 1,
+                    onUndo = { performUndo() },
+                    onRedo = { performRedo() },
+                    onColorClick = {
+                        focusManager.clearFocus()
+                        colorBeforePicker = bgColor // Keep a snapshot of original color before previewing
+                        showColorPicker = true
+                    }
+                )
+            }
         }
     }
 
@@ -1261,28 +1292,31 @@ fun ChecklistDetailScreen(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
-                        text = if (isArchived) "Unarchive" else "Archive",
+                        text = if (archived) "Unarchive" else "Archive",
                         icon = painterResource(R.drawable.ic_box),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenu = false
+                            archived = !archived
                             checklist?.let { onArchive(it) }
                         }
                     )
                 ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Delete",
-                        icon = painterResource(R.drawable.ic_delete),
-                        iconPlacement = IconPlacement.Left,
-                        contentColor = MaterialTheme.colorScheme.error,
-                        onClick = {
-                            showMenu = false
-                            showDeleteConfirmation = true
-                        }
+                if (!isViewer) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Delete",
+                            icon = painterResource(R.drawable.ic_delete),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showMenu = false
+                                showDeleteConfirmation = true
+                            }
+                        )
                     )
-                )
-            ),
+                } else null
+            ).filterNotNull(),
             onCancelClick = { showMenu = false }
         )
     }
