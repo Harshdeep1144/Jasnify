@@ -246,8 +246,8 @@ fun ChecklistsTab(
         }
     }
 
-    LaunchedEffect(Unit) {
-        onBottomBarVisibilityChange(false)
+    LaunchedEffect(currentScreen, hasAccess) {
+        onBottomBarVisibilityChange(hasAccess == true && currentScreen is ChecklistScreenState.List)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -296,6 +296,7 @@ fun ChecklistsTab(
             SharedTransitionLayout {
             AnimatedContent(
                 targetState = currentScreen,
+                
                 transitionSpec = {
                     fadeIn(animationSpec = tween(220, delayMillis = 90)) togetherWith
                             fadeOut(animationSpec = tween(90))

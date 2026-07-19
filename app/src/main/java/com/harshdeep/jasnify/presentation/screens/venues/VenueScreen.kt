@@ -95,6 +95,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -151,6 +152,9 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val PREFS_NAME = "venue_search_prefs"
@@ -198,7 +202,7 @@ fun VenueScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
-    
+
     val currentUserUid = auth.currentUser?.uid ?: ""
 
     LaunchedEffect(Unit) {
@@ -225,15 +229,22 @@ fun VenueScreen(
     var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
     var lastSavedVenue by remember { mutableStateOf<Venue?>(null) }
 
-    var timelineEvents by remember {
-        mutableStateOf(
-            listOf(
-                TimelineEvent("1", "09th Sept, 2025", "Mehendi Ceremony", emptyList<Venue>()),
-                TimelineEvent("2", "10th Sept, 2025", "Haldi & Sangeet Ceremony", emptyList<Venue>()),
-                TimelineEvent("3", "12th Sept, 2025", "The Wedding Day", emptyList<Venue>()),
-                TimelineEvent("4", "15th Sept, 2025", "Reception Dinner", emptyList<Venue>())
-            )
-        )
+    val timelineEvents by remember(activeEvent) {
+        derivedStateOf {
+            activeEvent?.subEvents?.map { subEvent ->
+                val formattedDate = subEvent.date?.let { timestamp ->
+                    val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+                    sdf.format(Date(timestamp))
+                } ?: "Date TBD"
+
+                TimelineEvent(
+                    id = subEvent.id,
+                    date = formattedDate,
+                    event = subEvent.name,
+                    venues = emptyList()
+                )
+            } ?: emptyList()
+        }
     }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
@@ -393,7 +404,19 @@ fun VenueScreen(
                             showMenuSheet = showMenuSheet,
                             onShowMenuSheetChange = { showMenuSheet = it },
                             timelineEvents = timelineEvents,
-                            onTimelineEventsChange = { timelineEvents = it },
+                            onAddNewEvent = { subEventItem ->
+                                activeEvent?.let { event ->
+                                    val newSubEvent = SubEvent(
+                                        id = subEventItem.id,
+                                        name = subEventItem.name,
+                                        date = subEventItem.date,
+                                        completed = subEventItem.isCompleted
+                                    )
+                                    eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+                                    selectedSaveEventId = subEventItem.id
+                                    isMySavedListChecked = false
+                                }
+                            },
                             activeTargetVenue = activeTargetVenue,
                             onActiveTargetVenueChange = { activeTargetVenue = it },
                             isMySavedListChecked = isMySavedListChecked,
@@ -541,7 +564,7 @@ fun VenueMainContent(
     showMenuSheet: Boolean,
     onShowMenuSheetChange: (Boolean) -> Unit,
     timelineEvents: List<TimelineEvent>,
-    onTimelineEventsChange: (List<TimelineEvent>) -> Unit,
+    onAddNewEvent: (SubEventItem) -> Unit,
     activeTargetVenue: Venue?,
     onActiveTargetVenueChange: (Venue?) -> Unit,
     isMySavedListChecked: Boolean,
@@ -963,12 +986,7 @@ fun VenueMainContent(
                     onMySavedListCheckedChange(false)
                 }
             },
-            onAddNewEvent = { name, date ->
-                val newId = (timelineEvents.size + 1).toString()
-                onTimelineEventsChange(listOf(TimelineEvent(newId, date, name, emptyList<Venue>())) + timelineEvents)
-                onSelectedSaveEventIdChange(newId)
-                onMySavedListCheckedChange(false)
-            },
+            onAddNewEvent = onAddNewEvent,
             onDismiss = { onShowSaveListBottomSheetChange(false) },
             onDone = {
                 activeTargetVenue?.let { venue ->
@@ -1068,7 +1086,7 @@ fun SaveListBottomSheet(
     onMySavedListToggled: (Boolean) -> Unit,
     selectedEventId: String?,
     onEventSelected: (String?) -> Unit,
-    onAddNewEvent: (name: String, date: String) -> Unit,
+    onAddNewEvent: (SubEventItem) -> Unit,
     onDismiss: () -> Unit,
     onDone: () -> Unit
 ) {
@@ -1189,7 +1207,7 @@ fun SaveListBottomSheet(
                             onUpdate = { updatedItem ->
                                 if (!updatedItem.isEditing) {
                                     if (updatedItem.isExisting) {
-                                        onAddNewEvent(updatedItem.name, updatedItem.dateString)
+                                        onAddNewEvent(updatedItem)
                                     }
                                     draftNewEvent = null
                                 } else {
