@@ -125,7 +125,6 @@ fun CateringMenuScreen(
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
-    val auth = FirebaseAuth.getInstance()
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
     val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
@@ -134,8 +133,18 @@ fun CateringMenuScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
-    
+
+    val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
+
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val isOwner = activeEvent?.ownerId == currentUserUid
+    val currentUserRole = when {
+        isOwner -> UserRole.OWNER
+        currentUserInRoom != null -> currentUserInRoom.role
+        else -> UserRole.VIEWER
+    }
+    val isViewer = currentUserRole == UserRole.VIEWER
 
     val allMenuItems = remember(cateringItemsEntities) {
         cateringItemsEntities.map { entity ->
@@ -568,24 +577,28 @@ fun CateringMenuScreen(
                                         type = ButtonType.Secondary,
                                         shapeStyle = ButtonShapeStyle.Round,
                                         leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                        modifier = if (isViewer) Modifier.weight(1f) else Modifier
                                     )
-                                    Spacer(Modifier.width(8.dp))
 
-                                    CustomTextButton(
-                                        onClick = {
-                                            focusManager.clearFocus()
-                                            editingItem = null
-                                            newItemName = ""
-                                            newItemCuisine = "Indian"
-                                            newItemType = "Starters"
-                                            newItemDietary = Dietary.Veg
-                                            showAddItemSheet = true
-                                        },
-                                        text = "Add an Item",
-                                        type = ButtonType.Primary,
-                                        shapeStyle = ButtonShapeStyle.Round,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    if (!isViewer) {
+                                        Spacer(Modifier.width(8.dp))
+
+                                        CustomTextButton(
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                editingItem = null
+                                                newItemName = ""
+                                                newItemCuisine = "Indian"
+                                                newItemType = "Starters"
+                                                newItemDietary = Dietary.Veg
+                                                showAddItemSheet = true
+                                            },
+                                            text = "Add an Item",
+                                            type = ButtonType.Primary,
+                                            shapeStyle = ButtonShapeStyle.Round,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -593,14 +606,7 @@ fun CateringMenuScreen(
                 }
 
                 CateringMenuView.MANAGE_ROOM_ACCESS -> {
-                    val currentUserUid = auth.currentUser?.uid ?: ""
-                    val isOwner = activeEvent?.ownerId == currentUserUid
                     val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-                    val currentUserRole = when {
-                        isOwner -> UserRole.OWNER
-                        currentUserInRoom != null -> currentUserInRoom.role
-                        else -> UserRole.VIEWER
-                    }
 
                     // Ensure current user is in the list shown
                     val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
@@ -638,7 +644,7 @@ fun CateringMenuScreen(
                             },
                             onRoleChange = { targetUser, newRole ->
                                 activeEvent?.id?.let { eventId ->
-                                    roomViewModel.grantAccess(eventId, "Catering", targetUser.email, newRole)
+                                    roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
                                 }
                             },
                             onRemove = { targetUser ->
@@ -694,7 +700,7 @@ fun CateringMenuScreen(
         CustomBottomSheet(
             heading = "Item Details",
             sheetState = detailsBottomSheetState,
-            sheetHeight = 340.dp,
+            sheetHeight = if (!isViewer) 360.dp else 290.dp,
             onDismiss = {
                 focusManager.clearFocus()
                 showDetailsBottomSheet = false
@@ -703,6 +709,7 @@ fun CateringMenuScreen(
         ) {
             ItemDetailsSheetContent(
                 item = selectedItemForDetails!!,
+                canEdit = !isViewer,
                 onDeleteClick = {
                     focusManager.clearFocus()
                     itemToDelete = selectedItemForDetails
@@ -1004,17 +1011,19 @@ fun CateringMenuScreen(
 
     if (showMenuBottomSheet) {
         MenuBottomSheet(
-            items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Add an item",
-                        icon = painterResource(R.drawable.ic_plus),
-                        onClick = {
-                            showMenuBottomSheet = false
-                            showAddItemSheet = true
-                        }
+            items = listOfNotNull(
+                if (!isViewer) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Add an item",
+                            icon = painterResource(R.drawable.ic_plus),
+                            onClick = {
+                                showMenuBottomSheet = false
+                                showAddItemSheet = true
+                            }
+                        )
                     )
-                ),
+                } else null,
                 listOf(
                     MenuSheetActionItem(
                         text = "Manage Room Access",
@@ -1037,25 +1046,6 @@ fun CateringMenuScreen(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
-                        text = "Copy Link",
-                        icon = painterResource(R.drawable.ic_link),
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Add New Members",
-                        icon = painterResource(R.drawable.ic_plus),
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
                         text = "Leave Room",
                         icon = painterResource(R.drawable.ic_logout),
                         contentColor = MaterialTheme.colorScheme.error,
@@ -1073,16 +1063,16 @@ fun CateringMenuScreen(
     }
 
     if (showRoomAccessBottomSheet) {
-//        RoomAccessBottomSheet(
-//            onDismissRequest = { showRoomAccessBottomSheet = false },
-//            onGrantAccess = { email, role ->
-//                activeEvent?.id?.let { eventId ->
-//                    roomViewModel.grantAccess(eventId, "Catering", email, role)
-//                }
-//            },
-//            searchResults = searchResults,
-//            onSearch = { roomViewModel.searchUsers(it) }
-//        )
+        RoomAccessBottomSheet(
+            onDismissRequest = { showRoomAccessBottomSheet = false },
+            onGrantAccess = { email, role ->
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.grantAccess(eventId, "Catering", email, role)
+                }
+            },
+            searchResults = searchResults,
+            onSearch = { roomViewModel.searchUsers(it) }
+        )
     }
 
     if (userToRemove != null) {
@@ -1269,6 +1259,7 @@ fun MenuCategoryCard(
 @Composable
 fun ItemDetailsSheetContent(
     item: MenuItem,
+    canEdit: Boolean = true,
     onDeleteClick: () -> Unit,
     onEditClick: () -> Unit
 ) {
@@ -1369,36 +1360,38 @@ fun ItemDetailsSheetContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (canEdit) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CustomIconButton(
-                onClick = {
-                    focusManager.clearFocus()
-                    onDeleteClick()
-                },
-                icon = painterResource(R.drawable.ic_delete),
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-                contentColor = MaterialTheme.colorScheme.error,
-                shapeStyle = ButtonShapeStyle.Square
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomIconButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        onDeleteClick()
+                    },
+                    icon = painterResource(R.drawable.ic_delete),
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.error,
+                    shapeStyle = ButtonShapeStyle.Square
+                )
 
-            CustomTextButton(
-                onClick = {
-                    focusManager.clearFocus()
-                    onEditClick()
-                },
-                text = "Edit Details",
-                type = ButtonType.Secondary,
-                shapeStyle = ButtonShapeStyle.Square,
-                leadingIcon = painterResource(R.drawable.ic_edit),
-                modifier = Modifier.weight(1f)
-            )
+                CustomTextButton(
+                    onClick = {
+                        focusManager.clearFocus()
+                        onEditClick()
+                    },
+                    text = "Edit Details",
+                    type = ButtonType.Secondary,
+                    shapeStyle = ButtonShapeStyle.Square,
+                    leadingIcon = painterResource(R.drawable.ic_edit),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }

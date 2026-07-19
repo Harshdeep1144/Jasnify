@@ -64,7 +64,8 @@ fun BudgetSummaryCard(
     remainingPercentage: Float,
     onEditBudgetClick: () -> Unit,
     onViewSummaryClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showEditButton: Boolean = true
 ) {
     if (isBudgetNotSet) {
         Box(
@@ -118,15 +119,18 @@ fun BudgetSummaryCard(
                         color = ContentPrimary
                     )
                 }
-                Spacer(Modifier.height(16.dp))
+                
+                if (showEditButton) {
+                    Spacer(Modifier.height(16.dp))
 
-                CustomTextButton(
-                    onClick = onEditBudgetClick,
-                    text = "Add a Budget",
-                    containerColor = ContentPrimary,
-                    shapeStyle = ButtonShapeStyle.Square,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                    CustomTextButton(
+                        onClick = onEditBudgetClick,
+                        text = "Add a Budget",
+                        containerColor = ContentPrimary,
+                        shapeStyle = ButtonShapeStyle.Square,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     } else {
@@ -186,14 +190,16 @@ fun BudgetSummaryCard(
                         )
                     }
 
-                    TopBarIconButton(
-                        icon = TopIcon.CustomPainter(
-                            painterResource(R.drawable.ic_edit)
-                        ),
-                        onClick = onEditBudgetClick,
-                        backgroundStyle = ButtonBackground.TRANSPARENT,
-                        iconSize = 20.dp,
-                    )
+                    if (showEditButton) {
+                        TopBarIconButton(
+                            icon = TopIcon.CustomPainter(
+                                painterResource(R.drawable.ic_edit)
+                            ),
+                            onClick = onEditBudgetClick,
+                            backgroundStyle = ButtonBackground.TRANSPARENT,
+                            iconSize = 20.dp,
+                        )
+                    }
                 }
 
                 HorizontalDivider(
@@ -283,7 +289,8 @@ fun BudgetSummaryCard_Set_Preview() {
                 remainingPercentage = 0f,
                 onEditBudgetClick = {},
                 onViewSummaryClick = {},
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                showEditButton = true
             )
 
             // State 2: Low Remaining Budget (e.g., 15% left)
@@ -294,7 +301,8 @@ fun BudgetSummaryCard_Set_Preview() {
                 remainingPercentage = 0.15f,
                 onEditBudgetClick = {},
                 onViewSummaryClick = {},
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.weight(1f),
+                showEditButton = true
             )
 
         }

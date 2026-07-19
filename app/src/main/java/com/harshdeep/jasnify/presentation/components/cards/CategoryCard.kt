@@ -47,7 +47,8 @@ fun CategoryCard(
     emojis: List<String> = emptyList(),
     totalItemCount: Int = emojis.size,
     onMenuClick: () -> Unit = {},
-    menuIconPainter: Painter? = null
+    menuIconPainter: Painter? = null,
+    showMenu: Boolean = true
 ) {
     val cardShape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
 
@@ -89,13 +90,15 @@ fun CategoryCard(
             }
             Spacer(Modifier.width(12.dp))
 
-            CustomIconButton(
-                onClick = onMenuClick,
-                icon = menuIconPainter ?: rememberVectorPainter(Icons.Default.MoreVert),
-                size = ButtonSize.Small,
-                type = ButtonType.Tertiary,
-                shapeStyle = ButtonShapeStyle.Square,
-            )
+            if (showMenu) {
+                CustomIconButton(
+                    onClick = onMenuClick,
+                    icon = menuIconPainter ?: rememberVectorPainter(Icons.Default.MoreVert),
+                    size = ButtonSize.Small,
+                    type = ButtonType.Tertiary,
+                    shapeStyle = ButtonShapeStyle.Square,
+                )
+            }
         }
     }
 }
@@ -163,7 +166,8 @@ private fun CategoryCardPreview() {
             title = "Catering",
             amount = "₹12,45,000",
             emojis = listOf("🍔", "🍕", "🍰", "🍩", "🍣"),
-            totalItemCount = 5
+            totalItemCount = 5,
+            showMenu = true
         )
 
         // Case 2: Multiple Emojis with larger Badge (+3)
@@ -171,7 +175,8 @@ private fun CategoryCardPreview() {
             title = "Equipment Rentals",
             amount = "₹4,79,990",
             emojis = listOf("📹", "🎙️"),
-            totalItemCount = 5
+            totalItemCount = 5,
+            showMenu = true
         )
 
         // Case 3: Exactly Two Emojis (No badge)
@@ -179,7 +184,8 @@ private fun CategoryCardPreview() {
             title = "Transportation",
             amount = "₹2,52,600",
             emojis = listOf("🚗", "🎫"),
-            totalItemCount = 2
+            totalItemCount = 2,
+            showMenu = true
         )
 
         // Case 4: Exactly Two Emojis (No badge - Staff / Crew alternative)
@@ -187,7 +193,8 @@ private fun CategoryCardPreview() {
             title = "Staff & Crew",
             amount = "₹38,000",
             emojis = listOf("🧑", "🙌"),
-            totalItemCount = 2
+            totalItemCount = 2,
+            showMenu = true
         )
 
         // Case 5: Single Emoji
@@ -195,7 +202,8 @@ private fun CategoryCardPreview() {
             title = "Unplanned Costs",
             amount = "₹24,650",
             emojis = listOf("💳"),
-            totalItemCount = 1
+            totalItemCount = 1,
+            showMenu = true
         )
 
         // Case 6: No Emojis
@@ -203,7 +211,8 @@ private fun CategoryCardPreview() {
             title = "Gifts",
             amount = "₹0",
             emojis = emptyList(),
-            totalItemCount = 0
+            totalItemCount = 0,
+            showMenu = true
         )
     }
 }

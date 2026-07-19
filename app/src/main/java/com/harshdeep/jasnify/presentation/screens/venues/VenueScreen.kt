@@ -338,7 +338,7 @@ fun VenueScreen(
                                 },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { eventId ->
-                                        roomViewModel.grantAccess(eventId, "Venue", targetUser.email, newRole)
+                                        roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
@@ -470,27 +470,6 @@ fun VenueScreen(
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Copy Link",
-                        icon = painterResource(R.drawable.ic_link),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Add New Members",
-                        icon = painterResource(R.drawable.ic_plus),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                        }
-                    )
-                ),
                 listOf(
                     MenuSheetActionItem(
                         text = "Leave Room",

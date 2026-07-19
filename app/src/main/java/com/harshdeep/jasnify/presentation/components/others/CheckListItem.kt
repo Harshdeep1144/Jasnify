@@ -43,6 +43,7 @@ fun ChecklistItem(
     onCheckedChange: (Boolean) -> Unit,
     onRemove: () -> Unit,
     onEnterPressed: () -> Unit = {},
+    isViewer: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -64,8 +65,8 @@ fun ChecklistItem(
         // Custom Checker
         CustomChecker(
             checked = item.checked,
-            onCheckedChange = onCheckedChange,
-            enabled = !item.checked
+            onCheckedChange = { if (!isViewer) onCheckedChange(it) },
+            enabled = !isViewer && !item.checked
         )
         Spacer(Modifier.width(12.dp))
 
@@ -79,16 +80,19 @@ fun ChecklistItem(
             BasicTextField(
                 value = item.text,
                 onValueChange = { 
-                    if (it.contains("\n")) {
-                        onEnterPressed()
-                    } else {
-                        onTextChanged(it)
+                    if (!isViewer) {
+                        if (it.contains("\n")) {
+                            onEnterPressed()
+                        } else {
+                            onTextChanged(it)
+                        }
                     }
                 },
+                readOnly = isViewer,
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
-                    .onFocusChanged { isFocused = it.isFocused },
+                    .onFocusChanged { if (!isViewer) isFocused = it.isFocused },
                 textStyle = JasnifyTheme.typography.headingMedium.merge(
                     TextStyle(
                         color = if (item.checked) ContentSecondary else ContentPrimary,
@@ -112,7 +116,7 @@ fun ChecklistItem(
         }
 
         // Delete icon
-        if (isFocused) {
+        if (isFocused && !isViewer) {
             IconButton(
                 onClick = onRemove,
                 modifier = Modifier.size(24.dp)
