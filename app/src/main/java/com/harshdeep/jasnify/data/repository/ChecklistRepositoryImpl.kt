@@ -69,7 +69,16 @@ class ChecklistRepositoryImpl @Inject constructor(
                     if (checklist != null) {
                         Log.d("ChecklistRepo", "Found checklist in Firestore: ${checklist.title} (ID: ${checklist.id}, eventId: ${checklist.eventId})")
                         scope.launch {
-                            dao.insertChecklist(checklist.toChecklistEntity())
+                            val existing = dao.getChecklistById(checklist.id)
+                            val entityToInsert = if (existing != null) {
+                                checklist.toChecklistEntity().copy(
+                                    pinned = existing.pinned,
+                                    archived = existing.archived
+                                )
+                            } else {
+                                checklist.toChecklistEntity()
+                            }
+                            dao.insertChecklist(entityToInsert)
                         }
                     }
                 } catch (ex: Exception) {
@@ -125,6 +134,17 @@ class ChecklistRepositoryImpl @Inject constructor(
                         Log.e("ChecklistRepo", "Error syncing to Firestore: ${e.message}")
                     }
                 }
+            }
+        }
+    }
+
+    override suspend fun saveChecklistLocally(checklist: Checklist) {
+        withContext(Dispatchers.IO) {
+            try {
+                dao.insertChecklist(checklist.toChecklistEntity())
+                Log.d("ChecklistRepo", "Saved to Room locally: ${checklist.title}")
+            } catch (e: Exception) {
+                Log.e("ChecklistRepo", "Error saving locally to Room: ${e.message}")
             }
         }
     }

@@ -106,15 +106,16 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: Always promote pending access to real membership on login
-                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
-
-                                // 2. Create profile if it doesn't exist
-                                createProfileIfNeeded(
+                                // 1. Create profile if it doesn't exist FIRST
+                                val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
                                     name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
+
+                                // 2. REQUIREMENT: Always promote pending access to real membership on login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
+
                                 _authState.value = AuthState.Success("Successfully logged in!")
                             } else {
                                 android.util.Log.w("AuthViewModel", "Access DENIED. Signing out.")
@@ -149,19 +150,21 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: Always promote pending access to real membership on signup
-                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
-
-                                createProfileIfNeeded(
+                                // 1. Create profile if it doesn't exist FIRST
+                                val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
                                     name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
                                 )
+
+                                // 2. REQUIREMENT: Always promote pending access to real membership on signup
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
+
                                 _authState.value = AuthState.Success("Account created!")
                             } else {
                                 // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
                                 android.util.Log.w("AuthViewModel", "User signed up via ID but no invitation found for $userEmail")
-                                createProfileIfNeeded(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"))
+                                createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"))
                                 _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
                             }
                         }
@@ -191,14 +194,16 @@ class AuthViewModel @Inject constructor(
                             } else true
 
                             if (hasAccess) {
-                                // REQUIREMENT: Always promote pending access to real membership on Google login
-                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid)
-
-                                createProfileIfNeeded(
+                                // 1. Create profile if it doesn't exist FIRST
+                                val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
                                     name = firebaseUser.displayName ?: ""
                                 )
+
+                                // 2. REQUIREMENT: Always promote pending access to real membership on Google login
+                                userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
+
                                 _authState.value = AuthState.Success("logged in!")
                             } else {
                                 auth.signOut()
@@ -212,24 +217,25 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    private fun createProfileIfNeeded(uid: String, email: String, name: String) {
-        viewModelScope.launch {
-            try {
-                val existingProfile = userRepository.getUserProfile(uid)
-                if (existingProfile == null) {
-                    val username = generateUsernameFromEmail(email)
-                    val newUser = User(
-                        uid = uid,
-                        name = name.ifBlank { username },
-                        email = email.lowercase().trim(),
-                        username = username,
-                        role = UserRole.VIEWER
-                    )
-                    userRepository.createUserProfile(newUser)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
+    private suspend fun createProfile(uid: String, email: String, name: String): User? {
+        try {
+            val existingProfile = userRepository.getUserProfile(uid)
+            if (existingProfile == null) {
+                val username = generateUsernameFromEmail(email)
+                val newUser = User(
+                    uid = uid,
+                    name = name.ifBlank { username },
+                    email = email.lowercase().trim(),
+                    username = username,
+                    role = UserRole.VIEWER
+                )
+                userRepository.createUserProfile(newUser)
+                return newUser
             }
+            return existingProfile
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
         }
     }
 
@@ -277,8 +283,3 @@ class AuthViewModel @Inject constructor(
     }
 
 }
-
-
-
-
-

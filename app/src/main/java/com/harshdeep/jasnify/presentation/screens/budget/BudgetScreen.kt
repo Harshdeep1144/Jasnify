@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -48,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -110,6 +112,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -126,6 +129,7 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+import java.math.BigDecimal
 import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -145,7 +149,7 @@ enum class BudgetScreenView {
 fun BudgetScreen(
     onBackClick: () -> Unit,
     viewModel: BudgetViewModel = hiltViewModel(),
-    eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
@@ -163,6 +167,15 @@ fun BudgetScreen(
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
 
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val isOwner = activeEvent?.ownerId == currentUserUid
+    val currentUserRole = when {
+        isOwner -> UserRole.OWNER
+        currentUserInRoom != null -> currentUserInRoom.role
+        else -> UserRole.VIEWER
+    }
+    val isViewer = currentUserRole == UserRole.VIEWER
+
     // Fetch user events to ensure we have an active event
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
@@ -171,7 +184,7 @@ fun BudgetScreen(
     // Sync eventId to BudgetViewModel and RoomViewModel using the most direct source (the ID)
     LaunchedEffect(activeEventId) {
         activeEventId?.let { id ->
-            android.util.Log.d("BudgetScreen", "Syncing with Event ID: $id")
+            Log.d("BudgetScreen", "Syncing with Event ID: $id")
             viewModel.setEventId(id)
             roomViewModel.verifyAccess(id, "Budget", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Budget")
@@ -246,7 +259,7 @@ fun BudgetScreen(
     val budgetValue = remember(budgetEntity, activeEvent) {
         val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget
         if (rawValue == null) "INR" else {
-            val plainString = java.math.BigDecimal.valueOf(rawValue).toPlainString()
+            val plainString = BigDecimal.valueOf(rawValue).toPlainString()
             // Remove trailing .0 if it's an integer value for cleaner input
             val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
             "INR$cleanString"
@@ -440,7 +453,7 @@ fun BudgetScreen(
                 focusManager.clearFocus()
             },
         floatingActionButton = {
-            if (currentView == BudgetScreenView.BUDGET_TRACKER) {
+            if (currentView == BudgetScreenView.BUDGET_TRACKER && !isViewer) {
                 CustomIconButton(
                     onClick = {
                         expenseToEdit = null
@@ -531,7 +544,8 @@ fun BudgetScreen(
                                             formattedRemaining = formattedRemaining,
                                             remainingPercentage = remainingPercentage,
                                             onEditBudgetClick = { showEditBudgetSheet = true },
-                                            onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY }
+                                            onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
+                                            showEditButton = !isViewer
                                         )
                                     }
                                 }
@@ -634,6 +648,7 @@ fun BudgetScreen(
                                             lastUpdatedDate = item.lastUpdatedDate,
                                             showActions = (expandedCardId == item.id),
                                             cardShape = itemShape,
+                                            isEditable = !isViewer,
                                             modifier = Modifier
                                                 .padding(horizontal = 12.dp, vertical = 1.dp)
                                                 .clickable(
@@ -921,16 +936,18 @@ fun BudgetScreen(
                                         leadingIcon = painterResource(R.drawable.ic_ai)
                                     )
 
-                                    CustomTextButton(
-                                        onClick = {
-                                            expenseToEdit = null
-                                            showAddExpenseSheet = true
-                                        },
-                                        text = "Add Expense",
-                                        shapeStyle = ButtonShapeStyle.Square,
-                                        type = ButtonType.Primary,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    if (!isViewer) {
+                                        CustomTextButton(
+                                            onClick = {
+                                                expenseToEdit = null
+                                                showAddExpenseSheet = true
+                                            },
+                                            text = "Add Expense",
+                                            shapeStyle = ButtonShapeStyle.Square,
+                                            type = ButtonType.Primary,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1017,7 +1034,8 @@ fun BudgetScreen(
                                                     onMenuClick = {
                                                         selectedCategoryForMenu = categoryItem.name
                                                         showCategoryMenuBottomSheet = true
-                                                    }
+                                                    },
+                                                    showMenu = !isViewer
                                                 )
                                             }
                                         }
@@ -1043,16 +1061,18 @@ fun BudgetScreen(
                                             modifier = Modifier.weight(1f)
                                         )
 
-                                        CustomTextButton(
-                                            onClick = {
-                                                categoryToRename = null
-                                                showAddCustomCategorySheet = true
-                                            },
-                                            text = "Add Category",
-                                            type = ButtonType.Primary,
-                                            shapeStyle = ButtonShapeStyle.Square,
-                                            modifier = Modifier.weight(1f)
-                                        )
+                                        if (!isViewer) {
+                                            CustomTextButton(
+                                                onClick = {
+                                                    categoryToRename = null
+                                                    showAddCustomCategorySheet = true
+                                                },
+                                                text = "Add Category",
+                                                type = ButtonType.Primary,
+                                                shapeStyle = ButtonShapeStyle.Square,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1145,21 +1165,23 @@ fun BudgetScreen(
                                                 style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
                                                 color = ContentPrimary
                                             )
-                                            Box(
-                                                modifier = Modifier.padding(8.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_edit),
-                                                    contentDescription = "Rename Category",
-                                                    tint = ContentPrimary,
-                                                    modifier = Modifier
-                                                        .size(20.dp)
-                                                        .clickable {
-                                                            categoryToRename = selectedCategoryName
-                                                            showAddCustomCategorySheet = true
-                                                        }
-                                                )
+                                            if (!isViewer) {
+                                                Box(
+                                                    modifier = Modifier.padding(8.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(R.drawable.ic_edit),
+                                                        contentDescription = "Rename Category",
+                                                        tint = ContentPrimary,
+                                                        modifier = Modifier
+                                                            .size(20.dp)
+                                                            .clickable {
+                                                                categoryToRename = selectedCategoryName
+                                                                showAddCustomCategorySheet = true
+                                                            }
+                                                    )
+                                                }
                                             }
                                         }
                                         Row(
@@ -1315,6 +1337,7 @@ fun BudgetScreen(
                                             lastUpdatedDate = item.lastUpdatedDate,
                                             showActions = (expandedCardId == item.id),
                                             cardShape = itemShape,
+                                            isEditable = !isViewer,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(12.dp, 1.dp)
@@ -1391,7 +1414,7 @@ fun BudgetScreen(
                                 },
                                 onRoleChange = { targetUser, newRole ->
                                     activeEvent?.id?.let { id ->
-                                        roomViewModel.grantAccess(id, "Budget", targetUser.email, newRole)
+                                        roomViewModel.updateRole(id, "Budget", targetUser, newRole)
                                     }
                                 },
                                 onRemove = { targetUser ->
@@ -1588,23 +1611,30 @@ fun BudgetScreen(
     }
 
     if (showMenuBottomSheet) {
+        val addBudgetIcon = painterResource(R.drawable.ic_plus)
+        val editBudgetIcon = painterResource(R.drawable.ic_edit)
+        val roomAccessIcon = painterResource(R.drawable.ic_user_default)
+        val categoryIcon = painterResource(R.drawable.ic_category)
+
         MenuBottomSheet(
-            items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
-                        icon = if (isBudgetNotSet) painterResource(R.drawable.ic_plus) else painterResource(R.drawable.ic_edit),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuBottomSheet = false
-                            showEditBudgetSheet = true
-                        }
+            items = listOfNotNull(
+                if (!isViewer) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
+                            icon = if (isBudgetNotSet) addBudgetIcon else editBudgetIcon,
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showMenuBottomSheet = false
+                                showEditBudgetSheet = true
+                            }
+                        )
                     )
-                ),
+                } else null,
                 listOf(
                     MenuSheetActionItem(
                         text = "Manage Room Access",
-                        icon = painterResource(R.drawable.ic_user_default),
+                        icon = roomAccessIcon,
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuBottomSheet = false
@@ -1615,7 +1645,7 @@ fun BudgetScreen(
                 listOf(
                     MenuSheetActionItem(
                         text = "Manage Categories",
-                        icon = painterResource(R.drawable.ic_category),
+                        icon = categoryIcon,
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuBottomSheet = false
@@ -1631,12 +1661,16 @@ fun BudgetScreen(
     }
 
     if (showCategoryMenuBottomSheet) {
+        val pieChartIcon = painterResource(R.drawable.ic_pie_chart)
+        val editIcon = painterResource(R.drawable.ic_edit)
+        val deleteIcon = painterResource(R.drawable.ic_delete)
+
         MenuBottomSheet(
-            items = listOf(
+            items = listOfNotNull(
                 listOf(
                     MenuSheetActionItem(
                         text = "View Expenses",
-                        icon = painterResource(R.drawable.ic_pie_chart),
+                        icon = pieChartIcon,
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showCategoryMenuBottomSheet = false
@@ -1645,31 +1679,35 @@ fun BudgetScreen(
                         }
                     )
                 ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Rename Category",
-                        icon = painterResource(R.drawable.ic_edit),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showCategoryMenuBottomSheet = false
-                            categoryToRename = selectedCategoryForMenu
-                            showAddCustomCategorySheet = true
-                        }
+                if (!isViewer) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Rename Category",
+                            icon = editIcon,
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showCategoryMenuBottomSheet = false
+                                categoryToRename = selectedCategoryForMenu
+                                showAddCustomCategorySheet = true
+                            }
+                        )
                     )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Delete Category",
-                        icon = painterResource(R.drawable.ic_delete),
-                        iconPlacement = IconPlacement.Left,
-                        contentColor = MaterialTheme.colorScheme.error,
-                        onClick = {
-                            categoryToDeleteConfirm = selectedCategoryForMenu
-                            showCategoryMenuBottomSheet = false
-                            selectedCategoryForMenu = null
-                        }
+                } else null,
+                if (!isViewer) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Delete Category",
+                            icon = deleteIcon,
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                categoryToDeleteConfirm = selectedCategoryForMenu
+                                showCategoryMenuBottomSheet = false
+                                selectedCategoryForMenu = null
+                            }
+                        )
                     )
-                )
+                } else null
             ),
             onCancelClick = {
                 showCategoryMenuBottomSheet = false
@@ -1700,27 +1738,6 @@ fun BudgetScreen(
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Copy Link",
-                        icon = painterResource(R.drawable.ic_link),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            toastData = ToastData("Link Copied!", ToastType.SUCCESS)
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Add New Members",
-                        icon = painterResource(R.drawable.ic_plus),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                        }
-                    )
-                ),
                 listOf(
                     MenuSheetActionItem(
                         text = "Leave Room",

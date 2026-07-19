@@ -20,8 +20,6 @@ class ChecklistViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val checklists: StateFlow<List<Checklist>> = _eventId
         .flatMapLatest { id ->
-            // Even if id is null, we might want to see checklists (e.g. legacy ones)
-            // But for now, we'll try to use an empty string or special value if we want to show all
             repository.getAllChecklists(id ?: "")
         }
         .stateIn(
@@ -66,17 +64,37 @@ class ChecklistViewModel @Inject constructor(
         }
     }
 
+    fun saveChecklistLocally(checklist: Checklist) {
+        viewModelScope.launch {
+            repository.saveChecklistLocally(checklist)
+        }
+    }
+
     fun deleteChecklist(id: String) {
         viewModelScope.launch {
             repository.deleteChecklist(id)
         }
     }
 
-    fun togglePin(checklist: Checklist) {
-        saveChecklist(checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis()))
+    fun togglePin(checklist: Checklist, isViewer: Boolean) {
+        viewModelScope.launch {
+            val updated = checklist.copy(pinned = !checklist.pinned, lastUpdated = System.currentTimeMillis())
+            if (isViewer) {
+                repository.saveChecklistLocally(updated)
+            } else {
+                repository.saveChecklist(updated)
+            }
+        }
     }
 
-    fun toggleArchive(checklist: Checklist) {
-        saveChecklist(checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis()))
+    fun toggleArchive(checklist: Checklist, isViewer: Boolean) {
+        viewModelScope.launch {
+            val updated = checklist.copy(archived = !checklist.archived, pinned = false, lastUpdated = System.currentTimeMillis())
+            if (isViewer) {
+                repository.saveChecklistLocally(updated)
+            } else {
+                repository.saveChecklist(updated)
+            }
+        }
     }
 }
