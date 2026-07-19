@@ -20,8 +20,6 @@ class ChecklistViewModel @Inject constructor(
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val checklists: StateFlow<List<Checklist>> = _eventId
         .flatMapLatest { id ->
-            // Even if id is null, we might want to see checklists (e.g. legacy ones)
-            // But for now, we'll try to use an empty string or special value if we want to show all
             repository.getAllChecklists(id ?: "")
         }
         .stateIn(
