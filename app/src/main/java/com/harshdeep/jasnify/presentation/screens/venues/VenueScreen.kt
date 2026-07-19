@@ -133,6 +133,7 @@ import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSect
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
@@ -189,7 +190,8 @@ fun VenueScreen(
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true,
     roomViewModel: RoomViewModel = hiltViewModel(),
-    eventViewModel: EventViewModel = hiltViewModel()
+    eventViewModel: EventViewModel = hiltViewModel(),
+    venueViewModel: VenueViewModel = hiltViewModel()
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
@@ -202,6 +204,11 @@ fun VenueScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+
+    val venueSavedDestinations = remember(savedVenuesFromCloud) {
+        savedVenuesFromCloud.associate { it.venueName to it.destination }
+    }
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -213,11 +220,11 @@ fun VenueScreen(
         activeEvent?.let { event ->
             roomViewModel.verifyAccess(event.id, "Venue", currentUserUid)
             roomViewModel.loadRoomUsers(event.id, "Venue")
+            venueViewModel.setEventId(event.id)
         }
     }
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
-    var showRoomAccessBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
@@ -226,7 +233,6 @@ fun VenueScreen(
     var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
     var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
-    var venueSavedDestinations by remember { mutableStateOf(mapOf<String, String>()) }
     var lastSavedVenue by remember { mutableStateOf<Venue?>(null) }
 
     val timelineEvents by remember(activeEvent) {
@@ -275,6 +281,15 @@ fun VenueScreen(
         toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
     }
 
+    val isOwner = activeEvent?.ownerId == currentUserUid
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val currentUserRole = when {
+        isOwner -> UserRole.OWNER
+        currentUserInRoom != null -> currentUserInRoom.role
+        else -> UserRole.VIEWER
+    }
+    val isViewer = currentUserRole == UserRole.VIEWER
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -310,15 +325,6 @@ fun VenueScreen(
                         )
                     }
                     "room" -> {
-                        val currentUserUid = auth.currentUser?.uid ?: ""
-                        val isOwner = activeEvent?.ownerId == currentUserUid
-                        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-                        val currentUserRole = when {
-                            isOwner -> UserRole.OWNER
-                            currentUserInRoom != null -> currentUserInRoom.role
-                            else -> UserRole.VIEWER
-                        }
-
                         // Ensure current user is in the list shown, even if not yet in Firestore access collection
                         val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
                             val self = User(
@@ -364,6 +370,14 @@ fun VenueScreen(
                                     }
                                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                                     showRoomAccess = false
+                                },
+                                searchResults = searchResults,
+                                onSearch = { roomViewModel.searchUsers(it) },
+                                onGrantAccess = { email, role ->
+                                    activeEvent?.id?.let { eventId ->
+                                        roomViewModel.grantAccess(eventId, "Venue", email, role)
+                                        toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                    }
                                 },
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -412,7 +426,14 @@ fun VenueScreen(
                                         date = subEventItem.date,
                                         completed = subEventItem.isCompleted
                                     )
-                                    eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+                                    val updatedEvent = event.copy(subEvents = event.subEvents + newSubEvent)
+                                    eventViewModel.updateEvent(updatedEvent)
+                                    
+                                    // Update venue destination after event is updated
+                                    activeTargetVenue?.let { venue ->
+                                        venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
+                                    }
+
                                     selectedSaveEventId = subEventItem.id
                                     isMySavedListChecked = false
                                 }
@@ -424,9 +445,16 @@ fun VenueScreen(
                             selectedSaveEventId = selectedSaveEventId,
                             onSelectedSaveEventIdChange = { selectedSaveEventId = it },
                             venueSavedDestinations = venueSavedDestinations,
-                            onVenueSavedDestinationsChange = { venueSavedDestinations = it },
+                            onVenueSavedDestinationsChange = { updatedDestinations ->
+                                // Optional: Can be used for local UI updates if needed, but ViewModel handles it.
+                            },
+                            onToggleSaveVenue = { venue, destination ->
+                                venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
+                            },
                             lastSavedVenue = lastSavedVenue,
                             onLastSavedVenueChange = { lastSavedVenue = it },
+                            isMultiDay = activeEvent?.multiDay ?: false,
+                            isViewer = isViewer,
                             selectedTab = selectedTab,
                             onSelectedTabChange = { selectedTab = it },
                             sharedTransitionScope = this@SharedTransitionLayout,
@@ -474,17 +502,19 @@ fun VenueScreen(
                     message = data.message ?: "",
                     type = data.type,
                     leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
-                    buttonText = "Change",
-                    onButtonClick = {
-                        toastData = null
-                        lastSavedVenue?.let { venue ->
-                            activeTargetVenue = venue
-                            val currentDest = venueSavedDestinations[venue.name]
-                            isMySavedListChecked = currentDest == "mysaved"
-                            selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
-                            showSaveListBottomSheet = true
+                    buttonText = if (activeEvent?.multiDay == true) "Change" else null,
+                    onButtonClick = if (activeEvent?.multiDay == true) {
+                        {
+                            toastData = null
+                            lastSavedVenue?.let { venue ->
+                                activeTargetVenue = venue
+                                val currentDest = venueSavedDestinations[venue.name]
+                                isMySavedListChecked = currentDest == "mysaved"
+                                selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                                showSaveListBottomSheet = true
+                            }
                         }
-                    }
+                    } else null
                 )
             }
         }
@@ -509,19 +539,6 @@ fun VenueScreen(
             onCancelClick = {
                 showRoomMenuBottomSheet = false
             }
-        )
-    }
-
-    if (showRoomAccessBottomSheet) {
-        RoomAccessBottomSheet(
-            onDismissRequest = { showRoomAccessBottomSheet = false },
-            onGrantAccess = { email, role ->
-                activeEvent?.id?.let { eventId ->
-                    roomViewModel.grantAccess(eventId, "Venue", email, role)
-                }
-            },
-            searchResults = searchResults,
-            onSearch = { roomViewModel.searchUsers(it) }
         )
     }
 
@@ -573,8 +590,11 @@ fun VenueMainContent(
     onSelectedSaveEventIdChange: (String?) -> Unit,
     venueSavedDestinations: Map<String, String>,
     onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
+    onToggleSaveVenue: (Venue, String?) -> Unit,
     lastSavedVenue: Venue?,
     onLastSavedVenueChange: (Venue?) -> Unit,
+    isMultiDay: Boolean,
+    isViewer: Boolean,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -619,13 +639,18 @@ fun VenueMainContent(
     val handleFavoriteToggle: (Venue) -> Unit = { venue ->
         val alreadySaved = venueSavedDestinations.containsKey(venue.name)
         if (alreadySaved) {
-            onActiveTargetVenueChange(venue)
-            val currentDestination = venueSavedDestinations[venue.name]
-            onMySavedListCheckedChange(currentDestination == "mysaved")
-            onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
-            onShowSaveListBottomSheetChange(true)
+            if (isMultiDay) {
+                onActiveTargetVenueChange(venue)
+                val currentDestination = venueSavedDestinations[venue.name]
+                onMySavedListCheckedChange(currentDestination == "mysaved")
+                onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
+                onShowSaveListBottomSheetChange(true)
+            } else {
+                onToggleSaveVenue(venue, null)
+                onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
+            }
         } else {
-            onVenueSavedDestinationsChange(venueSavedDestinations + (venue.name to "mysaved"))
+            onToggleSaveVenue(venue, "mysaved")
             onLastSavedVenueChange(venue)
             onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
         }
@@ -987,16 +1012,17 @@ fun VenueMainContent(
                 }
             },
             onAddNewEvent = onAddNewEvent,
+            isViewer = isViewer,
             onDismiss = { onShowSaveListBottomSheetChange(false) },
             onDone = {
                 activeTargetVenue?.let { venue ->
                     val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                     if (destination != null) {
-                        onVenueSavedDestinationsChange(venueSavedDestinations + (venue.name to destination))
+                        onToggleSaveVenue(venue, destination)
                         onLastSavedVenueChange(venue)
                         onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
                     } else {
-                        onVenueSavedDestinationsChange(venueSavedDestinations - venue.name)
+                        onToggleSaveVenue(venue, null)
                         onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
                     }
                 }
@@ -1087,6 +1113,7 @@ fun SaveListBottomSheet(
     selectedEventId: String?,
     onEventSelected: (String?) -> Unit,
     onAddNewEvent: (SubEventItem) -> Unit,
+    isViewer: Boolean,
     onDismiss: () -> Unit,
     onDone: () -> Unit
 ) {
@@ -1172,30 +1199,31 @@ fun SaveListBottomSheet(
                             )
                         }
 
-                        Row(
-                            modifier = Modifier.clickable {
-                                draftNewEvent = SubEventItem(
-                                    id = "temp-new-item",
-                                    dateString = "",
-                                    name = "",
-                                    isExisting = false,
-                                    isEditing = true
+                        if (!isViewer) {
+                            Row(
+                                modifier = Modifier.clickable {
+                                    draftNewEvent = SubEventItem(
+                                        dateString = "",
+                                        name = "",
+                                        isExisting = false,
+                                        isEditing = true
+                                    )
+                                },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_plus),
+                                    contentDescription = null,
+                                    tint = ContentBrandDark,
+                                    modifier = Modifier.size(20.dp)
                                 )
-                            },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_plus),
-                                contentDescription = null,
-                                tint = ContentBrandDark,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "New Event",
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentBrandDark
-                            )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "New Event",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentBrandDark
+                                )
+                            }
                         }
                     }
                 }
