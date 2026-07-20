@@ -11,9 +11,10 @@ import androidx.room.TypeConverters
         BudgetEntity::class, 
         CateringItemEntity::class, 
         CateringMetadataEntity::class,
-        RoomAccessEntity::class
+        RoomAccessEntity::class,
+        SavedVenueEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -22,6 +23,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun budgetDao(): BudgetDao
     abstract fun cateringDao(): CateringDao
     abstract fun roomAccessDao(): RoomAccessDao
+    abstract fun savedVenueDao(): SavedVenueDao
 
     companion object {
         const val DATABASE_NAME = "jasnify_db"

@@ -50,4 +50,10 @@ object DatabaseModule {
     fun provideRoomAccessDao(database: AppDatabase): RoomAccessDao {
         return database.roomAccessDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideSavedVenueDao(database: AppDatabase): com.harshdeep.jasnify.data.local.SavedVenueDao {
+        return database.savedVenueDao()
+    }
 }
