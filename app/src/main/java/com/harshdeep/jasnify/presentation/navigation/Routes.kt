@@ -37,7 +37,7 @@ sealed class Screen(val route: String) {
     data object EventDetail : Screen("even_detail_screen")
 
     // Venue Feature
-    data object VenueRoot : Screen("venue_root_screen")
+    data object VenueRoot : Screen("venue_root_screen?tab={tab}")
     data object LocationSelector : Screen("location_selector_screen")
 
     // Budget Feature
