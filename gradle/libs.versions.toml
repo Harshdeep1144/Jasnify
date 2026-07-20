@@ -30,6 +30,7 @@ androidxFoundation = "1.10.6"
 animationCoreVersion = "1.11.3"
 room = "2.8.4"
 gson = "2.10.1"
+media3 = "1.5.1"
 
 
 [libraries]
@@ -73,6 +74,9 @@ room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-android-compiler", version.ref = "hilt" }
+androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
+androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
+androidx-media3-common = { group = "androidx.media3", name = "media3-common", version.ref = "media3" }
 
 
 [plugins]
