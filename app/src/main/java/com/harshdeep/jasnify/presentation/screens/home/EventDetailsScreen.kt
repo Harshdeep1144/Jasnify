@@ -97,8 +97,10 @@ import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.DeleteTimelineWarningSheet
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -134,12 +136,16 @@ import java.time.format.TextStyle as JavaTextStyle
 @Composable
 fun EventDetailsScreen(
     onBackClick: () -> Unit,
-    eventViewModel: EventViewModel = hiltViewModel()
+    onReviewVenues: () -> Unit = {},
+    onReviewVendors: () -> Unit = {},
+    eventViewModel: EventViewModel = hiltViewModel(),
+    venueViewModel: VenueViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     val activeEvent by eventViewModel.activeEvent.collectAsState()
+    val savedVenues by venueViewModel.savedVenues.collectAsState()
 
     val isAdmin by remember(activeEvent) {
         derivedStateOf { activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid }
@@ -148,6 +154,12 @@ fun EventDetailsScreen(
     // Trigger loading user events on initial composition
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
+    }
+
+    LaunchedEffect(activeEvent) {
+        activeEvent?.id?.let { id ->
+            venueViewModel.setEventId(id)
+        }
     }
 
     var eventId by remember { mutableStateOf("...") }
@@ -184,6 +196,12 @@ fun EventDetailsScreen(
     var isDirectDateEdit by remember { mutableStateOf(false) }
 
     var pickerActiveTab by remember { mutableIntStateOf(0) }
+
+    // --- Delete Warning Sheet State ---
+    var showDeleteWarningSheet by remember { mutableStateOf(false) }
+    var venueCountForDelete by remember { mutableIntStateOf(0) }
+    var vendorCountForDelete by remember { mutableIntStateOf(0) }
+    var itemPendingDelete by remember { mutableStateOf<SubEventItem?>(null) }
 
     // Primary Event Name State
     var isEditingEventName by remember { mutableStateOf(false) }
@@ -689,8 +707,19 @@ fun EventDetailsScreen(
                                         }
                                     },
                                     onDelete = { itemToDelete ->
-                                        timelineItems.remove(itemToDelete)
-                                        syncEvent()
+                                        val venueCount = savedVenues.count { it.destination == itemToDelete.id }
+                                        // TODO: Implement vendor count when vendor feature is ready
+                                        val vendorCount = 0 
+
+                                        if (venueCount > 0 || vendorCount > 0) {
+                                            venueCountForDelete = venueCount
+                                            vendorCountForDelete = vendorCount
+                                            itemPendingDelete = itemToDelete
+                                            showDeleteWarningSheet = true
+                                        } else {
+                                            timelineItems.remove(itemToDelete)
+                                            syncEvent()
+                                        }
                                     },
                                     backgroundColor = SurfacePrimary,
                                     hasBorder = false,
@@ -766,6 +795,24 @@ fun EventDetailsScreen(
     if (isTimelineInfoSheetVisible) {
         EventTimeLineInfoSheet(
             onDismiss = { isTimelineInfoSheetVisible = false }
+        )
+    }
+
+    // ============================================ Delete Timeline Warning Sheet ===================================================
+
+    if (showDeleteWarningSheet) {
+        DeleteTimelineWarningSheet(
+            onDismiss = { showDeleteWarningSheet = false },
+            venueCount = venueCountForDelete,
+            vendorCount = vendorCountForDelete,
+            onReviewVenues = {
+                showDeleteWarningSheet = false
+                onReviewVenues()
+            },
+            onReviewVendors = {
+                showDeleteWarningSheet = false
+                onReviewVendors()
+            }
         )
     }
 

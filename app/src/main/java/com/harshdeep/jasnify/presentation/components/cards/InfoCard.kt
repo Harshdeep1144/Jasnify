@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -79,7 +80,7 @@ fun InfoCard(
     ){
         Row(
             modifier = Modifier
-                .height(52.dp)
+                .heightIn(min = 52.dp)
                 .padding(16.dp)
         ) {
             Icon(
@@ -117,7 +118,7 @@ fun InfoCardPreview() {
             nature = InfoCardNature.Positive
         )
         InfoCard(
-            message = "Write the message here.",
+            message = "This a large message to check the Write the message here is showing properly",
             nature = InfoCardNature.Negative
         )
     }

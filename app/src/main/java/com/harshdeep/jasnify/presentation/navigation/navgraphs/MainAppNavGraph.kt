@@ -90,9 +90,16 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
             EventDetailsScreen(
                 onBackClick = {
-                    if (mainNavController.previousBackStackEntry != null) {
-                        mainNavController.popBackStack()
+                    if (mainNavController.popBackStack()) {
+                        // success
                     }
+                },
+                onReviewVenues = {
+                    mainNavController.navigate("venue_root_screen?tab=saved")
+                },
+                onReviewVendors = {
+                    // Navigate to vendors tab if needed, but the request says saved section in venue screen
+                    mainNavController.navigate("venue_root_screen?tab=saved")
                 }
             )
         }
@@ -100,15 +107,24 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         // Venue Feature
         composable(
             route = Screen.VenueRoot.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("tab") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = "explore"
+                }
+            )
         ) { entry ->
             val savedStateHandle = entry.savedStateHandle
             val selectedLocation by savedStateHandle.getStateFlow("selected_location", "City, State").collectAsState()
+            val initialTab = entry.arguments?.getString("tab") ?: "explore"
 
             val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
             val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
 
             VenueScreen(
                 selectedLocation = selectedLocation,
+                initialTab = initialTab,
                 onVenueClick = { /* Handle venue click */ },
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
