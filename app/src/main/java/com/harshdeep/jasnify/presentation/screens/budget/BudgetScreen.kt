@@ -168,6 +168,8 @@ fun BudgetScreen(
     val currentUserUid = auth.currentUser?.uid ?: ""
 
     val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val currentUserName = currentUserInRoom?.name ?: auth.currentUser?.displayName ?: "Anonymous"
+
     val isOwner = activeEvent?.ownerId == currentUserUid
     val currentUserRole = when {
         isOwner -> UserRole.OWNER
@@ -1508,6 +1510,7 @@ fun BudgetScreen(
                         category = category.ifBlank { "Misc" },
                         amount = amount.toDouble(),
                         emoji = emoji.ifBlank { "💸" },
+                        userName = currentUserName,
                         phoneNumber = phone,
                         note = notes
                     )
@@ -1518,6 +1521,7 @@ fun BudgetScreen(
                         category = category.ifBlank { "Misc" },
                         amount = amount.toDouble(),
                         emoji = emoji.ifBlank { "💸" },
+                        userName = currentUserName,
                         phoneNumber = phone,
                         note = notes
                     )
