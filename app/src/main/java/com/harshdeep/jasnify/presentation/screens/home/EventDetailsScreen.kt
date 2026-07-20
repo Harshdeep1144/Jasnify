@@ -97,6 +97,7 @@ import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DeleteTimelineWarningSheet
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -169,6 +170,9 @@ fun EventDetailsScreen(
     var timelineType by remember { mutableStateOf("Multi-day") }
     var primaryEventName by remember { mutableStateOf("...") }
     var singleDaySelectedDate by remember { mutableStateOf<String?>(null) }
+
+    // State for Event Type InfoTooltip
+    var showEventTypeTooltip by remember { mutableStateOf(false) }
 
     // Bottom Sheet Control States
     var showBottomSheet by remember { mutableStateOf(false) }
@@ -360,13 +364,20 @@ fun EventDetailsScreen(
                                 .padding(12.dp, 12.dp, 12.dp, 0.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            // Event Type Card
+                            // Event Type Card - Configured with InfoTooltip integration on click
                             EventInfoHalfCard(
                                 title = "Event Type :",
                                 value = eventType,
                                 icon = painterResource(id = R.drawable.ic_info),
                                 modifier = Modifier.weight(1f),
-                                onClick = { }
+                                onClick = { showEventTypeTooltip = true },
+                                tooltipContent = {
+                                    InfoTooltip(
+                                        visible = showEventTypeTooltip,
+                                        tooltipText = "Event type can't be changed",
+                                        onDismiss = { showEventTypeTooltip = false }
+                                    )
+                                }
                             )
 
                             // Event ID Card
@@ -709,7 +720,7 @@ fun EventDetailsScreen(
                                     onDelete = { itemToDelete ->
                                         val venueCount = savedVenues.count { it.destination == itemToDelete.id }
                                         // TODO: Implement vendor count when vendor feature is ready
-                                        val vendorCount = 0 
+                                        val vendorCount = 0
 
                                         if (venueCount > 0 || vendorCount > 0) {
                                             venueCountForDelete = venueCount
@@ -1451,7 +1462,8 @@ private fun EventInfoHalfCard(
     value: String,
     icon: Painter,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    tooltipContent: @Composable (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -1474,13 +1486,17 @@ private fun EventInfoHalfCard(
                 color = ContentSecondary
             )
         }
-        CustomIconButton(
-            onClick = onClick,
-            icon = icon,
-            containerColor = SurfacePrimary,
-            contentColor = ContentPrimary,
-            size = ButtonSize.Small
-        )
+        Box {
+            CustomIconButton(
+                onClick = onClick,
+                icon = icon,
+                containerColor = SurfacePrimary,
+                contentColor = ContentPrimary,
+                size = ButtonSize.Small
+            )
+            // Trigger overlay popup components safely inside the coordinate box wrapper
+            tooltipContent?.invoke()
+        }
     }
 }
 
