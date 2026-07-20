@@ -43,6 +43,7 @@ class BudgetViewModel @Inject constructor(
         category: String,
         amount: Double,
         emoji: String,
+        userName: String,
         phoneNumber: String?,
         note: String?
     ) {
@@ -55,7 +56,7 @@ class BudgetViewModel @Inject constructor(
                 category = category,
                 amount = amount,
                 emoji = emoji,
-                lastUpdatedBy = "Me", // Replace with actual user name
+                lastUpdatedBy = userName,
                 lastUpdatedDate = System.currentTimeMillis(),
                 phoneNumber = phoneNumber,
                 note = note
@@ -70,6 +71,7 @@ class BudgetViewModel @Inject constructor(
         category: String,
         amount: Double,
         emoji: String,
+        userName: String,
         phoneNumber: String?,
         note: String?
     ) {
@@ -82,7 +84,7 @@ class BudgetViewModel @Inject constructor(
                 category = category,
                 amount = amount,
                 emoji = emoji,
-                lastUpdatedBy = "Me",
+                lastUpdatedBy = userName,
                 lastUpdatedDate = System.currentTimeMillis(),
                 phoneNumber = phoneNumber,
                 note = note,
