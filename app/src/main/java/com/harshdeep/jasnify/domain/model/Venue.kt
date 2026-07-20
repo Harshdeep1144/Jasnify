@@ -46,7 +46,7 @@ data class VenueHighlightItem(
 
 data class VenueGalleryCategory(
     val categoryName: String = "",
-    val imageUrls: List<String> = emptyList()
+    val mediaItems: List<VenueMediaItem> = emptyList()
 )
 
 data class VenueReviewsData(

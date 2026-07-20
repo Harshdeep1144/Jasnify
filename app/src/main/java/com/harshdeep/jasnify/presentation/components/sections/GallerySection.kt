@@ -21,7 +21,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -39,6 +41,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
@@ -47,6 +50,7 @@ import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
+import com.harshdeep.jasnify.domain.model.VenueMediaItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -67,7 +71,7 @@ fun VenueGallerySection(
 ) {
     var selectedCategoryIndex by remember { mutableStateOf(0) }
     val activeCategory = galleryCategories.getOrNull(selectedCategoryIndex)
-    val imagesList = activeCategory?.imageUrls.orEmpty()
+    val mediaItems = activeCategory?.mediaItems.orEmpty()
 
     Column(
         modifier = modifier
@@ -147,12 +151,16 @@ fun VenueGallerySection(
                     .background(SurfaceSecondary)
                     .clickable { onSeeAllClick() }
             ) {
+                val mediaItem = mediaItems.getOrNull(0)
                 AsyncImage(
-                    model = imagesList.getOrNull(0) ?: "image_2e5379.jpg",
+                    model = mediaItem?.url ?: "image_2e5379.jpg",
                     contentDescription = "Main Gallery",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
+                if (mediaItem?.isVideo == true) {
+                    VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
+                }
             }
 
             // Supporting images stack
@@ -175,12 +183,16 @@ fun VenueGallerySection(
                         .background(SurfaceSecondary)
                         .clickable { onSeeAllClick() }
                 ) {
+                    val mediaItem = mediaItems.getOrNull(1)
                     AsyncImage(
-                        model = imagesList.getOrNull(1) ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "image_2e5379.jpg",
                         contentDescription = "Gallery Row 2",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                    if (mediaItem?.isVideo == true) {
+                        VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
+                    }
                 }
 
                 Box(
@@ -196,12 +208,16 @@ fun VenueGallerySection(
                         .background(SurfaceSecondary)
                         .clickable { onSeeAllClick() }
                 ) {
+                    val mediaItem = mediaItems.getOrNull(2)
                     AsyncImage(
-                        model = imagesList.getOrNull(2) ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "image_2e5379.jpg",
                         contentDescription = "Gallery Row 3",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                    if (mediaItem?.isVideo == true) {
+                        VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
+                    }
                 }
 
                 Box(
@@ -217,12 +233,16 @@ fun VenueGallerySection(
                         .background(SurfaceSecondary)
                         .clickable { onSeeAllClick() }
                 ) {
+                    val mediaItem = mediaItems.getOrNull(3)
                     AsyncImage(
-                        model = imagesList.getOrNull(3) ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "image_2e5379.jpg",
                         contentDescription = "Gallery Row OverView",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                    if (mediaItem?.isVideo == true) {
+                        VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -233,7 +253,7 @@ fun VenueGallerySection(
                         modifier = Modifier.align(Alignment.Center)
                     ) {
                         Text(
-                            text = "+${imagesList.size}",
+                            text = "+${mediaItems.size}",
                             color = ContentInvPrimary,
                             style = JasnifyTheme.typography.labelLarge,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
@@ -241,6 +261,27 @@ fun VenueGallerySection(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun VideoPlayOverlay(
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 32.dp
+) {
+    Surface(
+        shape = CircleShape,
+        color = Color.Black.copy(alpha = 0.4f),
+        modifier = modifier.size(iconSize * 1.5f)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.PlayArrow,
+                contentDescription = "Play Video",
+                tint = Color.White,
+                modifier = Modifier.size(iconSize)
+            )
         }
     }
 }
@@ -255,7 +296,7 @@ fun VenueGalleryDetailScreen(
 ) {
     // Top primary horizontal section uses the first category ("All" or "Images")
     val topSection = galleryCategories.firstOrNull()
-    val topImages = topSection?.imageUrls.orEmpty()
+    val topMediaItems = topSection?.mediaItems.orEmpty()
     val topTitle = topSection?.categoryName ?: "Images"
 
     // Remaining categories represent customized albums (e.g., Outdoor Area, Indoor Area, Rooms)
@@ -298,7 +339,7 @@ fun VenueGalleryDetailScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "$topTitle (${topImages.size})",
+                                    text = "$topTitle (${topMediaItems.size})",
                                     style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
                                     color = ContentPrimary
                                 )
@@ -332,7 +373,7 @@ fun VenueGalleryDetailScreen(
                             contentPadding = PaddingValues(horizontal = 12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            items(topImages) { imageUrl ->
+                            items(topMediaItems) { mediaItem ->
                                 Box(
                                     modifier = Modifier
                                         .size(width = 160.dp, height = 160.dp)
@@ -345,11 +386,14 @@ fun VenueGalleryDetailScreen(
                                         .background(SurfaceSecondary)
                                 ) {
                                     AsyncImage(
-                                        model = imageUrl,
-                                        contentDescription = "Image Item",
+                                        model = mediaItem.url,
+                                        contentDescription = "Media Item",
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
+                                    if (mediaItem.isVideo) {
+                                        VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
+                                    }
                                 }
                             }
                         }
@@ -398,8 +442,8 @@ fun VenueAlbumGridCard(
     onAlbumClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val itemsToShow = album.imageUrls.take(6)
-    val totalCount = album.imageUrls.size
+    val itemsToShow = album.mediaItems.take(6)
+    val totalCount = album.mediaItems.size
     val remainingCount = totalCount - 5
 
     Column(
@@ -457,18 +501,18 @@ fun VenueAlbumGridCard(
 
         // Multirow 3x2 Album Grid Implementation
         val columnsCount = 3
-        val chunkedImages = itemsToShow.chunked(columnsCount)
+        val chunkedMedia = itemsToShow.chunked(columnsCount)
 
         Column(
             verticalArrangement = Arrangement.spacedBy(4.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            chunkedImages.forEachIndexed { rowIndex, rowImages ->
+            chunkedMedia.forEachIndexed { rowIndex, rowMedia ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    rowImages.forEachIndexed { colIndex, imageUrl ->
+                    rowMedia.forEachIndexed { colIndex, mediaItem ->
                         val itemIndex = rowIndex * columnsCount + colIndex
                         val isLastPlaceholder = itemIndex == 5 && remainingCount > 0
 
@@ -480,11 +524,15 @@ fun VenueAlbumGridCard(
                                 .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
                         ) {
                             AsyncImage(
-                                model = imageUrl,
+                                model = mediaItem.url,
                                 contentDescription = "Album item $itemIndex",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            if (mediaItem.isVideo) {
+                                VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 20.dp)
+                            }
 
                             // Show standard dark translucent overlay showing remaining images count (+X)
                             if (isLastPlaceholder) {
@@ -505,8 +553,8 @@ fun VenueAlbumGridCard(
                     }
 
                     // Fill remaining empty columns in case the last chunk isn't full (preserves alignment)
-                    if (rowImages.size < columnsCount) {
-                        val emptySlots = columnsCount - rowImages.size
+                    if (rowMedia.size < columnsCount) {
+                        val emptySlots = columnsCount - rowMedia.size
                         for (i in 0 until emptySlots) {
                             Spacer(modifier = Modifier.weight(1f))
                         }
@@ -525,14 +573,14 @@ fun VenueAlbumGridCard(
 fun AlbumGridCardPreview() {
     val sampleAlbum = VenueGalleryCategory(
         categoryName = "Outdoor Area",
-        imageUrls = listOf(
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-            "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-            "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-            "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
+        mediaItems = listOf(
+            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+            VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500", isVideo = true),
+            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+            VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
+            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500")
         )
     )
     JasnifyTheme {
@@ -547,31 +595,31 @@ fun GalleryDetailScreenPreview() {
     val sampleCategoriesData = listOf(
         VenueGalleryCategory(
             categoryName = "Images",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            mediaItems = listOf(
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
             )
         ),
         VenueGalleryCategory(
             categoryName = "Outdoor Area",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" // yields +2
+            mediaItems = listOf(
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500") // yields +2
             )
         ),
         VenueGalleryCategory(
             categoryName = "Indoor Area",
-            imageUrls = List(20) { "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500" } // yields +15
+            mediaItems = List(20) { VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500") } // yields +15
         ),
         VenueGalleryCategory(
             categoryName = "Rooms",
-            imageUrls = List(26) { "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500" } // yields +21
+            mediaItems = List(26) { VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500") } // yields +21
         )
     )
 
@@ -591,26 +639,26 @@ fun GallerySectionPreview() {
     val sampleData = listOf(
         VenueGalleryCategory(
             categoryName = "All",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500",
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"
+            mediaItems = listOf(
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500", isVideo = true),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500")
             )
         ),
         VenueGalleryCategory(
             categoryName = "Interior",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            mediaItems = listOf(
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
             )
         ),
         VenueGalleryCategory(
             categoryName = "Food",
-            imageUrls = listOf(
-                "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500",
-                "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500",
-                "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"
+            mediaItems = listOf(
+                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
+                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
             )
         )
     )

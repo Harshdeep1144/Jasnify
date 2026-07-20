@@ -231,7 +231,7 @@ object MockData {
         return venue.copy(
             mediaItems = listOf(
                 VenueMediaItem(url = detailImages[0], isVideo = false),
-                VenueMediaItem(url = detailImages[1], isVideo = true, videoDuration = "0:45"),
+                VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:10"),
                 VenueMediaItem(url = detailImages[2], isVideo = false),
                 VenueMediaItem(url = detailImages[3], isVideo = false)
             ),
@@ -279,33 +279,36 @@ object MockData {
             galleryCategories = listOf(
                 VenueGalleryCategory(
                     categoryName = "All Photos",
-                    imageUrls = detailImages
+                    mediaItems = detailImages.mapIndexed { index, url ->
+                        if (index == 1) VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:10")
+                        else VenueMediaItem(url = url)
+                    }
                 ),
                 VenueGalleryCategory(
                     categoryName = "Decor",
-                    imageUrls = listOf(
-                        "https://picsum.photos/800/400?random=101",
-                        "https://picsum.photos/800/400?random=102",
-                        "https://picsum.photos/800/400?random=103",
-                        "https://picsum.photos/800/400?random=104"
+                    mediaItems = listOf(
+                        VenueMediaItem("https://picsum.photos/800/400?random=101"),
+                        VenueMediaItem("https://vjs.zencdn.net/v/oceans.mp4", isVideo = true, videoDuration = "0:46"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=103"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=104")
                     )
                 ),
                 VenueGalleryCategory(
                     categoryName = "Seating Layout",
-                    imageUrls = listOf(
-                        "https://picsum.photos/800/400?random=105",
-                        "https://picsum.photos/800/400?random=106",
-                        "https://picsum.photos/800/400?random=107",
-                        "https://picsum.photos/800/400?random=108"
+                    mediaItems = listOf(
+                        VenueMediaItem("https://picsum.photos/800/400?random=105"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=106"),
+                        VenueMediaItem("https://www.w3schools.com/html/movie.mp4", isVideo = true, videoDuration = "0:50"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=108")
                     )
                 ),
                 VenueGalleryCategory(
                     categoryName = "Food & Catering",
-                    imageUrls = listOf(
-                        "https://picsum.photos/800/400?random=109",
-                        "https://picsum.photos/800/400?random=110",
-                        "https://picsum.photos/800/400?random=111",
-                        "https://picsum.photos/800/400?random=112"
+                    mediaItems = listOf(
+                        VenueMediaItem("https://picsum.photos/800/400?random=109"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=110"),
+                        VenueMediaItem("https://picsum.photos/800/400?random=111"),
+                        VenueMediaItem("https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:10")
                     )
                 )
             ),
