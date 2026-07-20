@@ -36,6 +36,7 @@ import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * A custom shape that constructs a speech-bubble box pointing downwards to form a tooltip look.
@@ -183,7 +184,7 @@ fun InfoTooltip(
     // Automatically dismiss tooltip after specified duration
     LaunchedEffect(visible) {
         if (visible) {
-            delay(autoDismissDelayMillis)
+            delay(autoDismissDelayMillis.milliseconds)
             onDismiss()
         }
     }
