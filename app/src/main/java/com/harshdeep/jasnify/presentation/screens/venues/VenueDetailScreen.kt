@@ -117,6 +117,7 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.sections.VenueAllReviewsScreen
@@ -808,37 +809,20 @@ fun VenueMediaSlider(
                 }
 
                 Box(modifier = sharedBoundsModifier) {
-                    AsyncImage(
-                        model = mediaItem.url,
-                        contentDescription = "Venue Media Slide ${page + 1}",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.ic_gallery)
-                    )
-                }
-
-                if (mediaItem.isVideo) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(ContentPrimary.copy(alpha = 0.15f))
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = ContentPrimary.copy(alpha = 0.5f),
-                            modifier = Modifier
-                                .size(56.dp)
-                                .align(Alignment.Center)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Video Preview",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
-                        }
+                    if (mediaItem.isVideo) {
+                        VideoPlayer(
+                            videoUrl = mediaItem.url,
+                            isMuted = isMuted,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        AsyncImage(
+                            model = mediaItem.url,
+                            contentDescription = "Venue Media Slide ${page + 1}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(R.drawable.ic_gallery)
+                        )
                     }
                 }
             }
