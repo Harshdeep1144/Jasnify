@@ -102,10 +102,10 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
@@ -186,6 +186,7 @@ private fun clearRecentSearches(context: Context) {
 @Composable
 fun VenueScreen(
     selectedLocation: String = "City, State",
+    initialTab: String = "explore",
     onVenueClick: (Venue) -> Unit,
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true,
@@ -196,7 +197,7 @@ fun VenueScreen(
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
-    var selectedTab by remember { mutableStateOf("explore") }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
     
     val auth = FirebaseAuth.getInstance()
@@ -1118,6 +1119,11 @@ fun SaveListBottomSheet(
     onDone: () -> Unit
 ) {
     var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
+    var showInfoSheet by remember { mutableStateOf(false) }
+
+    if (showInfoSheet) {
+        EventTimeLineInfoSheet(onDismiss = { showInfoSheet = false })
+    }
 
     CustomBottomSheet(
         heading = "Manage Saved List",
@@ -1195,7 +1201,14 @@ fun SaveListBottomSheet(
                                 painter = painterResource(R.drawable.ic_info),
                                 contentDescription = "Info panel",
                                 tint = ContentPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        showInfoSheet = true
+                                    }
                             )
                         }
 
