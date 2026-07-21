@@ -4,10 +4,14 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.harshdeep.jasnify.data.local.SavedVenueDao
 import com.harshdeep.jasnify.data.local.SavedVenueEntity
 import com.harshdeep.jasnify.domain.model.SavedVenue
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.repository.VenueRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -19,6 +23,75 @@ class VenueRepositoryImpl @Inject constructor(
 ) : VenueRepository {
 
     private val externalScope = CoroutineScope(Dispatchers.IO)
+
+    // --- Catalog Methods ---
+
+    override fun getAllVenues(): Flow<List<Venue>> = callbackFlow {
+        val subscription = firestore.collection("venues")
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val venues = snapshot?.documents?.mapNotNull { it.toObject(Venue::class.java) } ?: emptyList()
+                trySend(venues)
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override fun getVenueById(venueId: String): Flow<Venue?> = callbackFlow {
+        val subscription = firestore.collection("venues").document(venueId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Venue::class.java))
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override fun getVenueReviews(venueId: String): Flow<List<VenueReview>> = callbackFlow {
+        val subscription = firestore.collection("venues").document(venueId)
+            .collection("reviews")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val reviews = snapshot?.documents?.mapNotNull { it.toObject(VenueReview::class.java) } ?: emptyList()
+                trySend(reviews)
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun seedMockVenues(venues: List<Venue>) {
+        venues.forEach { venue ->
+            try {
+                // 1. Upload Venue Doc (strip reviews from the main doc as per schema)
+                val venueToUpload = venue.copy(
+                    reviewsData = venue.reviewsData?.copy(reviews = emptyList())
+                )
+                firestore.collection("venues").document(venue.id).set(venueToUpload).await()
+
+                // 2. Upload Reviews to Sub-collection
+                venue.reviewsData?.reviews?.forEach { review ->
+                    val reviewId = review.id.ifBlank { java.util.UUID.randomUUID().toString() }
+                    val reviewToUpload = review.copy(id = reviewId)
+                    firestore.collection("venues").document(venue.id)
+                        .collection("reviews").document(reviewId)
+                        .set(reviewToUpload)
+                        .await()
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("VenueRepo", "Error seeding venue ${venue.name}: ${e.message}")
+            }
+        }
+    }
+
+    // --- Saved Venues Methods ---
 
     override fun getSavedVenues(eventId: String): Flow<List<SavedVenue>> {
         if (eventId.isNotBlank()) {

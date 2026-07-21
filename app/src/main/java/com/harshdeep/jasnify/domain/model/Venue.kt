@@ -5,6 +5,8 @@ import java.util.UUID
 data class Venue(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
+    val city: String = "City",
+    val locality: String = "Locality",
     val location: String = "",
     val type: String? = null,
     val rating: Double = 0.0,
@@ -20,7 +22,6 @@ data class Venue(
     val highlightItems: List<VenueHighlightItem> = emptyList(),
     val galleryCategories: List<VenueGalleryCategory> = emptyList(),
     val reviewsData: VenueReviewsData? = null,
-    val similarVenues: List<Venue>? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -34,14 +35,14 @@ data class VenuePricingItem(
     val title: String = "",
     val price: String = "",
     val unit: String = "",
-    val iconRes: Int? = null,
+    val iconRes: String? = null,
     val labelText: String = "Price Point Offer"
 )
 
 data class VenueHighlightItem(
     val label: String = "",
     val value: String = "",
-    val iconRes: Int? = null
+    val iconRes: String? = null
 )
 
 data class VenueGalleryCategory(
