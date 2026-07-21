@@ -547,7 +547,7 @@ fun BudgetScreen(
                                             remainingPercentage = remainingPercentage,
                                             onEditBudgetClick = { showEditBudgetSheet = true },
                                             onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
-                                            showEditButton = !isViewer
+                                            showEditButton = isOwner
                                         )
                                     }
                                 }
@@ -1622,7 +1622,7 @@ fun BudgetScreen(
 
         MenuBottomSheet(
             items = listOfNotNull(
-                if (!isViewer) {
+                if (isOwner) {
                     listOf(
                         MenuSheetActionItem(
                             text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
@@ -1637,7 +1637,7 @@ fun BudgetScreen(
                 } else null,
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Room Access",
+                        text = if(isOwner) "Manage Room Access" else "Room Members",
                         icon = roomAccessIcon,
                         iconPlacement = IconPlacement.Left,
                         onClick = {
@@ -1648,7 +1648,7 @@ fun BudgetScreen(
                 ),
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Categories",
+                        text = "Expense Categories",
                         icon = categoryIcon,
                         iconPlacement = IconPlacement.Left,
                         onClick = {

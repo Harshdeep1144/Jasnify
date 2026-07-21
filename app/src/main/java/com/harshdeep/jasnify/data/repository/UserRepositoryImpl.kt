@@ -326,22 +326,30 @@ class UserRepositoryImpl @Inject constructor(
 
             // Try direct Doc Name match first
             for (id in docIdsToTry) {
-                val doc = firestore.collection("events").document(id).get().await()
-                if (doc.exists()) {
-                    eventDoc = doc
-                    actualDocId = id
-                    break
+                try {
+                    val doc = firestore.collection("events").document(id).get().await()
+                    if (doc.exists()) {
+                        eventDoc = doc
+                        actualDocId = id
+                        break
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("UserRepository", "Permission denied checking Doc ID: $id")
                 }
             }
 
             // Try field ID match if not found by Doc Name
             if (eventDoc == null) {
-                val fieldQuery = firestore.collection("events")
-                    .whereIn("id", docIdsToTry)
-                    .limit(1).get().await()
-                if (!fieldQuery.isEmpty) {
-                    eventDoc = fieldQuery.documents.first()
-                    actualDocId = eventDoc.id
+                try {
+                    val fieldQuery = firestore.collection("events")
+                        .whereIn("id", docIdsToTry)
+                        .limit(1).get().await()
+                    if (!fieldQuery.isEmpty) {
+                        eventDoc = fieldQuery.documents.first()
+                        actualDocId = eventDoc.id
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("UserRepository", "Permission denied checking 'id' field query")
                 }
             }
 
