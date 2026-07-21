@@ -11,10 +11,6 @@ import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -52,7 +48,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -67,6 +62,7 @@ import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -100,7 +96,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.*
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueHighlightItem
+import com.harshdeep.jasnify.domain.model.VenueMediaItem
+import com.harshdeep.jasnify.domain.model.VenuePricingItem
+import com.harshdeep.jasnify.domain.model.VenueReview
+import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -120,10 +121,10 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.sections.VenueAllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.VenueGalleryDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.VenueGallerySection
-import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.sections.VenueReviewDetailPostScreen
 import com.harshdeep.jasnify.presentation.components.sections.VenueReviewsSection
 import com.harshdeep.jasnify.theme.BackgroundPrimary
@@ -142,6 +143,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
@@ -779,6 +781,18 @@ fun VenueMediaSlider(
 ) {
     val pagerState = rememberPagerState(pageCount = { mediaItems.size })
 
+    if (mediaItems.size > 1) {
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(3000)
+                if (!pagerState.isScrollInProgress) {
+                    val nextPage = (pagerState.currentPage + 1) % mediaItems.size
+                    pagerState.animateScrollToPage(nextPage)
+                }
+            }
+        }
+    }
+
     Box(modifier = modifier) {
         HorizontalPager(
             state = pagerState,
@@ -831,7 +845,7 @@ fun VenueMediaSlider(
         ) {
             val activeItem = mediaItems.getOrNull(pagerState.currentPage)
             if (activeItem?.isVideo == true) {
-                val audioIcon = if(isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_music)
+                val audioIcon = if(isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
 
                 TopBarIconButton(
                     icon = TopIcon.CustomPainter(painter = audioIcon),

@@ -475,6 +475,7 @@ fun VenueScreen(
                             onLastSavedVenueChange = { lastSavedVenue = it },
                             isMultiDay = activeEvent?.multiDay ?: false,
                             isViewer = isViewer,
+                            isOwner = isOwner,
                             selectedTab = selectedTab,
                             onSelectedTabChange = { selectedTab = it },
                             sharedTransitionScope = this@SharedTransitionLayout,
@@ -616,6 +617,7 @@ fun VenueMainContent(
     onLastSavedVenueChange: (Venue?) -> Unit,
     isMultiDay: Boolean,
     isViewer: Boolean,
+    isOwner: Boolean,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
     sharedTransitionScope: SharedTransitionScope,
@@ -1071,7 +1073,7 @@ fun VenueMainContent(
                 ),
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Room Access",
+                        text = if (isOwner) "Manage Room Access" else "Room Members",
                         icon = painterResource(R.drawable.ic_user_default),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
