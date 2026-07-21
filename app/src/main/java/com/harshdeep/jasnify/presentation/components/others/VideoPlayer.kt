@@ -5,30 +5,19 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -62,20 +51,22 @@ fun VideoPlayer(
     var isPlaying by remember { mutableStateOf(autoPlay) }
     var showIcon by remember { mutableStateOf(false) }
 
-    // Handle URL changes
     LaunchedEffect(videoUrl) {
-        val mediaItem = MediaItem.fromUri(videoUrl)
-        exoPlayer.setMediaItem(mediaItem)
-        exoPlayer.prepare()
+        if (videoUrl.isNotBlank()) {
+            exoPlayer.setMediaItem(MediaItem.fromUri(videoUrl))
+            exoPlayer.prepare()
+            exoPlayer.playWhenReady = isPlaying
+        }
+    }
+
+    LaunchedEffect(isPlaying) {
         exoPlayer.playWhenReady = isPlaying
     }
 
-    // Handle Mute state changes
     LaunchedEffect(isMuted) {
         exoPlayer.volume = if (isMuted) 0f else 1f
     }
 
-    // Auto-hide the play/pause icon
     LaunchedEffect(showIcon) {
         if (showIcon) {
             delay(800)
@@ -91,12 +82,12 @@ fun VideoPlayer(
 
     Box(
         modifier = modifier
+            .background(Color.Black)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
                 isPlaying = !isPlaying
-                exoPlayer.playWhenReady = isPlaying
                 showIcon = true
             },
         contentAlignment = Alignment.Center
@@ -106,12 +97,17 @@ fun VideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
+                    setBackgroundColor(android.graphics.Color.BLACK)
+                    setShutterBackgroundColor(android.graphics.Color.BLACK)
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
+            },
+            update = { view ->
+                view.player = exoPlayer
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -121,10 +117,9 @@ fun VideoPlayer(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            val painter = if (isPlaying) rememberVectorPainter(Icons.Rounded.PlayArrow) else rememberVectorPainter(Icons.Rounded.Pause)
-
+            val icon = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow
             TopBarIconButton(
-                icon = TopIcon.CustomPainter(painter = painter),
+                icon = TopIcon.CustomPainter(painter = rememberVectorPainter(icon)),
                 onClick = { },
                 backgroundStyle = ButtonBackground.TRANSLUCENT,
                 translucentAlpha = 0.5f,

@@ -100,6 +100,7 @@ import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
@@ -206,6 +207,8 @@ fun VenueScreen(
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+    val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
+    val venueReviews by venueViewModel.venueReviews.collectAsStateWithLifecycle()
 
     val venueSavedDestinations = remember(savedVenuesFromCloud) {
         savedVenuesFromCloud.associate { it.venueName to it.destination }
@@ -386,13 +389,27 @@ fun VenueScreen(
                     }
                     "detail" -> {
                         selectedVenueForDetail?.let { venue ->
-                            val detailData = remember(venue) {
-                                MockData.venueDetailsMap[venue.name]
-                                    ?: MockData.getDetailsForVenue(venue, MockData.sampleVenues1 + MockData.sampleVenues2)
+                            val detailData = remember(venue, allVenues, venueReviews) {
+                                val base = allVenues.find { it.id == venue.id } ?:
+                                MockData.venueDetailsMap[venue.name] ?:
+                                MockData.getDetailsForVenue(venue)
+                                
+                                // Merge reviews from Firestore if available
+                                if (venueReviews.isNotEmpty()) {
+                                    base.copy(reviewsData = base.reviewsData?.copy(reviews = venueReviews) ?: VenueReviewsData(
+                                        reviews = venueReviews
+                                    )
+                                    )
+                                } else {
+                                    base
+                                }
                             }
                             VenueDetailScreen(
                                 venueDetail = detailData,
-                                onBackClick = { selectedVenueForDetail = null },
+                                onBackClick = { 
+                                    selectedVenueForDetail = null
+                                    venueViewModel.setSelectedVenueId(null)
+                                },
                                 sharedTransitionScope = this@SharedTransitionLayout,
                                 animatedVisibilityScope = this@AnimatedContent,
                                 modifier = Modifier.fillMaxSize()
@@ -401,9 +418,11 @@ fun VenueScreen(
                     }
                     else -> {
                         VenueMainContent(
+                            allVenues = allVenues,
                             selectedLocation = currentAddress,
                             onVenueClick = { venue ->
                                 selectedVenueForDetail = venue
+                                venueViewModel.setSelectedVenueId(venue.id)
                                 onVenueClick(venue)
                             },
                             onLocationSelectorClick = { isLocationPickerVisible = true },
@@ -567,6 +586,7 @@ fun VenueScreen(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueMainContent(
+    allVenues: List<Venue>,
     selectedLocation: String,
     onVenueClick: (Venue) -> Unit,
     onLocationSelectorClick: () -> Unit,
@@ -622,8 +642,10 @@ fun VenueMainContent(
 
     val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val saveListSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
- 
-    val exploreVenues = remember { MockData.sampleVenues1 as List<Venue> }
+
+    val exploreVenues = remember(allVenues) {
+        allVenues.ifEmpty { MockData.sampleVenues1 }
+    }
 
     val recentVenuesList = remember<List<Venue>>(recentSearches, exploreVenues) {
         recentSearches.mapNotNull { name ->

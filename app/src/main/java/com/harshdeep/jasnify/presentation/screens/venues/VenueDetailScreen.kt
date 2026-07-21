@@ -319,7 +319,6 @@ private fun VenueDetailContent(
                 add("reviews")
                 add("div_reviews")
             }
-            add("explore_more_and_similar")
             add("footer")
         }
     }
@@ -555,12 +554,6 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (!venueDetail.similarVenues.isNullOrEmpty()) {
-                    item(key = "explore_more_and_similar") {
-                        VenueExploreMoreSection(similarVenues = venueDetail.similarVenues!!)
-                    }
-                }
-
                 item(key = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
@@ -670,7 +663,7 @@ private fun VenueDetailContent(
                                 Spacer(modifier = Modifier.height(8.dp))
 
                                 Text(
-                                    text = "2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar - 800007, Patna, Bihar 800007",
+                                    text = venue.location,
                                     style = JasnifyTheme.typography.labelXLarge,
                                     color = ContentSecondary
                                 )
@@ -681,7 +674,7 @@ private fun VenueDetailContent(
 
                     CustomTextButton(
                         onClick = {
-                            val mapQuery = "${venue.name}, 2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar 800007"
+                            val mapQuery = "${venue.name}, ${venue.location}"
                             val encodedQuery = Uri.encode(mapQuery)
                             val mapUri = "geo:0,0?q=$encodedQuery".toUri()
                             val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
@@ -738,7 +731,7 @@ private fun VenueDetailContent(
                     Spacer(Modifier.height(16.dp))
 
                     // Simulating the data coming from database
-                    val aboutVenueFromDb = "Discover the charm of ${venue.name}, located in Sampatchak, Patna. This inviting hotel blends comfort with elegance, making it the perfect choice for both business and leisure travelers. Experience our stylish rooms equipped with modern amenities and enjoy exceptional service that ensures a relaxing stay. Whether you're visiting for work or a getaway, ${venue.name} is your ideal retreat in Patna."
+                    val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
                     val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
 
                     Text(
@@ -896,10 +889,10 @@ fun VenueInfoSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAddressClick() },
-                verticalAlignment = Alignment.Bottom
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${venue.location}, India",
+                    text = venue.location,
                     style = JasnifyTheme.typography.bodyMedium,
                     color = ContentSecondary,
                     maxLines = 2,
@@ -1385,14 +1378,27 @@ fun VenueTabs(
 }
 
 @Composable
+fun getIconResId(iconName: String?): Int {
+    val context = LocalContext.current
+    return remember(iconName) {
+        if (iconName.isNullOrBlank()) R.drawable.ic_gallery
+        else {
+            val resId = context.resources.getIdentifier(iconName, "drawable", context.packageName)
+            if (resId != 0) resId else R.drawable.ic_gallery
+        }
+    }
+}
+
+@Composable
 fun PricingCard(
     title: String,
     price: String,
     unit: String,
-    iconRes: Int?,
+    iconRes: String?,
     labelText: String,
     shape: SquircleShape = SquircleShape(CornerExtraSmall)
 ) {
+    val resId = getIconResId(iconRes)
     Surface(
         color = SurfaceSecondary,
         shape = shape,
@@ -1406,7 +1412,7 @@ fun PricingCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(contentAlignment = Alignment.TopCenter) {
                     Icon(
-                        painter = painterResource(iconRes ?: R.drawable.ic_gallery),
+                        painter = painterResource(resId),
                         contentDescription = null,
                         tint = Color.Unspecified,
                         modifier = Modifier.size(24.dp)
@@ -1448,6 +1454,7 @@ fun PricingCard(
 
 @Composable
 fun HighlightItemRow(data: VenueHighlightItem) {
+    val resId = getIconResId(data.iconRes)
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -1459,7 +1466,7 @@ fun HighlightItemRow(data: VenueHighlightItem) {
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(
-                    painter = painterResource(data.iconRes ?: R.drawable.ic_gallery),
+                    painter = painterResource(resId),
                     contentDescription = null,
                     tint = ContentBrandDark,
                     modifier = Modifier.size(24.dp)

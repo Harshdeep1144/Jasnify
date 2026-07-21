@@ -235,7 +235,7 @@ fun VenueCardFull(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = venue.location,
+                            text = "${venue.locality}, ${venue.city}",
                             style = JasnifyTheme.typography.labelMedium,
                             color = ContentSecondary
                         )
@@ -446,8 +446,7 @@ fun VenueCardCompact(
                 Spacer(Modifier.height(4.dp))
 
                 LocationAndTypeRow(
-                    location = venue.location,
-                    type = venue.type,
+                    venue = venue,
                     compactCardSize = compactCardSize
                 )
 
@@ -615,8 +614,7 @@ private fun BannerRow(
 
 @Composable
 private fun LocationAndTypeRow(
-    location: String,
-    type: String?,
+    venue: Venue,
     compactCardSize: CompactCardSize = CompactCardSize.MEDIUM
 ) {
     val isMedium = compactCardSize == CompactCardSize.MEDIUM
@@ -635,7 +633,7 @@ private fun LocationAndTypeRow(
         }
 
         Text(
-            text = location,
+            text = "${venue.locality}, ${venue.city}",
             style = JasnifyTheme.typography.labelMedium,
             color = ContentSecondary,
             maxLines = 1,

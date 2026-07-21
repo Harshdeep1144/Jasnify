@@ -3,6 +3,8 @@ package com.harshdeep.jasnify.presentation.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.harshdeep.jasnify.domain.model.SavedVenue
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.repository.VenueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -13,6 +15,23 @@ import javax.inject.Inject
 class VenueViewModel @Inject constructor(
     private val repository: VenueRepository
 ) : ViewModel() {
+
+    val allVenues: StateFlow<List<Venue>> = repository.getAllVenues()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedVenueId = MutableStateFlow<String?>(null)
+    
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val venueReviews: StateFlow<List<VenueReview>> = _selectedVenueId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList())
+            else repository.getVenueReviews(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setSelectedVenueId(id: String?) {
+        _selectedVenueId.value = id
+    }
 
     private val _eventId = MutableStateFlow<String?>(null)
 
@@ -52,6 +71,12 @@ class VenueViewModel @Inject constructor(
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
             repository.removeSavedVenue(eventId, venueName, !isViewer)
+        }
+    }
+
+    fun seedMockData(venues: List<Venue>) {
+        viewModelScope.launch {
+            repository.seedMockVenues(venues)
         }
     }
 }
