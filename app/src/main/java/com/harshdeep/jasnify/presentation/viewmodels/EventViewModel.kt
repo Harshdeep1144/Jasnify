@@ -290,61 +290,77 @@ class EventViewModel @Inject constructor(
             // 1. Try exact matches on Document ID (Fastest)
             val docIds = listOf(inputId, lowercaseId, uppercaseId).distinct()
             for (id in docIds) {
-                val doc = firestore.collection("events").document(id).get().await()
-                if (doc.exists()) {
-                    android.util.Log.d("EventViewModel", "Found event by Doc ID: $id")
-                    // CRITICAL: Overwrite object id with Document ID to ensure path consistency
-                    return doc.toObject(Event::class.java)?.copy(id = doc.id)
+                try {
+                    val doc = firestore.collection("events").document(id).get().await()
+                    if (doc.exists()) {
+                        android.util.Log.d("EventViewModel", "Found event by Doc ID: $id")
+                        // CRITICAL: Overwrite object id with Document ID to ensure path consistency
+                        return doc.toObject(Event::class.java)?.copy(id = doc.id)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("EventViewModel", "Permission denied or error checking Doc ID: $id - ${e.message}")
                 }
             }
 
             // 2. Try exact matches on internal 'id' field
-            val fieldQuery = firestore.collection("events")
-                .whereIn("id", docIds)
-                .limit(1).get().await()
+            try {
+                val fieldQuery = firestore.collection("events")
+                    .whereIn("id", docIds)
+                    .limit(1).get().await()
 
-            if (!fieldQuery.isEmpty) {
-                val doc = fieldQuery.documents.first()
-                val found = doc.toObject(Event::class.java)
-                android.util.Log.d("EventViewModel", "Found event by internal 'id' match: ${found?.id} (Doc ID: ${doc.id})")
-                // CRITICAL: Overwrite object id with Document ID
-                return found?.copy(id = doc.id)
+                if (!fieldQuery.isEmpty) {
+                    val doc = fieldQuery.documents.first()
+                    val found = doc.toObject(Event::class.java)
+                    android.util.Log.d("EventViewModel", "Found event by internal 'id' match: ${found?.id} (Doc ID: ${doc.id})")
+                    // CRITICAL: Overwrite object id with Document ID
+                    return found?.copy(id = doc.id)
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("EventViewModel", "Permission denied or error checking 'id' field - ${e.message}")
             }
 
             // 3. Fallback: Prefix searches (for 8-character codes or shortened UUIDs)
-            val prefixVariants = listOf(lowercaseId, uppercaseId).distinct()
+            val prefixVariants = listOf(inputId, lowercaseId, uppercaseId).distinct()
             for (prefix in prefixVariants) {
-                // Check internal 'id' field prefix
-                val pQuery = firestore.collection("events")
-                    .whereGreaterThanOrEqualTo("id", prefix)
-                    .whereLessThanOrEqualTo("id", prefix + "\uf8ff")
-                    .limit(1).get().await()
+                try {
+                    // Check internal 'id' field prefix
+                    val pQuery = firestore.collection("events")
+                        .whereGreaterThanOrEqualTo("id", prefix)
+                        .whereLessThanOrEqualTo("id", prefix + "\uf8ff")
+                        .limit(1).get().await()
 
-                if (!pQuery.isEmpty()) {
-                    val doc = pQuery.documents.first()
-                    val found = doc.toObject(Event::class.java)
-                    android.util.Log.d("EventViewModel", "Found event by internal 'id' prefix match: $prefix (Doc ID: ${doc.id})")
-                    return found?.copy(id = doc.id)
+                    if (!pQuery.isEmpty()) {
+                        val doc = pQuery.documents.first()
+                        val found = doc.toObject(Event::class.java)
+                        android.util.Log.d("EventViewModel", "Found event by internal 'id' prefix match: $prefix (Doc ID: ${doc.id})")
+                        return found?.copy(id = doc.id)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("EventViewModel", "Prefix search on 'id' field failed for $prefix - ${e.message}")
                 }
 
-                // Check Document ID prefix
-                val dpQuery = firestore.collection("events")
-                    .whereGreaterThanOrEqualTo(FieldPath.documentId(), prefix)
-                    .whereLessThanOrEqualTo(FieldPath.documentId(), prefix + "\uf8ff")
-                    .limit(1).get().await()
+                try {
+                    // Check Document ID prefix
+                    val dpQuery = firestore.collection("events")
+                        .whereGreaterThanOrEqualTo(FieldPath.documentId(), prefix)
+                        .whereLessThanOrEqualTo(FieldPath.documentId(), prefix + "\uf8ff")
+                        .limit(1).get().await()
 
-                if (!dpQuery.isEmpty()) {
-                    val doc = dpQuery.documents.first()
-                    val found = doc.toObject(Event::class.java)
-                    android.util.Log.d("EventViewModel", "Found event by Doc ID prefix match: $prefix (Doc ID: ${doc.id})")
-                    return found?.copy(id = doc.id)
+                    if (!dpQuery.isEmpty()) {
+                        val doc = dpQuery.documents.first()
+                        val found = doc.toObject(Event::class.java)
+                        android.util.Log.d("EventViewModel", "Found event by Doc ID prefix match: $prefix (Doc ID: ${doc.id})")
+                        return found?.copy(id = doc.id)
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.w("EventViewModel", "Prefix search on Doc ID failed for $prefix - ${e.message}")
                 }
             }
 
-            android.util.Log.w("EventViewModel", "No event found for ID: $inputId")
+            android.util.Log.w("EventViewModel", "FINAL: No event found for ID: $inputId after all attempts.")
             null
         } catch (e: Exception) {
-            android.util.Log.e("EventViewModel", "CRITICAL: Event ID Search Failed for $inputId", e)
+            android.util.Log.e("EventViewModel", "CRITICAL: Event ID Search crashed for $inputId", e)
             null
         }
     }

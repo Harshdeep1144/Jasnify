@@ -257,15 +257,17 @@ fun OnboardingType(
                                     isVerifying = true
                                     coroutineScope.launch {
                                         try {
+                                            android.util.Log.d("OnboardingType", "Verifying Event ID: '${eventIdValue.trim()}'")
                                             val event = eventViewModel.getEventById(eventIdValue.trim())
+                                            android.util.Log.d("OnboardingType", "Result for '${eventIdValue.trim()}': ${if (event != null) "Found: " + event.name else "Not Found"}")
                                             if (event != null) {
                                                 verifiedEvent = event
                                                 currentScreenState = OnboardingState.EVENT_DETAILS
                                             } else {
-                                                toastData = ToastData("Event ID not found. Please check and try again.", ToastType.ERROR)
+                                                toastData = ToastData("Event ID not found.", ToastType.ERROR)
                                             }
                                         } catch (e: Exception) {
-                                            toastData = ToastData("Connection error. Please try again.", ToastType.ERROR)
+                                            toastData = ToastData("Connection error.", ToastType.ERROR)
                                         } finally {
                                             isVerifying = false
                                         }
@@ -547,7 +549,7 @@ fun EnterEventIdScreen(
 
             PrimaryInput(
                 value = eventId,
-                onValueChange = onVerifyClick.let { onEventIdChange }, // Just keep it simple
+                onValueChange = onEventIdChange,
                 placeholder = "Enter the event ID",
                 shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
             )
