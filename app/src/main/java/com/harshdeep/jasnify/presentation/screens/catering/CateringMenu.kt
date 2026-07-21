@@ -1026,7 +1026,7 @@ fun CateringMenuScreen(
                 } else null,
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Room Access",
+                        text = if(isOwner) "Manage Room Access" else "Room Members",
                         icon = painterResource(R.drawable.ic_user_default),
                         onClick = {
                             showMenuBottomSheet = false
