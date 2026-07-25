@@ -251,6 +251,11 @@ class AuthViewModel @Inject constructor(
         return auth.currentUser != null
     }
 
+    fun updateLastActive(uid: String, isMerchant: Boolean) {
+        viewModelScope.launch {
+            userRepository.updateLastActive(uid, isMerchant)
+        }
+    }
 
     fun logout(context: Context) {
         _authState.value = AuthState.Loading

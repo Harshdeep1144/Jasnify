@@ -158,7 +158,7 @@ fun VenueGallerySection(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                if (mediaItem?.isVideo == true) {
+                if (mediaItem?.video == true) {
                     VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
                 }
             }
@@ -190,7 +190,7 @@ fun VenueGallerySection(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                    if (mediaItem?.isVideo == true) {
+                    if (mediaItem?.video == true) {
                         VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
                     }
                 }
@@ -215,7 +215,7 @@ fun VenueGallerySection(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                    if (mediaItem?.isVideo == true) {
+                    if (mediaItem?.video == true) {
                         VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
                     }
                 }
@@ -240,7 +240,7 @@ fun VenueGallerySection(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                    if (mediaItem?.isVideo == true) {
+                    if (mediaItem?.video == true) {
                         VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
                     }
                     Box(
@@ -391,7 +391,7 @@ fun VenueGalleryDetailScreen(
                                         contentScale = ContentScale.Crop,
                                         modifier = Modifier.fillMaxSize()
                                     )
-                                    if (mediaItem.isVideo) {
+                                    if (mediaItem.video) {
                                         VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
                                     }
                                 }
@@ -530,7 +530,7 @@ fun VenueAlbumGridCard(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            if (mediaItem.isVideo) {
+                            if (mediaItem.video) {
                                 VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 20.dp)
                             }
 
@@ -576,7 +576,7 @@ fun AlbumGridCardPreview() {
         mediaItems = listOf(
             VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
             VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500", isVideo = true),
+            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500", video = true),
             VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
             VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
             VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
@@ -641,7 +641,7 @@ fun GallerySectionPreview() {
             categoryName = "All",
             mediaItems = listOf(
                 VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500", isVideo = true),
+                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500", video = true),
                 VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
                 VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500")
             )
