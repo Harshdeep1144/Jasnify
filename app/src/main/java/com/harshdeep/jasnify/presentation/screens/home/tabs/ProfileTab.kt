@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.harshdeep.jasnify.domain.model.MessageStatus
 import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
@@ -42,6 +44,18 @@ fun ProfileTab(
         enquiryViewModel.getEnquiriesForUser(currentUserUid)
             .catch { emit(emptyList()) }
     }.collectAsState(initial = emptyList())
+
+    // Mark incoming messages as delivered when they appear in the inbox
+    LaunchedEffect(enquiries) {
+        enquiries.forEach { enquiry ->
+            val hasUndelivered = enquiry.messages.any { 
+                it.senderId != currentUserUid && it.status == MessageStatus.SENT 
+            }
+            if (hasUndelivered) {
+                enquiryViewModel.markMessagesAsDelivered(currentUserUid, enquiry.merchantId, enquiry.venueId)
+            }
+        }
+    }
 
     Column(
         modifier = Modifier

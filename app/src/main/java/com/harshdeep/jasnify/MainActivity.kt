@@ -10,7 +10,11 @@ import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
+import androidx.compose.runtime.LaunchedEffect
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.presentation.navigation.AppNavigation
+import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -27,6 +31,16 @@ class MainActivity : ComponentActivity() {
           statusBarStyle = SystemBarStyle.Companion.light(Color.Companion.Transparent.toArgb(), Color.Companion.White.toArgb())
         )
         setContent {
+            val authViewModel: AuthViewModel = hiltViewModel()
+            val auth = FirebaseAuth.getInstance()
+            
+            // Keep user's lastActive status updated
+            LaunchedEffect(auth.currentUser?.uid) {
+                auth.currentUser?.uid?.let { uid ->
+                    authViewModel.updateLastActive(uid, isMerchant = false)
+                }
+            }
+
             JasnifyTheme {
                 AppNavigation()
             }

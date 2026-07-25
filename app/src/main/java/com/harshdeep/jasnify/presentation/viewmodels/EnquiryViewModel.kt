@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.harshdeep.jasnify.domain.model.ChatMessage
 import com.harshdeep.jasnify.domain.model.Enquiry
+import com.harshdeep.jasnify.domain.model.MerchantUser
 import com.harshdeep.jasnify.domain.model.MessageStatus
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.repository.EnquiryRepository
@@ -25,6 +26,10 @@ class EnquiryViewModel @Inject constructor(
 
     fun getEnquiriesForMerchant(merchantId: String): Flow<List<Enquiry>> {
         return enquiryRepository.getEnquiriesForMerchant(merchantId)
+    }
+
+    fun getMerchantProfile(merchantId: String): Flow<MerchantUser?> {
+        return userRepository.getMerchantProfileFlow(merchantId)
     }
 
     fun getChatMessages(userId: String, merchantId: String, itemId: String): Flow<List<ChatMessage>> {
@@ -70,6 +75,13 @@ class EnquiryViewModel @Inject constructor(
         val enquiryId = "${userId}_${merchantId}_${itemId}"
         viewModelScope.launch {
             enquiryRepository.updateMessageStatus(enquiryId, userId, MessageStatus.SEEN)
+        }
+    }
+
+    fun markMessagesAsDelivered(userId: String, merchantId: String, itemId: String) {
+        val enquiryId = "${userId}_${merchantId}_${itemId}"
+        viewModelScope.launch {
+            enquiryRepository.markAsDelivered(enquiryId, userId)
         }
     }
 }
