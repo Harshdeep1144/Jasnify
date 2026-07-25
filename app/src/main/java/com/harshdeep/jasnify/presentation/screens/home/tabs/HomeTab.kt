@@ -39,12 +39,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
+ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
@@ -73,6 +75,7 @@ private const val PARALLAX_RATE = 0.5f
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun HomeTab(
+    mainNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -149,6 +152,7 @@ fun HomeTab(
         eventDateString = eventDateString,
         remainingPercentage = remainingPercentage,
         amountText = amountText,
+        mainNavController = mainNavController,
         onMenuClick = onMenuClick,
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
         eventViewModel = eventViewModel
@@ -163,6 +167,7 @@ fun HomeTabContent(
     eventDateString: String,
     remainingPercentage: Float,
     amountText: String,
+    mainNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel? = null
@@ -350,7 +355,7 @@ fun HomeTabContent(
                                 VenueCarousel(
                                     title = "Trending Venues in Patna",
                                     venues = MockData.sampleVenues1,
-                                    onVenueClick = { },
+                                    onVenueClick = { navigateTo("venues") },
                                     onFavoriteToggle = { },
                                     onOfferClick = { }
                                 )
@@ -360,7 +365,7 @@ fun HomeTabContent(
                                 VenueCarousel(
                                     title = "More Venues to Explore",
                                     venues = MockData.sampleVenues2,
-                                    onVenueClick = { },
+                                    onVenueClick = { navigateTo("venues") },
                                     onFavoriteToggle = { },
                                     onOfferClick = { }
                                 )
@@ -383,6 +388,11 @@ fun HomeTabContent(
                         VenueScreen(
                             selectedLocation = "City, State",
                             onVenueClick = {},
+                            onChatClick = { venue ->
+                                val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
+                                val venueId = venue.id.ifBlank { "unknown_venue" }
+                                mainNavController.navigate("chat_screen/$merchantId/$venueId")
+                            },
                             onBackClick = { currentScreen = "home" },
                             eventViewModel = vm
                         )
@@ -403,11 +413,13 @@ fun HomeTabContent(
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun HomeTabContentPreview() {
+    val context = LocalContext.current
     HomeTabContent(
         eventName = "Taylor & Travis’s Wedding",
         eventDateString = "2026-11-20",
         remainingPercentage = 0.65f,
         amountText = "₹46L",
+        mainNavController = NavHostController(context),
         onMenuClick = {},
         onBottomBarVisibilityChange = {}
     )

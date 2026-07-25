@@ -1,21 +1,31 @@
 package com.harshdeep.jasnify.domain.model
 
+import com.google.firebase.firestore.PropertyName
 import java.util.UUID
+
+enum class VenueStatus {
+    DRAFT,
+    PENDING,
+    PUBLISHED,
+    REJECTED,
+    HIDDEN
+}
 
 data class Venue(
     val id: String = UUID.randomUUID().toString(),
+    val merchantId: String = "",
     val name: String = "",
+    val status: VenueStatus = VenueStatus.DRAFT,
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
     val type: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",
-    val services: List<String> = emptyList(),
     val priceStartsFrom: String = "₹0",
     val images: List<String> = emptyList(),
     val enquiriesLastMonth: Int = 0,
-    val isFavorite: Boolean = false,
+    val favorite: Boolean = false,
     val aboutText: String? = null,
     val mediaItems: List<VenueMediaItem> = emptyList(),
     val pricingItems: List<VenuePricingItem> = emptyList(),
@@ -27,11 +37,12 @@ data class Venue(
 
 data class VenueMediaItem(
     val url: String = "",
-    val isVideo: Boolean = false,
+    val video: Boolean = false,
     val videoDuration: String? = null
 )
 
 data class VenuePricingItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val title: String = "",
     val price: String = "",
     val unit: String = "",
@@ -40,6 +51,7 @@ data class VenuePricingItem(
 )
 
 data class VenueHighlightItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
     val label: String = "",
     val value: String = "",
     val iconRes: String? = null

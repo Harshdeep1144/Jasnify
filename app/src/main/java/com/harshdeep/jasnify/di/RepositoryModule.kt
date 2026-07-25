@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.di
 
 import com.harshdeep.jasnify.data.repository.ChecklistRepositoryImpl
+import com.harshdeep.jasnify.data.repository.EnquiryRepositoryImpl
 import com.harshdeep.jasnify.domain.repository.ChecklistRepository
+import com.harshdeep.jasnify.domain.repository.EnquiryRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -41,4 +43,10 @@ abstract class RepositoryModule {
     abstract fun bindVenueRepository(
         venueRepositoryImpl: com.harshdeep.jasnify.data.repository.VenueRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.VenueRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindEnquiryRepository(
+        enquiryRepositoryImpl: EnquiryRepositoryImpl
+    ): EnquiryRepository
 }
