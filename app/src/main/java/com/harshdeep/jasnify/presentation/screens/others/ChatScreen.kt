@@ -131,6 +131,7 @@ fun ChatScreen(
                                 merchantId = merchantId,
                                 itemId = venueId,
                                 itemName = venue?.name ?: "Venue",
+                                itemType = "Venue",
                                 text = messageText
                             )
                             messageText = ""

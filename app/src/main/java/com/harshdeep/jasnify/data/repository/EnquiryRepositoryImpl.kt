@@ -29,17 +29,33 @@ class EnquiryRepositoryImpl @Inject constructor(
     }
 
     override fun getEnquiriesForUser(userId: String): Flow<List<Enquiry>> = callbackFlow {
-        val subscription = firestore.collection("enquiries")
+        // Log query details for debugging
+        android.util.Log.d("EnquiryRepo", "Fetching enquiries for user: $userId")
+
+        val query = firestore.collection("enquiries")
             .whereEqualTo("userId", userId)
             .orderBy("timestamp", Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-                val enquiries = snapshot?.documents?.mapNotNull { it.toObject(Enquiry::class.java) } ?: emptyList()
-                trySend(enquiries)
+
+        val subscription = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                android.util.Log.e("EnquiryRepo", "Error fetching user enquiries: ${error.message}")
+                // If it's an index error, this will log the URL
+                close(error)
+                return@addSnapshotListener
             }
+            
+            val enquiries = snapshot?.documents?.mapNotNull { doc ->
+                try {
+                    doc.toObject(Enquiry::class.java)
+                } catch (e: Exception) {
+                    android.util.Log.e("EnquiryRepo", "Error mapping doc ${doc.id}: ${e.message}")
+                    null
+                }
+            } ?: emptyList()
+            
+            android.util.Log.d("EnquiryRepo", "Found ${enquiries.size} enquiries for user")
+            trySend(enquiries)
+        }
         awaitClose { subscription.remove() }
     }
 
@@ -69,6 +85,15 @@ class EnquiryRepositoryImpl @Inject constructor(
                 trySend(snapshot?.toObject(Enquiry::class.java))
             }
         awaitClose { subscription.remove() }
+    }
+
+    override suspend fun getEnquiryOnce(enquiryId: String): Enquiry? {
+        return try {
+            firestore.collection("enquiries").document(enquiryId).get().await()
+                .toObject(Enquiry::class.java)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun sendMessage(enquiryId: String, message: ChatMessage) {
