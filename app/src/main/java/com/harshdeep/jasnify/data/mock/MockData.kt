@@ -6,13 +6,13 @@ import com.harshdeep.jasnify.domain.model.*
 object MockData {
     val sampleVenues1 = listOf(
         Venue(
+            merchantId = "merchant_123",
             name = "Hotel Imperial Inn",
             city = "Patna",
             locality = "Sampatchak",
             location = "2nd Floor, Style Baazar, Park Street Road, Sampatchak, Patna, Bihar - 800007, Patna, Bihar 800007",
             rating = 4.4,
             totalReviews = "1k",
-            services = listOf("AC Rooms", "Catering", "Parking"),
             priceStartsFrom = "₹2,999",
             images = listOf(
                 "https://picsum.photos/800/400?random=1",
@@ -21,13 +21,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_456",
             name = "Raj Palace Banquet",
             city = "Patna",
             locality = "Danapur",
             location = "Main Road, Danapur Cantonment, Near Danapur Station, Patna, Bihar 801503",
             rating = 4.0,
             totalReviews = "800",
-            services = listOf("Decor", "AC", "Power Backup"),
             priceStartsFrom = "₹2,749",
             images = listOf(
                 "https://picsum.photos/800/400?random=44",
@@ -37,13 +37,13 @@ object MockData {
             enquiriesLastMonth = 32
         ),
         Venue(
+            merchantId = "merchant_789",
             name = "Royal Garden Lawn",
             city = "Patna",
             locality = "Bailey Road",
             location = "Near Saguna More, Bailey Road, Danapur, Patna, Bihar 801503",
             rating = 4.5,
             totalReviews = "950",
-            services = listOf("Lawn", "Lighting", "Catering"),
             priceStartsFrom = "₹3,999",
             images = listOf(
                 "https://picsum.photos/800/400?random=7",
@@ -52,13 +52,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_101",
             name = "Grand Celebration Hall",
             city = "Patna",
             locality = "Kankarbagh",
             location = "Lohia Nagar, Kankarbagh Main Road, Opposite PC Colony, Patna, Bihar 800020",
             rating = 4.3,
             totalReviews = "720",
-            services = listOf("Stage", "Decoration", "Parking"),
             priceStartsFrom = "₹2,499",
             images = listOf(
                 "https://picsum.photos/800/400?random=10",
@@ -67,13 +67,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_102",
             name = "Maharaja Banquet",
             city = "Patna",
             locality = "Ashiana Nagar",
             location = "Ashiana-Digha Road, Near Passport Office, Ashiana Nagar, Patna, Bihar 800025",
             rating = 4.2,
             totalReviews = "530",
-            services = listOf("DJ", "Lighting", "Catering"),
             priceStartsFrom = "₹2,799",
             images = listOf(
                 "https://picsum.photos/800/400?random=13",
@@ -83,13 +83,13 @@ object MockData {
             enquiriesLastMonth = 90
         ),
         Venue(
+            merchantId = "merchant_103",
             name = "Lotus Convention Center",
             city = "Patna",
             locality = "Patliputra Colony",
             location = "Industrial Estate, Patliputra Colony, Near Kurji More, Patna, Bihar 800013",
             rating = 4.6,
             totalReviews = "1.2k",
-            services = listOf("AC Hall", "Decoration", "Parking"),
             priceStartsFrom = "₹3,799",
             images = listOf(
                 "https://picsum.photos/800/400?random=16",
@@ -98,13 +98,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_104",
             name = "Golden Leaf Banquet",
             city = "Patna",
             locality = "Saguna More",
             location = "R.K. Puram, Saguna More, Danapur-Khagaul Road, Patna, Bihar 801503",
             rating = 4.1,
             totalReviews = "610",
-            services = listOf("Stage", "AC Hall", "Decor"),
             priceStartsFrom = "₹2,199",
             images = listOf(
                 "https://picsum.photos/800/400?random=19",
@@ -113,13 +113,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_105",
             name = "Royal Heritage Lawn",
             city = "Patna",
             locality = "Bihta",
             location = "Near IIT Patna, Bihta-Aurangabad Road, Bihta, Patna, Bihar 801103",
             rating = 4.4,
             totalReviews = "770",
-            services = listOf("Outdoor Lawn", "Lighting", "Parking"),
             priceStartsFrom = "₹3,499",
             images = listOf(
                 "https://picsum.photos/800/400?random=22",
@@ -131,13 +131,13 @@ object MockData {
 
     val sampleVenues2 = listOf(
         Venue(
+            merchantId = "merchant_201",
             name = "Shahi Garden",
             city = "Patna",
             locality = "Phulwari Sharif",
             location = "Anisabad-Phulwari Road, Near AIIMS Patna, Phulwari Sharif, Patna, Bihar 801505",
             rating = 4.1,
             totalReviews = "610",
-            services = listOf("Lawn", "Decoration", "Parking"),
             priceStartsFrom = "₹2,199",
             images = listOf(
                 "https://picsum.photos/800/400?random=25",
@@ -146,13 +146,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_202",
             name = "Celebration Banquet",
             city = "Patna",
             locality = "Patliputra Colony",
             location = "P&M Mall Road, Patliputra Colony, Patna, Bihar 800013",
             rating = 4.3,
             totalReviews = "700",
-            services = listOf("AC Hall", "DJ", "Catering"),
             priceStartsFrom = "₹3,299",
             images = listOf(
                 "https://picsum.photos/800/400?random=28",
@@ -161,13 +161,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_203",
             name = "Green Valley Resort",
             city = "Patna",
             locality = "Danapur",
             location = "Khagaul-Danapur Road, Near DRM Office, Danapur, Patna, Bihar 801503",
             rating = 4.5,
             totalReviews = "850",
-            services = listOf("Resort Stay", "Pool", "Catering"),
             priceStartsFrom = "₹4,999",
             images = listOf(
                 "https://picsum.photos/800/400?random=31",
@@ -176,13 +176,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_204",
             name = "Royal Palace Hall",
             city = "Patna",
             locality = "Boring Road",
             location = "Sri Krishna Puri, Near Boring Road Crossing, Patna, Bihar 800001",
             rating = 4.0,
             totalReviews = "540",
-            services = listOf("Stage", "Lighting", "Parking"),
             priceStartsFrom = "₹2,499",
             images = listOf(
                 "https://picsum.photos/800/400?random=34",
@@ -191,13 +191,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_205",
             name = "Grand Lotus Banquet",
             city = "Patna",
             locality = "Kankarbagh",
             location = "Hanuman Nagar, Kankarbagh Road, Near Kendriya Vidyalaya, Patna, Bihar 800020",
             rating = 4.2,
             totalReviews = "620",
-            services = listOf("Decoration", "DJ", "AC Hall"),
             priceStartsFrom = "₹2,899",
             images = listOf(
                 "https://picsum.photos/800/400?random=37",
@@ -206,13 +206,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_206",
             name = "Silver Oak Lawn",
             city = "Patna",
             locality = "Saguna More",
             location = "Danapur-Khagaul Road, Near Saguna More, Patna, Bihar 801503",
             rating = 4.3,
             totalReviews = "710",
-            services = listOf("Outdoor Lawn", "Lighting", "Catering"),
             priceStartsFrom = "₹3,199",
             images = listOf(
                 "https://picsum.photos/800/400?random=40",
@@ -221,13 +221,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_207",
             name = "Emerald Garden",
             city = "Patna",
             locality = "Ashiana Nagar",
             location = "Magistrate Colony Road, Ashiana Nagar, Patna, Bihar 800025",
             rating = 4.4,
             totalReviews = "760",
-            services = listOf("Garden Venue", "Decor", "Parking"),
             priceStartsFrom = "₹3,499",
             images = listOf(
                 "https://picsum.photos/800/400?random=43",
@@ -236,13 +236,13 @@ object MockData {
             )
         ),
         Venue(
+            merchantId = "merchant_208",
             name = "Grand Palace Banquet",
             city = "Patna",
             locality = "Patna City",
             location = "Ashok Rajpath, Near Takhat Sri Patna Sahib, Patna City, Patna, Bihar 800008",
             rating = 4.1,
             totalReviews = "500",
-            services = listOf("AC Hall", "Decoration", "Stage"),
             priceStartsFrom = "₹2,599",
             images = listOf(
                 "https://picsum.photos/800/400?random=46",
@@ -265,11 +265,11 @@ object MockData {
             aboutText = "${venue.name} located in ${venue.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams perfectly. We offer state-of-the-art facilities and a professional team to handle all your needs.",
             enquiriesLastMonth = if (venue.enquiriesLastMonth == 0) (20..150).random() else venue.enquiriesLastMonth,
             mediaItems = listOf(
-                VenueMediaItem(url = detailImages[0], isVideo = false),
-                VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:10"),
-                VenueMediaItem(url = detailImages[1], isVideo = false),
-                VenueMediaItem(url = detailImages[2], isVideo = false),
-                VenueMediaItem(url = detailImages[3], isVideo = false)
+                VenueMediaItem(url = detailImages[0], video = false),
+                VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", video = true, videoDuration = "0:10"),
+                VenueMediaItem(url = detailImages[1], video = false),
+                VenueMediaItem(url = detailImages[2], video = false),
+                VenueMediaItem(url = detailImages[3], video = false)
             ),
             pricingItems = listOf(
                 VenuePricingItem(
@@ -325,7 +325,7 @@ object MockData {
                 VenueGalleryCategory(
                     categoryName = "All Photos",
                     mediaItems = detailImages.mapIndexed { index, url ->
-                        if (index == 1) VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:15")
+                        if (index == 1) VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", video = true, videoDuration = "0:15")
                         else VenueMediaItem(url = url)
                     }
                 ),
@@ -333,7 +333,7 @@ object MockData {
                     categoryName = "Decor",
                     mediaItems = listOf(
                         VenueMediaItem("https://picsum.photos/800/400?random=101"),
-                        VenueMediaItem("https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:46"),
+                        VenueMediaItem("https://www.w3schools.com/html/mov_bbb.mp4", video = true, videoDuration = "0:46"),
                         VenueMediaItem("https://picsum.photos/800/400?random=103"),
                         VenueMediaItem("https://picsum.photos/800/400?random=104")
                     )
@@ -344,7 +344,7 @@ object MockData {
                         VenueMediaItem("https://picsum.photos/800/400?random=109"),
                         VenueMediaItem("https://picsum.photos/800/400?random=110"),
                         VenueMediaItem("https://picsum.photos/800/400?random=111"),
-                        VenueMediaItem("https://www.w3schools.com/html/mov_bbb.mp4", isVideo = true, videoDuration = "0:15")
+                        VenueMediaItem("https://www.w3schools.com/html/mov_bbb.mp4", video = true, videoDuration = "0:15")
                     )
                 )
             ),

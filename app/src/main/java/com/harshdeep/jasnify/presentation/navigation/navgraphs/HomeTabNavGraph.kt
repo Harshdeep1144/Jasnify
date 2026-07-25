@@ -20,6 +20,7 @@ fun NavGraphBuilder.homeNavGraph(
 ) {
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
+            mainNavController = mainNavController,
             onMenuClick = {
                 mainNavController.navigate((Screen.EventDetail.route))
             },

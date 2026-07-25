@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.domain.repository
 
+import com.harshdeep.jasnify.domain.model.MerchantUser
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import kotlinx.coroutines.flow.Flow
@@ -9,6 +10,11 @@ interface UserRepository {
     suspend fun getUserProfile(uid: String): User?
     suspend fun searchUsers(query: String): List<User>
     suspend fun getUserByEmail(email: String): User?
+
+    // Merchant Profiles
+    suspend fun getMerchantProfile(uid: String): MerchantUser?
+    fun getMerchantProfileFlow(uid: String): Flow<MerchantUser?>
+    suspend fun updateLastActive(uid: String, isMerchant: Boolean)
     
     // Room Access Management
     suspend fun grantRoomAccess(eventId: String, roomType: String, email: String, role: UserRole)

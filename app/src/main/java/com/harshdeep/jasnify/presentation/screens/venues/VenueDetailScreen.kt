@@ -93,6 +93,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
@@ -165,6 +166,7 @@ enum class VenueActiveScreen {
 fun VenueDetailScreen(
     venueDetail: Venue,
     onBackClick: () -> Unit = {},
+    onChatClick: (Venue) -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -192,6 +194,7 @@ fun VenueDetailScreen(
                 VenueDetailContent(
                     venueDetail = venueDetail,
                     onBackClick = onBackClick,
+                    onChatClick = onChatClick,
                     onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
                     onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
                     onOpenReviewPost = { review ->
@@ -250,6 +253,7 @@ fun VenueDetailScreen(
 private fun VenueDetailContent(
     venueDetail: Venue,
     onBackClick: () -> Unit,
+    onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
     onOpenReviewPost: (VenueReview) -> Unit,
@@ -282,7 +286,7 @@ private fun VenueDetailContent(
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
     var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
-    var isFavoriteState by remember { mutableStateOf(venue.isFavorite) }
+    var isFavoriteState by remember { mutableStateOf(venue.favorite) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail) {
@@ -598,12 +602,14 @@ private fun VenueDetailContent(
         }
 
         FloatingBottomActionBar(
-            onMessageClick = { },
+            onMessageClick = { onChatClick(venue) },
             onBookCallClick = { },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .navigationBarsPadding()
+                .graphicsLayer { translationY = 0f } // Ensure it's not shifted
+                .zIndex(10f) // Keep it on top
         )
 
 // ============================================================= Bottom Sheets ===============================================
@@ -816,7 +822,7 @@ fun VenueMediaSlider(
                 }
 
                 Box(modifier = sharedBoundsModifier) {
-                    if (mediaItem.isVideo) {
+                    if (mediaItem.video) {
                         VideoPlayer(
                             videoUrl = mediaItem.url,
                             isMuted = isMuted,
@@ -844,7 +850,7 @@ fun VenueMediaSlider(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val activeItem = mediaItems.getOrNull(pagerState.currentPage)
-            if (activeItem?.isVideo == true) {
+            if (activeItem?.video == true) {
                 val audioIcon = if(isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
 
                 TopBarIconButton(

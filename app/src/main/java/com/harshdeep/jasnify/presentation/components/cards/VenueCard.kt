@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -27,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material.icons.outlined.MapsHomeWork
-import androidx.compose.material.icons.rounded.MapsHomeWork
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -36,7 +36,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -62,16 +62,11 @@ import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
-import com.harshdeep.jasnify.theme.CloudWhisper
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.LightSkyBlue
-import com.harshdeep.jasnify.theme.PaleLavender
-import com.harshdeep.jasnify.theme.SoftMint
-import com.harshdeep.jasnify.theme.SoftPeach
 import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
@@ -174,7 +169,7 @@ fun VenueCardFull(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -283,6 +278,7 @@ fun VenueCardFull(
     }
 }
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueCardCompact(
@@ -292,10 +288,16 @@ fun VenueCardCompact(
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {},
     compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
-    removeBg: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val isMedium = compactCardSize == CompactCardSize.MEDIUM
+
+    // Dynamic width calculation: 0.43 of screen width ensures 2 full cards
+    val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
+
     val actualPageCount = venue.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
     val initialPage =
@@ -317,16 +319,13 @@ fun VenueCardCompact(
         }
     }
 
-    val accentColors = listOf(CloudWhisper, SoftMint, PaleLavender, LightSkyBlue, SoftPeach)
-    val randomBackgroundColor = remember { accentColors.random() }
-    val isMedium = compactCardSize == CompactCardSize.MEDIUM
-    val containerColor = if (isMedium && !removeBg) randomBackgroundColor else Color.Transparent
+    val containerColor = Color.Transparent
 
     Card(
         onClick = onCardClick,
         modifier = modifier
-            .width(if (isMedium) 200.dp else 160.dp)
-            .then(if (isMedium) Modifier.height(316.dp) else Modifier.wrapContentHeight())
+            .width(cardWidth)
+            .wrapContentHeight()
             .clip(SquircleShape(20.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -336,7 +335,7 @@ fun VenueCardCompact(
                 with(sharedTransitionScope) {
                     Modifier
                         .fillMaxWidth()
-                        .height(if (isMedium) 200.dp else 160.dp)
+                        .height(cardWidth)
                         .clip(SquircleShape(20.dp))
                         .sharedElement(
                             rememberSharedContentState(key = "image_${venue.name}"),
@@ -346,7 +345,7 @@ fun VenueCardCompact(
             } else {
                 Modifier
                     .fillMaxWidth()
-                    .height(if (isMedium) 200.dp else 160.dp)
+                    .height(cardWidth)
                     .clip(SquircleShape(20.dp))
             }
 
@@ -400,7 +399,7 @@ fun VenueCardCompact(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -704,7 +703,6 @@ fun PreviewVenueCards() {
         location = "Greater Noida, UP",
         rating = 4.9,
         totalReviews = "2.4k",
-        services = listOf("Catering", "Decor", "Photography", "Music"),
         priceStartsFrom = "₹75,000",
         images = listOf(
             "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
@@ -712,7 +710,7 @@ fun PreviewVenueCards() {
             "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800"
         ),
         type = "Photographer",
-        isFavorite = true,
+        favorite = true,
         enquiriesLastMonth = 0,
         timestamp = 1718000000000L
     )

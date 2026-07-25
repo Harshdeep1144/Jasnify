@@ -60,7 +60,7 @@ fun VenueCarousel(
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(venues) { venue ->
                 VenueCardCompact(
@@ -84,7 +84,6 @@ fun PreviewVenueCarousel() {
             type = null,
             rating = 4.4,
             totalReviews = "1k",
-            services = listOf(),
             priceStartsFrom = "₹2,999",
             images = listOf("")
         )
