@@ -32,7 +32,6 @@ fun EnquiryCard(
     enquiry: Enquiry,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    isMerchantSide: Boolean = false,
     currentUserId: String = ""
 ) {
     val lastMsg = enquiry.messages.lastOrNull()
@@ -54,7 +53,7 @@ fun EnquiryCard(
                     .background(SurfaceBrandSecondary)
             ) {
                 AsyncImage(
-                    model = if (isMerchantSide) (enquiry.userProfileUrl ?: R.drawable.ic_user_default) else R.drawable.ic_user_default,
+                    model = R.drawable.ic_user_profile,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -63,10 +62,11 @@ fun EnquiryCard(
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (isMerchantSide) enquiry.userName else enquiry.venueName,
+                    text = enquiry.venueName,
                     style = JasnifyTheme.typography.labelXLarge,
                     color = ContentPrimary
                 )
+                
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (lastMsg != null && lastMsg.senderId == currentUserId) {
                         MessageStatusTicks(status = lastMsg.status)

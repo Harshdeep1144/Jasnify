@@ -37,7 +37,7 @@ class EnquiryViewModel @Inject constructor(
         return enquiryRepository.getEnquiryById(enquiryId).map { it?.messages ?: emptyList() }
     }
 
-    fun sendMessage(userId: String, merchantId: String, itemId: String, itemName: String, text: String) {
+    fun sendMessage(userId: String, merchantId: String, itemId: String, itemName: String, itemType: String = "Venue", text: String) {
         val enquiryId = "${userId}_${merchantId}_${itemId}"
         val message = ChatMessage(
             text = text,
@@ -46,7 +46,7 @@ class EnquiryViewModel @Inject constructor(
         )
         
         viewModelScope.launch {
-            val enquiry = enquiryRepository.getEnquiryById(enquiryId).firstOrNull()
+            val enquiry = enquiryRepository.getEnquiryOnce(enquiryId)
             if (enquiry == null) {
                 // First message: Create enquiry with this message
                 val userProfile = userRepository.getUserProfile(userId)
@@ -57,8 +57,9 @@ class EnquiryViewModel @Inject constructor(
                     userName = userProfile?.name ?: "User",
                     userProfileUrl = userProfile?.profilePictureUrl,
                     merchantId = merchantId,
-                    venueId = itemId, // Reusing venueId for itemId (can be vendorId later)
+                    venueId = itemId, 
                     venueName = itemName,
+                    itemType = itemType,
                     lastMessage = text,
                     timestamp = System.currentTimeMillis(),
                     messages = listOf(message)
