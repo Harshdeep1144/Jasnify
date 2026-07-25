@@ -1424,7 +1424,6 @@ fun TimelineSection(
                 items(venues) { venue ->
                     VenueCardCompact(
                         venue = venue,
-                        removeBg = true,
                         onCardClick = { onVenueClick(venue) },
                         onFavoriteToggle = { onFavoriteToggle(venue) },
                         sharedTransitionScope = sharedTransitionScope,
