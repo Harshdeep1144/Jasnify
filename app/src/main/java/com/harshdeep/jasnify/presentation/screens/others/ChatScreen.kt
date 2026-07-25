@@ -30,15 +30,13 @@ import com.harshdeep.jasnify.domain.model.ChatMessage
 import com.harshdeep.jasnify.domain.model.MessageStatus
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.util.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.flow.flowOf
 import sv.lib.squircleshape.SquircleShape
-import java.text.SimpleDateFormat
-import java.util.*
 
 @Composable
 fun ChatScreen(
@@ -57,6 +55,18 @@ fun ChatScreen(
         allVenues.find { it.id == venueId }
     }
 
+    val merchantProfile by remember(merchantId) {
+        if (merchantId != null) {
+            enquiryViewModel.getMerchantProfile(merchantId)
+        } else {
+            flowOf(null)
+        }
+    }.collectAsState(initial = null)
+
+    val activeStatus = remember(merchantProfile) {
+        merchantProfile?.lastActive?.let { TimeUtils.formatLastActive(it) } ?: "Active some time ago"
+    }
+
     var messageText by remember { mutableStateOf("") }
     
     val messages by remember(currentUserUid, merchantId, venueId) {
@@ -69,10 +79,15 @@ fun ChatScreen(
 
     val scrollState = rememberLazyListState()
 
-    // Mark messages as seen when entering the screen
-    LaunchedEffect(currentUserUid, merchantId, venueId) {
-        if (merchantId != null && venueId != null) {
-            enquiryViewModel.markMessagesAsSeen(currentUserUid, merchantId, venueId)
+    // Reactive Status Updates: Mark as Seen
+    LaunchedEffect(messages, merchantId, venueId) {
+        if (merchantId != null && venueId != null && messages.isNotEmpty()) {
+            val hasUnseenIncoming = messages.any { 
+                it.senderId != currentUserUid && it.status != MessageStatus.SEEN 
+            }
+            if (hasUnseenIncoming) {
+                enquiryViewModel.markMessagesAsSeen(currentUserUid, merchantId, venueId)
+            }
         }
     }
 
@@ -91,7 +106,7 @@ fun ChatScreen(
             ) {
                 CustomTopBar(
                     title = venue?.name ?: "Merchant",
-                    subtitle = "Active 2 mins ago",
+                    subtitle = activeStatus,
                     image = painterResource(R.drawable.ic_user_profile),
                     onBackClick = onBackClick,
                     onMenuClick = { /* Handle menu */ },
@@ -182,7 +197,7 @@ fun MessageBubble(
                     modifier = Modifier.align(Alignment.End)
                 ) {
                     Text(
-                        text = formatTime(message.timestamp),
+                        text = TimeUtils.formatChatTime(message.timestamp),
                         style = JasnifyTheme.typography.labelSmall.copy(fontSize = 10.sp),
                         color = contentColor.copy(alpha = 0.7f),
                     )
@@ -318,11 +333,6 @@ fun ChatInputBar(
             }
         }
     }
-}
-
-private fun formatTime(timestamp: Long): String {
-    val sdf = SimpleDateFormat("hh:mm a", Locale.getDefault())
-    return sdf.format(Date(timestamp))
 }
 
 @Preview(showBackground = true)

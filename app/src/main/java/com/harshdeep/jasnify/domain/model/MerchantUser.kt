@@ -16,6 +16,7 @@ data class MerchantUser(
     val isProfileComplete: Boolean = false,
     val managedVenueIds: List<String> = emptyList(),
     val managedVendorIds: List<String> = emptyList(),
+    val lastActive: Long = System.currentTimeMillis(),
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

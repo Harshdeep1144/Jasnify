@@ -12,4 +12,5 @@ interface EnquiryRepository {
     fun getEnquiryById(enquiryId: String): Flow<Enquiry?>
     suspend fun sendMessage(enquiryId: String, message: ChatMessage)
     suspend fun updateMessageStatus(enquiryId: String, userId: String, status: MessageStatus)
+    suspend fun markAsDelivered(enquiryId: String, userId: String)
 }

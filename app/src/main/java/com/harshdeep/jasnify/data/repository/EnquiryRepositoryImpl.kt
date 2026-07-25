@@ -91,19 +91,27 @@ class EnquiryRepositoryImpl @Inject constructor(
                 val snapshot = transaction.get(docRef)
                 val enquiry = snapshot.toObject(Enquiry::class.java)
                 if (enquiry != null) {
+                    var modified = false
                     val updatedMessages = enquiry.messages.map { msg ->
                         if (msg.senderId != userId && msg.status.ordinal < status.ordinal) {
+                            modified = true
                             msg.copy(status = status)
                         } else {
                             msg
                         }
                     }
-                    transaction.update(docRef, "messages", updatedMessages)
+                    if (modified) {
+                        transaction.update(docRef, "messages", updatedMessages)
+                    }
                 }
                 null
             }.await()
         } catch (e: Exception) {
             android.util.Log.e("EnquiryRepo", "Error updating message status: ${e.message}")
         }
+    }
+
+    override suspend fun markAsDelivered(enquiryId: String, userId: String) {
+        updateMessageStatus(enquiryId, userId, MessageStatus.DELIVERED)
     }
 }

@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.data.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.harshdeep.jasnify.data.local.RoomAccessDao
 import com.harshdeep.jasnify.data.local.RoomAccessEntity
+import com.harshdeep.jasnify.domain.model.MerchantUser
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.PendingAccess
@@ -27,6 +28,33 @@ class UserRepositoryImpl @Inject constructor(
             firestore.collection("users").document(uid).get().await().toObject(User::class.java)
         } catch (e: Exception) {
             null
+        }
+    }
+
+    override suspend fun getMerchantProfile(uid: String): MerchantUser? {
+        return try {
+            firestore.collection("merchants").document(uid).get().await().toObject(MerchantUser::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    override fun getMerchantProfileFlow(uid: String): Flow<MerchantUser?> = callbackFlow {
+        val subscription = firestore.collection("merchants").document(uid)
+            .addSnapshotListener { snapshot, _ ->
+                trySend(snapshot?.toObject(MerchantUser::class.java))
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun updateLastActive(uid: String, isMerchant: Boolean) {
+        val collection = if (isMerchant) "merchants" else "users"
+        try {
+            firestore.collection(collection).document(uid)
+                .update("lastActive", System.currentTimeMillis())
+                .await()
+        } catch (e: Exception) {
+            // Document might not exist or field missing, ignore for now
         }
     }
 
