@@ -45,4 +45,7 @@ sealed class Screen(val route: String) {
 
     // Catering Feature
     data object CateringRoot : Screen("catering_root_screen")
+
+    // Messaging
+    data object ChatScreen : Screen("chat_screen/{merchantId}/{venueId}")
 }

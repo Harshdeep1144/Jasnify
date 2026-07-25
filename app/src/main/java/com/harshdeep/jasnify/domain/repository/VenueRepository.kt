@@ -1,5 +1,7 @@
 package com.harshdeep.jasnify.domain.repository
 
+import com.harshdeep.jasnify.domain.model.ChatMessage
+import com.harshdeep.jasnify.domain.model.Enquiry
 import com.harshdeep.jasnify.domain.model.SavedVenue
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReview

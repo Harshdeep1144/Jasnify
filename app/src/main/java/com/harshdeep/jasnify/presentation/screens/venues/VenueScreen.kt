@@ -135,6 +135,7 @@ import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
@@ -189,11 +190,13 @@ fun VenueScreen(
     selectedLocation: String = "City, State",
     initialTab: String = "explore",
     onVenueClick: (Venue) -> Unit,
+    onChatClick: (Venue) -> Unit = {},
     onBackClick: () -> Unit,
     isScreenActive: Boolean = true,
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    venueViewModel: VenueViewModel = hiltViewModel()
+    venueViewModel: VenueViewModel = hiltViewModel(),
+    enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
     var isLocationPickerVisible by remember { mutableStateOf(false) }
@@ -409,6 +412,9 @@ fun VenueScreen(
                                 onBackClick = { 
                                     selectedVenueForDetail = null
                                     venueViewModel.setSelectedVenueId(null)
+                                },
+                                onChatClick = { venue ->
+                                    onChatClick(venue)
                                 },
                                 sharedTransitionScope = this@SharedTransitionLayout,
                                 animatedVisibilityScope = this@AnimatedContent,
@@ -685,7 +691,7 @@ fun VenueMainContent(
         exploreVenues.filter { venue ->
             venueSavedDestinations.containsKey(venue.name)
         }.map { venue ->
-            venue.copy(isFavorite = true)
+            venue.copy(favorite = true)
         }
     }
 
@@ -712,14 +718,13 @@ fun VenueMainContent(
 
     val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
         var result = exploreVenues.map { venue ->
-            venue.copy(isFavorite = venueSavedDestinations.containsKey(venue.name))
+            venue.copy(favorite = venueSavedDestinations.containsKey(venue.name))
         }
 
         if (appliedFilterOptions.isNotEmpty()) {
             result = result.filter { venue ->
                 appliedFilterOptions.any { filter ->
-                    venue.services.any { it.equals(filter, ignoreCase = true) } ||
-                            venue.type?.equals(filter, ignoreCase = true) == true
+                    venue.type?.equals(filter, ignoreCase = true) == true
                 }
             }
         }
@@ -749,7 +754,7 @@ fun VenueMainContent(
         val defaultSavedVenues = exploreVenues.filter { venue ->
             venueSavedDestinations[venue.name] == "mysaved"
         }.map { venue ->
-            venue.copy(isFavorite = true)
+            venue.copy(favorite = true)
         }
 
         if (defaultSavedVenues.isNotEmpty()) {
@@ -767,7 +772,7 @@ fun VenueMainContent(
             val eventVenues = exploreVenues.filter { venue ->
                 venueSavedDestinations[venue.name] == event.id
             }.map { venue ->
-                venue.copy(isFavorite = true)
+                venue.copy(favorite = true)
             }
             event.copy(venues = eventVenues)
         }.filter { it.venues.isNotEmpty() }

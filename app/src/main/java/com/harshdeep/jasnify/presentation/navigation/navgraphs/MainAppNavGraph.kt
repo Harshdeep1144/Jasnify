@@ -9,6 +9,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
@@ -24,6 +25,8 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 
 object NavAnimations {
@@ -126,12 +129,34 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                 selectedLocation = selectedLocation,
                 initialTab = initialTab,
                 onVenueClick = { /* Handle venue click */ },
+                onChatClick = { venue ->
+                    val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
+                    val venueId = venue.id.ifBlank { "unknown_venue" }
+                    mainNavController.navigate("chat_screen/$merchantId/$venueId")
+                },
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
                 },
                 eventViewModel = eventViewModel
+            )
+        }
+
+        // Messaging
+        composable(
+            route = Screen.ChatScreen.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("merchantId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("venueId") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { entry ->
+            val merchantId = entry.arguments?.getString("merchantId")
+            val venueId = entry.arguments?.getString("venueId")
+            ChatScreen(
+                merchantId = merchantId,
+                venueId = venueId,
+                onBackClick = { mainNavController.popBackStack() }
             )
         }
 

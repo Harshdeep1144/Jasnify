@@ -804,7 +804,6 @@ private val mockVenueData = Venue(
     type = null,
     rating = 4.4,
     totalReviews = "760",
-    services = listOf("Garden Venue", "Decor", "Parking"),
     priceStartsFrom = "₹3,499",
     images = listOf(
         "https://picsum.photos/800/400?random=43",

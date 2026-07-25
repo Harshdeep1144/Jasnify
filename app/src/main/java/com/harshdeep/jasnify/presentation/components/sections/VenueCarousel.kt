@@ -84,7 +84,6 @@ fun PreviewVenueCarousel() {
             type = null,
             rating = 4.4,
             totalReviews = "1k",
-            services = listOf(),
             priceStartsFrom = "₹2,999",
             images = listOf("")
         )

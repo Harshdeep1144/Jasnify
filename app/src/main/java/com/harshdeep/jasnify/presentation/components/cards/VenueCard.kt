@@ -174,7 +174,7 @@ fun VenueCardFull(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -400,7 +400,7 @@ fun VenueCardCompact(
                     contentAlignment = Alignment.Center
                 ) {
                     val iconRes =
-                        if (venue.isFavorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                        if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
                             R.drawable.ic_heart
                         )
                     Icon(
@@ -704,7 +704,6 @@ fun PreviewVenueCards() {
         location = "Greater Noida, UP",
         rating = 4.9,
         totalReviews = "2.4k",
-        services = listOf("Catering", "Decor", "Photography", "Music"),
         priceStartsFrom = "₹75,000",
         images = listOf(
             "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
@@ -712,7 +711,7 @@ fun PreviewVenueCards() {
             "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800"
         ),
         type = "Photographer",
-        isFavorite = true,
+        favorite = true,
         enquiriesLastMonth = 0,
         timestamp = 1718000000000L
     )
