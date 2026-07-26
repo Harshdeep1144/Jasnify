@@ -1,19 +1,35 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -26,7 +42,8 @@ import com.harshdeep.jasnify.theme.*
 @Composable
 fun BottomNavBar(
     navController: NavHostController,
-    style: NavBarStyleOption = NavBarStyleOption.BASIC
+    modifier: Modifier = Modifier,
+    style: NavBarStyleOption = NavBarStyleOption.PILL_SHAPED
 ) {
     val navItems = listOf(
         Screen.HomeTabScreen.Home,
@@ -37,105 +54,177 @@ fun BottomNavBar(
     )
 
     if (style == NavBarStyleOption.BASIC) {
-        BottomAppBar(
-            containerColor = SurfacePrimary,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(93.dp)
-                .shadow(elevation = 20.dp)
-        ) {
-            val navBackStackEntry by navController.currentBackStackEntryAsState()
-            val currentDestination = navBackStackEntry?.destination
-
-            navItems.forEach { screen ->
-                val isSelected =
-                    currentDestination?.hierarchy?.any { it.route == screen.route } == true
-
-                NavigationBarItem(
-                    icon = {
-                        Icon(
-                            painter = painterResource(id = screen.iconResId),
-                            contentDescription = screen.title,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
-                    label = {
-                        Text(text = screen.title, style = JasnifyTheme.typography.labelSmall)
-                    },
-                    selected = isSelected,
-                    alwaysShowLabel = true,
-                    onClick = {
-                        if (!isSelected) {
-                            navController.navigate(screen.route) {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = ContentBrandDark,
-                        selectedTextColor = ContentBrandDark,
-                        unselectedIconColor = ContentSecondary,
-                        unselectedTextColor = ContentSecondary,
-                        indicatorColor = SurfaceBrandSecondary
-                    )
-                )
-            }
-        }
+        BasicBottomNavBar(
+            navController = navController,
+            navItems = navItems,
+            modifier = modifier
+        )
     } else {
-        PillBottomNavBar(navController = navController, navItems = navItems)
+        PillBottomNavBar(
+            navController = navController,
+            navItems = navItems,
+            modifier = modifier
+        )
     }
 }
 
 @Composable
-fun PillBottomNavBar(navController: NavHostController, navItems: List<Screen.HomeTabScreen>) {
+private fun BasicBottomNavBar(
+    navController: NavHostController,
+    navItems: List<Screen.HomeTabScreen>,
+    modifier: Modifier = Modifier
+) {
+    BottomAppBar(
+        containerColor = SurfacePrimary,
+        modifier = modifier
+            .fillMaxWidth()
+            .height(93.dp)
+            .shadow(elevation = 20.dp)
+    ) {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentDestination = navBackStackEntry?.destination
+
+        navItems.forEach { screen ->
+            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+
+            NavigationBarItem(
+                icon = {
+                    Icon(
+                        painter = painterResource(id = screen.iconResId),
+                        contentDescription = screen.title,
+                        modifier = Modifier.size(24.dp)
+                    )
+                },
+                label = {
+                    Text(text = screen.title, style = JasnifyTheme.typography.labelSmall)
+                },
+                selected = isSelected,
+                alwaysShowLabel = true,
+                onClick = {
+                    if (!isSelected) {
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = ContentBrandDark,
+                    selectedTextColor = ContentBrandDark,
+                    unselectedIconColor = ContentSecondary,
+                    unselectedTextColor = ContentSecondary,
+                    indicatorColor = SurfaceBrandSecondary
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun PillBottomNavBar(
+    navController: NavHostController,
+    navItems: List<Screen.HomeTabScreen>,
+    modifier: Modifier = Modifier
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    // Determine currently selected index
+    val selectedIndex = remember(currentDestination, navItems) {
+        val index = navItems.indexOfFirst { screen ->
+            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+        }
+        if (index != -1) index else 0
+    }
+
+    // Smooth physics spring animation for the sliding tab indicator
+    val animatedIndex by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "SlidingTabIndicatorAnimation"
+    )
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color.Transparent,
+                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                        1.00f to BackgroundPrimary
+                    )
+                )
+            )
             .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
+                .height(62.dp)
                 .shadow(
-                    elevation = 16.dp,
+                    elevation = 20.dp,
                     shape = CircleShape,
-                    spotColor = ContentPrimary.copy(alpha = 0.20f)
+                    clip = false,
+                    spotColor = Color.Black.copy(alpha = 0.18f),
+                    ambientColor = Color.Black.copy(alpha = 0.08f)
                 ),
             shape = CircleShape,
             color = SurfacePrimary,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            BoxWithConstraints(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 6.dp, vertical = 5.dp)
             ) {
-                navItems.forEach { screen ->
-                    val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+                val containerWidth = maxWidth
+                val tabCount = navItems.size
+                val tabWidth = containerWidth / tabCount
 
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val backgroundColor = if (isSelected) SurfaceBrandPrimary else Color.Transparent
-                        val contentColor = if (isSelected) ContentInvPrimary else ContentSecondary
+                // Active brand pill background that slides across tabs
+                Box(
+                    modifier = Modifier
+                        .offset(x = tabWidth * animatedIndex)
+                        .width(tabWidth)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .background(SurfaceBrandPrimary)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    navItems.forEachIndexed { index, screen ->
+                        val isSelected = index == selectedIndex
+
+                        // Animated icon tint color (swaps smoothly when background slides underneath)
+                        val targetContentColor = if (isSelected) ContentInvPrimary else ContentSecondary
+                        val animatedContentColor by animateColorAsState(
+                            targetValue = targetContentColor,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "TabContentColorAnimation"
+                        )
 
                         Box(
                             modifier = Modifier
-                                .size(width = 75.dp, height = 56.dp)
+                                .weight(1f)
+                                .fillMaxHeight()
                                 .clip(CircleShape)
-                                .background(backgroundColor)
-                                .clickable {
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
                                     if (!isSelected) {
                                         navController.navigate(screen.route) {
                                             popUpTo(navController.graph.startDestinationId) {
@@ -152,7 +241,7 @@ fun PillBottomNavBar(navController: NavHostController, navItems: List<Screen.Hom
                                 painter = painterResource(id = screen.iconResId),
                                 contentDescription = screen.title,
                                 modifier = Modifier.size(24.dp),
-                                tint = contentColor
+                                tint = animatedContentColor
                             )
                         }
                     }
@@ -162,13 +251,18 @@ fun PillBottomNavBar(navController: NavHostController, navItems: List<Screen.Hom
     }
 }
 
-
-
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFFF7F8FA)
 @Composable
-fun BottomNavBarPreview() {
-    Column {
-        BottomNavBar(navController = rememberNavController(), style = NavBarStyleOption.PILL_SHAPED)
-        BottomNavBar(navController = rememberNavController(), style = NavBarStyleOption.BASIC)
+fun PillBottomNavBarPreview() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF7F8FA)),
+        verticalArrangement = Arrangement.Bottom
+    ) {
+        BottomNavBar(
+            navController = rememberNavController(),
+            style = NavBarStyleOption.PILL_SHAPED
+        )
     }
 }

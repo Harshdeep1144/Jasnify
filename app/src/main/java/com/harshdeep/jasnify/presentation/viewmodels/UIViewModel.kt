@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class UIViewModel @Inject constructor() : ViewModel() {
-    private val _navBarStyle = MutableStateFlow(NavBarStyleOption.BASIC)
+    private val _navBarStyle = MutableStateFlow(NavBarStyleOption.PILL_SHAPED)
     val navBarStyle: StateFlow<NavBarStyleOption> = _navBarStyle.asStateFlow()
 
     fun updateNavBarStyle(style: NavBarStyleOption) {
