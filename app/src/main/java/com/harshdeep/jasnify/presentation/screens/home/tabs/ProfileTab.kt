@@ -1,42 +1,109 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import android.os.Build
+import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.catch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.MessageStatus
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
-import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
+import com.harshdeep.jasnify.presentation.components.cards.PlanCard
+import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
+enum class ProfileScreen {
+    Root,
+    AccountSettings,
+    Appearance,
+    ManageEvents,
+    MyEnquiries,
+    Notifications,
+    TermsAndConditions,
+    PrivacyPolicy
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileTab(
     mainNavController: NavHostController,
@@ -45,127 +112,776 @@ fun ProfileTab(
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
+    val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+    val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
-    val currentUserUid = auth.currentUser?.uid ?: ""
+    val firebaseUser = auth.currentUser
+
+    val userName = firebaseUser?.displayName ?: "Name"
+    val userEmail = firebaseUser?.email ?: "User Gmail"
+    val userHandle = "@${userEmail.substringBefore("@")}"
+    val profilePic: Any = firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+
+    var currentScreen by remember { mutableStateOf(ProfileScreen.Root) }
+    var showEditProfile by remember { mutableStateOf(false) }
+    var showChangePassword by remember { mutableStateOf(false) }
+    var showAppTheme by remember { mutableStateOf(false) }
+    var showNavBarStyle by remember { mutableStateOf(false) }
     
-    val enquiries by remember(currentUserUid) {
-        enquiryViewModel.getEnquiriesForUser(currentUserUid)
-    }.collectAsState(initial = emptyList())
+    var selectedTheme by remember { mutableStateOf(AppThemeOption.LIGHT_MODE) }
+    val selectedNavBarStyle by uiViewModel.navBarStyle.collectAsState()
 
-    val filterOptions = listOf("All", "Venue", "Vendor")
-    var selectedFilter by remember { mutableStateOf<String>(filterOptions[0]) }
+    val editProfileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    val filteredEnquiries = remember(enquiries, selectedFilter) {
-        if (selectedFilter == "All") enquiries
-        else enquiries.filter { it.itemType.equals(selectedFilter, ignoreCase = true) }
+    if (showEditProfile) {
+        EditProfileBottomSheet(
+            sheetState = editProfileSheetState,
+            onDismiss = { showEditProfile = false },
+            userName = userName,
+            userHandle = userHandle,
+            profilePic = profilePic,
+            onUpdateProfile = { name, handle ->
+                // TODO: Update user profile logic
+                showEditProfile = false
+            }
+        )
     }
 
-    // Mark incoming messages as delivered when they appear in the inbox
-    LaunchedEffect(enquiries) {
-        enquiries.forEach { enquiry ->
-            val hasUndelivered = enquiry.messages.any { 
-                it.senderId != currentUserUid && it.status == MessageStatus.SENT 
+    if (showChangePassword) {
+        ChangePasswordBottomSheet(
+            sheetState = changePasswordSheetState,
+            onDismiss = { showChangePassword = false },
+            onUpdatePassword = { /* TODO */ },
+            onForgotPassword = { /* TODO */ }
+        )
+    }
+
+    if (showAppTheme) {
+        AppThemeBottomSheet(
+            sheetState = appThemeSheetState,
+            onDismiss = { showAppTheme = false },
+            currentTheme = selectedTheme,
+            onThemeSelected = { selectedTheme = it }
+        )
+    }
+
+    if (showNavBarStyle) {
+        NavBarStyleBottomSheet(
+            sheetState = navBarStyleSheetState,
+            onDismiss = { showNavBarStyle = false },
+            currentStyle = selectedNavBarStyle,
+            onStyleSelected = { uiViewModel.updateNavBarStyle(it) }
+        )
+    }
+
+    AnimatedContent(
+        targetState = currentScreen,
+        transitionSpec = {
+            if (targetState == ProfileScreen.Root) {
+                (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+            } else {
+                (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
             }
-            if (hasUndelivered) {
-                enquiryViewModel.markMessagesAsDelivered(currentUserUid, enquiry.merchantId, enquiry.venueId)
+        },
+        label = "ProfileTabNavigation"
+    ) { screen ->
+        if (screen != ProfileScreen.Root) {
+            BackHandler {
+                currentScreen = ProfileScreen.Root
+            }
+        }
+        when (screen) {
+            ProfileScreen.Root -> {
+                ProfileTabContent(
+                    userName = userName,
+                    userHandle = userHandle,
+                    profilePic = profilePic,
+                    onEditProfile = { showEditProfile = true },
+                    onNavigateTo = { currentScreen = it },
+                    onLogout = {
+                        authViewModel.logout(context)
+                        eventViewModel.clearActiveEvent()
+                        mainNavController.navigate(Screen.LoginOrSignUp.route) {
+                            popUpTo(Screen.MainAppGraph.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
+            ProfileScreen.AccountSettings -> {
+                AccountSettingsScreen(
+                    email = userEmail,
+                    onBack = { currentScreen = ProfileScreen.Root },
+                    onChangePassword = { showChangePassword = true }
+                )
+            }
+
+            ProfileScreen.Appearance -> {
+                AppearanceScreen(
+                    currentTheme = selectedTheme,
+                    currentNavBarStyle = selectedNavBarStyle,
+                    onBack = { currentScreen = ProfileScreen.Root },
+                    onChangeTheme = { showAppTheme = true },
+                    onChangeNavBarStyle = { showNavBarStyle = true }
+                )
+            }
+
+            ProfileScreen.ManageEvents -> {
+                ManageEventsScreen(
+                    eventViewModel = eventViewModel,
+                    onBack = { currentScreen = ProfileScreen.Root },
+                    onEventClick = { event ->
+                        eventViewModel.setActiveEvent(event)
+                        mainNavController.navigate(Screen.EventDetail.route)
+                    }
+                )
+            }
+
+            ProfileScreen.MyEnquiries -> {
+                MyEnquiriesScreen(
+                    enquiryViewModel = enquiryViewModel,
+                    userId = firebaseUser?.uid ?: "",
+                    onBack = { currentScreen = ProfileScreen.Root },
+                    onEnquiryClick = { enquiry ->
+                        mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
+                    }
+                )
+            }
+
+            ProfileScreen.Notifications -> {
+                NotificationsScreen(
+                    onBack = { currentScreen = ProfileScreen.Root }
+                )
+            }
+
+            ProfileScreen.TermsAndConditions -> {
+                LegalScreen(
+                    title = "Terms & Conditions",
+                    onBack = { currentScreen = ProfileScreen.Root }
+                )
+            }
+
+            ProfileScreen.PrivacyPolicy -> {
+                LegalScreen(
+                    title = "Privacy Policy",
+                    onBack = { currentScreen = ProfileScreen.Root }
+                )
             }
         }
     }
+}
 
-    Column(
+// ============================================================================================================================================
+// ROOT SCREEN: PROFILE CONTENT
+// ============================================================================================================================================
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun ProfileTabContent(
+    userName: String,
+    userHandle: String,
+    profilePic: Any,
+    onEditProfile: () -> Unit,
+    onNavigateTo: (ProfileScreen) -> Unit,
+    onLogout: () -> Unit
+) {
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundPrimary)
-            .padding(16.dp),
+            .statusBarsPadding(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = "Profile",
-            style = JasnifyTheme.typography.displayLarge,
-            color = ContentPrimary
-        )
-        
-        Spacer(Modifier.height(24.dp))
-        
-        Text(
-            text = "Messages",
-            style = JasnifyTheme.typography.headingLarge,
-            fontWeight = FontWeight.Medium,
-            color = ContentPrimary
-        )
-        
-        Spacer(Modifier.height(12.dp))
-
-        IosSegmentedControl(
-            options = filterOptions,
-            selectedOption = selectedFilter,
-            onOptionSelected = { selectedFilter = it },
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-        
-        // Enquiry "Box" Section
-        Surface(
-            color = SurfaceSecondary.copy(alpha = 0.5f),
-            shape = SquircleShape(CornerLarge),
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+        // 1. User Header
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(28.dp, 28.dp, 28.dp, 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (filteredEnquiries.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillParentMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_message),
-                                    contentDescription = null,
-                                    tint = ContentTertiary,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = if (enquiries.isEmpty()) "No enquiries yet." else "No ${selectedFilter.lowercase()}s found.",
-                                    style = JasnifyTheme.typography.labelLarge,
-                                    color = ContentTertiary
-                                )
-                            }
-                        }
-                    }
-                }
-
-                items(filteredEnquiries) { enquiry ->
-                    EnquiryCard(
-                        enquiry = enquiry,
-                        currentUserId = currentUserUid,
-                        onClick = {
-                            mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
-                        }
+                Box(
+                    modifier = Modifier
+                        .size(128.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceSecondary)
+                ) {
+                    AsyncImage(
+                        model = profilePic,
+                        contentDescription = "Profile Picture",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.ic_user_profile)
                     )
                 }
+                Spacer(Modifier.height(12.dp))
+
+                Text(
+                    text = userName,
+                    style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
+                    color = ContentPrimary
+                )
+                Text(
+                    text = userHandle,
+                    style = JasnifyTheme.typography.labelLarge,
+                    color = ContentSecondary
+                )
+                Spacer(Modifier.height(16.dp))
+
+                CustomTextButton(
+                    onClick = onEditProfile,
+                    text = "Edit Profile",
+                    size = ButtonSize.Small,
+                    leadingIcon = painterResource(R.drawable.ic_edit),
+                    type = ButtonType.Secondary
+                )
             }
         }
 
-        Spacer(Modifier.height(20.dp))
-        
-        Button(
-            onClick = {
-                authViewModel.logout(context)
-                eventViewModel.clearActiveEvent()
-                mainNavController.navigate(Screen.LoginOrSignUp.route) {
-                    popUpTo(Screen.MainAppGraph.route) { inclusive = true }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Logout")
+        // 2. Plan Cards
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PlanCard(
+                    planName = "Basic Plan",
+                    price = "FREE",
+                    backgroundColor = Color(0xFFF4E3E2),
+                    isCurrentPlan = true,
+                    onViewBenefitsClick = {}
+                )
+                PlanCard(
+                    planName = "Pro",
+                    price = "$5/month",
+                    backgroundColor = Color(0xFFFFDAB9),
+                    buttonText = "Upgrade Now",
+                    onButtonClick = {},
+                    onViewBenefitsClick = {}
+                )
+                PlanCard(
+                    planName = "Ultimate",
+                    price = "$20/month",
+                    backgroundColor = Color(0xFFD3CDE8),
+                    buttonText = "Upgrade Now",
+                    onButtonClick = {},
+                    onViewBenefitsClick = {}
+                )
+            }
         }
+
+        // 3. Grid Actions
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ProfileGridCell(
+                    title = "Manage Events",
+                    icon = painterResource(R.drawable.ic_events_stack),
+                    onClick = { onNavigateTo(ProfileScreen.ManageEvents) },
+                    modifier = Modifier.weight(1f)
+                )
+                ProfileGridCell(
+                    title = "My Enquiries",
+                    icon = painterResource(R.drawable.ic_message_typing),
+                    onClick = { onNavigateTo(ProfileScreen.MyEnquiries) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        // 4. Menu Items
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Account Settings Group
+                ProfileMenuCell(
+                    title = "Account Settings",
+                    subtitle = null,
+                    icon = painterResource(R.drawable.ic_profile),
+                    hasBorder = true,
+                    onClick = { onNavigateTo(ProfileScreen.AccountSettings) }
+                )
+
+                // Appearance & Notifications Group
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                        )
+                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .background(SurfacePrimary)
+                ) {
+                    ProfileMenuCell(
+                        title = "Appearance",
+                        subtitle = null,
+                        icon = painterResource(R.drawable.ic_paint),
+                        hasBorder = false,
+                        shape = RectangleShape,
+                        containerColor = Color.Transparent,
+                        onClick = { onNavigateTo(ProfileScreen.Appearance) }
+                    )
+                    ProfileMenuCell(
+                        title = "Notifications",
+                        subtitle = "On",
+                        icon = painterResource(R.drawable.ic_notification),
+                        hasBorder = false,
+                        shape = RectangleShape,
+                        containerColor = Color.Transparent,
+                        onClick = { onNavigateTo(ProfileScreen.Notifications) }
+                    )
+                }
+
+                // Legal Group
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            width = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                        )
+                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .background(SurfacePrimary)
+                ) {
+                    ProfileMenuCell(
+                        title = "Terms & Conditions",
+                        subtitle = null,
+                        icon = painterResource(R.drawable.ic_terms_and_conditions),
+                        hasBorder = false,
+                        shape = RectangleShape,
+                        containerColor = Color.Transparent,
+                        onClick = { onNavigateTo(ProfileScreen.TermsAndConditions) }
+                    )
+                    ProfileMenuCell(
+                        title = "Privacy Policy",
+                        subtitle = null,
+                        icon = painterResource(R.drawable.ic_privacy_policy),
+                        hasBorder = false,
+                        shape = RectangleShape,
+                        containerColor = Color.Transparent,
+                        onClick = { onNavigateTo(ProfileScreen.PrivacyPolicy) }
+                    )
+                }
+
+                // Logout
+                ProfileMenuCell(
+                    title = "Logout",
+                    subtitle = null,
+                    icon = painterResource(R.drawable.ic_logout),
+                    hasBorder = true,
+                    onClick = onLogout,
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            }
+        }
+
+        // 5. Footer
+        item {
+            FooterJansify()
+        }
+    }
+}
+
+// ============================================================================================================================================
+// SCREEN 1: ACCOUNT SETTINGS
+// ============================================================================================================================================
+
+@Composable
+fun AccountSettingsScreen(
+    email: String,
+    onBack: () -> Unit,
+    onChangePassword: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = "Account Settings",
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary,
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                        SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+                    .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                    .background(SurfacePrimary)
+            ) {
+                ProfileMenuCell(
+                    title = "Email ID",
+                    subtitle = email,
+                    icon = painterResource(R.drawable.ic_mail),
+                    hasBorder = false,
+                    shape = RectangleShape,
+                    containerColor = Color.Transparent
+                )
+                ProfileMenuCell(
+                    title = "Password",
+                    subtitle = "Last changed 3 months ago",
+                    icon = painterResource(R.drawable.ic_key),
+                    hasBorder = false,
+                    shape = RectangleShape,
+                    containerColor = Color.Transparent,
+                    onClick = onChangePassword
+                )
+            }
+
+            ProfileMenuCell(
+                title = "Delete Account",
+                subtitle = null,
+                icon = painterResource(R.drawable.ic_delete),
+                containerColor = SurfacePrimary,
+                contentColor = MaterialTheme.colorScheme.error,
+                onClick = {}
+            )
+        }
+    }
+}
+
+// ============================================================================================================================================
+// SCREEN 2: APPEARANCE
+// ============================================================================================================================================
+
+@Composable
+fun AppearanceScreen(
+    currentTheme: AppThemeOption,
+    currentNavBarStyle: NavBarStyleOption,
+    onBack: () -> Unit,
+    onChangeTheme: () -> Unit,
+    onChangeNavBarStyle: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = "Appearance",
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary,
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                        SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+                    .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                    .background(SurfacePrimary)
+            ) {
+                ProfileMenuCell(
+                    title = "Theme",
+                    subtitle = currentTheme.label,
+                    icon = painterResource(R.drawable.ic_paint),
+                    hasBorder = false,
+                    shape = RectangleShape,
+                    containerColor = Color.Transparent,
+                    onClick = onChangeTheme
+                )
+                ProfileMenuCell(
+                    title = "Nav Bar Style",
+                    subtitle = currentNavBarStyle.label,
+                    icon = painterResource(R.drawable.ic_home),
+                    hasBorder = false,
+                    shape = RectangleShape,
+                    containerColor = Color.Transparent,
+                    onClick = onChangeNavBarStyle
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================================================================================
+// SCREEN 3: MANAGE EVENTS
+// ============================================================================================================================================
+
+@Composable
+fun ManageEventsScreen(
+    eventViewModel: EventViewModel,
+    onBack: () -> Unit,
+    onEventClick: (com.harshdeep.jasnify.domain.model.Event) -> Unit
+) {
+    val userEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = "Manage Events",
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary,
+        bottomBar = {
+            CustomTextButton(
+                onClick = { /* Navigate to event creation */ },
+                text = "Create a new event",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            items(userEvents) { event ->
+                Surface(
+                    onClick = { onEventClick(event) },
+                    color = SurfacePrimary,
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .border(
+                            1.dp,
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                            SquircleShape(CornerLarge, CornerSmoothingDefault)
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Primary Event Name :",
+                                style = JasnifyTheme.typography.labelMedium,
+                                color = ContentSecondary
+                            )
+                            Text(
+                                text = event.name,
+                                style = JasnifyTheme.typography.labelXLarge.copy(fontWeight = FontWeight.Medium),
+                                color = ContentPrimary
+                            )
+                        }
+                        Icon(
+                            painter = painterResource(R.drawable.ic_edit),
+                            contentDescription = "Edit Event",
+                            tint = ContentPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ============================================================================================================================================
+// SCREEN 4: MY ENQUIRIES
+// ============================================================================================================================================
+
+@Composable
+fun MyEnquiriesScreen(
+    enquiryViewModel: EnquiryViewModel,
+    userId: String,
+    onBack: () -> Unit,
+    onEnquiryClick: (com.harshdeep.jasnify.domain.model.Enquiry) -> Unit
+) {
+    val enquiries by enquiryViewModel.getEnquiriesForUser(userId).collectAsState(emptyList())
+
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = "My Enquiries",
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(enquiries) { enquiry ->
+                EnquiryCard(
+                    enquiry = enquiry,
+                    onClick = { onEnquiryClick(enquiry) },
+                    currentUserId = userId
+                )
+            }
+        }
+    }
+}
+
+// ============================================================================================================================================
+// SCREEN 5: NOTIFICATIONS
+// ============================================================================================================================================
+
+@Composable
+fun NotificationsScreen(onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = "Notifications",
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            ProfileMenuCell(
+                title = "Push Notifications",
+                subtitle = "On",
+                icon = painterResource(R.drawable.ic_info),
+                hasBorder = true
+            )
+        }
+    }
+}
+
+// ============================================================================================================================================
+// LEGAL SCREEN: TERMS / PRIVACY
+// ============================================================================================================================================
+
+@Composable
+fun LegalScreen(title: String, onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            Column(modifier = Modifier.statusBarsPadding()) {
+                CustomTopBar(
+                    title = title,
+                    onBackClick = onBack,
+                    buttonStyle = ButtonBackground.TRANSPARENT
+                )
+            }
+        },
+        containerColor = BackgroundPrimary
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp)
+        ) {
+            Text(
+                text = "Legal content for $title goes here...",
+                style = JasnifyTheme.typography.bodyLarge,
+                color = ContentPrimary
+            )
+        }
+    }
+}
+
+@Composable
+fun ProfileGridCell(
+    title: String,
+    icon: Painter,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        modifier = modifier
+            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .border(
+                width = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+            )
+            .clickable { onClick() },
+        color = SurfacePrimary,
+        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = ContentPrimary
+            )
+            Text(
+                text = title,
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentPrimary
+            )
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Preview(showBackground = true)
+@Composable
+fun ProfileTabPreview() {
+    JasnifyTheme {
+        ProfileTabContent(
+            userName = "Anand K.",
+            userHandle = "@viratanand",
+            profilePic = R.drawable.ic_user_profile,
+            onEditProfile = {},
+            onNavigateTo = {},
+            onLogout = {}
+        )
     }
 }
