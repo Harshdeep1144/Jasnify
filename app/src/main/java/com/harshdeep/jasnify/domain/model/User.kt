@@ -11,5 +11,14 @@ data class User(
     val username: String = "",
     val role: UserRole = UserRole.VIEWER,
     val profilePictureUrl: String? = null,
-    val lastUsernameChangeTimestamp: Long? = null
+    val lastUsernameChangeTimestamp: Long? = null,
+    val joinedEvents: List<UserEvent> = emptyList(),
+    val currentEventId: String? = null
+)
+
+data class UserEvent(
+    val eventId: String = "",
+    val eventName: String = "",
+    val adminId: String = "",
+    val roomRoles: Map<String, UserRole> = emptyMap()
 )

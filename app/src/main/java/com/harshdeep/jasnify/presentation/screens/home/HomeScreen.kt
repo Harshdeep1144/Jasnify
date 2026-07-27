@@ -33,11 +33,11 @@ import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
 @Composable
 fun HomeScreen(
     mainNavController: NavHostController,
-    joinedEventId: String? = null,
-    eventViewModel: EventViewModel = hiltViewModel()
+    joinedEventId: String? = null
 ) {
     val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
+    val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
     val context = LocalContext.current
     val navBarStyle by uiViewModel.navBarStyle.collectAsState()

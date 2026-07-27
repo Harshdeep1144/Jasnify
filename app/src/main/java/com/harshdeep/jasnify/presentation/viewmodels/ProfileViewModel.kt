@@ -36,10 +36,18 @@ class ProfileViewModel @Inject constructor(
     val updateState: StateFlow<ProfileUpdateState> = _updateState.asStateFlow()
 
     init {
-        fetchProfile()
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            viewModelScope.launch {
+                userRepository.getUserProfileFlow(uid).collect {
+                    _userProfile.value = it
+                }
+            }
+        }
     }
 
     fun fetchProfile() {
+        // No longer strictly needed as init starts the flow, but keeping for compatibility if called manually
         val uid = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             _userProfile.value = userRepository.getUserProfile(uid)

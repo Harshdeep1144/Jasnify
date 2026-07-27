@@ -87,6 +87,9 @@ import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserEvent
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -116,17 +119,26 @@ fun ProfileTab(
     mainNavController: NavHostController,
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
-    eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
+    val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
     val userProfile by profileViewModel.userProfile.collectAsState()
+    val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+    
+    // Ensure owned events are fetched for old accounts
+    LaunchedEffect(firebaseUser) {
+        if (firebaseUser != null) {
+            eventViewModel.fetchUserEvents()
+        }
+    }
+
     val userName = userProfile?.name ?: firebaseUser?.displayName ?: "Name"
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
@@ -260,11 +272,13 @@ fun ProfileTab(
 
             ProfileScreen.ManageEvents -> {
                 ManageEventsScreen(
+                    profileViewModel = profileViewModel,
                     eventViewModel = eventViewModel,
+                    ownedEvents = ownedEvents,
                     onBack = { currentScreen = ProfileScreen.Root },
-                    onEventClick = { event ->
-                        eventViewModel.setActiveEvent(event)
-                        mainNavController.navigate(Screen.EventDetail.route)
+                    onEventClick = { eventId ->
+                        eventViewModel.fetchAndSetActiveEvent(eventId)
+                        currentScreen = ProfileScreen.Root
                     }
                 )
             }
@@ -669,11 +683,36 @@ fun AppearanceScreen(
 
 @Composable
 fun ManageEventsScreen(
+    profileViewModel: ProfileViewModel,
     eventViewModel: EventViewModel,
+    ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
-    onEventClick: (com.harshdeep.jasnify.domain.model.Event) -> Unit
+    onEventClick: (String) -> Unit
 ) {
-    val userEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+
+    val joinedEvents = userProfile?.joinedEvents ?: emptyList()
+    
+    // Merge owned events for old accounts that don't have joinedEvents populated
+    val allUserEvents = remember(ownedEvents, joinedEvents) {
+        val ownedAsUserEvents = ownedEvents.map { event ->
+            UserEvent(
+                eventId = event.id,
+                eventName = event.name,
+                adminId = event.ownerId,
+                roomRoles = mapOf(
+                    "Budget" to UserRole.OWNER,
+                    "Catering" to UserRole.OWNER,
+                    "Checklist" to UserRole.OWNER,
+                    "Vendors" to UserRole.OWNER,
+                    "Venue" to UserRole.OWNER
+                )
+            )
+        }
+        // Deduplicate: Prioritize joinedEvents as they have more granular role/screen info if shared
+        (ownedAsUserEvents + joinedEvents).distinctBy { it.eventId }
+    }
 
     Scaffold(
         topBar = {
@@ -688,59 +727,123 @@ fun ManageEventsScreen(
         containerColor = BackgroundPrimary,
         bottomBar = {
             CustomTextButton(
-                onClick = { /* Navigate to event creation */ },
-                text = "Create a new event",
+                onClick = { /* Navigate to event creation or join flow */ },
+                text = "Join or Create Event",
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            items(userEvents) { event ->
-                Surface(
-                    onClick = { onEventClick(event) },
-                    color = SurfacePrimary,
-                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .border(
-                            1.dp,
-                            MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            SquircleShape(CornerLarge, CornerSmoothingDefault)
-                        )
-                ) {
-                    Row(
+        if (allUserEvents.isEmpty()) {
+            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+                Text("No events joined yet.", color = ContentSecondary)
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                items(allUserEvents) { userEvent ->
+                    val isActive = userEvent.eventId == activeEventId
+                    Surface(
+                        onClick = { onEventClick(userEvent.eventId) },
+                        color = if (isActive) SurfaceSecondary else SurfacePrimary,
+                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
                         modifier = Modifier
-                            .padding(16.dp)
-                            .fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .fillMaxWidth()
+                            .border(
+                                width = if (isActive) 2.dp else 1.dp,
+                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            )
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Primary Event Name :",
-                                style = JasnifyTheme.typography.labelMedium,
-                                color = ContentSecondary
-                            )
-                            Text(
-                                text = event.name,
-                                style = JasnifyTheme.typography.labelXLarge.copy(fontWeight = FontWeight.Medium),
-                                color = ContentPrimary
-                            )
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = userEvent.eventName,
+                                        style = JasnifyTheme.typography.labelXLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = ContentPrimary
+                                    )
+                                    val isAdmin = userProfile?.uid == userEvent.adminId
+                                    Text(
+                                        text = if (isAdmin) "Admin / Owner" else "Member",
+                                        style = JasnifyTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                if (isActive) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_check),
+                                        contentDescription = "Active Event",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                            
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(
+                                    text = "Room Access:",
+                                    style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                    color = ContentSecondary
+                                )
+                                userEvent.roomRoles.forEach { (room, role) ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = room,
+                                            style = JasnifyTheme.typography.labelSmall,
+                                            color = ContentSecondary
+                                        )
+                                        Text(
+                                            text = role.name,
+                                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                                            color = if (role == UserRole.OWNER) MaterialTheme.colorScheme.primary else ContentPrimary
+                                        )
+                                    }
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!isActive) {
+                                    CustomTextButton(
+                                        onClick = { onEventClick(userEvent.eventId) },
+                                        text = "Switch to",
+                                        size = ButtonSize.Small,
+                                        type = ButtonType.Secondary
+                                    )
+                                    Spacer(Modifier.size(8.dp))
+                                }
+
+                                CustomTextButton(
+                                    onClick = {
+                                        eventViewModel.leaveEvent(userEvent.eventId)
+                                    },
+                                    text = "Leave",
+                                    size = ButtonSize.Small,
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                    containerColor = MaterialTheme.colorScheme.errorContainer
+                                )
+                            }
                         }
-                        Icon(
-                            painter = painterResource(R.drawable.ic_edit),
-                            contentDescription = "Edit Event",
-                            tint = ContentPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
                     }
                 }
             }
