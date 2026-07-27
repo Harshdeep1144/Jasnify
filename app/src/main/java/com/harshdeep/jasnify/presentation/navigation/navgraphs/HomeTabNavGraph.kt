@@ -31,6 +31,7 @@ fun NavGraphBuilder.homeNavGraph(
 
     composable(route = Screen.HomeTabScreen.Checklists.route) {
         ChecklistsTab(
+            mainNavController = mainNavController,
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
             eventViewModel = eventViewModel,
             onBackClick = {
