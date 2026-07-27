@@ -10,5 +10,6 @@ data class User(
     val email: String = "",
     val username: String = "",
     val role: UserRole = UserRole.VIEWER,
-    val profilePictureUrl: String? = null
+    val profilePictureUrl: String? = null,
+    val lastUsernameChangeTimestamp: Long? = null
 )

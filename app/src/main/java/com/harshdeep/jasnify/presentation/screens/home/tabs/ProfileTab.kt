@@ -54,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -81,6 +82,8 @@ import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -108,6 +111,7 @@ enum class ProfileScreen {
 fun ProfileTab(
     mainNavController: NavHostController,
     authViewModel: AuthViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
@@ -118,10 +122,11 @@ fun ProfileTab(
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
-    val userName = firebaseUser?.displayName ?: "Name"
-    val userEmail = firebaseUser?.email ?: "User Gmail"
-    val userHandle = "@${userEmail.substringBefore("@")}"
-    val profilePic: Any = firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+    val userProfile by profileViewModel.userProfile.collectAsState()
+    val userName = userProfile?.name ?: firebaseUser?.displayName ?: "Name"
+    val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
+    val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
+    val profilePic: Any = userProfile?.profilePictureUrl ?: firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
 
     var currentScreen by remember { mutableStateOf(ProfileScreen.Root) }
     var showEditProfile by remember { mutableStateOf(false) }
@@ -131,6 +136,19 @@ fun ProfileTab(
     
     var selectedTheme by remember { mutableStateOf(AppThemeOption.LIGHT_MODE) }
     val selectedNavBarStyle by uiViewModel.navBarStyle.collectAsState()
+
+    val profileUpdateState by profileViewModel.updateState.collectAsState()
+
+    LaunchedEffect(profileUpdateState) {
+        if (profileUpdateState is ProfileUpdateState.Success) {
+            showEditProfile = false
+            android.widget.Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Success).message, android.widget.Toast.LENGTH_SHORT).show()
+            profileViewModel.resetUpdateState()
+        } else if (profileUpdateState is ProfileUpdateState.Error) {
+            android.widget.Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Error).message, android.widget.Toast.LENGTH_SHORT).show()
+            profileViewModel.resetUpdateState()
+        }
+    }
 
     val editProfileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -145,8 +163,7 @@ fun ProfileTab(
             userHandle = userHandle,
             profilePic = profilePic,
             onUpdateProfile = { name, handle ->
-                // TODO: Update user profile logic
-                showEditProfile = false
+                profileViewModel.updateProfile(name, handle)
             }
         )
     }

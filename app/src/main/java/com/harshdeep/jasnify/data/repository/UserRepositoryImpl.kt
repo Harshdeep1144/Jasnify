@@ -58,6 +58,10 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateUserProfile(user: User) {
+        firestore.collection("users").document(user.uid).set(user).await()
+    }
+
     override suspend fun searchUsers(query: String): List<User> {
         if (query.isBlank()) return emptyList()
         return try {
