@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.home.tabs
 import android.annotation.SuppressLint
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -39,10 +40,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,20 +59,21 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserEvent
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -77,19 +81,17 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
+import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
-import com.harshdeep.jasnify.domain.model.User
-import com.harshdeep.jasnify.domain.model.UserEvent
-import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -131,7 +133,7 @@ fun ProfileTab(
 
     val userProfile by profileViewModel.userProfile.collectAsState()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
-    
+
     // Ensure owned events are fetched for old accounts
     LaunchedEffect(firebaseUser) {
         if (firebaseUser != null) {
@@ -142,7 +144,7 @@ fun ProfileTab(
     val userName = userProfile?.name ?: firebaseUser?.displayName ?: "Name"
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
-    
+
     // Prioritize Cloudinary URL from profile. Fallback to Google only if no profile exists yet.
     val profilePic: Any = if (userProfile != null) {
         userProfile?.profilePictureUrl ?: R.drawable.ic_user_profile
@@ -155,7 +157,8 @@ fun ProfileTab(
     var showChangePassword by remember { mutableStateOf(false) }
     var showAppTheme by remember { mutableStateOf(false) }
     var showNavBarStyle by remember { mutableStateOf(false) }
-    
+    var showLogoutDialog by remember { mutableStateOf(false) }
+
     var selectedTheme by remember { mutableStateOf(AppThemeOption.LIGHT_MODE) }
     val selectedNavBarStyle by uiViewModel.navBarStyle.collectAsState()
 
@@ -164,10 +167,10 @@ fun ProfileTab(
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
             showEditProfile = false
-            android.widget.Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Success).message, android.widget.Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Success).message, Toast.LENGTH_SHORT).show()
             profileViewModel.resetUpdateState()
         } else if (profileUpdateState is ProfileUpdateState.Error) {
-            android.widget.Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Error).message, android.widget.Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Error).message, Toast.LENGTH_SHORT).show()
             profileViewModel.resetUpdateState()
         }
     }
@@ -176,6 +179,24 @@ fun ProfileTab(
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    if (showLogoutDialog) {
+        ConfirmationDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            onConfirm = {
+                authViewModel.logout(context)
+                eventViewModel.clearActiveEvent()
+                mainNavController.navigate(Screen.LoginOrSignUp.route) {
+                    popUpTo(Screen.MainAppGraph.route) { inclusive = true }
+                }
+            },
+            title = "Are you sure?",
+            description = "You will be logged out from the app.",
+            confirmButtonText = "Log Out",
+            dismissButtonText = "Cancel",
+            isDestructive = true
+        )
+    }
 
     if (showEditProfile) {
         EditProfileBottomSheet(
@@ -242,13 +263,7 @@ fun ProfileTab(
                     profilePic = profilePic,
                     onEditProfile = { showEditProfile = true },
                     onNavigateTo = { currentScreen = it },
-                    onLogout = {
-                        authViewModel.logout(context)
-                        eventViewModel.clearActiveEvent()
-                        mainNavController.navigate(Screen.LoginOrSignUp.route) {
-                            popUpTo(Screen.MainAppGraph.route) { inclusive = true }
-                        }
-                    }
+                    onLogout = { showLogoutDialog = true }
                 )
             }
 
@@ -693,7 +708,7 @@ fun ManageEventsScreen(
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
 
     val joinedEvents = userProfile?.joinedEvents ?: emptyList()
-    
+
     // Merge owned events for old accounts that don't have joinedEvents populated
     val allUserEvents = remember(ownedEvents, joinedEvents) {
         val ownedAsUserEvents = ownedEvents.map { event ->
@@ -792,7 +807,7 @@ fun ManageEventsScreen(
                                     )
                                 }
                             }
-                            
+
                             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "Room Access:",
