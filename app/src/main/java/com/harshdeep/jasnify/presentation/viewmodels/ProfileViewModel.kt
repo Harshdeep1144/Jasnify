@@ -1,8 +1,10 @@
 package com.harshdeep.jasnify.presentation.viewmodels
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +25,8 @@ sealed class ProfileUpdateState {
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _userProfile = MutableStateFlow<User?>(null)
@@ -43,7 +46,7 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun updateProfile(name: String, username: String) {
+    fun updateProfile(name: String, username: String, profileImageUri: Uri? = null, shouldRemovePhoto: Boolean = false) {
         val uid = auth.currentUser?.uid ?: return
         _updateState.value = ProfileUpdateState.Loading
 
@@ -67,9 +70,19 @@ class ProfileViewModel @Inject constructor(
                     return@launch
                 }
 
+                var profileImageUrl = currentProfile.profilePictureUrl
+                
+                if (shouldRemovePhoto) {
+                    cloudinaryManager.deleteProfilePicture(uid)
+                    profileImageUrl = null
+                } else if (profileImageUri != null) {
+                    profileImageUrl = cloudinaryManager.uploadProfilePicture(profileImageUri, uid)
+                }
+
                 val updatedProfile = currentProfile.copy(
                     name = name,
                     username = username,
+                    profilePictureUrl = profileImageUrl,
                     lastUsernameChangeTimestamp = if (isUsernameChanging) now else currentProfile.lastUsernameChangeTimestamp
                 )
 

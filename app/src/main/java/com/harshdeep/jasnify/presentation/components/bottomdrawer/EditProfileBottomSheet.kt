@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -31,7 +34,8 @@ fun EditProfileBottomSheet(
     userName: String,
     userHandle: String,
     profilePic: Any,
-    onUpdateProfile: (String, String) -> Unit
+    isUpdating: Boolean = false,
+    onUpdateProfile: (String, String, Uri?, Boolean) -> Unit
 ) {
     CustomBottomSheet(
         heading = "Edit Profile",
@@ -43,6 +47,7 @@ fun EditProfileBottomSheet(
             userName = userName,
             userHandle = userHandle,
             profilePic = profilePic,
+            isUpdating = isUpdating,
             onUpdateProfile = onUpdateProfile
         )
     }
@@ -53,10 +58,22 @@ fun EditProfileContent(
     userName: String,
     userHandle: String,
     profilePic: Any,
-    onUpdateProfile: (String, String) -> Unit
+    isUpdating: Boolean = false,
+    onUpdateProfile: (String, String, Uri?, Boolean) -> Unit
 ) {
     var name by remember { mutableStateOf(userName) }
     var handle by remember { mutableStateOf(userHandle.removePrefix("@")) }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var shouldRemovePhoto by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            selectedImageUri = uri
+            shouldRemovePhoto = false
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -85,7 +102,7 @@ fun EditProfileContent(
                         .background(SurfaceSecondary)
                 ) {
                     AsyncImage(
-                        model = profilePic,
+                        model = if (shouldRemovePhoto) R.drawable.ic_user_profile else (selectedImageUri ?: profilePic),
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
@@ -101,7 +118,10 @@ fun EditProfileContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CustomTextButton(
-                        onClick = { /* Remove Profile Pic */ },
+                        onClick = { 
+                            selectedImageUri = null
+                            shouldRemovePhoto = true
+                        },
                         text = "Remove",
                         size = ButtonSize.Small,
                         leadingIcon = painterResource(R.drawable.ic_delete),
@@ -111,7 +131,7 @@ fun EditProfileContent(
                     Spacer(modifier = Modifier.width(8.dp))
 
                     CustomTextButton(
-                        onClick = { /* Upload Profile Pic */ },
+                        onClick = { photoPickerLauncher.launch("image/*") },
                         text = "Upload",
                         size = ButtonSize.Small,
                         leadingIcon = painterResource(R.drawable.ic_upload),
@@ -183,10 +203,11 @@ fun EditProfileContent(
                 .padding(12.dp)
         ) {
             CustomTextButton(
-                onClick = { onUpdateProfile(name, handle) },
-                text = "Update Profile",
+                onClick = { onUpdateProfile(name, handle, selectedImageUri, shouldRemovePhoto) },
+                text = if (isUpdating) "Uploading..." else "Update Profile",
                 shapeStyle = ButtonShapeStyle.Square,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isUpdating
             )
         }
     }
@@ -201,7 +222,8 @@ fun EditProfileBottomSheetPreview() {
             userName = "Anand K.",
             userHandle = "@viratanand",
             profilePic = R.drawable.ic_user_profile,
-            onUpdateProfile = { _, _ -> }
+            isUpdating = false,
+            onUpdateProfile = { _, _, _, _ -> }
         )
     }
 }

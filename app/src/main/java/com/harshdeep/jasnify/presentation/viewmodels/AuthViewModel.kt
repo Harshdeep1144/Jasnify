@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit
 import android.content.Context
 import javax.inject.Inject
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.UserRepository
@@ -37,7 +38,8 @@ sealed class AuthState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -110,7 +112,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on login
@@ -154,7 +157,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on signup
@@ -164,7 +168,7 @@ class AuthViewModel @Inject constructor(
                             } else {
                                 // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
                                 android.util.Log.w("AuthViewModel", "User signed up via ID but no invitation found for $userEmail")
-                                createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"))
+                                createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"), firebaseUser.photoUrl?.toString())
                                 _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
                             }
                         }
@@ -198,7 +202,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: ""
+                                    name = firebaseUser.displayName ?: "",
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on Google login
@@ -217,17 +222,28 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    private suspend fun createProfile(uid: String, email: String, name: String): User? {
+    private suspend fun createProfile(uid: String, email: String, name: String, photoUrl: String? = null): User? {
         try {
             val existingProfile = userRepository.getUserProfile(uid)
             if (existingProfile == null) {
                 val username = generateUsernameFromEmail(email)
+                
+                var cloudinaryUrl: String? = null
+                if (photoUrl != null) {
+                    try {
+                        cloudinaryUrl = cloudinaryManager.uploadProfilePictureFromUrl(photoUrl, uid)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
                 val newUser = User(
                     uid = uid,
                     name = name.ifBlank { username },
                     email = email.lowercase().trim(),
                     username = username,
-                    role = UserRole.VIEWER
+                    role = UserRole.VIEWER,
+                    profilePictureUrl = cloudinaryUrl
                 )
                 userRepository.createUserProfile(newUser)
                 return newUser
