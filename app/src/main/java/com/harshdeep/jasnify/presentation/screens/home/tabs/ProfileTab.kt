@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
 import android.annotation.SuppressLint
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -128,9 +130,15 @@ fun ProfileTab(
     val userName = userProfile?.name ?: firebaseUser?.displayName ?: "Name"
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
-    val profilePic: Any = userProfile?.profilePictureUrl ?: firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+    
+    // Prioritize Cloudinary URL from profile. Fallback to Google only if no profile exists yet.
+    val profilePic: Any = if (userProfile != null) {
+        userProfile?.profilePictureUrl ?: R.drawable.ic_user_profile
+    } else {
+        firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+    }
 
-    var currentScreen by remember { mutableStateOf(ProfileScreen.Root) }
+    var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
     var showAppTheme by remember { mutableStateOf(false) }
@@ -164,8 +172,9 @@ fun ProfileTab(
             userName = userName,
             userHandle = userHandle,
             profilePic = profilePic,
-            onUpdateProfile = { name, handle ->
-                profileViewModel.updateProfile(name, handle)
+            isUpdating = profileUpdateState is ProfileUpdateState.Loading,
+            onUpdateProfile = { name, handle, uri, shouldRemove ->
+                profileViewModel.updateProfile(name, handle, uri, shouldRemove)
             }
         )
     }
