@@ -39,6 +39,66 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOpt
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.theme.*
 
+/**
+ * Custom 360-degree drop shadow modifier.
+ * Native Android `Modifier.shadow` uses a top-down light source that only casts shadows downward.
+ * This custom draw method renders both an ambient halo (all 4 sides) and a directional spot shadow.
+ */
+fun Modifier.pill360Shadow(
+    ambientColor: Color = Color.Black.copy(alpha = 0.08f),
+    ambientBlur: Dp = 12.dp,
+    ambientSpread: Dp = 2.dp,
+    spotColor: Color = Color.Black.copy(alpha = 0.14f),
+    spotBlur: Dp = 16.dp,
+    spotOffsetY: Dp = 4.dp
+) = this.drawBehind {
+    drawIntoCanvas { canvas ->
+        val cornerRadius = size.height / 2f
+
+        // 1. Ambient 360-degree halo shadow (casts evenly on top, bottom, left, right)
+        val ambientPaint = Paint()
+        val frameworkAmbientPaint = ambientPaint.asFrameworkPaint()
+        if (ambientBlur.toPx() > 0) {
+            frameworkAmbientPaint.maskFilter = android.graphics.BlurMaskFilter(
+                ambientBlur.toPx(),
+                android.graphics.BlurMaskFilter.Blur.NORMAL
+            )
+        }
+        frameworkAmbientPaint.color = ambientColor.toArgb()
+
+        canvas.drawRoundRect(
+            left = -ambientSpread.toPx(),
+            top = -ambientSpread.toPx(),
+            right = size.width + ambientSpread.toPx(),
+            bottom = size.height + ambientSpread.toPx(),
+            radiusX = cornerRadius,
+            radiusY = cornerRadius,
+            paint = ambientPaint
+        )
+
+        // 2. Directional spot shadow (adds downward depth)
+        val spotPaint = Paint()
+        val frameworkSpotPaint = spotPaint.asFrameworkPaint()
+        if (spotBlur.toPx() > 0) {
+            frameworkSpotPaint.maskFilter = android.graphics.BlurMaskFilter(
+                spotBlur.toPx(),
+                android.graphics.BlurMaskFilter.Blur.NORMAL
+            )
+        }
+        frameworkSpotPaint.color = spotColor.toArgb()
+
+        canvas.drawRoundRect(
+            left = 0f,
+            top = spotOffsetY.toPx(),
+            right = size.width,
+            bottom = size.height + spotOffsetY.toPx(),
+            radiusX = cornerRadius,
+            radiusY = cornerRadius,
+            paint = spotPaint
+        )
+    }
+}
+
 @Composable
 fun BottomNavBar(
     navController: NavHostController,
@@ -163,19 +223,20 @@ fun PillBottomNavBar(
                 )
             )
             .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(62.dp)
-                .shadow(
-                    elevation = 20.dp,
-                    shape = CircleShape,
-                    clip = false,
-                    spotColor = Color.Black.copy(alpha = 0.18f),
-                    ambientColor = Color.Black.copy(alpha = 0.08f)
+                .pill360Shadow(
+                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                    ambientBlur = 12.dp,
+                    ambientSpread = 2.dp,
+                    spotColor = Color.Black.copy(alpha = 0.15f),
+                    spotBlur = 18.dp,
+                    spotOffsetY = 4.dp
                 ),
             shape = CircleShape,
             color = SurfacePrimary,
@@ -208,7 +269,7 @@ fun PillBottomNavBar(
                     navItems.forEachIndexed { index, screen ->
                         val isSelected = index == selectedIndex
 
-                        // Animated icon tint color (swaps smoothly when background slides underneath)
+                        // Animated icon tint color
                         val targetContentColor = if (isSelected) ContentInvPrimary else ContentSecondary
                         val animatedContentColor by animateColorAsState(
                             targetValue = targetContentColor,

@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.Flow
 interface UserRepository {
     suspend fun createUserProfile(user: User)
     suspend fun getUserProfile(uid: String): User?
+    suspend fun updateUserProfile(user: User)
     suspend fun searchUsers(query: String): List<User>
     suspend fun getUserByEmail(email: String): User?
 
