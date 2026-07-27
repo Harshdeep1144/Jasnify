@@ -2,32 +2,64 @@ package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import android.graphics.BlurMaskFilter
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SheetState
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.presentation.components.scaffold.BottomNavBarContent
+import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.Neutral300
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 
 enum class NavBarStyleOption(val label: String) {
     PILL_SHAPED("Pill Shaped"),
@@ -62,6 +94,14 @@ fun NavBarStyleContent(
     onDismiss: () -> Unit
 ) {
     var selectedStyle by remember { mutableStateOf(currentStyle) }
+
+    val navItems = listOf(
+        Screen.HomeTabScreen.Home,
+        Screen.HomeTabScreen.Inspirations,
+        Screen.HomeTabScreen.Checklists,
+        Screen.HomeTabScreen.Vendors,
+        Screen.HomeTabScreen.Profile
+    )
 
     Column(
         modifier = Modifier.fillMaxWidth()
@@ -126,117 +166,37 @@ fun NavBarStyleContent(
                                     contentAlignment = Alignment.BottomCenter
                                 ) {
                                     Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                                     ) {
-                                        // Floating Pill Navigation Bar
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 10.dp)
-                                                .shadow(
-                                                    elevation = 10.dp,
-                                                    shape = CircleShape,
-                                                    spotColor = ContentPrimary.copy(alpha = 0.20f),
-                                                    ambientColor = ContentPrimary.copy(alpha = 0.08f)
-                                                )
-                                                .clip(CircleShape)
-                                                .background(SurfacePrimary)
-                                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                                            horizontalArrangement = Arrangement.SpaceEvenly,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            // Item 1: Home (Selected Pill Inset)
-                                            Box(
-                                                modifier = Modifier.weight(1f),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .height(38.dp)
-                                                        .clip(CircleShape)
-                                                        .background(SurfaceBrandPrimary),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_home),
-                                                        contentDescription = "Home",
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(19.dp)
-                                                    )
-                                                }
-                                            }
-
-                                            // Item 2: Inspirations
-                                            Box(
+                                        // Actual Pill Navigation Bar scaled down to fit mockup width
+                                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                            val scale = 0.8f
+                                            BottomNavBarContent(
+                                                selectedIndex = 0,
+                                                onItemSelected = {},
+                                                navItems = navItems,
+                                                style = NavBarStyleOption.PILL_SHAPED,
+                                                applyPadding = false,
                                                 modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(38.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_inspirations),
-                                                    contentDescription = "Inspirations",
-                                                    tint = ContentSecondary,
-                                                    modifier = Modifier.size(19.dp)
-                                                )
-                                            }
-
-                                            // Item 3: Checklists
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(38.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_checklists),
-                                                    contentDescription = "Checklists",
-                                                    tint = ContentSecondary,
-                                                    modifier = Modifier.size(19.dp)
-                                                )
-                                            }
-
-                                            // Item 4: Vendors
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(38.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_vendor),
-                                                    contentDescription = "Vendors",
-                                                    tint = ContentSecondary,
-                                                    modifier = Modifier.size(19.dp)
-                                                )
-                                            }
-
-                                            // Item 5: Profile
-                                            Box(
-                                                modifier = Modifier
-                                                    .weight(1f)
-                                                    .height(38.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_profile),
-                                                    contentDescription = "Profile",
-                                                    tint = ContentSecondary,
-                                                    modifier = Modifier.size(19.dp)
-                                                )
-                                            }
+                                                    .requiredWidth(maxWidth / scale)
+                                                    .graphicsLayer {
+                                                        scaleX = scale
+                                                        scaleY = scale
+                                                        transformOrigin = TransformOrigin(0.5f, 1f)
+                                                    }
+                                            )
                                         }
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Spacer(modifier = Modifier.height(18.dp))
 
                                         // Bottom Handle Bar Indicator
                                         Box(
                                             modifier = Modifier
-                                                .width(64.dp)
-                                                .height(3.dp)
+                                                .width(108.dp)
+                                                .height(4.dp)
                                                 .clip(CircleShape)
-                                                .background(SurfaceSecondary)
+                                                .background(SurfacePrimary)
                                         )
                                     }
                                 }
@@ -251,148 +211,45 @@ fun NavBarStyleContent(
                                             .background(SurfaceSecondary)
                                     )
 
-                                    // Bottom Navigation Area with White Background in Basic style
+                                    // Actual Basic Navigation Bar scaled down
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .shadow(
-                                                elevation = 10.dp,
-                                                spotColor = ContentPrimary.copy(alpha = 0.20f),
-                                                ambientColor = ContentPrimary.copy(alpha = 0.08f)
-                                            )
-                                            .background(SurfacePrimary)
-                                            .padding(top = 6.dp, bottom = 4.dp),
-                                        contentAlignment = Alignment.Center
+                                        modifier = Modifier.fillMaxWidth(),
+                                        contentAlignment = Alignment.BottomCenter
                                     ) {
                                         Column(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 4.dp),
-                                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Selected Item
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .width(44.dp)
-                                                            .height(24.dp)
-                                                            .clip(CircleShape)
-                                                            .background(SurfaceBrandSecondary),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.ic_home),
-                                                            contentDescription = "Home",
-                                                            tint = ContentBrandDark,
-                                                            modifier = Modifier.size(18.dp)
-                                                        )
-                                                    }
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "Home",
-                                                        style = MaterialTheme.typography.labelSmall.copy(
-                                                            fontSize = 9.sp,
-                                                            fontWeight = FontWeight.SemiBold
-                                                        ),
-                                                        color = ContentBrandDark
-                                                    )
-                                                }
-
-                                                // Item 2: Inspiration
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_inspirations),
-                                                        contentDescription = "Inspiration",
-                                                        tint = ContentSecondary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "Inspiration",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        color = ContentSecondary
-                                                    )
-                                                }
-
-                                                // Item 3: Checklist
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_checklists),
-                                                        contentDescription = "Checklist",
-                                                        tint = ContentSecondary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "Checklist",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        color = ContentSecondary
-                                                    )
-                                                }
-
-                                                // Item 4: Vendors
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_vendor),
-                                                        contentDescription = "Vendors",
-                                                        tint = ContentSecondary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "Vendors",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        color = ContentSecondary
-                                                    )
-                                                }
-
-                                                // Item 5: Profile
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Center
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(R.drawable.ic_profile),
-                                                        contentDescription = "Profile",
-                                                        tint = ContentSecondary,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.height(2.dp))
-                                                    Text(
-                                                        text = "Profile",
-                                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                                                        color = ContentSecondary
-                                                    )
-                                                }
+                                            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                                val scale = 0.8f
+                                                BottomNavBarContent(
+                                                    selectedIndex = 0,
+                                                    onItemSelected = {},
+                                                    navItems = navItems,
+                                                    style = NavBarStyleOption.BASIC,
+                                                    applyPadding = false,
+                                                    modifier = Modifier
+                                                        .requiredWidth(maxWidth / scale)
+                                                        .graphicsLayer {
+                                                            scaleX = scale
+                                                            scaleY = scale
+                                                            transformOrigin = TransformOrigin(0.5f, 1f)
+                                                        }
+                                                )
                                             }
 
-                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Spacer(modifier = Modifier.height(12.dp))
 
                                             // Bottom Handle Bar Indicator
                                             Box(
                                                 modifier = Modifier
-                                                    .width(64.dp)
-                                                    .height(3.dp)
+                                                    .width(108.dp)
+                                                    .height(4.dp)
                                                     .clip(CircleShape)
                                                     .background(SurfaceSecondary)
                                             )
+
+                                            Spacer(modifier = Modifier.height(12.dp))
                                         }
                                     }
                                 }
