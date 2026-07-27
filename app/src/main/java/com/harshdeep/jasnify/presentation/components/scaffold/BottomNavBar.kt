@@ -1,19 +1,37 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.BottomAppBarDefaults
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.BottomAppBar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -37,7 +55,14 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
 
 /**
  * Custom 360-degree drop shadow modifier.
@@ -113,39 +138,77 @@ fun BottomNavBar(
         Screen.HomeTabScreen.Profile
     )
 
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentDestination = navBackStackEntry?.destination
+
+    val selectedIndex = remember(currentDestination, navItems) {
+        val index = navItems.indexOfFirst { screen ->
+            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+        }
+        if (index != -1) index else 0
+    }
+
+    BottomNavBarContent(
+        selectedIndex = selectedIndex,
+        onItemSelected = { screen ->
+            navController.navigate(screen.route) {
+                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
+            }
+        },
+        navItems = navItems,
+        style = style,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun BottomNavBarContent(
+    selectedIndex: Int,
+    onItemSelected: (Screen.HomeTabScreen) -> Unit,
+    navItems: List<Screen.HomeTabScreen>,
+    style: NavBarStyleOption,
+    modifier: Modifier = Modifier,
+    applyPadding: Boolean = true
+) {
     if (style == NavBarStyleOption.BASIC) {
         BasicBottomNavBar(
-            navController = navController,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
             navItems = navItems,
-            modifier = modifier
+            modifier = modifier,
+            applyPadding = applyPadding
         )
     } else {
         PillBottomNavBar(
-            navController = navController,
+            selectedIndex = selectedIndex,
+            onItemSelected = onItemSelected,
             navItems = navItems,
-            modifier = modifier
+            modifier = modifier,
+            applyPadding = applyPadding
         )
     }
 }
 
 @Composable
 private fun BasicBottomNavBar(
-    navController: NavHostController,
+    selectedIndex: Int,
+    onItemSelected: (Screen.HomeTabScreen) -> Unit,
     navItems: List<Screen.HomeTabScreen>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    applyPadding: Boolean = true
 ) {
     BottomAppBar(
         containerColor = SurfacePrimary,
+        windowInsets = if (applyPadding) BottomAppBarDefaults.windowInsets else WindowInsets(0, 0, 0, 0),
         modifier = modifier
             .fillMaxWidth()
-            .height(93.dp)
+            .height(if (applyPadding) 93.dp else 80.dp)
             .shadow(elevation = 20.dp)
     ) {
-        val navBackStackEntry by navController.currentBackStackEntryAsState()
-        val currentDestination = navBackStackEntry?.destination
-
-        navItems.forEach { screen ->
-            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+        navItems.forEachIndexed { index, screen ->
+            val isSelected = index == selectedIndex
 
             NavigationBarItem(
                 icon = {
@@ -162,11 +225,7 @@ private fun BasicBottomNavBar(
                 alwaysShowLabel = true,
                 onClick = {
                     if (!isSelected) {
-                        navController.navigate(screen.route) {
-                            popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        onItemSelected(screen)
                     }
                 },
                 colors = NavigationBarItemDefaults.colors(
@@ -183,21 +242,12 @@ private fun BasicBottomNavBar(
 
 @Composable
 fun PillBottomNavBar(
-    navController: NavHostController,
+    selectedIndex: Int,
+    onItemSelected: (Screen.HomeTabScreen) -> Unit,
     navItems: List<Screen.HomeTabScreen>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    applyPadding: Boolean = true
 ) {
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-
-    // Determine currently selected index
-    val selectedIndex = remember(currentDestination, navItems) {
-        val index = navItems.indexOfFirst { screen ->
-            currentDestination?.hierarchy?.any { it.route == screen.route } == true
-        }
-        if (index != -1) index else 0
-    }
-
     // Smooth physics spring animation for the sliding tab indicator
     val animatedIndex by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
@@ -211,19 +261,24 @@ fun PillBottomNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                brush = Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.00f to Color.Transparent,
-                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                        1.00f to BackgroundPrimary
-                    )
-                )
-            )
-            .navigationBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .then(
+                if (applyPadding) {
+                    Modifier
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.00f to Color.Transparent,
+                                    0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                    0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                    1.00f to BackgroundPrimary
+                                )
+                            )
+                        )
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                } else Modifier
+            ),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
@@ -273,7 +328,7 @@ fun PillBottomNavBar(
                         val targetContentColor = if (isSelected) ContentInvPrimary else ContentSecondary
                         val animatedContentColor by animateColorAsState(
                             targetValue = targetContentColor,
-                            animationSpec = tween(durationMillis = 200),
+                            animationSpec = tween(durationMillis = 150),
                             label = "TabContentColorAnimation"
                         )
 
@@ -287,13 +342,7 @@ fun PillBottomNavBar(
                                     indication = null
                                 ) {
                                     if (!isSelected) {
-                                        navController.navigate(screen.route) {
-                                            popUpTo(navController.graph.startDestinationId) {
-                                                saveState = true
-                                            }
-                                            launchSingleTop = true
-                                            restoreState = true
-                                        }
+                                        onItemSelected(screen)
                                     }
                                 },
                             contentAlignment = Alignment.Center
