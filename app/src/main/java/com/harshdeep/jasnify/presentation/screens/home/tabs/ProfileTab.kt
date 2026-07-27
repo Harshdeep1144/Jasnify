@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
@@ -105,6 +106,7 @@ enum class ProfileScreen {
     PrivacyPolicy
 }
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

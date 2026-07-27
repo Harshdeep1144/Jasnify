@@ -1,6 +1,12 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import android.graphics.BlurMaskFilter
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -163,72 +169,26 @@ fun NavBarStyleContent(
                                 .background(SurfaceSecondary)
                         ) {
                             // Main Mockup Content
-                            if (selectedStyle == NavBarStyleOption.PILL_SHAPED) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize(),
-                                    contentAlignment = Alignment.BottomCenter
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
-                                    ) {
-                                        // Actual Pill Navigation Bar scaled down to fit mockup width
-                                        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                                            val scale = 0.8f
-                                            BottomNavBarContent(
-                                                selectedIndex = selectedNavIndex,
-                                                onItemSelected = { selectedScreen ->
-                                                    val index = navItems.indexOf(selectedScreen)
-                                                    if (index != -1) {
-                                                        selectedNavIndex = index
-                                                    }
-                                                },
-                                                navItems = navItems,
-                                                style = NavBarStyleOption.PILL_SHAPED,
-                                                applyPadding = false,
-                                                modifier = Modifier
-                                                    .requiredWidth(maxWidth / scale)
-                                                    .graphicsLayer {
-                                                        scaleX = scale
-                                                        scaleY = scale
-                                                        transformOrigin = TransformOrigin(0.5f, 1f)
-                                                    }
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(18.dp))
-
-                                        // Bottom Handle Bar Indicator
-                                        Box(
-                                            modifier = Modifier
-                                                .width(108.dp)
-                                                .height(4.dp)
-                                                .clip(CircleShape)
-                                                .background(SurfacePrimary)
-                                        )
-                                    }
-                                }
-                            } else {
-                                Column(
-                                    modifier = Modifier.fillMaxSize()
-                                ) {
+                            AnimatedContent(
+                                targetState = selectedStyle,
+                                label = "nav_bar_style_transition",
+                                transitionSpec = {
+                                    (fadeIn() + slideInVertically { it / 2 }) togetherWith
+                                            (fadeOut() + slideOutVertically { it / 2 })
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            ) { targetStyle ->
+                                if (targetStyle == NavBarStyleOption.PILL_SHAPED) {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f)
-                                            .background(SurfaceSecondary)
-                                    )
-
-                                    // Actual Basic Navigation Bar scaled down
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth(),
+                                            .fillMaxSize(),
                                         contentAlignment = Alignment.BottomCenter
                                     ) {
                                         Column(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalAlignment = Alignment.CenterHorizontally
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            modifier = Modifier.padding(vertical = 8.dp, horizontal = 12.dp)
                                         ) {
+                                            // Actual Pill Navigation Bar scaled down to fit mockup width
                                             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                                 val scale = 0.8f
                                                 BottomNavBarContent(
@@ -240,7 +200,7 @@ fun NavBarStyleContent(
                                                         }
                                                     },
                                                     navItems = navItems,
-                                                    style = NavBarStyleOption.BASIC,
+                                                    style = NavBarStyleOption.PILL_SHAPED,
                                                     applyPadding = false,
                                                     modifier = Modifier
                                                         .requiredWidth(maxWidth / scale)
@@ -252,24 +212,80 @@ fun NavBarStyleContent(
                                                 )
                                             }
 
-                                            Column(
+                                            Spacer(modifier = Modifier.height(18.dp))
+
+                                            // Bottom Handle Bar Indicator
+                                            Box(
                                                 modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .background(BackgroundPrimary),
+                                                    .width(108.dp)
+                                                    .height(4.dp)
+                                                    .clip(CircleShape)
+                                                    .background(SurfacePrimary)
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    Column(
+                                        modifier = Modifier.fillMaxSize()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f)
+                                                .background(SurfaceSecondary)
+                                        )
+
+                                        // Actual Basic Navigation Bar scaled down
+                                        Box(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            contentAlignment = Alignment.BottomCenter
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.fillMaxWidth(),
                                                 horizontalAlignment = Alignment.CenterHorizontally
-                                            ){
-                                                Spacer(modifier = Modifier.height(12.dp))
+                                            ) {
+                                                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                                                    val scale = 0.8f
+                                                    BottomNavBarContent(
+                                                        selectedIndex = selectedNavIndex,
+                                                        onItemSelected = { selectedScreen ->
+                                                            val index = navItems.indexOf(selectedScreen)
+                                                            if (index != -1) {
+                                                                selectedNavIndex = index
+                                                            }
+                                                        },
+                                                        navItems = navItems,
+                                                        style = NavBarStyleOption.BASIC,
+                                                        applyPadding = false,
+                                                        modifier = Modifier
+                                                            .requiredWidth(maxWidth / scale)
+                                                            .graphicsLayer {
+                                                                scaleX = scale
+                                                                scaleY = scale
+                                                                transformOrigin = TransformOrigin(0.5f, 1f)
+                                                            }
+                                                    )
+                                                }
 
-                                                // Bottom Handle Bar Indicator
-                                                Box(
+                                                Column(
                                                     modifier = Modifier
-                                                        .width(108.dp)
-                                                        .height(4.dp)
-                                                        .clip(CircleShape)
-                                                        .background(SurfaceSecondary)
-                                                )
+                                                        .fillMaxWidth()
+                                                        .background(BackgroundPrimary),
+                                                    horizontalAlignment = Alignment.CenterHorizontally
+                                                ) {
+                                                    Spacer(modifier = Modifier.height(12.dp))
 
-                                                Spacer(modifier = Modifier.height(8.dp))
+                                                    // Bottom Handle Bar Indicator
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .width(108.dp)
+                                                            .height(4.dp)
+                                                            .clip(CircleShape)
+                                                            .background(SurfaceSecondary)
+                                                    )
+
+                                                    Spacer(modifier = Modifier.height(8.dp))
+                                                }
                                             }
                                         }
                                     }
