@@ -24,6 +24,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -50,6 +51,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomNavBarContent
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -94,6 +97,7 @@ fun NavBarStyleContent(
     onDismiss: () -> Unit
 ) {
     var selectedStyle by remember { mutableStateOf(currentStyle) }
+    var selectedNavIndex by remember { mutableIntStateOf(0) }
 
     val navItems = listOf(
         Screen.HomeTabScreen.Home,
@@ -173,8 +177,13 @@ fun NavBarStyleContent(
                                         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                             val scale = 0.8f
                                             BottomNavBarContent(
-                                                selectedIndex = 0,
-                                                onItemSelected = {},
+                                                selectedIndex = selectedNavIndex,
+                                                onItemSelected = { selectedScreen ->
+                                                    val index = navItems.indexOf(selectedScreen)
+                                                    if (index != -1) {
+                                                        selectedNavIndex = index
+                                                    }
+                                                },
                                                 navItems = navItems,
                                                 style = NavBarStyleOption.PILL_SHAPED,
                                                 applyPadding = false,
@@ -223,8 +232,13 @@ fun NavBarStyleContent(
                                             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
                                                 val scale = 0.8f
                                                 BottomNavBarContent(
-                                                    selectedIndex = 0,
-                                                    onItemSelected = {},
+                                                    selectedIndex = selectedNavIndex,
+                                                    onItemSelected = { selectedScreen ->
+                                                        val index = navItems.indexOf(selectedScreen)
+                                                        if (index != -1) {
+                                                            selectedNavIndex = index
+                                                        }
+                                                    },
                                                     navItems = navItems,
                                                     style = NavBarStyleOption.BASIC,
                                                     applyPadding = false,
@@ -238,18 +252,25 @@ fun NavBarStyleContent(
                                                 )
                                             }
 
-                                            Spacer(modifier = Modifier.height(12.dp))
-
-                                            // Bottom Handle Bar Indicator
-                                            Box(
+                                            Column(
                                                 modifier = Modifier
-                                                    .width(108.dp)
-                                                    .height(4.dp)
-                                                    .clip(CircleShape)
-                                                    .background(SurfaceSecondary)
-                                            )
+                                                    .fillMaxWidth()
+                                                    .background(BackgroundPrimary),
+                                                horizontalAlignment = Alignment.CenterHorizontally
+                                            ){
+                                                Spacer(modifier = Modifier.height(12.dp))
 
-                                            Spacer(modifier = Modifier.height(12.dp))
+                                                // Bottom Handle Bar Indicator
+                                                Box(
+                                                    modifier = Modifier
+                                                        .width(108.dp)
+                                                        .height(4.dp)
+                                                        .clip(CircleShape)
+                                                        .background(SurfaceSecondary)
+                                                )
+
+                                                Spacer(modifier = Modifier.height(8.dp))
+                                            }
                                         }
                                     }
                                 }
