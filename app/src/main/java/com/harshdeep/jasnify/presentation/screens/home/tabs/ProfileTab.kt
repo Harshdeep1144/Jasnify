@@ -79,12 +79,18 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
+import com.harshdeep.jasnify.presentation.components.cards.ManageEventCard
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -119,6 +125,8 @@ enum class ProfileScreen {
 @Composable
 fun ProfileTab(
     mainNavController: NavHostController,
+    internalNavController: NavHostController,
+    onBottomBarVisibilityChange: (Boolean) -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
@@ -153,6 +161,11 @@ fun ProfileTab(
     }
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
+
+    LaunchedEffect(currentScreen) {
+        onBottomBarVisibilityChange(currentScreen == ProfileScreen.Root)
+    }
+
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
     var showAppTheme by remember { mutableStateOf(false) }
@@ -293,6 +306,9 @@ fun ProfileTab(
                     onBack = { currentScreen = ProfileScreen.Root },
                     onEventClick = { eventId ->
                         eventViewModel.fetchAndSetActiveEvent(eventId)
+                        internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                            popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                        }
                         currentScreen = ProfileScreen.Root
                     }
                 )
@@ -729,6 +745,29 @@ fun ManageEventsScreen(
         (ownedAsUserEvents + joinedEvents).distinctBy { it.eventId }
     }
 
+    var showEventMenu by remember { mutableStateOf(false) }
+    var selectedEventForMenu by remember { mutableStateOf<UserEvent?>(null) }
+
+    if (showEventMenu && selectedEventForMenu != null) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Event",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
+                            showEventMenu = false
+                        }
+                    )
+                )
+            ),
+            onCancelClick = { showEventMenu = false }
+        )
+    }
+
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
@@ -763,103 +802,16 @@ fun ManageEventsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(allUserEvents) { userEvent ->
-                    val isActive = userEvent.eventId == activeEventId
-                    Surface(
-                        onClick = { onEventClick(userEvent.eventId) },
-                        color = if (isActive) SurfaceSecondary else SurfacePrimary,
-                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .border(
-                                width = if (isActive) 2.dp else 1.dp,
-                                color = if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                            )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = userEvent.eventName,
-                                        style = JasnifyTheme.typography.labelXLarge.copy(fontWeight = FontWeight.Bold),
-                                        color = ContentPrimary
-                                    )
-                                    val isAdmin = userProfile?.uid == userEvent.adminId
-                                    Text(
-                                        text = if (isAdmin) "Admin / Owner" else "Member",
-                                        style = JasnifyTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                if (isActive) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_check),
-                                        contentDescription = "Active Event",
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                            }
-
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text(
-                                    text = "Room Access:",
-                                    style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                                    color = ContentSecondary
-                                )
-                                userEvent.roomRoles.forEach { (room, role) ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = room,
-                                            style = JasnifyTheme.typography.labelSmall,
-                                            color = ContentSecondary
-                                        )
-                                        Text(
-                                            text = role.name,
-                                            style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                                            color = if (role == UserRole.OWNER) MaterialTheme.colorScheme.primary else ContentPrimary
-                                        )
-                                    }
-                                }
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (!isActive) {
-                                    CustomTextButton(
-                                        onClick = { onEventClick(userEvent.eventId) },
-                                        text = "Switch to",
-                                        size = ButtonSize.Small,
-                                        type = ButtonType.Secondary
-                                    )
-                                    Spacer(Modifier.size(8.dp))
-                                }
-
-                                CustomTextButton(
-                                    onClick = {
-                                        eventViewModel.leaveEvent(userEvent.eventId)
-                                    },
-                                    text = "Leave",
-                                    size = ButtonSize.Small,
-                                    contentColor = MaterialTheme.colorScheme.error,
-                                    containerColor = MaterialTheme.colorScheme.errorContainer
-                                )
-                            }
+                    ManageEventCard(
+                        userEvent = userEvent,
+                        isActive = userEvent.eventId == activeEventId,
+                        isAdmin = userProfile?.uid == userEvent.adminId,
+                        onEventClick = { onEventClick(userEvent.eventId) },
+                        onMenuClick = {
+                            selectedEventForMenu = userEvent
+                            showEventMenu = true
                         }
-                    }
+                    )
                 }
             }
         }

@@ -52,7 +52,10 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(route = Screen.HomeTabScreen.Profile.route) {
-        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
-        ProfileTab(mainNavController = mainNavController)
+        ProfileTab(
+            mainNavController = mainNavController,
+            internalNavController = navController,
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange
+        )
     }
 }

@@ -181,6 +181,14 @@ class UserRepositoryImpl @Inject constructor(
                 .collection("rooms").document(roomType)
                 .collection(collectionName).document(uid)
                 .set(accessData).await()
+
+            // CRITICAL: Update user's joinedEvents to include this room role
+            val eventDoc = firestore.collection("events").document(eventId).get().await()
+            if (eventDoc.exists()) {
+                val eventName = eventDoc.getString("name") ?: "Event"
+                val adminId = eventDoc.getString("ownerId") ?: ""
+                updateUserJoinedEvents(uid, UserEvent(eventId, eventName, adminId, mapOf(roomType to role)))
+            }
         } catch (e: Exception) {
             android.util.Log.e("UserRepository", "Error in grantDirectRoomAccess", e)
         }
@@ -198,38 +206,25 @@ class UserRepositoryImpl @Inject constructor(
             return
         }
 
-        // 1. Primary Attempt: Efficient Collection Group Query (Requires Index)
+        val pendingByEvent = mutableMapOf<String, MutableList<com.google.firebase.firestore.DocumentSnapshot>>()
+
+        // 1. Collect invitations via Collection Group
         try {
-            android.util.Log.d("UserRepository", "Attempting collectionGroup search for pending_access with email: $cleanEmail")
             val snapshot = firestore.collectionGroup("pending_access")
                 .whereEqualTo("email", cleanEmail)
                 .get().await()
 
-            if (!snapshot.isEmpty) {
-                android.util.Log.d("UserRepository", "Index-based promotion found ${snapshot.size()} docs")
-                for (doc in snapshot.documents) {
-                    val docEventId = doc.getString("eventId") ?: ""
-                    android.util.Log.d("UserRepository", "Checking doc with docEventId: $docEventId against input eventId: $eventId")
-
-                    // If eventId is provided, we only process invitations for that specific event.
-                    if (eventId.isNotBlank() && docEventId != eventId) {
-                        android.util.Log.d("UserRepository", "Skipping doc: ID mismatch")
-                        continue
-                    }
-
-                    promoteInvitation(doc, user, cleanEmail)
-                }
-                return // Success via primary method
-            } else {
-                android.util.Log.d("UserRepository", "No documents found in collectionGroup search for $cleanEmail")
+            for (doc in snapshot.documents) {
+                val docEventId = doc.getString("eventId") ?: continue
+                if (eventId.isNotBlank() && docEventId != eventId) continue
+                pendingByEvent.getOrPut(docEventId) { mutableListOf() }.add(doc)
             }
         } catch (e: Exception) {
             android.util.Log.w("UserRepository", "Collection Group query failed: ${e.message}")
         }
 
-        // 2. Fallback: Manual Room-by-Room Check (Works without Index)
-        if (eventId.isNotBlank()) {
-            android.util.Log.d("UserRepository", "Running fallback room-by-room promotion for event $eventId")
+        // 2. Fallback: Manual Room-by-Room Check (if no group results and eventId is provided)
+        if (pendingByEvent.isEmpty() && eventId.isNotBlank()) {
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
             for (roomType in rooms) {
                 try {
@@ -237,56 +232,88 @@ class UserRepositoryImpl @Inject constructor(
                         .collection("rooms").document(roomType)
                         .collection("pending_access").document(cleanEmail)
                         .get().await()
-
                     if (pendingDoc.exists()) {
-                        android.util.Log.d("UserRepository", "Found pending invitation in $roomType. Promoting...")
-                        promoteInvitation(pendingDoc, user, cleanEmail)
+                        pendingByEvent.getOrPut(eventId) { mutableListOf() }.add(pendingDoc)
                     }
-                } catch (e: Exception) {
-                    android.util.Log.e("UserRepository", "Error checking room $roomType for fallback promotion", e)
-                }
+                } catch (e: Exception) {}
             }
         }
-    }
 
-    private suspend fun promoteInvitation(doc: com.google.firebase.firestore.DocumentSnapshot, user: User, cleanEmail: String) {
-        val docEventId = doc.getString("eventId") ?: return
-        val roomType = doc.getString("roomType") ?: return
-        val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
-        val role = try { UserRole.valueOf(roleStr) } catch (e: Exception) { UserRole.VIEWER }
-        val collectionName = getUserCollectionName(roomType)
+        // 3. Process grouped invitations efficiently
+        for ((targetEventId, docs) in pendingByEvent) {
+            try {
+                val eventDoc = firestore.collection("events").document(targetEventId).get().await()
+                val eventName = eventDoc.getString("name") ?: "Event"
+                val adminId = eventDoc.getString("ownerId") ?: ""
+                val roomRoles = mutableMapOf<String, UserRole>()
 
-        val accessData = mapOf(
-            "uid" to user.uid,
-            "email" to cleanEmail,
-            "role" to role.name,
-            "name" to user.name,
-            "username" to user.username,
-            "profilePictureUrl" to user.profilePictureUrl
-        )
+                for (doc in docs) {
+                    val roomType = doc.getString("roomType") ?: continue
+                    val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
+                    val role = try { UserRole.valueOf(roleStr) } catch (e: Exception) { UserRole.VIEWER }
+                    roomRoles[roomType] = role
 
-        try {
-            // 1. Write to real user collection for this room
-            firestore.collection("events").document(docEventId)
-                .collection("rooms").document(roomType)
-                .collection(collectionName).document(user.uid)
-                .set(accessData).await()
+                    val collectionName = getUserCollectionName(roomType)
+                    val accessData = mapOf(
+                        "uid" to uid,
+                        "email" to cleanEmail,
+                        "role" to role.name,
+                        "name" to user.name,
+                        "username" to user.username,
+                        "profilePictureUrl" to user.profilePictureUrl
+                    )
 
-            // 2. Delete the pending invitation
-            doc.reference.delete().await()
-            android.util.Log.d("UserRepository", "Promoted $cleanEmail to real user in $roomType of event $docEventId")
-        } catch (e: Exception) {
-            android.util.Log.e("UserRepository", "Failed to promote invitation for $roomType", e)
+                    // Write to real user collection for this room
+                    firestore.collection("events").document(targetEventId)
+                        .collection("rooms").document(roomType)
+                        .collection(collectionName).document(uid)
+                        .set(accessData).await()
+
+                    // Delete the pending invitation
+                    doc.reference.delete().await()
+                }
+
+                // Update user's joinedEvents ONCE per event with all found roles
+                updateUserJoinedEvents(uid, UserEvent(targetEventId, eventName, adminId, roomRoles))
+                android.util.Log.d("UserRepository", "Promoted $cleanEmail for event $targetEventId with ${roomRoles.size} rooms")
+            } catch (e: Exception) {
+                android.util.Log.e("UserRepository", "Error promoting invitations for event $targetEventId", e)
+            }
         }
     }
 
     override suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String) {
         val collectionName = getUserCollectionName(roomType)
-        firestore.collection("events").document(eventId)
-            .collection("rooms").document(roomType)
-            .collection(collectionName).document(uid)
-            .delete().await()
+        try {
+            firestore.collection("events").document(eventId)
+                .collection("rooms").document(roomType)
+                .collection(collectionName).document(uid)
+                .delete().await()
+
+            // ALSO: Remove this room role from the user's joinedEvents list
+            val user = getUserProfile(uid) ?: return
+            val currentEvents = user.joinedEvents.toMutableList()
+            val index = currentEvents.indexOfFirst { it.eventId == eventId }
+
+            if (index != -1) {
+                val existingEvent = currentEvents[index]
+                val updatedRoles = existingEvent.roomRoles.filterKeys { it != roomType }
+
+                if (updatedRoles.isEmpty()) {
+                    currentEvents.removeAt(index)
+                } else {
+                    currentEvents[index] = existingEvent.copy(roomRoles = updatedRoles)
+                }
+
+                firestore.collection("users").document(uid)
+                    .update("joinedEvents", currentEvents)
+                    .await()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error in removeRoomAccess/joinedEvents update", e)
+        }
     }
+
 
     override fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>> = callbackFlow {
         val collectionName = getUserCollectionName(roomType)
@@ -534,7 +561,15 @@ class UserRepositoryImpl @Inject constructor(
             val index = currentEvents.indexOfFirst { it.eventId == userEvent.eventId }
 
             if (index != -1) {
-                currentEvents[index] = userEvent
+                val existingEvent = currentEvents[index]
+                val mergedRoles = existingEvent.roomRoles.toMutableMap()
+                mergedRoles.putAll(userEvent.roomRoles)
+
+                currentEvents[index] = existingEvent.copy(
+                    eventName = if (userEvent.eventName.isNotEmpty()) userEvent.eventName else existingEvent.eventName,
+                    adminId = if (userEvent.adminId.isNotEmpty()) userEvent.adminId else existingEvent.adminId,
+                    roomRoles = mergedRoles
+                )
             } else {
                 currentEvents.add(userEvent)
             }
@@ -555,6 +590,9 @@ class UserRepositoryImpl @Inject constructor(
                 .collection(collectionName).document(uid)
                 .update("role", role.name)
                 .await()
+
+            // ALSO: Update the user's profile to reflect the new role
+            updateUserJoinedEvents(uid, UserEvent(eventId = eventId, roomRoles = mapOf(roomType to role)))
         } catch (e: Exception) {
             android.util.Log.e("UserRepository", "Error updating room role in $roomType for user $uid", e)
         }
