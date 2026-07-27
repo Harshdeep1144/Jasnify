@@ -44,7 +44,7 @@ object NavAnimations {
 
     val slideInFromLeft: EnterTransition =
         slideInHorizontally(
-            initialOffsetX = { fullWidth -> fullWidth },
+            initialOffsetX = { fullWidth -> -fullWidth },
             animationSpec = tween(DURATION)
         ) + fadeIn(animationSpec = tween(DURATION))
 

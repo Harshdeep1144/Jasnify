@@ -296,7 +296,7 @@ fun ChecklistsTab(
             SharedTransitionLayout {
             AnimatedContent(
                 targetState = currentScreen,
-                
+
                 transitionSpec = {
                     fadeIn(animationSpec = tween(220, delayMillis = 90)) togetherWith
                             fadeOut(animationSpec = tween(90))
@@ -389,10 +389,10 @@ fun ChecklistsTab(
                         val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
                             val self = User(
                                 uid = currentUserUid,
-                                name = auth.currentUser?.displayName ?: "Me",
+                                name = auth.currentUser?.displayName ?: "User",
                                 email = auth.currentUser?.email ?: "",
                                 role = currentUserRole,
-                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "Username"
                             )
                             (listOf(self) + roomUsers).distinctBy { it.uid }
                         } else {
@@ -536,8 +536,7 @@ fun ChecklistsTab(
                                         icon = painterResource(R.drawable.ic_plus),
                                         size = ButtonSize.Large,
                                         modifier = Modifier
-                                            .offset(y = 20.dp)
-                                            .padding(12.dp)
+                                            .offset(x = (-24).dp, y = -(104).dp)
                                             .shadow(16.dp, CircleShape)
                                     )
                                 }

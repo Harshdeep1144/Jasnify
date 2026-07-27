@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.components.scaffold
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -32,8 +33,14 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,6 +69,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Custom 360-degree drop shadow modifier.
@@ -140,11 +148,26 @@ fun BottomNavBar(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val selectedIndex = remember(currentDestination, navItems) {
+    var lastSelectedIndex by rememberSaveable { mutableIntStateOf(0) }
+    var isNavSettled by rememberSaveable { mutableStateOf(false) }
+
+    val selectedIndex = remember(currentDestination) {
+        val effectiveDest = currentDestination ?: navController.currentDestination
         val index = navItems.indexOfFirst { screen ->
-            currentDestination?.hierarchy?.any { it.route == screen.route } == true
+            effectiveDest?.hierarchy?.any { it.route == screen.route } == true
         }
-        if (index != -1) index else 0
+
+        if (index != -1) {
+            if (!isNavSettled && index == 0 && lastSelectedIndex != 0) {
+                lastSelectedIndex
+            } else {
+                isNavSettled = true
+                lastSelectedIndex = index
+                index
+            }
+        } else {
+            lastSelectedIndex
+        }
     }
 
     BottomNavBarContent(
@@ -247,15 +270,28 @@ fun PillBottomNavBar(
     modifier: Modifier = Modifier,
     applyPadding: Boolean = true
 ) {
+    // Flag to skip animation on the very first composition or restoration
+    var isInitialComposition by remember { mutableStateOf(true) }
+
     // Smooth physics spring animation for the sliding tab indicator
     val animatedIndex by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "SlidingTabIndicatorAnimation"
+        animationSpec = if (isInitialComposition) {
+            snap()
+        } else {
+            spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            )
+        },
+        label = "SlidingTabIndicatorAnimation",
+        finishedListener = { isInitialComposition = false }
     )
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(150.milliseconds)
+        isInitialComposition = false
+    }
 
     Box(
         modifier = modifier
