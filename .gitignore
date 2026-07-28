@@ -1,15 +1,46 @@
+# Standard Android & Gradle Build Outputs
+build/
+**/build/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+
+# IDE & Android Studio (.idea)
+/.idea/
 *.iml
-.gradle
+.gradle/
+/.gradle/
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
 local.properties
+
+# Android Studio temporary files & caches
+/captures/
+.externalNativeBuild/
+.cxx/
+.kotlin/
+
+# Secrets, API Keys & Signing
+app/google-services.json
+secrets.properties
+*.jks
+*.keystore
+*.p12
+*.pepk
+
+# Logs & Memory Dumps
+*.log
+*.hprof
+
+# OS & System Files
+.DS_Store
+**/.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Miscellaneous / Editors
+*~
+*.swp
+*.bak

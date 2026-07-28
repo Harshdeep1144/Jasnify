@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.onboarding.authentication
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -82,6 +83,7 @@ enum class AuthTab {
     SIGN_UP, LOG_IN
 }
 
+@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun LoginOrSignup(
     navController: NavController,
@@ -109,7 +111,7 @@ fun LoginOrSignup(
     // --- Google Sign-In Configuration ---
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestIdToken(context.getString(R.string.default_web_client_id))
+            .requestIdToken(com.harshdeep.jasnify.BuildConfig.GOOGLE_WEB_CLIENT_ID)
             .requestEmail()
             .build()
     }

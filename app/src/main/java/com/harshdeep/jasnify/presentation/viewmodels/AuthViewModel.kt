@@ -1,6 +1,5 @@
 package com.harshdeep.jasnify.presentation.viewmodels
 
-import com.harshdeep.jasnify.R
 import android.app.Activity
 import androidx.lifecycle.ViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -293,7 +292,7 @@ class AuthViewModel @Inject constructor(
             // 2. Google Sign-Out
             val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                 .requestEmail()
-                 .requestIdToken(context.getString(R.string.default_web_client_id))
+                 .requestIdToken(com.harshdeep.jasnify.BuildConfig.GOOGLE_WEB_CLIENT_ID)
                 .build()
 
             val googleSignInClient = GoogleSignIn.getClient(context, gso)
