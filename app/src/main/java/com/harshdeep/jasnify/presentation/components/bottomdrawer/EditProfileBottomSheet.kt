@@ -1,9 +1,15 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -13,18 +19,36 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
+import kotlinx.coroutines.delay
+import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,22 +58,138 @@ fun EditProfileBottomSheet(
     userName: String,
     userHandle: String,
     profilePic: Any,
-    isUpdating: Boolean = false,
+    updateState: ProfileUpdateState = ProfileUpdateState.Idle,
+    resetUpdateState: () -> Unit = {},
     onUpdateProfile: (String, String, Uri?, Boolean) -> Unit
 ) {
-    CustomBottomSheet(
-        heading = "Edit Profile",
+    var toastData by remember { mutableStateOf(ToastData()) }
+    
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
+    LaunchedEffect(updateState) {
+        if (updateState is ProfileUpdateState.Success) {
+            toastData = ToastData(updateState.message, ToastType.SUCCESS)
+            // We don't call resetUpdateState here immediately because parent might need it to close
+        } else if (updateState is ProfileUpdateState.Error) {
+            toastData = ToastData(updateState.message, ToastType.ERROR)
+            resetUpdateState()
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
         sheetState = sheetState,
-        onDismiss = onDismiss,
-        sheetHeight = 600.dp
+        containerColor = Color.Transparent,
+        tonalElevation = 0.dp,
+        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
+        dragHandle = null,
+        sheetGesturesEnabled = true,
     ) {
-        EditProfileContent(
-            userName = userName,
-            userHandle = userHandle,
-            profilePic = profilePic,
-            isUpdating = isUpdating,
-            onUpdateProfile = onUpdateProfile
-        )
+        val view = LocalView.current
+        DisposableEffect(view) {
+            var parent = view.parent
+            var dialogWindow: android.view.Window? = null
+            while (parent != null) {
+                if (parent is DialogWindowProvider) {
+                    dialogWindow = parent.window
+                    break
+                }
+                parent = parent.parent
+            }
+            dialogWindow?.let { w ->
+                val colorInt = SurfacePrimary.toArgb()
+                w.navigationBarColor = colorInt
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    w.isNavigationBarContrastEnforced = false
+                }
+                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
+                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
+            }
+            onDispose {}
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AnimatedVisibility(
+                visible = toastData.message != null,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+                    .zIndex(998f)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .zIndex(999f)
+                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
+                    .background(SurfacePrimary)
+                    .navigationBarsPadding()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 8.dp)
+                        .width(56.dp)
+                        .height(4.dp)
+                        .background(ContentTertiary, shape = SquircleShape(100))
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Edit Profile",
+                        style = JasnifyTheme.typography.displayLarge,
+                        color = ContentPrimary
+                    )
+                    TopBarIconButton(
+                        backgroundStyle = ButtonBackground.OPAQUE,
+                        icon = TopIcon.Predefined.CLOSE,
+                        iconSize = 18.dp,
+                        onClick = onDismiss
+                    )
+                }
+
+                Box(modifier = Modifier.fillMaxWidth().height(600.dp)) {
+                    EditProfileContent(
+                        userName = userName,
+                        userHandle = userHandle,
+                        profilePic = profilePic,
+                        isUpdating = updateState is ProfileUpdateState.Loading,
+                        onUpdateProfile = { n, h, uri, remove ->
+                            if (n.isBlank()) {
+                                toastData = ToastData("Name cannot be empty", ToastType.ERROR)
+                            } else if (h.isBlank()) {
+                                toastData = ToastData("Username cannot be empty", ToastType.ERROR)
+                            } else {
+                                onUpdateProfile(n, h, uri, remove)
+                            }
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 

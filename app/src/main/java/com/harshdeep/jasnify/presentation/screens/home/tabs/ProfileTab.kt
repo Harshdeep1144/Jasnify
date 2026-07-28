@@ -209,21 +209,19 @@ fun ProfileTab(
     val profileUpdateState by profileViewModel.updateState.collectAsState()
     val authState by authViewModel.authState.collectAsState()
 
-    LaunchedEffect(profileUpdateState) {
-        if (profileUpdateState is ProfileUpdateState.Success) {
-            showEditProfile = false
-            toastData = ToastData((profileUpdateState as ProfileUpdateState.Success).message, ToastType.SUCCESS)
-            profileViewModel.resetUpdateState()
-        } else if (profileUpdateState is ProfileUpdateState.Error) {
-            toastData = ToastData((profileUpdateState as ProfileUpdateState.Error).message, ToastType.ERROR)
-            profileViewModel.resetUpdateState()
-        }
-    }
-
     val editProfileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(profileUpdateState) {
+        if (profileUpdateState is ProfileUpdateState.Success) {
+            delay(2000.milliseconds)
+            editProfileSheetState.hide()
+            showEditProfile = false
+            profileViewModel.resetUpdateState()
+        }
+    }
 
     LaunchedEffect(authState) {
         if (authState is AuthState.Success) {
@@ -291,7 +289,8 @@ fun ProfileTab(
             userName = userName,
             userHandle = userHandle,
             profilePic = profilePic,
-            isUpdating = profileUpdateState is ProfileUpdateState.Loading,
+            updateState = profileUpdateState,
+            resetUpdateState = { profileViewModel.resetUpdateState() },
             onUpdateProfile = { name, handle, uri, shouldRemove ->
                 profileViewModel.updateProfile(name, handle, uri, shouldRemove)
             }
