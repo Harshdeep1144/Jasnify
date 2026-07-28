@@ -5,6 +5,7 @@ import java.util.UUID
 data class Event(
     val id: String = UUID.randomUUID().toString(),
     val ownerId: String = "",
+    val ownerName: String = "",
     val name: String = "",
     val typeId: Int? = null,
     val multiDay: Boolean = false, // Renamed from isMultiDay to prevent Firestore mapping issues
