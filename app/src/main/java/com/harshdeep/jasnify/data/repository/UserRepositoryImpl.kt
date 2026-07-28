@@ -44,6 +44,10 @@ class UserRepositoryImpl @Inject constructor(
         firestore.collection("users").document(user.uid).set(user, com.google.firebase.firestore.SetOptions.merge()).await()
     }
 
+    override suspend fun deleteUserProfile(uid: String) {
+        firestore.collection("users").document(uid).delete().await()
+    }
+
     override suspend fun getMerchantProfile(uid: String): MerchantUser? {
         return try {
             firestore.collection("merchants").document(uid).get().await().toObject(MerchantUser::class.java)

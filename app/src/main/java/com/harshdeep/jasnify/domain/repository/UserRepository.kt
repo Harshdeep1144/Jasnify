@@ -10,6 +10,7 @@ interface UserRepository {
     suspend fun getUserProfile(uid: String): User?
     fun getUserProfileFlow(uid: String): Flow<User?>
     suspend fun updateUserProfile(user: User)
+    suspend fun deleteUserProfile(uid: String)
     suspend fun searchUsers(query: String): List<User>
     suspend fun getUserByEmail(email: String): User?
 
