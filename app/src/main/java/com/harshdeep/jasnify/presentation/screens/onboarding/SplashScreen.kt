@@ -25,6 +25,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundBrand
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SplashScreen(
@@ -33,12 +34,12 @@ fun SplashScreen(
     eventViewModel: EventViewModel = hiltViewModel()
 ) {
     LaunchedEffect(Unit) {
-        delay(500L) // Wait for auth state to stabilize
+        delay(500L.milliseconds) // Wait for auth state to stabilize
         var isLoggedIn = authViewModel.isUserLoggedIn()
         
         // If not immediately logged in, wait a bit longer (Firebase initialization)
         if (!isLoggedIn) {
-            delay(500L)
+            delay(500L.milliseconds)
             isLoggedIn = authViewModel.isUserLoggedIn()
         }
 
