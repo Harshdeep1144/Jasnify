@@ -445,8 +445,8 @@ fun ProfileTab(
             exit = slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 16.dp)
-                .padding(horizontal = 16.dp)
+                .statusBarsPadding()
+                .padding(12.dp)
                 .zIndex(1001f)
         ) {
             CustomToast(

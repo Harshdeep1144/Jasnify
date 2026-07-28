@@ -7,6 +7,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +32,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 
 @Composable
 fun AccountDeletionDialog(
@@ -39,6 +41,7 @@ fun AccountDeletionDialog(
     modifier: Modifier = Modifier
 ) {
     var animateTrigger by remember { mutableStateOf(false) }
+    var isConfirmed by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         animateTrigger = true
@@ -69,7 +72,7 @@ fun AccountDeletionDialog(
                 Column(
                     modifier = modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
+                        .padding(horizontal = 24.dp)
                         .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
                         .background(SurfacePrimary)
                         .padding(16.dp)
@@ -83,18 +86,18 @@ fun AccountDeletionDialog(
                         tint = MaterialTheme.colorScheme.error
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .border(
                                 width = 1.dp,
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.error.copy(alpha = 0.5f),
                                 shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                             )
                             .background(
-                                color = MaterialTheme.colorScheme.errorContainer,
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
                                 shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                             )
                             .padding(16.dp),
@@ -107,29 +110,32 @@ fun AccountDeletionDialog(
                         )
 
                         DeletionStepItem(
+                            stepNumber = 1,
                             text = buildAnnotatedString {
                                 append("After confirmation, your account will be ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("locked for next 60 days.")
+                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                    append("locked for 30 days.")
                                 }
                             }
                         )
 
                         DeletionStepItem(
+                            stepNumber = 2,
                             text = buildAnnotatedString {
-                                append("You can choose to cancel the deletion process by logging in anytime ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("within this 60-day")
+                                append("You can choose to ")
+                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                    append("cancel the deletion")
                                 }
-                                append(" period.")
+                                append(" process by logging in anytime within this 30-day period.")
                             }
                         )
 
                         DeletionStepItem(
+                            stepNumber = 3,
                             text = buildAnnotatedString {
                                 append("After this period, your account will be ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
-                                    append("deleted permanently.")
+                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) {
+                                    append("permanently deleted.")
                                 }
                             }
                         )
@@ -137,13 +143,28 @@ fun AccountDeletionDialog(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text(
-                        text = "Are you sure?",
-                        style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
-                        color = ContentPrimary,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Start
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) { isConfirmed = !isConfirmed },
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CustomChecker(
+                            checked = isConfirmed,
+                            onCheckedChange = {},
+                            activeColor = ContentPrimary
+                        )
+
+                        Text(
+                            text = "I understand that all my data will be deleted forever.",
+                            style = JasnifyTheme.typography.headingSmall,
+                            color = ContentPrimary
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -154,8 +175,11 @@ fun AccountDeletionDialog(
                         },
                         text = "Delete Account",
                         type = ButtonType.Primary,
+                        enabled = isConfirmed,
                         containerColor = MaterialTheme.colorScheme.error,
+                        disabledContainerColor = SurfaceInvSecondary,
                         contentColor = ContentInvPrimary,
+                        disabledContentColor = ContentInvPrimary,
                         shapeStyle = ButtonShapeStyle.Square,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -175,20 +199,24 @@ fun AccountDeletionDialog(
 }
 
 @Composable
-private fun DeletionStepItem(text: androidx.compose.ui.text.AnnotatedString) {
+private fun DeletionStepItem(
+    stepNumber: Int,
+    text: androidx.compose.ui.text.AnnotatedString
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "•",
+            text = "$stepNumber.",
             style = JasnifyTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.error
         )
         Text(
             text = text,
             style = JasnifyTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.weight(1f)
         )
     }
 }
