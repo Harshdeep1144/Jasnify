@@ -1,1 +1,18 @@
-/build
+# Module build output
+/build/
+
+# Firebase configuration
+google-services.json
+
+# Keystores & release signing keys
+*.jks
+*.keystore
+*.p12
+*.pepk
+
+# Secrets & API key properties
+secrets.properties
+
+# Logs & heap dumps
+*.log
+*.hprof
