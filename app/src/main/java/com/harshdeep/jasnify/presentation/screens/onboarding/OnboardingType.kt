@@ -21,10 +21,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -58,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -205,7 +208,7 @@ fun OnboardingType(
                                 }
                             },
                             buttonStyle = ButtonBackground.OPAQUE,
-                            backIcon = TopIcon.Predefined.BACK_2
+                            backIcon = TopIcon.Predefined.BACK_2,
                         )
                     }
                 } else {
@@ -280,9 +283,10 @@ fun OnboardingType(
                         )
                     }
                     OnboardingState.EVENT_DETAILS -> {
-                        EventDetailsScreen(
+                        EventIdDetailsScreen(
                             eventId = eventIdValue,
                             eventName = verifiedEvent?.name ?: "Event",
+                            ownerName = verifiedEvent?.ownerName ?: "Unknown",
                             onEditClick = { currentScreenState = OnboardingState.ENTER_EVENT_ID },
                             onLoginSignupClick = {
                                 val fullId = verifiedEvent?.id ?: eventIdValue
@@ -521,10 +525,17 @@ fun EnterEventIdScreen(
     onVerifyClick: () -> Unit,
     isVerifying: Boolean = false
 ) {
+    val density = LocalDensity.current
+    val imeBottomPx = WindowInsets.ime.getBottom(density)
+    val imeBottomDp = with(density) { imeBottomPx.toDp() }
+
+    // Reduce the IME bottom padding (ensuring it doesn't drop below 0.dp when keyboard is hidden)
+    val adjustedImePadding = (imeBottomDp - 24.dp).coerceAtLeast(0.dp)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding() // Automatically adjusts for dynamic Gboard keyboard heights
+            .padding(bottom = adjustedImePadding)
     ) {
         Column(
             modifier = Modifier
@@ -551,15 +562,14 @@ fun EnterEventIdScreen(
                 value = eventId,
                 onValueChange = onEventIdChange,
                 placeholder = "Enter the event ID",
-                shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault)
+                shape = SquircleShape(CornerExtraSmall,CornerLarge,CornerLarge,CornerLarge,CornerSmoothingDefault),
             )
         }
-        val context = LocalContext.current
 
         Box(
             modifier = Modifier.weight(1f),
             contentAlignment = Alignment.BottomCenter
-        ){
+        ) {
             CustomTextButton(
                 onClick = onVerifyClick,
                 text = if (isVerifying) "Verifying..." else "Verify & Continue",
@@ -567,6 +577,7 @@ fun EnterEventIdScreen(
                 modifier = Modifier.fillMaxWidth()
                     .padding(12.dp),
                 shapeStyle = ButtonShapeStyle.Square,
+                containerColor = ContentPrimary
             )
         }
     }
@@ -575,9 +586,10 @@ fun EnterEventIdScreen(
 // =================================================================  Event Details Screen =================================================================
 
 @Composable
-fun EventDetailsScreen(
+fun EventIdDetailsScreen(
     eventId: String,
     eventName: String,
+    ownerName: String,
     onEditClick: () -> Unit,
     onLoginSignupClick: () -> Unit
 ) {
@@ -613,7 +625,7 @@ fun EventDetailsScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Hosted by Harsh",
+            text = "Hosted by $ownerName",
             style = JasnifyTheme.typography.labelMedium,
             textAlign = TextAlign.Center,
             color = ContentBrand

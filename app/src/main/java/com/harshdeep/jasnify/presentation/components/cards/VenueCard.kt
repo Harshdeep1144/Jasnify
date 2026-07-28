@@ -303,13 +303,17 @@ fun VenueCardCompact(
     val initialPage =
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
 
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { virtualCount }
-    )
+    // Only set up Pager state when card size is MEDIUM
+    val pagerState = if (isMedium) {
+        rememberPagerState(
+            initialPage = initialPage,
+            pageCount = { virtualCount }
+        )
+    } else null
 
-    if (actualPageCount > 1) {
-        LaunchedEffect(Unit) {
+    // Run carousel animation only for MEDIUM size
+    if (isMedium && actualPageCount > 1 && pagerState != null) {
+        LaunchedEffect(pagerState) {
             while (true) {
                 delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
@@ -357,14 +361,21 @@ fun VenueCardCompact(
                         shape = SquircleShape(20.dp)
                     ),
             ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    userScrollEnabled = false
-                ) { page ->
-                    val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
+                if (isMedium && pagerState != null) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = false
+                    ) { page ->
+                        val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
+                        VenueImage(
+                            url = venue.images.getOrNull(actualIndex) ?: "",
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                } else {
                     VenueImage(
-                        url = venue.images.getOrNull(actualIndex) ?: "",
+                        url = venue.images.firstOrNull() ?: "",
                         modifier = Modifier.fillMaxSize()
                     )
                 }
@@ -406,27 +417,25 @@ fun VenueCardCompact(
                         painter = iconRes,
                         contentDescription = "Favorite Icon",
                         tint = Color.Unspecified,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .padding(8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    if (isMedium) {
+                if (isMedium && pagerState != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.BottomCenter)
+                            .padding(8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
                         OfferBadge(onClick = onOfferClick)
-                    } else {
-                        Spacer(Modifier.weight(1f))
+                        CarouselDots(
+                            pageCount = actualPageCount,
+                            currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0
+                        )
                     }
-                    CarouselDots(
-                        pageCount = actualPageCount,
-                        currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0
-                    )
                 }
             }
 

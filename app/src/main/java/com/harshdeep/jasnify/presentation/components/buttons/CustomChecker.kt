@@ -32,13 +32,14 @@ fun CustomChecker(
     checked: Boolean,
     onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
+    activeColor: Color = ContentBrandDark,
     enabled: Boolean = true
 ) {
     // Animate the active container or outline color dynamically
     val animatedColor by animateColorAsState(
         targetValue = when {
             !enabled -> ContentTertiary
-            checked -> ContentBrandDark
+            checked -> activeColor
             else -> ContentSecondary
         },
         label = "CheckerColor"

@@ -102,7 +102,7 @@ class EventViewModel @Inject constructor(
         _activeEventId.value = event.id
         isManuallyJoined = true
         saveActiveEventIdLocally(event.id)
-        
+
         // Update user profile's currentEventId in Firestore
         val user = auth.currentUser
         if (user != null) {
@@ -215,89 +215,94 @@ class EventViewModel @Inject constructor(
         _eventState.value = EventCreationState.Loading
 
         val userId = user.uid
-
         val budgetValue = eventData.budget.dropWhile { !it.isDigit() && it != '.' }.toDoubleOrNull()
 
-        // Mapping to professional Event model
-        val event = Event(
-            ownerId = userId,
-            name = eventData.eventName,
-            typeId = eventData.selectedEventTypeId,
-            multiDay = eventData.isMultiDay ?: false, // Updated to use renamed multiDay
-            date = eventData.singleDayDate,
-            budget = budgetValue,
-            subEvents = eventData.subEvents.map {
-                SubEvent(
-                    id = it.id,
-                    name = it.name,
-                    date = it.date,
-                    completed = false // Updated to use renamed completed
-                )
-            }
-        )
+        viewModelScope.launch {
+            val userProfile = userRepository.getUserProfile(userId)
+            val ownerName = userProfile?.name ?: user.displayName ?: "Unknown"
 
-        firestore.collection("events")
-            .document(event.id)
-            .set(event)
-            .addOnSuccessListener {
-                _activeEvent.value = event // Set as active immediately
-                _activeEventId.value = event.id
-                saveActiveEventIdLocally(event.id)
-                viewModelScope.launch {
-                    val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
-                    try {
-                        cateringRepository.seedDefaultItems(eventTypeLabel, event.id)
-                    } catch (e: Exception) {
-                        // Log seeding error but proceed
-                    }
-
-                    try {
-                        // Also seed budget settings
-                        budgetRepository.updateBudget(event.budget, event.id)
-                    } catch (e: Exception) {
-                        // Log budget error
-                    }
-
-                    try {
-                        // 1. Add to user profile ONCE with all rooms
-                        val userEvent = com.harshdeep.jasnify.domain.model.UserEvent(
-                            eventId = event.id,
-                            eventName = event.name,
-                            adminId = userId,
-                            roomRoles = mapOf(
-                                "Budget" to UserRole.OWNER,
-                                "Catering" to UserRole.OWNER,
-                                "Checklist" to UserRole.OWNER,
-                                "Vendors" to UserRole.OWNER,
-                                "Venue" to UserRole.OWNER
-                            )
-                        )
-                        userRepository.updateUserJoinedEvents(userId, userEvent)
-
-                        // 2. Grant room-specific access (internal collections)
-                        val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
-                        val currentUserEmail = auth.currentUser?.email
-                        val currentUserId = auth.currentUser?.uid
-                        if (currentUserEmail != null && currentUserId != null) {
-                            rooms.forEach { room ->
-                                // Using a simplified grant that doesn't trigger profile update again
-                                grantRoomAccessInternal(event.id, room, currentUserEmail, currentUserId, UserRole.OWNER)
-                            }
-                        }
-                        android.util.Log.d("EventViewModel", "Successfully granted owner access to all rooms for ${event.id}")
-                    } catch (e: Exception) {
-                        android.util.Log.e("EventViewModel", "Failed to grant room access: ${e.message}")
-                    }
-
-                    _eventState.value = EventCreationState.Success("'${event.name}' event created!")
+            // Mapping to professional Event model
+            val event = Event(
+                ownerId = userId,
+                ownerName = ownerName,
+                name = eventData.eventName,
+                typeId = eventData.selectedEventTypeId,
+                multiDay = eventData.isMultiDay ?: false, 
+                date = eventData.singleDayDate,
+                budget = budgetValue,
+                subEvents = eventData.subEvents.map {
+                    SubEvent(
+                        id = it.id,
+                        name = it.name,
+                        date = it.date,
+                        completed = false 
+                    )
                 }
-            }
-            .addOnFailureListener { e ->
-                _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event.")
-            }
+            )
+
+            firestore.collection("events")
+                .document(event.id)
+                .set(event)
+                .addOnSuccessListener {
+                    _activeEvent.value = event // Set as active immediately
+                    _activeEventId.value = event.id
+                    saveActiveEventIdLocally(event.id)
+                    viewModelScope.launch {
+                        val eventTypeLabel = eventTypes.find { it.id == event.typeId }?.label ?: "Others"
+                        try {
+                            cateringRepository.seedDefaultItems(eventTypeLabel, event.id)
+                        } catch (e: Exception) {
+                            // Log seeding error but proceed
+                        }
+
+                        try {
+                            // Also seed budget settings
+                            budgetRepository.updateBudget(event.budget, event.id)
+                        } catch (e: Exception) {
+                            // Log budget error
+                        }
+
+                        try {
+                            // 1. Add to user profile ONCE with all rooms
+                            val userEvent = com.harshdeep.jasnify.domain.model.UserEvent(
+                                eventId = event.id,
+                                eventName = event.name,
+                                adminId = userId,
+                                roomRoles = mapOf(
+                                    "Budget" to UserRole.OWNER,
+                                    "Catering" to UserRole.OWNER,
+                                    "Checklist" to UserRole.OWNER,
+                                    "Vendors" to UserRole.OWNER,
+                                    "Venue" to UserRole.OWNER
+                                )
+                            )
+                            userRepository.updateUserJoinedEvents(userId, userEvent)
+
+                            // 2. Grant room-specific access (internal collections)
+                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+                            val currentUserEmail = auth.currentUser?.email
+                            val currentUserId = auth.currentUser?.uid
+                            if (currentUserEmail != null && currentUserId != null) {
+                                rooms.forEach { room ->
+                                    // Using a simplified grant that doesn't trigger profile update again
+                                    grantRoomAccessInternal(event.id, room, currentUserEmail, currentUserId, UserRole.OWNER, userProfile)
+                                }
+                            }
+                            android.util.Log.d("EventViewModel", "Successfully granted owner access to all rooms for ${event.id}")
+                        } catch (e: Exception) {
+                            android.util.Log.e("EventViewModel", "Failed to grant room access: ${e.message}")
+                        }
+
+                        _eventState.value = EventCreationState.Success("'${event.name}' event created!")
+                    }
+                }
+                .addOnFailureListener { e ->
+                    _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event.")
+                }
+        }
     }
 
-    private suspend fun grantRoomAccessInternal(eventId: String, roomType: String, email: String, uid: String, role: UserRole) {
+    private suspend fun grantRoomAccessInternal(eventId: String, roomType: String, email: String, uid: String, role: UserRole, userProfile: com.harshdeep.jasnify.domain.model.User?) {
         val collectionName = when (roomType.lowercase()) {
             "budget" -> "budget_room_users"
             "catering" -> "catering_room_users"
@@ -316,7 +321,10 @@ class EventViewModel @Inject constructor(
             val accessData = mapOf(
                 "uid" to uid,
                 "email" to email.lowercase().trim(),
-                "role" to role.name
+                "role" to role.name,
+                "name" to (userProfile?.name ?: ""),
+                "username" to (userProfile?.username ?: ""),
+                "profilePictureUrl" to userProfile?.profilePictureUrl
             )
             
             firestore.collection("events").document(eventId)

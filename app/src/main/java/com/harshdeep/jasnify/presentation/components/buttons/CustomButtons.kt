@@ -75,30 +75,30 @@ fun getButtonStyles(
             contentColor = customContentColor ?: ContentInvPrimary,
             disabledContainerColor = customDisabledContainerColor
                 ?: customContainerColor?.copy(alpha = 0.38f)
-                ?: ContentSecondary,
+                ?: SurfaceInvSecondary,
             disabledContentColor = customDisabledContentColor
                 ?: customContentColor?.copy(alpha = 0.38f)
-                ?: SurfaceInvSecondary
+                ?: ContentInvPrimary
         )
         ButtonType.Secondary -> ButtonDefaults.buttonColors(
             containerColor = customContainerColor ?: SurfaceBrandSecondary,
             contentColor = customContentColor ?: ContentBrandDark,
             disabledContainerColor = customDisabledContainerColor
                 ?: customContainerColor?.copy(alpha = 0.38f)
-                ?: SurfaceSecondary,
+                ?: SurfaceInvSecondary,
             disabledContentColor = customDisabledContentColor
                 ?: customContentColor?.copy(alpha = 0.38f)
-                ?: ContentTertiary
+                ?: ContentInvPrimary
         )
         ButtonType.Tertiary -> ButtonDefaults.buttonColors(
             containerColor = customContainerColor ?: SurfacePrimary,
             contentColor = customContentColor ?: ContentPrimary,
             disabledContainerColor = customDisabledContainerColor
                 ?: customContainerColor?.copy(alpha = 0.38f)
-                ?: SurfacePrimary,
+                ?: SurfaceInvSecondary,
             disabledContentColor = customDisabledContentColor
                 ?: customContentColor?.copy(alpha = 0.38f)
-                ?: ContentTertiary
+                ?: ContentInvPrimary
         )
     }
 

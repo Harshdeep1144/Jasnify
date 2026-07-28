@@ -66,7 +66,7 @@ fun ConfirmationDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
+                        .padding(horizontal = 24.dp)
                         .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
                         .background(SurfacePrimary)
                         .padding(16.dp)

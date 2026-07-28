@@ -56,7 +56,7 @@ fun UserListItem(
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Profile Picture with img_user_default Fallback
-        if (user.profilePictureUrl != null) {
+        if (!user.profilePictureUrl.isNullOrEmpty()) {
             SubcomposeAsyncImage(
                 model = user.profilePictureUrl,
                 contentDescription = "Profile picture of ${user.name}",
