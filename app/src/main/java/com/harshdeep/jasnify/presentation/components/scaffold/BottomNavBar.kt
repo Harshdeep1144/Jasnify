@@ -335,7 +335,7 @@ fun PillBottomNavBar(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 6.dp, vertical = 5.dp)
+                    .padding(4.dp)
             ) {
                 val containerWidth = maxWidth
                 val tabCount = navItems.size
@@ -348,7 +348,7 @@ fun PillBottomNavBar(
                         .width(tabWidth)
                         .fillMaxHeight()
                         .clip(CircleShape)
-                        .background(SurfaceBrandPrimary)
+                        .background(SurfaceBrandSecondary)
                 )
 
                 Row(
@@ -360,7 +360,7 @@ fun PillBottomNavBar(
                         val isSelected = index == selectedIndex
 
                         // Animated icon tint color
-                        val targetContentColor = if (isSelected) ContentInvPrimary else ContentSecondary
+                        val targetContentColor = if (isSelected) ContentBrandDark else ContentSecondary
                         val animatedContentColor by animateColorAsState(
                             targetValue = targetContentColor,
                             animationSpec = tween(durationMillis = 150),

@@ -60,8 +60,8 @@ fun ConfirmationDialog(
         ) {
             AnimatedVisibility(
                 visible = animateTrigger,
-                enter = scaleIn(initialScale = 0.85f, animationSpec = tween(150)) + fadeIn(tween(150)),
-                exit = scaleOut(targetScale = 0.85f, animationSpec = tween(150)) + fadeOut(tween(150))
+                enter = scaleIn(initialScale = 0.5f, animationSpec = tween(150)) + fadeIn(tween(150)),
+                exit = scaleOut(targetScale = 0.5f, animationSpec = tween(150)) + fadeOut(tween(150))
             ) {
                 Column(
                     modifier = Modifier

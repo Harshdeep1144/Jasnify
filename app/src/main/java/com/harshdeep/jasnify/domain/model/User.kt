@@ -13,6 +13,7 @@ data class User(
     val profilePictureUrl: String? = null,
     val lastUsernameChangeTimestamp: Long? = null,
     val lastPasswordChangeTimestamp: Long? = null,
+    val explicitLogoutTimestamp: Long? = null,
     val joinedEvents: List<UserEvent> = emptyList(),
     val currentEventId: String? = null
 )

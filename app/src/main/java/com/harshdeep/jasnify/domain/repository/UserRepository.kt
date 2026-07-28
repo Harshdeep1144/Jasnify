@@ -37,6 +37,11 @@ interface UserRepository {
     // Caching
     suspend fun getCachedRoomAccess(eventId: String, roomType: String, uid: String): Boolean?
     suspend fun cacheRoomAccess(eventId: String, roomType: String, uid: String, hasAccess: Boolean)
+
+    // Account Deletion
+    suspend fun scheduleAccountDeletion(uid: String, email: String)
+    suspend fun cancelAccountDeletion(uid: String)
+    suspend fun isAccountDeletionPending(uid: String): Boolean
 }
 
 data class PendingAccess(
