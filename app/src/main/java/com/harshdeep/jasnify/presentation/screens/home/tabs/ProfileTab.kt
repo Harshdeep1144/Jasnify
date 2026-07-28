@@ -1,16 +1,17 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.os.Build
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -45,11 +46,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -62,19 +60,22 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserEvent
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
@@ -86,14 +87,12 @@ import com.harshdeep.jasnify.presentation.components.cards.ManageEventCard
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.util.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
@@ -111,6 +110,7 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -147,6 +147,15 @@ fun ProfileTab(
 
     val userProfile by profileViewModel.userProfile.collectAsState()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+    
+    // Stop listening to enquiries if the user is null or being deleted
+    val enquiries by remember(firebaseUser?.uid) {
+        if (firebaseUser?.uid != null) {
+            enquiryViewModel.getEnquiriesForUser(firebaseUser.uid)
+        } else {
+            kotlinx.coroutines.flow.flowOf(emptyList())
+        }
+    }.collectAsState(emptyList())
 
     // Ensure owned events are fetched for old accounts
     LaunchedEffect(firebaseUser) {
@@ -154,6 +163,12 @@ fun ProfileTab(
             eventViewModel.fetchUserEvents()
         }
     }
+
+    val eventCount = remember(ownedEvents, userProfile?.joinedEvents) {
+        val joined = userProfile?.joinedEvents ?: emptyList()
+        (ownedEvents.map { it.id } + joined.map { it.eventId }).distinct().size
+    }
+    val enquiryCount = enquiries.size
 
     val userName = userProfile?.name ?: firebaseUser?.displayName ?: "Name"
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
@@ -177,6 +192,16 @@ fun ProfileTab(
     var showAppTheme by remember { mutableStateOf(false) }
     var showNavBarStyle by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+
+    var toastData by remember { mutableStateOf(ToastData()) }
+
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
 
     var selectedTheme by remember { mutableStateOf(AppThemeOption.LIGHT_MODE) }
     val selectedNavBarStyle by uiViewModel.navBarStyle.collectAsState()
@@ -187,10 +212,10 @@ fun ProfileTab(
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
             showEditProfile = false
-            Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Success).message, Toast.LENGTH_SHORT).show()
+            toastData = ToastData((profileUpdateState as ProfileUpdateState.Success).message, ToastType.SUCCESS)
             profileViewModel.resetUpdateState()
         } else if (profileUpdateState is ProfileUpdateState.Error) {
-            Toast.makeText(context, (profileUpdateState as ProfileUpdateState.Error).message, Toast.LENGTH_SHORT).show()
+            toastData = ToastData((profileUpdateState as ProfileUpdateState.Error).message, ToastType.ERROR)
             profileViewModel.resetUpdateState()
         }
     }
@@ -201,10 +226,27 @@ fun ProfileTab(
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(authState) {
-        if (authState is AuthState.Success && (authState as AuthState.Success).message == "Password updated successfully") {
-            delay(2000.milliseconds)
-            changePasswordSheetState.hide()
-            showChangePassword = false
+        if (authState is AuthState.Success) {
+            if ((authState as AuthState.Success).message == "Password updated successfully") {
+                delay(2000.milliseconds)
+                changePasswordSheetState.hide()
+                showChangePassword = false
+                authViewModel.resetAuthState()
+            } else if ((authState as AuthState.Success).message == "Account deleted successfully") {
+                // Important: clear local data immediately to trigger recomposition 
+                // and stop listeners before the navigation delay
+                eventViewModel.clearActiveEvent()
+                
+                toastData = ToastData("Account Deleted", ToastType.SUCCESS)
+                delay(2000.milliseconds)
+                
+                mainNavController.navigate(Screen.OnboardingGraph.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+                authViewModel.resetAuthState()
+            }
+        } else if (authState is AuthState.Error) {
+            toastData = ToastData((authState as AuthState.Error).message, ToastType.ERROR)
             authViewModel.resetAuthState()
         }
     }
@@ -227,6 +269,21 @@ fun ProfileTab(
         )
     }
 
+    if (showDeleteAccountDialog) {
+        ConfirmationDialog(
+            onDismissRequest = { showDeleteAccountDialog = false },
+            onConfirm = {
+                authViewModel.deleteAccount()
+                showDeleteAccountDialog = false
+            },
+            title = "Delete Account?",
+            description = "This action is permanent and cannot be undone. All your data will be lost.",
+            confirmButtonText = "Delete",
+            dismissButtonText = "Cancel",
+            isDestructive = true
+        )
+    }
+
     if (showEditProfile) {
         EditProfileBottomSheet(
             sheetState = editProfileSheetState,
@@ -241,7 +298,6 @@ fun ProfileTab(
         )
     }
 
-    val scope = rememberCoroutineScope()
 
     if (showChangePassword) {
         val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
@@ -282,102 +338,125 @@ fun ProfileTab(
         )
     }
 
-    AnimatedContent(
-        targetState = currentScreen,
-        transitionSpec = {
-            if (targetState == ProfileScreen.Root) {
-                (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
-            } else {
-                (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = currentScreen,
+            transitionSpec = {
+                if (targetState == ProfileScreen.Root) {
+                    (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+                } else {
+                    (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                }
+            },
+            label = "ProfileTabNavigation",
+            modifier = Modifier.fillMaxSize()
+        ) { screen ->
+            if (screen != ProfileScreen.Root) {
+                BackHandler {
+                    currentScreen = ProfileScreen.Root
+                }
             }
-        },
-        label = "ProfileTabNavigation"
-    ) { screen ->
-        if (screen != ProfileScreen.Root) {
-            BackHandler {
-                currentScreen = ProfileScreen.Root
+            when (screen) {
+                ProfileScreen.Root -> {
+                    ProfileTabContent(
+                        userName = userName,
+                        userHandle = userHandle,
+                        profilePic = profilePic,
+                        eventCount = eventCount,
+                        enquiryCount = enquiryCount,
+                        onEditProfile = { showEditProfile = true },
+                        onNavigateTo = { currentScreen = it },
+                        onLogout = { showLogoutDialog = true }
+                    )
+                }
+
+                ProfileScreen.AccountSettings -> {
+                    val firebaseUserCurrent = FirebaseAuth.getInstance().currentUser
+                    val isGoogleUser = firebaseUserCurrent?.providerData?.any { it.providerId == "google.com" } ?: false
+                    val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
+                    AccountSettingsScreen(
+                        email = userEmail,
+                        isGoogleUser = isGoogleUser,
+                        lastChangedText = lastChangedText,
+                        onBack = { currentScreen = ProfileScreen.Root },
+                        onChangePassword = { showChangePassword = true },
+                        onDeleteAccount = { showDeleteAccountDialog = true }
+                    )
+                }
+
+                ProfileScreen.Appearance -> {
+                    AppearanceScreen(
+                        currentTheme = selectedTheme,
+                        currentNavBarStyle = selectedNavBarStyle,
+                        onBack = { currentScreen = ProfileScreen.Root },
+                        onChangeTheme = { showAppTheme = true },
+                        onChangeNavBarStyle = { showNavBarStyle = true }
+                    )
+                }
+
+                ProfileScreen.ManageEvents -> {
+                    ManageEventsScreen(
+                        profileViewModel = profileViewModel,
+                        eventViewModel = eventViewModel,
+                        ownedEvents = ownedEvents,
+                        onBack = { currentScreen = ProfileScreen.Root },
+                        onEventClick = { eventId ->
+                            eventViewModel.fetchAndSetActiveEvent(eventId)
+                            internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                                popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                            }
+                            currentScreen = ProfileScreen.Root
+                        }
+                    )
+                }
+
+                ProfileScreen.MyEnquiries -> {
+                    MyEnquiriesScreen(
+                        enquiryViewModel = enquiryViewModel,
+                        userId = firebaseUser?.uid ?: "",
+                        onBack = { currentScreen = ProfileScreen.Root },
+                        onEnquiryClick = { enquiry ->
+                            mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
+                        }
+                    )
+                }
+
+                ProfileScreen.Notifications -> {
+                    NotificationsScreen(
+                        onBack = { currentScreen = ProfileScreen.Root }
+                    )
+                }
+
+                ProfileScreen.TermsAndConditions -> {
+                    LegalScreen(
+                        title = "Terms & Conditions",
+                        onBack = { currentScreen = ProfileScreen.Root }
+                    )
+                }
+
+                ProfileScreen.PrivacyPolicy -> {
+                    LegalScreen(
+                        title = "Privacy Policy",
+                        onBack = { currentScreen = ProfileScreen.Root }
+                    )
+                }
             }
         }
-        when (screen) {
-            ProfileScreen.Root -> {
-                ProfileTabContent(
-                    userName = userName,
-                    userHandle = userHandle,
-                    profilePic = profilePic,
-                    onEditProfile = { showEditProfile = true },
-                    onNavigateTo = { currentScreen = it },
-                    onLogout = { showLogoutDialog = true }
-                )
-            }
 
-            ProfileScreen.AccountSettings -> {
-                val isGoogleUser = firebaseUser?.providerData?.any { it.providerId == "google.com" } ?: false
-                val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
-                AccountSettingsScreen(
-                    email = userEmail,
-                    isGoogleUser = isGoogleUser,
-                    lastChangedText = lastChangedText,
-                    onBack = { currentScreen = ProfileScreen.Root },
-                    onChangePassword = { showChangePassword = true }
-                )
-            }
-
-            ProfileScreen.Appearance -> {
-                AppearanceScreen(
-                    currentTheme = selectedTheme,
-                    currentNavBarStyle = selectedNavBarStyle,
-                    onBack = { currentScreen = ProfileScreen.Root },
-                    onChangeTheme = { showAppTheme = true },
-                    onChangeNavBarStyle = { showNavBarStyle = true }
-                )
-            }
-
-            ProfileScreen.ManageEvents -> {
-                ManageEventsScreen(
-                    profileViewModel = profileViewModel,
-                    eventViewModel = eventViewModel,
-                    ownedEvents = ownedEvents,
-                    onBack = { currentScreen = ProfileScreen.Root },
-                    onEventClick = { eventId ->
-                        eventViewModel.fetchAndSetActiveEvent(eventId)
-                        internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
-                            popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
-                        }
-                        currentScreen = ProfileScreen.Root
-                    }
-                )
-            }
-
-            ProfileScreen.MyEnquiries -> {
-                MyEnquiriesScreen(
-                    enquiryViewModel = enquiryViewModel,
-                    userId = firebaseUser?.uid ?: "",
-                    onBack = { currentScreen = ProfileScreen.Root },
-                    onEnquiryClick = { enquiry ->
-                        mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
-                    }
-                )
-            }
-
-            ProfileScreen.Notifications -> {
-                NotificationsScreen(
-                    onBack = { currentScreen = ProfileScreen.Root }
-                )
-            }
-
-            ProfileScreen.TermsAndConditions -> {
-                LegalScreen(
-                    title = "Terms & Conditions",
-                    onBack = { currentScreen = ProfileScreen.Root }
-                )
-            }
-
-            ProfileScreen.PrivacyPolicy -> {
-                LegalScreen(
-                    title = "Privacy Policy",
-                    onBack = { currentScreen = ProfileScreen.Root }
-                )
-            }
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it }),
+            exit = slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 16.dp)
+                .padding(horizontal = 16.dp)
+                .zIndex(1001f)
+        ) {
+            CustomToast(
+                message = toastData.message ?: "",
+                type = toastData.type
+            )
         }
     }
 }
@@ -392,6 +471,8 @@ fun ProfileTabContent(
     userName: String,
     userHandle: String,
     profilePic: Any,
+    eventCount: Int,
+    enquiryCount: Int,
     onEditProfile: () -> Unit,
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit
@@ -494,12 +575,14 @@ fun ProfileTabContent(
             ) {
                 ProfileGridCell(
                     title = "Manage Events",
+                    subtitle = if (eventCount == 1) "1 Event" else "$eventCount Events",
                     icon = painterResource(R.drawable.ic_events_stack),
                     onClick = { onNavigateTo(ProfileScreen.ManageEvents) },
                     modifier = Modifier.weight(1f)
                 )
                 ProfileGridCell(
                     title = "My Enquiries",
+                    subtitle = if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries",
                     icon = painterResource(R.drawable.ic_message_typing),
                     onClick = { onNavigateTo(ProfileScreen.MyEnquiries) },
                     modifier = Modifier.weight(1f)
@@ -617,7 +700,8 @@ fun AccountSettingsScreen(
     isGoogleUser: Boolean,
     lastChangedText: String,
     onBack: () -> Unit,
-    onChangePassword: () -> Unit
+    onChangePassword: () -> Unit,
+    onDeleteAccount: () -> Unit
 ) {
     Scaffold(
         topBar = {
@@ -677,7 +761,7 @@ fun AccountSettingsScreen(
                 icon = painterResource(R.drawable.ic_delete),
                 containerColor = SurfacePrimary,
                 contentColor = MaterialTheme.colorScheme.error,
-                onClick = {}
+                onClick = onDeleteAccount
             )
         }
     }
@@ -970,6 +1054,7 @@ fun LegalScreen(title: String, onBack: () -> Unit) {
 @Composable
 fun ProfileGridCell(
     title: String,
+    subtitle: String? = null,
     icon: Painter,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -989,7 +1074,7 @@ fun ProfileGridCell(
         Column(
             modifier = Modifier
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = Alignment.Start
         ) {
             Icon(
@@ -998,11 +1083,19 @@ fun ProfileGridCell(
                 modifier = Modifier.size(24.dp),
                 tint = ContentPrimary
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = title,
                 style = JasnifyTheme.typography.labelXLarge,
                 color = ContentPrimary
             )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = JasnifyTheme.typography.labelLarge,
+                    color = ContentSecondary
+                )
+            }
         }
     }
 }
@@ -1016,6 +1109,8 @@ fun ProfileTabPreview() {
             userName = "Anand K.",
             userHandle = "@viratanand",
             profilePic = R.drawable.ic_user_profile,
+            eventCount = 2,
+            enquiryCount = 5,
             onEditProfile = {},
             onNavigateTo = {},
             onLogout = {}

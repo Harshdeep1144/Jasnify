@@ -25,6 +25,7 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.UserRepository
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 
 sealed class AuthState {
@@ -348,6 +349,39 @@ class AuthViewModel @Inject constructor(
             }
         } else {
             _authState.value = AuthState.Error("Not logged in or email not found")
+        }
+    }
+
+    fun deleteAccount() {
+        val user = auth.currentUser
+        if (user != null) {
+            _authState.value = AuthState.Loading
+            
+            viewModelScope.launch {
+                val uid = user.uid
+                try {
+                    // Do this first as it doesn't depend on Firebase Auth UID for rules (usually)
+                    cloudinaryManager.deleteProfilePicture(uid)
+
+                    // This is IMPORTANT: Security rules will likely prevent this after user.delete()
+                    userRepository.deleteUserProfile(uid)
+                    
+                    // 3. Delete Firebase Auth User
+                    user.delete().await()
+                    
+                    _authState.value = AuthState.Success("Account deleted successfully")
+                } catch (e: Exception) {
+                    if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                        _authState.value = AuthState.Error("Please log out and log back in to delete your account for security reasons.")
+                    } else {
+                        // If fire store deletion failed, we still try to delete the auth user
+                        // or inform the user.
+                        _authState.value = AuthState.Error(e.message ?: "Failed to delete account data.")
+                    }
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in")
         }
     }
 
