@@ -25,7 +25,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 
@@ -76,9 +75,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             exitTransition = { fadeOut(tween(500)) }
         ) { backStackEntry ->
             val eventId = backStackEntry.arguments?.getString("eventId")
-            val graphEntry = remember(backStackEntry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
-            val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
-            HomeScreen(mainNavController = mainNavController, joinedEventId = eventId, eventViewModel = eventViewModel)
+            HomeScreen(mainNavController = mainNavController, joinedEventId = eventId)
         }
 
         // --- Event Details Graphs ---
@@ -103,7 +100,8 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                 onReviewVendors = {
                     // Navigate to vendors tab if needed, but the request says saved section in venue screen
                     mainNavController.navigate("venue_root_screen?tab=saved")
-                }
+                },
+                eventViewModel = eventViewModel
             )
         }
 

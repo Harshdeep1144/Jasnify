@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -19,6 +21,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(localPropertiesFile.inputStream())
+        }
+
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${localProperties.getProperty("cloudinary.cloud_name") ?: ""}\"")
+        buildConfigField("String", "CLOUDINARY_API_KEY", "\"${localProperties.getProperty("cloudinary.api_key") ?: ""}\"")
+        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${localProperties.getProperty("cloudinary.api_secret") ?: ""}\"")
     }
 
     buildTypes {
@@ -39,6 +51,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -113,4 +126,6 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.common)
 
+    // Cloudinary
+    implementation(libs.cloudinary.android)
 }

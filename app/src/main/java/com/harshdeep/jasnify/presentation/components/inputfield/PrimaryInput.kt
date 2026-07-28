@@ -58,13 +58,15 @@ fun PrimaryInput(
     trailingIcon: Painter? = null,
     trailingIconEnabled: Boolean = true,
     shape: Shape = RoundedCornerShape(CornerLarge),
-    readOnly: Boolean = false
+    readOnly: Boolean = false,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else Int.MAX_VALUE
 ) {
     val isPassword = keyboardType == KeyboardType.Password
 
     var isPasswordVisible by remember { mutableStateOf(false) }
     var isFocused by remember { mutableStateOf(false) }
-    val showTrailingIcon = value.isNotEmpty()
+    val showTrailingIcon = value.isNotEmpty() && isFocused
 
     val currentVisualTransformation = when {
         isPassword && !isPasswordVisible -> PasswordVisualTransformation()
@@ -91,18 +93,19 @@ fun PrimaryInput(
             .onFocusChanged { isFocused = it.isFocused },
         readOnly = readOnly, // Apply readOnly state to disable caret and block physical typing
         singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         textStyle = textStyle,
         cursorBrush = SolidColor(ContentPrimary),
         visualTransformation = currentVisualTransformation,
         decorationBox = { innerTextField ->
             Row(
-                modifier = Modifier
-                    .background(SurfaceSecondary, shape)
+                modifier = Modifier.background(SurfaceSecondary, shape)
                     .border(borderThickness, borderColor, shape)
                     .defaultMinSize(minHeight = 56.dp)
-                    .padding(start = 16.dp, end = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(start = 16.dp, end = 8.dp, top = if (singleLine) 0.dp else 16.dp, bottom = if (singleLine) 0.dp else 16.dp),
+                verticalAlignment = if (singleLine) Alignment.CenterVertically else Alignment.Top
             ) {
                 // Leading Icon Layer (Only renders if leadingIcon is provided)
                 if (leadingIcon != null) {
@@ -110,14 +113,14 @@ fun PrimaryInput(
                         painter = leadingIcon,
                         contentDescription = null,
                         tint = ContentSecondary,
-                        modifier = Modifier.padding(end = 12.dp)
+                        modifier = Modifier.padding(end = 12.dp).then(if (!singleLine) Modifier.padding(top = 4.dp) else Modifier)
                     )
                 }
 
                 // Input Content Container
                 Box(
                     modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.CenterStart
+                    contentAlignment = if (singleLine) Alignment.CenterStart else Alignment.TopStart
                 ) {
                     if (value.isEmpty()) {
                         Text(
@@ -131,7 +134,10 @@ fun PrimaryInput(
 
                 // Trailing Actions Layer
                 if (trailingIcon != null) {
-                    IconButton(onClick = { if (!readOnly) onValueChange("") }) {
+                    IconButton(
+                        onClick = { if (!readOnly) onValueChange("") },
+                        modifier = if (!singleLine) Modifier.align(Alignment.Top) else Modifier
+                    ) {
                         Icon(
                             painter = trailingIcon,
                             contentDescription = "Custom Icon",
@@ -153,7 +159,10 @@ fun PrimaryInput(
                             )
                         }
                     } else {
-                        IconButton(onClick = { if (!readOnly) onValueChange("") }) {
+                        IconButton(
+                            onClick = { if (!readOnly) onValueChange("") },
+                            modifier = if (!singleLine) Modifier.align(Alignment.Top) else Modifier
+                        ) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_circle_cross),
                                 contentDescription = "Clear input",

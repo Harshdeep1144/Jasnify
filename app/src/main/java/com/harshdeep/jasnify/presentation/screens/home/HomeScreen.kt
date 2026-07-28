@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.home
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Build
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.PaddingValues
@@ -18,21 +20,27 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.rememberNavController
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomNavBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.navgraphs.homeNavGraph
 import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeScreen(
     mainNavController: NavHostController,
-    joinedEventId: String? = null,
-    eventViewModel: EventViewModel = hiltViewModel()
+    joinedEventId: String? = null
 ) {
+    val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+    val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
+    val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
     val context = LocalContext.current
+    val navBarStyle by uiViewModel.navBarStyle.collectAsState()
 
     // Handle joined event ID if provided
     LaunchedEffect(joinedEventId) {
@@ -56,9 +64,10 @@ fun HomeScreen(
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                BottomNavBar(navController = internalNavController)
+                BottomNavBar(navController = internalNavController, style = navBarStyle)
             }
         },
+        containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
     ) { paddingValues ->
         NavHost(
@@ -66,7 +75,14 @@ fun HomeScreen(
             startDestination = Screen.HomeTabScreen.Home.route,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(if (showBottomBar) paddingValues else PaddingValues(0.dp))
+                .padding(
+                    top = paddingValues.calculateTopPadding(),
+                    bottom = if (showBottomBar && navBarStyle == NavBarStyleOption.BASIC) {
+                        paddingValues.calculateBottomPadding()
+                    } else {
+                        0.dp
+                    }
+                )
         ) {
             // All tab routes are now managed in this extension function
             homeNavGraph(
