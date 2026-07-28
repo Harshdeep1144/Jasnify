@@ -316,7 +316,9 @@ fun AddExpenseBottomSheet(
                         onSave = { amt, rec, cat ->
                             if (amountTextFieldValue.text.isBlank()) {
                                 toastData = ToastData("Please enter the expense!", ToastType.ERROR)
-                            } else if (selectedCategory.isBlank()) {
+                            }else if (receiverName.isBlank()) {
+                                toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
+                            }else if (selectedCategory.isBlank()) {
                                 toastData = ToastData("Please select an expense category!", ToastType.ERROR)
                             } else {
                                 // Default fallback to 💸 emoji if left blank by user
