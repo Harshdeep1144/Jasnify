@@ -102,6 +102,14 @@ class EventViewModel @Inject constructor(
         _activeEventId.value = event.id
         isManuallyJoined = true
         saveActiveEventIdLocally(event.id)
+        
+        // Update user profile's currentEventId in Firestore
+        val user = auth.currentUser
+        if (user != null) {
+            viewModelScope.launch {
+                userRepository.switchEvent(user.uid, event.id)
+            }
+        }
     }
 
     /**
@@ -118,9 +126,11 @@ class EventViewModel @Inject constructor(
                 isManuallyJoined = true
                 android.util.Log.d("EventViewModel", "Active event loaded and prioritized: ${event.id}")
                 
-                // REQUIREMENT: Promote user if they have pending invitations for this event
+                // Update currentEventId in Firestore
                 val user = auth.currentUser
                 if (user != null) {
+                    userRepository.switchEvent(user.uid, event.id)
+
                     val userEmail = user.email ?: ""
                     android.util.Log.d("EventViewModel", "Triggering promotion for $userEmail in event ${event.id}")
                     userRepository.grantAccessFromPending(event.id, userEmail, user.uid)
@@ -134,6 +144,21 @@ class EventViewModel @Inject constructor(
         _activeEventId.value = null
         isManuallyJoined = false
         clearLocalActiveEventId()
+    }
+
+    fun leaveEvent(eventId: String) {
+        val user = auth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                userRepository.leaveEvent(user.uid, eventId)
+                if (_activeEventId.value == eventId) {
+                    clearActiveEvent()
+                }
+                // Refresh events list if needed, though ProfileViewModel handles the joinedEvents list
+            } catch (e: Exception) {
+                android.util.Log.e("EventViewModel", "Failed to leave event: ${e.message}")
+            }
+        }
     }
 
     fun resetEventState() {
@@ -234,13 +259,29 @@ class EventViewModel @Inject constructor(
                     }
 
                     try {
-                        // Grant OWNER access to all rooms for the creator DIRECTLY
+                        // 1. Add to user profile ONCE with all rooms
+                        val userEvent = com.harshdeep.jasnify.domain.model.UserEvent(
+                            eventId = event.id,
+                            eventName = event.name,
+                            adminId = userId,
+                            roomRoles = mapOf(
+                                "Budget" to UserRole.OWNER,
+                                "Catering" to UserRole.OWNER,
+                                "Checklist" to UserRole.OWNER,
+                                "Vendors" to UserRole.OWNER,
+                                "Venue" to UserRole.OWNER
+                            )
+                        )
+                        userRepository.updateUserJoinedEvents(userId, userEvent)
+
+                        // 2. Grant room-specific access (internal collections)
                         val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
                         val currentUserEmail = auth.currentUser?.email
                         val currentUserId = auth.currentUser?.uid
                         if (currentUserEmail != null && currentUserId != null) {
                             rooms.forEach { room ->
-                                userRepository.grantDirectRoomAccess(event.id, room, currentUserEmail, currentUserId, UserRole.OWNER)
+                                // Using a simplified grant that doesn't trigger profile update again
+                                grantRoomAccessInternal(event.id, room, currentUserEmail, currentUserId, UserRole.OWNER)
                             }
                         }
                         android.util.Log.d("EventViewModel", "Successfully granted owner access to all rooms for ${event.id}")
@@ -254,6 +295,37 @@ class EventViewModel @Inject constructor(
             .addOnFailureListener { e ->
                 _eventState.value = EventCreationState.Error(e.message ?: "Failed to save event.")
             }
+    }
+
+    private suspend fun grantRoomAccessInternal(eventId: String, roomType: String, email: String, uid: String, role: UserRole) {
+        val collectionName = when (roomType.lowercase()) {
+            "budget" -> "budget_room_users"
+            "catering" -> "catering_room_users"
+            "checklist" -> "checklist_room_users"
+            "vendors" -> "vendors_room_users"
+            "venue" -> "venue_room_users"
+            else -> "room_users"
+        }
+        
+        try {
+            firestore.collection("events").document(eventId)
+                .collection("rooms").document(roomType)
+                .set(mapOf("updatedAt" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
+                .await()
+
+            val accessData = mapOf(
+                "uid" to uid,
+                "email" to email.lowercase().trim(),
+                "role" to role.name
+            )
+            
+            firestore.collection("events").document(eventId)
+                .collection("rooms").document(roomType)
+                .collection(collectionName).document(uid)
+                .set(accessData).await()
+        } catch (e: Exception) {
+            android.util.Log.e("EventViewModel", "Error in grantRoomAccessInternal", e)
+        }
     }
 
     /**
@@ -329,7 +401,7 @@ class EventViewModel @Inject constructor(
                         .whereLessThanOrEqualTo("id", prefix + "\uf8ff")
                         .limit(1).get().await()
 
-                    if (!pQuery.isEmpty()) {
+                    if (!pQuery.isEmpty) {
                         val doc = pQuery.documents.first()
                         val found = doc.toObject(Event::class.java)
                         android.util.Log.d("EventViewModel", "Found event by internal 'id' prefix match: $prefix (Doc ID: ${doc.id})")
@@ -346,7 +418,7 @@ class EventViewModel @Inject constructor(
                         .whereLessThanOrEqualTo(FieldPath.documentId(), prefix + "\uf8ff")
                         .limit(1).get().await()
 
-                    if (!dpQuery.isEmpty()) {
+                    if (!dpQuery.isEmpty) {
                         val doc = dpQuery.documents.first()
                         val found = doc.toObject(Event::class.java)
                         android.util.Log.d("EventViewModel", "Found event by Doc ID prefix match: $prefix (Doc ID: ${doc.id})")

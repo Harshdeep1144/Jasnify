@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 interface UserRepository {
     suspend fun createUserProfile(user: User)
     suspend fun getUserProfile(uid: String): User?
+    fun getUserProfileFlow(uid: String): Flow<User?>
+    suspend fun updateUserProfile(user: User)
+    suspend fun deleteUserProfile(uid: String)
     suspend fun searchUsers(query: String): List<User>
     suspend fun getUserByEmail(email: String): User?
 
@@ -26,6 +29,10 @@ interface UserRepository {
     suspend fun deletePendingAccess(email: String)
     suspend fun checkUserHasAccessToEvent(eventId: String, email: String, uid: String): Boolean
     suspend fun checkRoomAccess(eventId: String, roomType: String, uid: String): Boolean
+    suspend fun leaveEvent(uid: String, eventId: String)
+    suspend fun switchEvent(uid: String, eventId: String)
+    suspend fun updateUserJoinedEvents(uid: String, userEvent: com.harshdeep.jasnify.domain.model.UserEvent)
+    suspend fun updateRoomRole(uid: String, eventId: String, roomType: String, role: UserRole)
 
     // Caching
     suspend fun getCachedRoomAccess(eventId: String, roomType: String, uid: String): Boolean?

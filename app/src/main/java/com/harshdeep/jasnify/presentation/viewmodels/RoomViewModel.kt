@@ -79,7 +79,7 @@ class RoomViewModel @Inject constructor(
     fun updateRole(eventId: String, roomType: String, user: User, newRole: UserRole) {
         viewModelScope.launch {
             try {
-                userRepository.grantDirectRoomAccess(eventId, roomType, user.email, user.uid, newRole)
+                userRepository.updateRoomRole(user.uid, eventId, roomType, newRole)
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Error updating role for ${user.email} in $roomType", e)
             }

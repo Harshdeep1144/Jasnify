@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.home.tabs
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -94,6 +95,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
@@ -123,9 +126,12 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
+import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CloudWhisper
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -154,14 +160,20 @@ sealed interface ChecklistScreenState {
     object ManageRoomAccess : ChecklistScreenState
 }
 
+@SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
 fun ChecklistsTab(
+    mainNavController: NavHostController,
     viewModel: ChecklistViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
+    val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+    val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
+    val navBarStyle by uiViewModel.navBarStyle.collectAsStateWithLifecycle()
+
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
@@ -296,7 +308,7 @@ fun ChecklistsTab(
             SharedTransitionLayout {
             AnimatedContent(
                 targetState = currentScreen,
-                
+
                 transitionSpec = {
                     fadeIn(animationSpec = tween(220, delayMillis = 90)) togetherWith
                             fadeOut(animationSpec = tween(90))
@@ -389,10 +401,10 @@ fun ChecklistsTab(
                         val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
                             val self = User(
                                 uid = currentUserUid,
-                                name = auth.currentUser?.displayName ?: "Me",
+                                name = auth.currentUser?.displayName ?: "User",
                                 email = auth.currentUser?.email ?: "",
                                 role = currentUserRole,
-                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "Username"
                             )
                             (listOf(self) + roomUsers).distinctBy { it.uid }
                         } else {
@@ -528,6 +540,8 @@ fun ChecklistsTab(
                             },
                             floatingActionButton = {
                                 if (!isViewer) {
+                                    val fabOffset = if (navBarStyle == NavBarStyleOption.PILL_SHAPED) (-104).dp else (-12).dp
+                                    
                                     CustomIconButton(
                                         onClick = {
                                             focusManager.clearFocus()
@@ -536,8 +550,7 @@ fun ChecklistsTab(
                                         icon = painterResource(R.drawable.ic_plus),
                                         size = ButtonSize.Large,
                                         modifier = Modifier
-                                            .offset(y = 20.dp)
-                                            .padding(12.dp)
+                                            .offset(x = (-24).dp, y = fabOffset)
                                             .shadow(16.dp, CircleShape)
                                     )
                                 }
@@ -1724,6 +1737,9 @@ fun ColorCircle(
 @Composable
 fun ChecklistsTabPreview() {
     JasnifyTheme {
-        ChecklistsTab()
+        val testNavController = rememberNavController()
+        ChecklistsTab(
+            mainNavController = testNavController
+        )
     }
 }

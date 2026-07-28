@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.FirebaseException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
@@ -18,11 +19,13 @@ import java.util.concurrent.TimeUnit
 import android.content.Context
 import javax.inject.Inject
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.UserRepository
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 
 sealed class AuthState {
@@ -37,7 +40,8 @@ sealed class AuthState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
@@ -110,7 +114,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on login
@@ -154,7 +159,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@")
+                                    name = firebaseUser.displayName ?: cleanEmail.substringBefore("@"),
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on signup
@@ -164,7 +170,7 @@ class AuthViewModel @Inject constructor(
                             } else {
                                 // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
                                 android.util.Log.w("AuthViewModel", "User signed up via ID but no invitation found for $userEmail")
-                                createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"))
+                                createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"), firebaseUser.photoUrl?.toString())
                                 _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
                             }
                         }
@@ -198,7 +204,8 @@ class AuthViewModel @Inject constructor(
                                 val profile = createProfile(
                                     uid = firebaseUser.uid,
                                     email = userEmail,
-                                    name = firebaseUser.displayName ?: ""
+                                    name = firebaseUser.displayName ?: "",
+                                    photoUrl = firebaseUser.photoUrl?.toString()
                                 )
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on Google login
@@ -217,17 +224,28 @@ class AuthViewModel @Inject constructor(
             }
     }
 
-    private suspend fun createProfile(uid: String, email: String, name: String): User? {
+    private suspend fun createProfile(uid: String, email: String, name: String, photoUrl: String? = null): User? {
         try {
             val existingProfile = userRepository.getUserProfile(uid)
             if (existingProfile == null) {
                 val username = generateUsernameFromEmail(email)
+                
+                var cloudinaryUrl: String? = null
+                if (photoUrl != null) {
+                    try {
+                        cloudinaryUrl = cloudinaryManager.uploadProfilePictureFromUrl(photoUrl, uid)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+
                 val newUser = User(
                     uid = uid,
                     name = name.ifBlank { username },
                     email = email.lowercase().trim(),
                     username = username,
-                    role = UserRole.VIEWER
+                    role = UserRole.VIEWER,
+                    profilePictureUrl = cloudinaryUrl
                 )
                 userRepository.createUserProfile(newUser)
                 return newUser
@@ -284,6 +302,86 @@ class AuthViewModel @Inject constructor(
 
         } catch (e: Exception) {
             _authState.value = AuthState.Error(e.message ?: "Logout failed.")
+        }
+    }
+
+    fun updatePassword(newPassword: String) {
+        val user = auth.currentUser
+        if (user != null) {
+            _authState.value = AuthState.Loading
+            user.updatePassword(newPassword).addOnCompleteListener { updateTask ->
+                if (updateTask.isSuccessful) {
+                    viewModelScope.launch {
+                        try {
+                            val userProfile = userRepository.getUserProfile(user.uid)
+                            if (userProfile != null) {
+                                userRepository.updateUserProfile(
+                                    userProfile.copy(lastPasswordChangeTimestamp = System.currentTimeMillis())
+                                )
+                            }
+                            _authState.value = AuthState.Success("Password updated successfully")
+                        } catch (e: Exception) {
+                            // Even if profile update fails, the password is changed in Firebase Auth
+                            _authState.value = AuthState.Success("Password updated successfully")
+                        }
+                    }
+                } else {
+                    _authState.value = AuthState.Error(updateTask.exception?.message ?: "Failed to update password")
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in")
+        }
+    }
+
+    fun verifyPassword(password: String, onSuccess: () -> Unit) {
+        val user = auth.currentUser
+        if (user != null && user.email != null) {
+            _authState.value = AuthState.Loading
+            val credential = EmailAuthProvider.getCredential(user.email!!, password)
+            user.reauthenticate(credential).addOnCompleteListener { reAuthTask ->
+                if (reAuthTask.isSuccessful) {
+                    _authState.value = AuthState.Idle
+                    onSuccess()
+                } else {
+                    _authState.value = AuthState.Error("Wrong password")
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in or email not found")
+        }
+    }
+
+    fun deleteAccount() {
+        val user = auth.currentUser
+        if (user != null) {
+            _authState.value = AuthState.Loading
+            
+            viewModelScope.launch {
+                val uid = user.uid
+                try {
+                    // Do this first as it doesn't depend on Firebase Auth UID for rules (usually)
+                    cloudinaryManager.deleteProfilePicture(uid)
+
+                    // This is IMPORTANT: Security rules will likely prevent this after user.delete()
+                    userRepository.deleteUserProfile(uid)
+                    
+                    // 3. Delete Firebase Auth User
+                    user.delete().await()
+                    
+                    _authState.value = AuthState.Success("Account deleted successfully")
+                } catch (e: Exception) {
+                    if (e is com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException) {
+                        _authState.value = AuthState.Error("Please log out and log back in to delete your account for security reasons.")
+                    } else {
+                        // If fire store deletion failed, we still try to delete the auth user
+                        // or inform the user.
+                        _authState.value = AuthState.Error(e.message ?: "Failed to delete account data.")
+                    }
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in")
         }
     }
 
