@@ -45,8 +45,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -91,6 +94,8 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomShee
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.util.TimeUtils
+import com.harshdeep.jasnify.presentation.viewmodels.AuthState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -107,6 +112,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 enum class ProfileScreen {
     Root,
@@ -176,6 +182,7 @@ fun ProfileTab(
     val selectedNavBarStyle by uiViewModel.navBarStyle.collectAsState()
 
     val profileUpdateState by profileViewModel.updateState.collectAsState()
+    val authState by authViewModel.authState.collectAsState()
 
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
@@ -192,6 +199,15 @@ fun ProfileTab(
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    LaunchedEffect(authState) {
+        if (authState is AuthState.Success && (authState as AuthState.Success).message == "Password updated successfully") {
+            delay(2000.milliseconds)
+            changePasswordSheetState.hide()
+            showChangePassword = false
+            authViewModel.resetAuthState()
+        }
+    }
 
     if (showLogoutDialog) {
         ConfirmationDialog(
@@ -225,12 +241,26 @@ fun ProfileTab(
         )
     }
 
+    val scope = rememberCoroutineScope()
+
     if (showChangePassword) {
+        val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
         ChangePasswordBottomSheet(
             sheetState = changePasswordSheetState,
-            onDismiss = { showChangePassword = false },
-            onUpdatePassword = { /* TODO */ },
-            onForgotPassword = { /* TODO */ }
+            onDismiss = {
+                showChangePassword = false
+                authViewModel.resetAuthState()
+            },
+            lastChangedText = lastChangedText,
+            authState = authState,
+            resetAuthState = { authViewModel.resetAuthState() },
+            onVerifyPassword = { password, onSuccess ->
+                authViewModel.verifyPassword(password, onSuccess)
+            },
+            onUpdatePassword = { newPassword ->
+                authViewModel.updatePassword(newPassword)
+            },
+            onForgotPassword = { /* Toast handled in bottom sheet */ }
         )
     }
 
@@ -281,8 +311,12 @@ fun ProfileTab(
             }
 
             ProfileScreen.AccountSettings -> {
+                val isGoogleUser = firebaseUser?.providerData?.any { it.providerId == "google.com" } ?: false
+                val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
                 AccountSettingsScreen(
                     email = userEmail,
+                    isGoogleUser = isGoogleUser,
+                    lastChangedText = lastChangedText,
                     onBack = { currentScreen = ProfileScreen.Root },
                     onChangePassword = { showChangePassword = true }
                 )
@@ -580,6 +614,8 @@ fun ProfileTabContent(
 @Composable
 fun AccountSettingsScreen(
     email: String,
+    isGoogleUser: Boolean,
+    lastChangedText: String,
     onBack: () -> Unit,
     onChangePassword: () -> Unit
 ) {
@@ -621,15 +657,17 @@ fun AccountSettingsScreen(
                     shape = RectangleShape,
                     containerColor = Color.Transparent
                 )
-                ProfileMenuCell(
-                    title = "Password",
-                    subtitle = "Last changed 3 months ago",
-                    icon = painterResource(R.drawable.ic_key),
-                    hasBorder = false,
-                    shape = RectangleShape,
-                    containerColor = Color.Transparent,
-                    onClick = onChangePassword
-                )
+                if (!isGoogleUser) {
+                    ProfileMenuCell(
+                        title = "Password",
+                        subtitle = lastChangedText,
+                        icon = painterResource(R.drawable.ic_key),
+                        hasBorder = false,
+                        shape = RectangleShape,
+                        containerColor = Color.Transparent,
+                        onClick = onChangePassword
+                    )
+                }
             }
 
             ProfileMenuCell(
