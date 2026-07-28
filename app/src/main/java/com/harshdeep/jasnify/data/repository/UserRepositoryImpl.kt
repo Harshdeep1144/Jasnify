@@ -601,4 +601,26 @@ class UserRepositoryImpl @Inject constructor(
             android.util.Log.e("UserRepository", "Error updating room role in $roomType for user $uid", e)
         }
     }
+
+    override suspend fun scheduleAccountDeletion(uid: String, email: String) {
+        val deletionData = mapOf(
+            "uid" to uid,
+            "email" to email,
+            "requestTimestamp" to System.currentTimeMillis(),
+            "scheduledDeletionTimestamp" to System.currentTimeMillis() + (60L * 24 * 60 * 60 * 1000) // 60 days
+        )
+        firestore.collection("pending_account_deletions").document(uid).set(deletionData).await()
+    }
+
+    override suspend fun cancelAccountDeletion(uid: String) {
+        firestore.collection("pending_account_deletions").document(uid).delete().await()
+    }
+
+    override suspend fun isAccountDeletionPending(uid: String): Boolean {
+        return try {
+            firestore.collection("pending_account_deletions").document(uid).get().await().exists()
+        } catch (e: Exception) {
+            false
+        }
+    }
 }

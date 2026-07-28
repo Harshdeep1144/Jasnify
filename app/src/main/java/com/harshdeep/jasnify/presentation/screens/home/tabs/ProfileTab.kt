@@ -86,6 +86,7 @@ import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
 import com.harshdeep.jasnify.presentation.components.cards.ManageEventCard
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
+import com.harshdeep.jasnify.presentation.components.dialogs.AccountDeletionDialog
 import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -230,12 +231,13 @@ fun ProfileTab(
                 changePasswordSheetState.hide()
                 showChangePassword = false
                 authViewModel.resetAuthState()
-            } else if ((authState as AuthState.Success).message == "Account deleted successfully") {
+            } else if ((authState as AuthState.Success).message == "Account deleted successfully" || 
+                (authState as AuthState.Success).message == "Account deletion requested") {
                 // Important: clear local data immediately to trigger recomposition 
                 // and stop listeners before the navigation delay
                 eventViewModel.clearActiveEvent()
                 
-                toastData = ToastData("Account Deleted", ToastType.SUCCESS)
+                toastData = ToastData((authState as AuthState.Success).message, ToastType.SUCCESS)
                 delay(2000.milliseconds)
                 
                 mainNavController.navigate(Screen.OnboardingGraph.route) {
@@ -268,17 +270,12 @@ fun ProfileTab(
     }
 
     if (showDeleteAccountDialog) {
-        ConfirmationDialog(
+        AccountDeletionDialog(
             onDismissRequest = { showDeleteAccountDialog = false },
             onConfirm = {
-                authViewModel.deleteAccount()
+                authViewModel.requestAccountDeletion()
                 showDeleteAccountDialog = false
-            },
-            title = "Delete Account?",
-            description = "This action is permanent and cannot be undone. All your data will be lost.",
-            confirmButtonText = "Delete",
-            dismissButtonText = "Cancel",
-            isDestructive = true
+            }
         )
     }
 

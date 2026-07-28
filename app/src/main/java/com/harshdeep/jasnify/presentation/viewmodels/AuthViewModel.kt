@@ -121,6 +121,9 @@ class AuthViewModel @Inject constructor(
                                 // 2. REQUIREMENT: Always promote pending access to real membership on login
                                 userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
 
+                                // 3. Cancel any pending account deletion if user logs in
+                                userRepository.cancelAccountDeletion(firebaseUser.uid)
+
                                 _authState.value = AuthState.Success("Successfully logged in!")
                             } else {
                                 android.util.Log.w("AuthViewModel", "Access DENIED. Signing out.")
@@ -166,6 +169,9 @@ class AuthViewModel @Inject constructor(
                                 // 2. REQUIREMENT: Always promote pending access to real membership on signup
                                 userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
 
+                                // 3. Cancel any pending account deletion if user signs up
+                                userRepository.cancelAccountDeletion(firebaseUser.uid)
+
                                 _authState.value = AuthState.Success("Account created!")
                             } else {
                                 // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
@@ -210,6 +216,9 @@ class AuthViewModel @Inject constructor(
 
                                 // 2. REQUIREMENT: Always promote pending access to real membership on Google login
                                 userRepository.grantAccessFromPending(eventId ?: "", userEmail, firebaseUser.uid, profile)
+
+                                // 3. Cancel any pending account deletion if user logs in
+                                userRepository.cancelAccountDeletion(firebaseUser.uid)
 
                                 _authState.value = AuthState.Success("logged in!")
                             } else {
@@ -360,9 +369,11 @@ class AuthViewModel @Inject constructor(
             viewModelScope.launch {
                 val uid = user.uid
                 try {
+                    // 1. Delete Cloudinary Assets (Profile Folder)
                     // Do this first as it doesn't depend on Firebase Auth UID for rules (usually)
                     cloudinaryManager.deleteProfilePicture(uid)
-
+                    
+                    // 2. Delete Firestore Profile data while still authenticated
                     // This is IMPORTANT: Security rules will likely prevent this after user.delete()
                     userRepository.deleteUserProfile(uid)
                     
@@ -382,6 +393,41 @@ class AuthViewModel @Inject constructor(
             }
         } else {
             _authState.value = AuthState.Error("Not logged in")
+        }
+    }
+
+    fun requestAccountDeletion() {
+        val user = auth.currentUser
+        if (user != null) {
+            _authState.value = AuthState.Loading
+            viewModelScope.launch {
+                try {
+                    userRepository.scheduleAccountDeletion(user.uid, user.email ?: "")
+                    // Sign out the user to "lock" the account as per requirements
+                    auth.signOut()
+                    _authState.value = AuthState.Success("Account deletion requested")
+                } catch (e: Exception) {
+                    _authState.value = AuthState.Error(e.message ?: "Failed to request account deletion")
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in")
+        }
+    }
+
+    fun checkSessionValidity(context: Context, onInvalid: () -> Unit) {
+        val user = auth.currentUser
+        if (user != null) {
+            viewModelScope.launch {
+                val profile = userRepository.getUserProfile(user.uid)
+                if (profile?.explicitLogoutTimestamp != null) {
+                    val lastSignIn = user.metadata?.lastSignInTimestamp ?: 0L
+                    if (lastSignIn < profile.explicitLogoutTimestamp!!) {
+                        logout(context)
+                        onInvalid()
+                    }
+                }
+            }
         }
     }
 
