@@ -654,6 +654,7 @@ fun AccountSettingsScreen(
                     subtitle = email,
                     icon = painterResource(R.drawable.ic_mail),
                     hasBorder = false,
+                    showArrow = false,
                     shape = RectangleShape,
                     containerColor = Color.Transparent
                 )

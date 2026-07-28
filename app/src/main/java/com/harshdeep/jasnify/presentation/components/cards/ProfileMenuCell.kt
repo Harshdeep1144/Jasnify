@@ -41,6 +41,7 @@ fun ProfileMenuCell(
     shape: Shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     containerColor: Color = SurfacePrimary,
     contentColor: Color = ContentPrimary,
+    showArrow: Boolean = true,
     onClick: () -> Unit = {}
 ) {
     Surface(
@@ -84,12 +85,14 @@ fun ProfileMenuCell(
                         color = contentColor,
                         modifier = Modifier.weight(1f)
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_right_chevron),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = contentColor
-                    )
+                    if (showArrow) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_right_chevron),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = contentColor
+                        )
+                    }
                 }
                 if (subtitle != null) {
                     Row(
@@ -121,12 +124,14 @@ fun ProfileMenuCell(
                         modifier = Modifier.size(24.dp),
                         tint = contentColor
                     )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_right_chevron),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = contentColor
-                    )
+                    if (showArrow) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_right_chevron),
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = contentColor
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
