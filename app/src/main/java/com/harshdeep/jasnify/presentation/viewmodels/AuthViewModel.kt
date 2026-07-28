@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.firebase.FirebaseException
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.PhoneAuthCredential
@@ -300,6 +301,53 @@ class AuthViewModel @Inject constructor(
 
         } catch (e: Exception) {
             _authState.value = AuthState.Error(e.message ?: "Logout failed.")
+        }
+    }
+
+    fun updatePassword(newPassword: String) {
+        val user = auth.currentUser
+        if (user != null) {
+            _authState.value = AuthState.Loading
+            user.updatePassword(newPassword).addOnCompleteListener { updateTask ->
+                if (updateTask.isSuccessful) {
+                    viewModelScope.launch {
+                        try {
+                            val userProfile = userRepository.getUserProfile(user.uid)
+                            if (userProfile != null) {
+                                userRepository.updateUserProfile(
+                                    userProfile.copy(lastPasswordChangeTimestamp = System.currentTimeMillis())
+                                )
+                            }
+                            _authState.value = AuthState.Success("Password updated successfully")
+                        } catch (e: Exception) {
+                            // Even if profile update fails, the password is changed in Firebase Auth
+                            _authState.value = AuthState.Success("Password updated successfully")
+                        }
+                    }
+                } else {
+                    _authState.value = AuthState.Error(updateTask.exception?.message ?: "Failed to update password")
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in")
+        }
+    }
+
+    fun verifyPassword(password: String, onSuccess: () -> Unit) {
+        val user = auth.currentUser
+        if (user != null && user.email != null) {
+            _authState.value = AuthState.Loading
+            val credential = EmailAuthProvider.getCredential(user.email!!, password)
+            user.reauthenticate(credential).addOnCompleteListener { reAuthTask ->
+                if (reAuthTask.isSuccessful) {
+                    _authState.value = AuthState.Idle
+                    onSuccess()
+                } else {
+                    _authState.value = AuthState.Error("Wrong password")
+                }
+            }
+        } else {
+            _authState.value = AuthState.Error("Not logged in or email not found")
         }
     }
 

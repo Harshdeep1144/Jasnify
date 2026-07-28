@@ -12,6 +12,7 @@ data class User(
     val role: UserRole = UserRole.VIEWER,
     val profilePictureUrl: String? = null,
     val lastUsernameChangeTimestamp: Long? = null,
+    val lastPasswordChangeTimestamp: Long? = null,
     val joinedEvents: List<UserEvent> = emptyList(),
     val currentEventId: String? = null
 )
