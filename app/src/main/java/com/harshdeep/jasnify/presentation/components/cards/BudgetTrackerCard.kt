@@ -1,12 +1,19 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,7 +30,10 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,7 +41,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +51,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -51,19 +62,45 @@ import sv.lib.squircleshape.SquircleShape
 @Composable
 fun BudgetTrackerCard(
     modifier: Modifier = Modifier,
-    insight: String ?= null,
-    heading: String ?= null,
-    illustration: Painter ?= null,
+    insight: String? = null,
+    heading: String? = null,
+    illustration: Painter? = null,
     progress: Float,
     amountText: String,
-    labelText: String ?= null,
+    labelText: String? = null,
     onClick: () -> Unit
 ) {
+    // Track immediate touch down state for quick tap feedback
+    var isPressed by remember { mutableStateOf(false) }
+
+    // Bouncy scale spring animation
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium
+        ),
+        label = "BudgetTrackerCardScaleAnimation"
+    )
+
     Card(
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minWidth = 180.dp, minHeight = 172.dp)
             .height(172.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    // Instantly capture initial touch down event
+                    awaitFirstDown(requireUnconsumed = false)
+                    isPressed = true
+                    waitForUpOrCancellation()
+                    isPressed = false
+                }
+            }
             .border(
                 width = 1.dp,
                 color = Color(0x33006363),
@@ -71,6 +108,8 @@ fun BudgetTrackerCard(
             )
             .clip(SquircleShape(20.dp, CornerSmoothingDefault))
             .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null, // Disables default ripple overlay
                 onClick = onClick
             ),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
@@ -81,8 +120,7 @@ fun BudgetTrackerCard(
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
         Box(
-            modifier = Modifier
-                .fillMaxSize()
+            modifier = Modifier.fillMaxSize()
         ) {
             Box(
                 modifier = Modifier
@@ -129,20 +167,18 @@ fun BudgetTrackerCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
-                        modifier = Modifier
-                            .size(80.dp),
+                        modifier = Modifier.size(80.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressChart(
-                            progress = progress, // 45% progress
+                            progress = progress,
                             amountText = amountText,
                             labelText = labelText ?: "Left",
                         )
                     }
 
                     Box(
-                        modifier = Modifier
-                            .padding(0.dp),
+                        modifier = Modifier.padding(0.dp),
                         contentAlignment = Alignment.BottomEnd
                     ) {
                         val finalImage = illustration ?: painterResource(R.drawable.ill_budget_tracker_card)
@@ -160,16 +196,7 @@ fun BudgetTrackerCard(
     }
 }
 
-
-
-
-
-
-
-
 //----------------------------------- Progress Bar --------------------------------
-
-
 
 val ProgressColor = ContentBrandDark.copy(0.8f)
 val TrackColor = ContentTertiary
@@ -212,7 +239,7 @@ fun CircularProgressChart(
                 )
             )
 
-            // Draw the progress arc. (Start from 270 degree)
+            // Draw the progress arc (Start from 270 degrees)
             drawArc(
                 color = ProgressColor,
                 startAngle = 270f,
@@ -245,30 +272,20 @@ fun CircularProgressChart(
     }
 }
 
-
-@Preview(showBackground = true,)
+@Preview(showBackground = true)
 @Composable
 fun PreviewCircularProgressChart() {
     Column(
         modifier = Modifier.padding(12.dp),
     ) {
-
         BudgetTrackerCard(
             insight = "See your budget",
             heading = "Budget Tracker",
             illustration = painterResource(R.drawable.ill_budget_tracker_card),
-            progress = 0.45f, // 45% progress
+            progress = 0.45f,
             amountText = "₹46L",
             labelText = "left",
             onClick = {}
         )
-
-
-//        CircularProgressChart(
-//            progress = 0.45f, // 45% progress
-//            amountText = "₹46L",
-//            labelText = "left",
-//        )
-
     }
 }
