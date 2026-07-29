@@ -603,7 +603,7 @@ fun BudgetScreen(
                                     }
                                 }
 
-                                if (allExpenses.isEmpty()) {
+                                if (filteredExpenses.isEmpty()) {
                                     item {
                                         Column(
                                             modifier = Modifier
@@ -620,7 +620,7 @@ fun BudgetScreen(
                                             )
                                             Spacer(modifier = Modifier.height(12.dp))
                                             Text(
-                                                text = "Your expenses will \n appear here",
+                                                text = if(allExpenses.isEmpty()) "Your expenses will \n appear here" else "No expense found",
                                                 style = JasnifyTheme.typography.displayMedium.copy(
                                                     fontWeight = FontWeight.Medium
                                                 ),

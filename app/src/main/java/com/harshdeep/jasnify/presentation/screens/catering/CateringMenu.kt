@@ -308,417 +308,417 @@ fun CateringMenuScreen(
         onBackClick = onBackClick
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-        AnimatedContent(
-            targetState = currentView,
-            transitionSpec = {
-                fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
-            },
-            label = "CateringMenuTransition"
-        ) { targetScreen ->
-            when (targetScreen) {
-                CateringMenuView.MENU -> {
-                    Scaffold(
-                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                        topBar = {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .animateContentSize(animationSpec = tween(durationMillis = 250))
-                            ) {
+            AnimatedContent(
+                targetState = currentView,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                },
+                label = "CateringMenuTransition"
+            ) { targetScreen ->
+                when (targetScreen) {
+                    CateringMenuView.MENU -> {
+                        Scaffold(
+                            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                            topBar = {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(SurfaceBrandPrimary)
                                         .animateContentSize(animationSpec = tween(durationMillis = 250))
                                 ) {
-                                    Spacer(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .windowInsetsTopHeight(WindowInsets.statusBars)
-                                    )
-
-                                    AnimatedVisibility(
-                                        visible = !isSearchActive,
-                                        enter = fadeIn(animationSpec = tween(150)) + expandVertically(
-                                            animationSpec = tween(250)
-                                        ),
-                                        exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(
-                                            animationSpec = tween(250)
-                                        )
+                                            .background(SurfaceBrandPrimary)
+                                            .animateContentSize(animationSpec = tween(durationMillis = 250))
                                     ) {
-                                        CustomTopBar(
-                                            title = "Catering Menu",
-                                            onBackClick = {
-                                                focusManager.clearFocus()
-                                                onBackClick()
-                                            },
-                                            onMenuClick = {
-                                                focusManager.clearFocus()
-                                                showMenuBottomSheet = true
-                                            },
-                                            isLargeTitle = true,
-                                            buttonStyle = ButtonBackground.TRANSLUCENT,
-                                            textColor = ContentInvPrimary,
+                                        Spacer(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .windowInsetsTopHeight(WindowInsets.statusBars)
                                         )
-                                    }
-                                }
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .background(searchBarParentBg)
-                                        .padding(
-                                            top = 12.dp,
-                                            bottom = if (isSearchActive) 12.dp else 0.dp,
-                                            start = 12.dp,
-                                            end = 12.dp
-                                        )
-                                ) {
-                                    CustomSearchBar(
-                                        value = searchText,
-                                        onValueChange = { searchText = it },
-                                        onActiveChange = { isSearchActive = it }
-                                    )
-                                }
-                            }
-                        }
-                    ) { paddingValues ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(BackgroundPrimary)
-                                // Clear focus when tapping anywhere on the main empty background
-                                .pointerInput(Unit) {
-                                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                                }
-                                .padding(paddingValues)
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                Spacer(modifier = Modifier.height(12.dp))
 
-                                LazyRow(
-                                    state = rememberLazyListState(),
-                                    contentPadding = PaddingValues(horizontal = 12.dp),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    item {
-                                        FilterChip(
-                                            label = "All Items",
-                                            isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
-                                            shapeStyle = ChipShapeStyle.Round,
-                                            hasStroke = true,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                selectedFilterTab = "All Items"
-                                                selectedCuisines = emptySet()
-                                                selectedTypes = emptySet()
-                                            }
-                                        )
-                                    }
-                                    item {
-                                        FoodChip(
-                                            foodType = Dietary.Veg,
-                                            isSelected = selectedFilterTab == "Veg",
-                                            shapeStyle = ChipShapeStyle.Round,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                selectedFilterTab = "Veg"
-                                            }
-                                        )
-                                    }
-                                    item {
-                                        FoodChip(
-                                            foodType = Dietary.NonVeg,
-                                            isSelected = selectedFilterTab == "Non-Veg",
-                                            shapeStyle = ChipShapeStyle.Round,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                selectedFilterTab = "Non-Veg"
-                                            }
-                                        )
-                                    }
-
-                                    item {
-                                        val hasSelectedCuisines = selectedCuisines.isNotEmpty()
-                                        val cuisineLabel = if (hasSelectedCuisines) {
-                                            "Cuisine (${selectedCuisines.size})"
-                                        } else {
-                                            "Cuisine"
-                                        }
-                                        FilterChip(
-                                            label = cuisineLabel,
-                                            isSelected = hasSelectedCuisines,
-                                            shapeStyle = ChipShapeStyle.Round,
-                                            hasStroke = true,
-                                            hasDropdown = true,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                showCuisineBottomSheet = true
-                                            }
-                                        )
-                                    }
-
-                                    item {
-                                        val hasSelectedTypes = selectedTypes.isNotEmpty()
-                                        val typeLabel = if (hasSelectedTypes) {
-                                            "Type (${selectedTypes.size})"
-                                        } else {
-                                            "Type"
-                                        }
-                                        FilterChip(
-                                            label = typeLabel,
-                                            isSelected = hasSelectedTypes,
-                                            shapeStyle = ChipShapeStyle.Round,
-                                            hasStroke = true,
-                                            hasDropdown = true,
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                showTypeBottomSheet = true
-                                            }
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                if (isLoading) {
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                        contentPadding = PaddingValues(
-                                            bottom = 80.dp
-                                        ),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        items(3) {
-                                            SkeletonMenuCategoryCard(
-                                                modifier = Modifier.padding(horizontal = 12.dp)
+                                        AnimatedVisibility(
+                                            visible = !isSearchActive,
+                                            enter = fadeIn(animationSpec = tween(150)) + expandVertically(
+                                                animationSpec = tween(250)
+                                            ),
+                                            exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(
+                                                animationSpec = tween(250)
+                                            )
+                                        ) {
+                                            CustomTopBar(
+                                                title = "Catering Menu",
+                                                onBackClick = {
+                                                    focusManager.clearFocus()
+                                                    onBackClick()
+                                                },
+                                                onMenuClick = {
+                                                    focusManager.clearFocus()
+                                                    showMenuBottomSheet = true
+                                                },
+                                                isLargeTitle = true,
+                                                buttonStyle = ButtonBackground.TRANSLUCENT,
+                                                textColor = ContentInvPrimary,
                                             )
                                         }
                                     }
-                                } else if (categorizedItems.isEmpty()) {
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .weight(1f),
-                                        contentAlignment = Alignment.TopCenter
-                                    ) {
-                                        Column(
-                                            modifier = Modifier.padding(top = 32.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Text(
-                                                text = "No items match your filters",
-                                                style = JasnifyTheme.typography.headingMedium,
-                                                color = ContentSecondary
+                                            .background(searchBarParentBg)
+                                            .padding(
+                                                top = 12.dp,
+                                                bottom = if (isSearchActive) 12.dp else 0.dp,
+                                                start = 12.dp,
+                                                end = 12.dp
                                             )
-                                            Text(
-                                                text = "Try adjusting your search query or categories.",
-                                                style = JasnifyTheme.typography.bodyMedium,
-                                                color = ContentTertiary
+                                    ) {
+                                        CustomSearchBar(
+                                            value = searchText,
+                                            onValueChange = { searchText = it },
+                                            onActiveChange = { isSearchActive = it }
+                                        )
+                                    }
+                                }
+                            }
+                        ) { paddingValues ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(BackgroundPrimary)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(onTap = { focusManager.clearFocus() })
+                                    }
+                                    .padding(paddingValues)
+                            ) {
+                                Column(
+                                    modifier = Modifier.fillMaxSize()
+                                ) {
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    LazyRow(
+                                        state = rememberLazyListState(),
+                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        item {
+                                            FilterChip(
+                                                label = "All Items",
+                                                isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                hasStroke = true,
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    selectedFilterTab = "All Items"
+                                                    selectedCuisines = emptySet()
+                                                    selectedTypes = emptySet()
+                                                }
+                                            )
+                                        }
+                                        item {
+                                            FoodChip(
+                                                foodType = Dietary.Veg,
+                                                isSelected = selectedFilterTab == "Veg",
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    selectedFilterTab = "Veg"
+                                                }
+                                            )
+                                        }
+                                        item {
+                                            FoodChip(
+                                                foodType = Dietary.NonVeg,
+                                                isSelected = selectedFilterTab == "Non-Veg",
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    selectedFilterTab = "Non-Veg"
+                                                }
+                                            )
+                                        }
+
+                                        item {
+                                            val hasSelectedCuisines = selectedCuisines.isNotEmpty()
+                                            val cuisineLabel = if (hasSelectedCuisines) {
+                                                "Cuisine (${selectedCuisines.size})"
+                                            } else {
+                                                "Cuisine"
+                                            }
+                                            FilterChip(
+                                                label = cuisineLabel,
+                                                isSelected = hasSelectedCuisines,
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                hasStroke = true,
+                                                hasDropdown = true,
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    showCuisineBottomSheet = true
+                                                }
+                                            )
+                                        }
+
+                                        item {
+                                            val hasSelectedTypes = selectedTypes.isNotEmpty()
+                                            val typeLabel = if (hasSelectedTypes) {
+                                                "Type (${selectedTypes.size})"
+                                            } else {
+                                                "Type"
+                                            }
+                                            FilterChip(
+                                                label = typeLabel,
+                                                isSelected = hasSelectedTypes,
+                                                shapeStyle = ChipShapeStyle.Round,
+                                                hasStroke = true,
+                                                hasDropdown = true,
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    showTypeBottomSheet = true
+                                                }
                                             )
                                         }
                                     }
-                                } else {
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .weight(1f),
-                                        contentPadding = PaddingValues(
-                                            bottom = 80.dp
-                                        ),
-                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        categorizedItems.forEach { (category, items) ->
-                                            item {
-                                                MenuCategoryCard(
-                                                    categoryTitle = category,
-                                                    items = items,
-                                                    onItemClick = { item ->
-                                                        focusManager.clearFocus()
-                                                        selectedItemForDetails = item
-                                                        showDetailsBottomSheet = true
-                                                    },
+
+                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                    if (isLoading) {
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            contentPadding = PaddingValues(
+                                                bottom = 80.dp
+                                            ),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            items(3) {
+                                                SkeletonMenuCategoryCard(
                                                     modifier = Modifier.padding(horizontal = 12.dp)
                                                 )
                                             }
                                         }
+                                    } else if (categorizedItems.isEmpty()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(320.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(
+                                                horizontalAlignment = Alignment.CenterHorizontally,
+                                                verticalArrangement = Arrangement.Top,
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_catering),
+                                                    contentDescription = null,
+                                                    tint = ContentTertiary,
+                                                    modifier = Modifier.size(84.dp)
+                                                )
+                                                Spacer(modifier = Modifier.height(12.dp))
+                                                Text(
+                                                    text = if (allMenuItems.isEmpty()) "Your menu will\nappear here" else "No items match\nyour search",
+                                                    style = JasnifyTheme.typography.displayMedium.copy(
+                                                        textAlign = TextAlign.Center,
+                                                        fontWeight = FontWeight.Medium
+                                                    ),
+                                                    color = ContentTertiary
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .weight(1f),
+                                            contentPadding = PaddingValues(
+                                                bottom = 80.dp
+                                            ),
+                                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                        ) {
+                                            categorizedItems.forEach { (category, items) ->
+                                                item {
+                                                    MenuCategoryCard(
+                                                        categoryTitle = category,
+                                                        items = items,
+                                                        onItemClick = { item ->
+                                                            focusManager.clearFocus()
+                                                            selectedItemForDetails = item
+                                                            showDetailsBottomSheet = true
+                                                        },
+                                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                                    )
+                                                }
+                                            }
 
-                                        item {
-                                            FooterJansify()
+                                            item {
+                                                FooterJansify()
+                                            }
                                         }
                                     }
                                 }
-                            }
 
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .align(Alignment.BottomCenter)
-                                    .background(
-                                        brush = Brush.verticalGradient(
-                                            colorStops = arrayOf(
-                                                0.00f to Color.Transparent,
-                                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                                1.00f to BackgroundPrimary
-                                            )
-                                        )
-                                    )
-                                    .navigationBarsPadding()
-                                    .padding(horizontal = 12.dp, vertical = 12.dp)
-                            ) {
-                                Surface(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(62.dp)
-                                        .pill360Shadow(
-                                            ambientColor = Color.Black.copy(alpha = 0.10f),
-                                            ambientBlur = 12.dp,
-                                            ambientSpread = 2.dp,
-                                            spotColor = Color.Black.copy(alpha = 0.15f),
-                                            spotBlur = 18.dp,
-                                            spotOffsetY = 4.dp
-                                        ),
-                                    color = SurfacePrimary,
-                                    shape = CircleShape
+                                        .align(Alignment.BottomCenter)
+                                        .background(
+                                            brush = Brush.verticalGradient(
+                                                colorStops = arrayOf(
+                                                    0.00f to Color.Transparent,
+                                                    0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                                    0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                                    1.00f to BackgroundPrimary
+                                                )
+                                            )
+                                        )
+                                        .navigationBarsPadding()
+                                        .padding(horizontal = 12.dp, vertical = 12.dp)
                                 ) {
-                                    Row(
+                                    Surface(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                                            .height(62.dp)
+                                            .pill360Shadow(
+                                                ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                ambientBlur = 12.dp,
+                                                ambientSpread = 2.dp,
+                                                spotColor = Color.Black.copy(alpha = 0.15f),
+                                                spotBlur = 18.dp,
+                                                spotOffsetY = 4.dp
+                                            ),
+                                        color = SurfacePrimary,
+                                        shape = CircleShape
                                     ) {
-                                        CustomTextButton(
-                                            onClick = {
-                                                focusManager.clearFocus()
-                                                /* Handle Suggestions */
-                                            },
-                                            text = "AI Suggestions",
-                                            type = ButtonType.Secondary,
-                                            shapeStyle = ButtonShapeStyle.Round,
-                                            leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                            modifier = if (isViewer) Modifier.weight(1f) else Modifier
-                                        )
-
-                                        if (!isViewer) {
-                                            Spacer(Modifier.width(4.dp))
-
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
                                             CustomTextButton(
                                                 onClick = {
                                                     focusManager.clearFocus()
-                                                    editingItem = null
-                                                    newItemName = ""
-                                                    newItemCuisine = "Indian"
-                                                    newItemType = "Starters"
-                                                    newItemDietary = Dietary.Veg
-                                                    showAddItemSheet = true
+                                                    /* Handle Suggestions */
                                                 },
-                                                text = "Add an Item",
-                                                type = ButtonType.Primary,
+                                                text = "AI Suggestions",
+                                                type = ButtonType.Secondary,
                                                 shapeStyle = ButtonShapeStyle.Round,
-                                                modifier = Modifier.weight(1f)
+                                                leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                                modifier = if (isViewer) Modifier.weight(1f) else Modifier
                                             )
+
+                                            if (!isViewer) {
+                                                Spacer(Modifier.width(4.dp))
+
+                                                CustomTextButton(
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        editingItem = null
+                                                        newItemName = ""
+                                                        newItemCuisine = "Indian"
+                                                        newItemType = "Starters"
+                                                        newItemDietary = Dietary.Veg
+                                                        showAddItemSheet = true
+                                                    },
+                                                    text = "Add an Item",
+                                                    type = ButtonType.Primary,
+                                                    shapeStyle = ButtonShapeStyle.Round,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                CateringMenuView.MANAGE_ROOM_ACCESS -> {
-                    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+                    CateringMenuView.MANAGE_ROOM_ACCESS -> {
+                        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
 
-                    // Ensure current user is in the list shown
-                    val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                        val self = User(
-                            uid = currentUserUid,
-                            name = auth.currentUser?.displayName ?: "Me",
-                            email = auth.currentUser?.email ?: "",
-                            role = currentUserRole,
-                            username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                        )
-                        (listOf(self) + roomUsers).distinctBy { it.uid }
-                    } else {
-                        roomUsers
-                    }
+                        val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                            val self = User(
+                                uid = currentUserUid,
+                                name = auth.currentUser?.displayName ?: "Me",
+                                email = auth.currentUser?.email ?: "",
+                                role = currentUserRole,
+                                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                            )
+                            (listOf(self) + roomUsers).distinctBy { it.uid }
+                        } else {
+                            roomUsers
+                        }
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(BackgroundSecondary)
-                            .pointerInput(Unit) {
-                                detectTapGestures(onTap = { focusManager.clearFocus() })
-                            }
-                    ) {
-                        RoomScreen(
-                            allUsers = displayUsers,
-                            currentUserRole = currentUserRole,
-                            isSelf = { it.uid == currentUserUid },
-                            onBackClick = {
-                                currentView = CateringMenuView.MENU
-                                focusManager.clearFocus()
-                            },
-                            onMenuClick = {
-                                showRoomMenuBottomSheet = true
-                                focusManager.clearFocus()
-                            },
-                            onRoleChange = { targetUser, newRole ->
-                                activeEvent?.id?.let { eventId ->
-                                    roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(BackgroundSecondary)
+                                .pointerInput(Unit) {
+                                    detectTapGestures(onTap = { focusManager.clearFocus() })
                                 }
-                            },
-                            onRemove = { targetUser ->
-                                userToRemove = targetUser
-                            },
-                            onReport = { targetUser ->
-                                toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
-                            },
-                            onLeave = {
-                                showLeaveConfirmation = true
-                            },
-                            searchResults = searchResults,
-                            onSearch = { roomViewModel.searchUsers(it) },
-                            onGrantAccess = { email, role ->
-                                activeEvent?.id?.let { id ->
-                                    roomViewModel.grantAccess(id, "Catering", email, role)
-                                    toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        ) {
+                            RoomScreen(
+                                allUsers = displayUsers,
+                                currentUserRole = currentUserRole,
+                                isSelf = { it.uid == currentUserUid },
+                                onBackClick = {
+                                    currentView = CateringMenuView.MENU
+                                    focusManager.clearFocus()
+                                },
+                                onMenuClick = {
+                                    showRoomMenuBottomSheet = true
+                                    focusManager.clearFocus()
+                                },
+                                onRoleChange = { targetUser, newRole ->
+                                    activeEvent?.id?.let { eventId ->
+                                        roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
+                                    }
+                                },
+                                onRemove = { targetUser ->
+                                    userToRemove = targetUser
+                                },
+                                onReport = { targetUser ->
+                                    toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                },
+                                onLeave = {
+                                    showLeaveConfirmation = true
+                                },
+                                searchResults = searchResults,
+                                onSearch = { roomViewModel.searchUsers(it) },
+                                onGrantAccess = { email, role ->
+                                    activeEvent?.id?.let { id ->
+                                        roomViewModel.grantAccess(id, "Catering", email, role)
+                                        toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                    }
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
-        }
 
-        // --- Screen-level CustomToast Display (Shown ONLY when Bottom Sheets are hidden) ---
-        AnimatedVisibility(
-            visible = toastData.message != null && !showAddItemSheet && !showDetailsBottomSheet && !showDeleteConfirmationSheet && !showMenuBottomSheet && !showRoomMenuBottomSheet && userToRemove == null,
-            enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .zIndex(99f)
-                .padding(horizontal = 12.dp, vertical = 16.dp)
-        ) {
-            CustomToast(
-                message = toastData.message ?: "",
-                type = toastData.type
-            )
+            AnimatedVisibility(
+                visible = toastData.message != null && !showAddItemSheet && !showDetailsBottomSheet && !showDeleteConfirmationSheet && !showMenuBottomSheet && !showRoomMenuBottomSheet && userToRemove == null,
+                enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .statusBarsPadding()
+                    .fillMaxWidth()
+                    .zIndex(99f)
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type
+                )
+            }
         }
     }
-    }
 
-    // --- Detail Bottom Sheet ---
     if (showDetailsBottomSheet && selectedItemForDetails != null) {
         CustomBottomSheet(
             heading = "Item Details",
@@ -741,14 +741,12 @@ fun CateringMenuScreen(
                 },
                 onEditClick = {
                     focusManager.clearFocus()
-                    // Populate existing details into state variables
                     editingItem = selectedItemForDetails
                     newItemName = selectedItemForDetails?.name ?: ""
                     newItemCuisine = selectedItemForDetails?.cuisine ?: "Indian"
                     newItemType = selectedItemForDetails?.type ?: "Starters"
                     newItemDietary = selectedItemForDetails?.dietary ?: Dietary.Veg
 
-                    // Close details view, open edit form directly
                     showDetailsBottomSheet = false
                     showAddItemSheet = true
                 }
@@ -756,7 +754,6 @@ fun CateringMenuScreen(
         }
     }
 
-    // --- Delete Confirmation Bottom Sheet ---
     if (showDeleteConfirmationSheet && itemToDelete != null) {
         ConfirmationBottomSheet(
             heading = "Remove item?",
@@ -776,7 +773,6 @@ fun CateringMenuScreen(
         )
     }
 
-    // --- Cuisine Filter Bottom Sheet ---
     if (showCuisineBottomSheet) {
         FilterBottomSheet(
             title = "Select Cuisine",
@@ -796,7 +792,6 @@ fun CateringMenuScreen(
         )
     }
 
-    // --- Type Filter Bottom Sheet ---
     if (showTypeBottomSheet) {
         FilterBottomSheet(
             title = "Select Type",
@@ -816,9 +811,7 @@ fun CateringMenuScreen(
         )
     }
 
-    // --- Add/Edit Catering Item Bottom Sheet ---
     if (showAddItemSheet) {
-
         ModalBottomSheet(
             onDismissRequest = { showAddItemSheet = false },
             sheetState = addItemBottomSheetState,
@@ -828,7 +821,6 @@ fun CateringMenuScreen(
             dragHandle = null,
             sheetGesturesEnabled = true
         ) {
-            // --- Custom Window Setup for Sheet's Dialog Window ---
             val view = LocalView.current
             DisposableEffect(view) {
                 var parent = view.parent
@@ -855,13 +847,11 @@ fun CateringMenuScreen(
                 onDispose {}
             }
 
-            // Aligns components and positions the custom toast correctly above the sheet container
             Column(
                 modifier = Modifier
                     .fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Aligns right above the sheet container ---
                 AnimatedVisibility(
                     visible = toastData.message != null,
                     enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
@@ -877,7 +867,6 @@ fun CateringMenuScreen(
                     )
                 }
 
-                // Actual visible bottom sheet container layout
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -885,7 +874,6 @@ fun CateringMenuScreen(
                         .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
                         .background(SurfacePrimary)
                 ) {
-                    // Title and Close Row
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -966,7 +954,6 @@ fun CateringMenuScreen(
                                 newItemDietary = Dietary.Veg
                                 editingItem = null
                             } else {
-                                // Trigger validation warning toast
                                 toastData = ToastData(
                                     message = "Please type or search a dish!",
                                     type = ToastType.ERROR
@@ -979,7 +966,6 @@ fun CateringMenuScreen(
         }
     }
 
-    // --- Success Bottom Sheet ---
     if (showSuccessSheet) {
         CustomSuccessBottomSheet(
             message = successMessage,
@@ -990,7 +976,6 @@ fun CateringMenuScreen(
         )
     }
 
-    // --- Dynamic Form Cuisine bottom selector sheet ---
     if (showAddCuisineBottomSheet) {
         FilterBottomSheet(
             title = "Select Cuisine",
@@ -1011,7 +996,6 @@ fun CateringMenuScreen(
         )
     }
 
-    // --- Dynamic Form Type bottom selector sheet ---
     if (showAddTypeBottomSheet) {
         FilterBottomSheet(
             title = "Select Type",
@@ -1137,17 +1121,10 @@ fun CateringMenuScreen(
     }
 }
 
-
-
-// =========================================== Category Card components & other helpers ========================================
-
-
-
 @Composable
 fun SkeletonMenuCategoryCard(
     modifier: Modifier = Modifier
 ) {
-    // Shimmer transition setup to create the smooth sweeping reflection animation
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -1159,7 +1136,6 @@ fun SkeletonMenuCategoryCard(
         label = "shimmer_anim"
     )
 
-    // High-fidelity shimmer color stops to match modern loading UI styles
     val shimmerColors = listOf(
         Color.LightGray.copy(alpha = 0.6f),
         Color.LightGray.copy(alpha = 0.2f),
@@ -1240,7 +1216,6 @@ fun MenuCategoryCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                // Clear focus when tapping empty areas of the category card
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 }
@@ -1460,7 +1435,6 @@ fun AddItemSheetContent(
     val isNameEntered = itemName.isNotBlank()
     val focusManager = LocalFocusManager.current
 
-    // Set up a scroll state to handle viewport scaling when keyboard opens or screen is small.
     val scrollState = rememberScrollState()
 
     Column(
@@ -1471,7 +1445,6 @@ fun AddItemSheetContent(
                 detectTapGestures(onTap = { focusManager.clearFocus() })
             }
     ) {
-        // Scrollable column with optional max height weight to prevent button compression
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1480,7 +1453,6 @@ fun AddItemSheetContent(
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Item Name Input using custom PrimaryInput
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "ITEM",
@@ -1499,7 +1471,6 @@ fun AddItemSheetContent(
                 )
             }
 
-            // Animating the entry/exit of Cuisine and Type sections to match height adjustments
             AnimatedVisibility(
                 visible = isNameEntered,
                 enter = fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 300)),
@@ -1539,7 +1510,6 @@ fun AddItemSheetContent(
                         }
                     }
 
-                    // Type Selection Block using PrimaryInput with overlay intercepts
                     Column(modifier = Modifier.fillMaxWidth()) {
                         Text(
                             text = "TYPE",
@@ -1578,7 +1548,6 @@ fun AddItemSheetContent(
                 gapLength = 6f
             )
 
-            // Veg / Non-Veg Chip selector
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1607,7 +1576,6 @@ fun AddItemSheetContent(
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
-        // Fixed non-shrinking action bar bottom area
         Column(
             modifier = Modifier.padding(12.dp)
         ) {

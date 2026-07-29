@@ -634,22 +634,22 @@ fun ChecklistsTab(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .weight(1f),
+                                            .height(320.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Column(
                                             horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.Center
+                                            verticalArrangement = Arrangement.Top
                                         ) {
                                             Icon(
                                                 painter = painterResource(id = R.drawable.ic_receipt),
-                                                contentDescription = "No Checklist Available",
+                                                contentDescription = null,
                                                 tint = ContentTertiary,
                                                 modifier = Modifier.size(84.dp)
                                             )
                                             Spacer(modifier = Modifier.height(12.dp))
                                             Text(
-                                                text = "No Checklist Available",
+                                                text = if(checklists.isEmpty()) "Your checklists will \n appear here" else "No checklists Found",
                                                 style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                                                 color = ContentTertiary,
                                                 textAlign = TextAlign.Center
