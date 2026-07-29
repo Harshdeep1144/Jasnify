@@ -287,6 +287,7 @@ fun OnboardingType(
                             eventId = eventIdValue,
                             eventName = verifiedEvent?.name ?: "Event",
                             ownerName = verifiedEvent?.ownerName ?: "Unknown",
+                            typeId = verifiedEvent?.typeId,
                             onEditClick = { currentScreenState = OnboardingState.ENTER_EVENT_ID },
                             onLoginSignupClick = {
                                 val fullId = verifiedEvent?.id ?: eventIdValue
@@ -590,6 +591,7 @@ fun EventIdDetailsScreen(
     eventId: String,
     eventName: String,
     ownerName: String,
+    typeId: Int?,
     onEditClick: () -> Unit,
     onLoginSignupClick: () -> Unit
 ) {
@@ -600,15 +602,24 @@ fun EventIdDetailsScreen(
     ) {
         Spacer(modifier = Modifier.height(96.dp))
 
+        // Event Image
+        val eventTypeIcon = remember(typeId) {
+            com.harshdeep.jasnify.data.models.eventTypes.find { it.id == typeId }?.iconResId 
+                ?: R.drawable.ill_event_type_others
+        }
+
         Box(
             modifier = Modifier
-                .size(100.dp)
-                .clip(CircleShape),
+                .size(104.dp)
+                .clip(shape = SquircleShape(CornerLargeIncrease))
+                .background(SurfaceSecondary),
             contentAlignment = Alignment.Center
         ) {
             Image(
-                painter = painterResource(R.drawable.img_onboarding_3),
-                contentDescription = "Event Image"
+                painter = painterResource(eventTypeIcon),
+                contentDescription = "Event Type Icon",
+                modifier = Modifier.size(72.dp),
+                contentScale = ContentScale.Fit
             )
         }
 
@@ -647,7 +658,7 @@ fun EventIdDetailsScreen(
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Text(
-                text = "Event ID : ${eventId.ifEmpty { "OBFEQO2" }}",
+                text = "Event ID : ${eventId.ifEmpty { "" }}",
                 style = JasnifyTheme.typography.labelMedium,
                 color = ContentSecondary
             )

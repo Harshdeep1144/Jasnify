@@ -86,7 +86,8 @@ enum class EventCreationStep(val title: String, val stepNumber: Int) {
 @Composable
 fun EventCreation(
     navController: NavController,
-    eventViewModel: EventViewModel = hiltViewModel()
+    eventViewModel: EventViewModel = hiltViewModel(),
+    fromProfile: Boolean = false
 ) {
     SetStatusBarTheme(
         useDarkIcons = true,
@@ -268,7 +269,7 @@ fun EventCreation(
     }
 
     // Determine back button visibility and progress bar step
-    val showBackButton = currentStep != EventCreationStep.EVENT_TYPE
+    val showBackButton = currentStep != EventCreationStep.EVENT_TYPE || fromProfile
     val currentProgressStep = when (currentStep) {
         EventCreationStep.EVENT_DATE, EventCreationStep.EVENT_TIMELINE -> 4
         else -> currentStep.stepNumber

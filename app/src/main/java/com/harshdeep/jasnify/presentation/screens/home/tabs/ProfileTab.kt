@@ -72,12 +72,16 @@ import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.UserEvent
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventSheetState
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinOrCreateBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
@@ -118,6 +122,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -149,6 +154,7 @@ fun ProfileTab(
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
@@ -201,6 +207,13 @@ fun ProfileTab(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
+    var showJoinOrCreateSheet by remember { mutableStateOf(false) }
+    var showJoinEventSheet by remember { mutableStateOf(false) }
+    var joinSheetStateEnum by remember { mutableStateOf(JoinEventSheetState.ENTER_ID) }
+    var enteredEventId by remember { mutableStateOf("") }
+    var verifiedEvent by remember { mutableStateOf<Event?>(null) }
+    var isVerifying by remember { mutableStateOf(false) }
+
     var toastData by remember { mutableStateOf(ToastData()) }
 
     LaunchedEffect(toastData.message) {
@@ -220,6 +233,8 @@ fun ProfileTab(
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val joinOrCreateSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val joinEventSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
@@ -340,6 +355,73 @@ fun ProfileTab(
         )
     }
 
+    if (showJoinOrCreateSheet) {
+        JoinOrCreateBottomSheet(
+            sheetState = joinOrCreateSheetState,
+            onDismiss = { showJoinOrCreateSheet = false },
+            onCreateNewEvent = {
+                showJoinOrCreateSheet = false
+                mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+            },
+            onJoinWithId = {
+                showJoinOrCreateSheet = false
+                enteredEventId = ""
+                verifiedEvent = null
+                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+                showJoinEventSheet = true
+            }
+        )
+    }
+
+    if (showJoinEventSheet) {
+        JoinEventBottomSheet(
+            sheetState = joinEventSheetState,
+            onDismiss = { showJoinEventSheet = false },
+            currentState = joinSheetStateEnum,
+            eventId = enteredEventId,
+            onEventIdChange = { enteredEventId = it },
+            verifiedEvent = verifiedEvent,
+            isVerifying = isVerifying,
+            onVerify = {
+                if (enteredEventId.isBlank()) {
+                    toastData = ToastData("Please enter an Event ID", ToastType.ERROR)
+                    return@JoinEventBottomSheet
+                }
+                isVerifying = true
+                coroutineScope.launch {
+                    val event = eventViewModel.getEventById(enteredEventId)
+                    isVerifying = false
+                    if (event != null) {
+                        verifiedEvent = event
+                        joinSheetStateEnum = JoinEventSheetState.EVENT_DETAILS
+                    } else {
+                        toastData = ToastData("Invalid Event ID", ToastType.ERROR)
+                    }
+                }
+            },
+            onJoin = {
+                val targetId = verifiedEvent?.id ?: enteredEventId
+                coroutineScope.launch {
+                    val hasAccess = eventViewModel.checkUserHasAccess(targetId)
+                    if (hasAccess) {
+                        eventViewModel.fetchAndSetActiveEvent(targetId)
+                        showJoinEventSheet = false
+                        internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                            popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                        }
+                        currentScreen = ProfileScreen.Root
+                    } else {
+                        toastData = ToastData("You don't have access to this event", ToastType.ERROR)
+                    }
+                }
+            },
+            onEditId = {
+                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+            },
+            toastData = toastData
+        )
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = currentScreen,
@@ -409,7 +491,8 @@ fun ProfileTab(
                                 popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
                             }
                             currentScreen = ProfileScreen.Root
-                        }
+                        },
+                        onJoinOrCreateClick = { showJoinOrCreateSheet = true }
                     )
                 }
 
@@ -446,8 +529,10 @@ fun ProfileTab(
             }
         }
 
+        val isSheetWithToastShowing = showJoinEventSheet || showEditProfile || showChangePassword
+        
         AnimatedVisibility(
-            visible = toastData.message != null,
+            visible = toastData.message != null && !isSheetWithToastShowing,
             enter = slideInVertically(initialOffsetY = { -it }),
             exit = slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
@@ -845,7 +930,8 @@ fun ManageEventsScreen(
     mainNavController: NavHostController,
     ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
-    onEventClick: (String) -> Unit
+    onEventClick: (String) -> Unit,
+    onJoinOrCreateClick: () -> Unit
 ) {
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val isUserEventsLoading by eventViewModel.isUserEventsLoading.collectAsStateWithLifecycle()
@@ -891,8 +977,8 @@ fun ManageEventsScreen(
                 if (!isCurrentEvent) {
                     listOf(
                         MenuSheetActionItem(
-                            text = "Switch Event",
-                            icon = painterResource(R.drawable.ic_arrow_switch_horizontal),
+                            text = "Switch to Event",
+                            icon = painterResource(R.drawable.ic_shuffle),
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 onEventClick(selectedEventForMenu!!.eventId)
@@ -990,7 +1076,7 @@ fun ManageEventsScreen(
                     shape = CircleShape
                 ) {
                     CustomTextButton(
-                        onClick = { mainNavController.navigate(Screen.OnboardingType.route) },
+                        onClick = onJoinOrCreateClick,
                         text = "Join or Create Event",
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Round,

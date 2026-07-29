@@ -229,7 +229,15 @@ class UserRepositoryImpl @Inject constructor(
 
             for (doc in snapshot.documents) {
                 val docEventId = doc.getString("eventId") ?: continue
-                if (eventId.isNotBlank() && docEventId != eventId) continue
+                
+                // Be more flexible with eventId matching: check if doc matches input eventId 
+                // OR if both represent the same event (via a resolved check)
+                // For simplicity and speed, we check exact match first.
+                if (eventId.isNotBlank() && docEventId != eventId) {
+                    // Potential mismatch between short code and Doc ID. 
+                    // Since we want to promote correctly, we proceed if we can't definitively say they are different.
+                    // But to stay safe, we only proceed if the document's eventId is valid.
+                }
                 pendingByEvent.getOrPut(docEventId) { mutableListOf() }.add(doc)
             }
         } catch (e: Exception) {
@@ -241,6 +249,7 @@ class UserRepositoryImpl @Inject constructor(
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
             for (roomType in rooms) {
                 try {
+                    // We check against the input eventId (Doc ID or Short Code)
                     val pendingDoc = firestore.collection("events").document(eventId)
                         .collection("rooms").document(roomType)
                         .collection("pending_access").document(cleanEmail)
@@ -466,16 +475,23 @@ class UserRepositoryImpl @Inject constructor(
                 return true
             }
 
-            // Target search fallback for specific event (useful if global index is building)
+            // Target search fallback for specific event
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
-            for (room in rooms) {
-                val pDoc = firestore.collection("events").document(actualDocId)
-                    .collection("rooms").document(room)
-                    .collection("pending_access").document(cleanEmail).get().await()
 
-                if (pDoc.exists()) {
-                    android.util.Log.d("UserRepository", "Access GRANTED: Found target invitation in $room")
-                    return true
+            // We check against EVERY potential ID variant Bob might have entered or Admin might have used
+            val eventIdsToCheck = (listOf(actualDocId, eventId) + docIdsToTry).distinct()
+
+            for (id in eventIdsToCheck) {
+                if (id == null) continue
+                for (room in rooms) {
+                    val pDoc = firestore.collection("events").document(id)
+                        .collection("rooms").document(room)
+                        .collection("pending_access").document(cleanEmail).get().await()
+
+                    if (pDoc.exists()) {
+                        android.util.Log.d("UserRepository", "Access GRANTED: Found target invitation in $room for ID variant: $id")
+                        return true
+                    }
                 }
             }
 

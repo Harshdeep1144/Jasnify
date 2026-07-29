@@ -450,6 +450,24 @@ class EventViewModel @Inject constructor(
         }
     }
 
+    suspend fun checkUserHasAccess(eventId: String): Boolean {
+        val user = auth.currentUser ?: return false
+        
+        // 1. Resolve the Doc ID first for reliable check
+        val resolvedEvent = getEventById(eventId)
+        val actualDocId = resolvedEvent?.id ?: eventId
+
+        // 2. Check local profile first (Fastest)
+        val profile = userRepository.getUserProfile(user.uid)
+        if (profile?.joinedEvents?.any { it.eventId == actualDocId || it.eventId == eventId } == true) {
+            android.util.Log.d("EventViewModel", "Access GRANTED: Already in joinedEvents")
+            return true
+        }
+
+        // 3. Perform deep check in Firestore (Owner, Pending, Rooms)
+        return userRepository.checkUserHasAccessToEvent(eventId, user.email ?: "", user.uid)
+    }
+
     suspend fun checkIfUserParticipatesInAnyEvent(): Boolean {
         val user = auth.currentUser ?: return false
         val userId = user.uid

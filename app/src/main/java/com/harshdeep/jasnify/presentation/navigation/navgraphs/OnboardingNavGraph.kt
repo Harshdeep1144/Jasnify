@@ -76,12 +76,19 @@ fun NavGraphBuilder.onboardingNavGraph(mainNavController: NavHostController) {
         // 3. Event Creation: Setup the first wedding/event details
         composable(
             route = Screen.EventCreationScreen.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("fromProfile") {
+                    type = androidx.navigation.NavType.BoolType
+                    defaultValue = false
+                }
+            ),
             enterTransition = { smoothSlideInFromRight },
             exitTransition = { smoothSlideOutToLeft },
             popEnterTransition = { smoothSlideInFromLeft },
             popExitTransition = { smoothSlideOutToRight }
-        ) {
-            EventCreation(mainNavController)
+        ) { backStackEntry ->
+            val fromProfile = backStackEntry.arguments?.getBoolean("fromProfile") ?: false
+            EventCreation(mainNavController, fromProfile = fromProfile)
         }
 
         // 4. OTP Verification (Optional/Nested inside Auth flow)
