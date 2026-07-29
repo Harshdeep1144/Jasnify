@@ -993,7 +993,6 @@ fun ManageEventsScreen(
                         icon = painterResource(R.drawable.ic_info),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
-                            eventViewModel.fetchAndSetActiveEvent(selectedEventForMenu!!.eventId)
                             mainNavController.navigate(Screen.EventDetail.route)
                             showEventMenu = false
                         }

@@ -114,7 +114,7 @@ fun ManageEventCard(
                 Text(
                     text = "CURRENT EVENT",
                     color = ContentInvPrimary,
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    style = JasnifyTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .padding(bottom = 6.dp)
@@ -223,7 +223,7 @@ fun ManageEventCard(
                                                 .fillMaxWidth(),
                                             textAlign = TextAlign.Center,
                                             style = JasnifyTheme.typography.labelLarge,
-                                            color = ContentSecondary
+                                            color = ContentPrimary
                                         )
                                     }
                                 } else {
