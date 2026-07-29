@@ -70,7 +70,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -760,7 +760,7 @@ fun CateringMenuScreen(
 
     // --- Delete Confirmation Bottom Sheet ---
     if (showDeleteConfirmationSheet && itemToDelete != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Remove item?",
             subHeading = "The item will be removed from the Catering Menu.",
             onDismiss = {
@@ -768,7 +768,7 @@ fun CateringMenuScreen(
                 showDeleteConfirmationSheet = false
                 itemToDelete = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 focusManager.clearFocus()
                 itemToDelete?.let { cateringViewModel.deleteItem(it.id) }
                 showDeleteConfirmationSheet = false
@@ -1101,14 +1101,14 @@ fun CateringMenuScreen(
     }
 
     if (userToRemove != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Remove Member from Catering Menu?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
                 userToRemove = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val target = userToRemove
                 if (target != null && activeEvent != null) {
                     roomViewModel.removeAccess(activeEvent!!.id, "Catering", target.uid)

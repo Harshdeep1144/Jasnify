@@ -103,7 +103,7 @@ import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.ChecklistItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
@@ -794,14 +794,14 @@ fun ChecklistsTab(
         }
 
         if (userToRemove != null) {
-            CustomDeleteSheet(
+            ConfirmationBottomSheet(
                 heading = "Remove Member from Checklist Room?",
                 subHeading = "They will not be able to access this room anymore.",
                 confirmButtonText = "Remove",
                 onDismiss = {
                     userToRemove = null
                 },
-                onConfirmRemove = {
+                onConfirm = {
                     val target = userToRemove
                     if (target != null && activeEvent != null) {
                         roomViewModel.removeAccess(activeEvent!!.id, "Checklist", target.uid)
@@ -1336,12 +1336,12 @@ fun ChecklistDetailScreen(
     }
 
     if (showDeleteConfirmation) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The checklist will be deleted permanently.",
             confirmButtonText = "Delete Checklist",
             onDismiss = { showDeleteConfirmation = false },
-            onConfirmRemove = {
+            onConfirm = {
                 showDeleteConfirmation = false
                 checklist?.id?.let { onDelete(it) }
             }

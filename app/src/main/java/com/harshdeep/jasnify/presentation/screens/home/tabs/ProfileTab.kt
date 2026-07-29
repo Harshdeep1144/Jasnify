@@ -76,7 +76,7 @@ import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventBottomSheet
@@ -1019,12 +1019,13 @@ fun ManageEventsScreen(
     }
 
     if (showLeaveConfirmation && selectedEventForMenu != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
             confirmButtonText = "Leave Event",
             onDismiss = { showLeaveConfirmation = false },
-            onConfirmRemove = {
+            isDestructive = true,
+            onConfirm = {
                 eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
                 showLeaveConfirmation = false
             }

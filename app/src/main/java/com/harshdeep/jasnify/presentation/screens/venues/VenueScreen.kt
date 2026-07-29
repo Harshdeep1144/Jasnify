@@ -102,7 +102,7 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -567,14 +567,14 @@ fun VenueScreen(
     }
 
     if (userToRemove != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Remove Member from Venue Room?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
                 userToRemove = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val target = userToRemove
                 if (target != null && activeEvent != null) {
                     roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)

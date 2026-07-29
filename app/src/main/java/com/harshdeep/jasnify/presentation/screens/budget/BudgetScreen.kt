@@ -82,7 +82,7 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -1580,14 +1580,14 @@ fun BudgetScreen(
     }
 
     if (expenseToDelete != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The expense amount will be added back to the total budget.",
             confirmButtonText = "Delete Expense",
             onDismiss = {
                 expenseToDelete = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val currentExpenseId = expenseToDelete?.id
                 if (currentExpenseId != null) {
                     viewModel.deleteExpense(currentExpenseId)
@@ -1721,14 +1721,14 @@ fun BudgetScreen(
     }
 
     if (categoryToDeleteConfirm != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The category will be deleted permanently.",
             confirmButtonText = "Delete Category",
             onDismiss = {
                 categoryToDeleteConfirm = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val categoryToDelete = categoryToDeleteConfirm
                 if (categoryToDelete != null) {
                     viewModel.deleteExpensesByCategory(categoryToDelete)
@@ -1762,14 +1762,14 @@ fun BudgetScreen(
     }
 
     if (userToRemove != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Remove Member from Budget Tracker?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
                 userToRemove = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val target = userToRemove
                 if (target != null) {
                     activeEvent?.id?.let { id ->
