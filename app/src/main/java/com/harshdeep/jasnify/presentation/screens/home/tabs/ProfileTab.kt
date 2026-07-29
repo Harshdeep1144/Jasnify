@@ -74,6 +74,7 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -872,21 +873,27 @@ fun ManageEventsScreen(
 
     var showEventMenu by remember { mutableStateOf(false) }
     var selectedEventForMenu by remember { mutableStateOf<UserEvent?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
 
     if (showEventMenu && selectedEventForMenu != null) {
+        val isCurrentEvent = selectedEventForMenu!!.eventId == activeEventId
+        val isAdminOfEvent = userProfile?.uid == selectedEventForMenu!!.adminId
+
         MenuBottomSheet(
-            items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Switch Event",
-                        icon = painterResource(R.drawable.ic_arrow_switch_horizontal),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            onEventClick(selectedEventForMenu!!.eventId)
-                            showEventMenu = false
-                        }
+            items = listOfNotNull(
+                if (!isCurrentEvent) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Switch Event",
+                            icon = painterResource(R.drawable.ic_arrow_switch_horizontal),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                onEventClick(selectedEventForMenu!!.eventId)
+                                showEventMenu = false
+                            }
+                        )
                     )
-                ),
+                } else null,
                 listOf(
                     MenuSheetActionItem(
                         text = "Event Detail",
@@ -899,20 +906,35 @@ fun ManageEventsScreen(
                         }
                     )
                 ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Leave Event",
-                        icon = painterResource(R.drawable.ic_logout),
-                        iconPlacement = IconPlacement.Left,
-                        contentColor = MaterialTheme.colorScheme.error,
-                        onClick = {
-                            eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
-                            showEventMenu = false
-                        }
+                if (!isAdminOfEvent) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Event",
+                            icon = painterResource(R.drawable.ic_logout),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showEventMenu = false
+                                showLeaveConfirmation = true
+                            }
+                        )
                     )
-                )
+                } else null
             ),
             onCancelClick = { showEventMenu = false }
+        )
+    }
+
+    if (showLeaveConfirmation && selectedEventForMenu != null) {
+        CustomDeleteSheet(
+            heading = "Are you sure?",
+            subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
+            confirmButtonText = "Leave Event",
+            onDismiss = { showLeaveConfirmation = false },
+            onConfirmRemove = {
+                eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
+                showLeaveConfirmation = false
+            }
         )
     }
 
@@ -982,8 +1004,8 @@ fun ManageEventsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(allUserEvents) { userEvent ->
                     ManageEventCard(

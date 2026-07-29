@@ -124,7 +124,8 @@ fun ManageEventCard(
 
         // 2. Main Card Surface (placed ON TOP of badge, covering top portion of badge)
         Surface(
-            onClick = onEventClick,
+            onClick = { if (!isActive) onEventClick() },
+            enabled = !isActive,
             color = SurfacePrimary,
             shape = cardShape,
             modifier = Modifier
