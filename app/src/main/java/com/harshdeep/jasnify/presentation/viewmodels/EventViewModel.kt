@@ -85,6 +85,9 @@ class EventViewModel @Inject constructor(
     private val _userEvents = MutableStateFlow<List<Event>>(emptyList())
     val userEvents: StateFlow<List<Event>> = _userEvents.asStateFlow()
 
+    private val _isUserEventsLoading = MutableStateFlow(false)
+    val isUserEventsLoading: StateFlow<Boolean> = _isUserEventsLoading.asStateFlow()
+
     private var isManuallyJoined = false
 
     init {
@@ -172,9 +175,11 @@ class EventViewModel @Inject constructor(
         val user = auth.currentUser ?: return
         val userId = user.uid
 
+        _isUserEventsLoading.value = true
         firestore.collection("events")
             .whereEqualTo("ownerId", userId)
             .addSnapshotListener { snapshot, e ->
+                _isUserEventsLoading.value = false
                 if (e != null) return@addSnapshotListener
 
                 val events = snapshot?.toObjects(Event::class.java) ?: emptyList()

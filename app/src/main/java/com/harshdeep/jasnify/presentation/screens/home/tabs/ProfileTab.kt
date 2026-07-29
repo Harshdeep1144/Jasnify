@@ -34,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -847,6 +848,7 @@ fun ManageEventsScreen(
     onEventClick: (String) -> Unit
 ) {
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+    val isUserEventsLoading by eventViewModel.isUserEventsLoading.collectAsStateWithLifecycle()
     val joinedEvents = userProfile?.joinedEvents ?: emptyList()
 
     // Merge owned events for old accounts that don't have joinedEvents populated
@@ -867,6 +869,13 @@ fun ManageEventsScreen(
         }
         // Deduplicate: Prioritize joinedEvents as they have more granular role/screen info if shared
         (ownedAsUserEvents + joinedEvents).distinctBy { it.eventId }
+    }
+
+    // Redirect to event creation if no events found and loading is complete
+    LaunchedEffect(allUserEvents, isUserEventsLoading, userProfile) {
+        if (!isUserEventsLoading && userProfile != null && allUserEvents.isEmpty()) {
+            mainNavController.navigate(Screen.OnboardingType.route)
+        }
     }
 
     var showEventMenu by remember { mutableStateOf(false) }
@@ -981,7 +990,7 @@ fun ManageEventsScreen(
                     shape = CircleShape
                 ) {
                     CustomTextButton(
-                        onClick = { /* Navigate to event creation or join flow */ },
+                        onClick = { mainNavController.navigate(Screen.OnboardingType.route) },
                         text = "Join or Create Event",
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Round,
@@ -994,8 +1003,22 @@ fun ManageEventsScreen(
         }
     ) { padding ->
         if (allUserEvents.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No events joined yet.", color = ContentSecondary)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(color = ContentSecondary)
+                    Text(
+                        text = "Redirecting to event creation...",
+                        color = ContentSecondary
+                    )
+                }
             }
         } else {
             LazyColumn(

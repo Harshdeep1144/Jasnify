@@ -46,23 +46,25 @@ fun SplashScreen(
         val destination = when {
             !isLoggedIn -> Screen.OnboardingGraph.route
             else -> {
-                // 1. Check local cache for immediate redirection
-                val cachedEventId = eventViewModel.getLocalActiveEventId()
-                if (cachedEventId != null) {
-                    android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting to MainApp.")
-                    eventViewModel.fetchAndSetActiveEvent(cachedEventId)
-                    Screen.MainAppScreen.route
-                } else {
-                    // 2. Fallback to deep database check
-                    android.util.Log.d("SplashScreen", "No cache. Performing participation check...")
-                    val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
-                    if (hasEventParticipation) {
-                        android.util.Log.d("SplashScreen", "Participation confirmed. Redirecting to MainApp.")
+                // 1. Perform participation check first to ensure cache is valid
+                android.util.Log.d("SplashScreen", "Performing deep participation check...")
+                val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
+                
+                if (hasEventParticipation) {
+                    // Check local cache for immediate redirection
+                    val cachedEventId = eventViewModel.getLocalActiveEventId()
+                    if (cachedEventId != null) {
+                        android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting to MainApp.")
+                        eventViewModel.fetchAndSetActiveEvent(cachedEventId)
                         Screen.MainAppScreen.route
                     } else {
-                        android.util.Log.d("SplashScreen", "No events found. Redirecting to Creation.")
-                        Screen.EventCreationScreen.route
+                        android.util.Log.d("SplashScreen", "Participation confirmed but no cache. Redirecting to MainApp.")
+                        Screen.MainAppScreen.route
                     }
+                } else {
+                    android.util.Log.d("SplashScreen", "No events found. Clearing cache and redirecting to OnboardingType.")
+                    eventViewModel.clearActiveEvent() // Ensure cache is cleared if they have no events
+                    Screen.OnboardingType.route
                 }
             }
         }
