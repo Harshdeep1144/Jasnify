@@ -251,6 +251,7 @@ fun CateringMenuScreen(
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showRoomAccessBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
@@ -679,11 +680,7 @@ fun CateringMenuScreen(
                                 toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                             },
                             onLeave = {
-                                activeEvent?.id?.let { eventId ->
-                                    roomViewModel.removeAccess(eventId, "Catering", currentUserUid)
-                                }
-                                toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                currentView = CateringMenuView.MENU
+                                showLeaveConfirmation = true
                             },
                             searchResults = searchResults,
                             onSearch = { roomViewModel.searchUsers(it) },
@@ -1076,7 +1073,7 @@ fun CateringMenuScreen(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
-                            currentView = CateringMenuView.MENU
+                            showLeaveConfirmation = true
                         }
                     )
                 )
@@ -1115,6 +1112,25 @@ fun CateringMenuScreen(
                     toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null
+            }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Catering Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.removeAccess(eventId, "Catering", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                currentView = CateringMenuView.MENU
+                showLeaveConfirmation = false
             }
         )
     }

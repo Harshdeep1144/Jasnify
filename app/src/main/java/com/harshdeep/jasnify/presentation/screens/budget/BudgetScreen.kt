@@ -284,6 +284,7 @@ fun BudgetScreen(
     val addCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
     val sortOptions = remember { listOf("Newest First", "Oldest First", "Highest Amount", "Lowest Amount") }
@@ -1426,11 +1427,7 @@ fun BudgetScreen(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
-                                    activeEvent?.id?.let { id ->
-                                        roomViewModel.removeAccess(id, "Budget", currentUserUid)
-                                    }
-                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                    currentView = BudgetScreenView.BUDGET_TRACKER
+                                    showLeaveConfirmation = true
                                 },
                                 searchResults = searchResults,
                                 onSearch = { roomViewModel.searchUsers(it) },
@@ -1750,7 +1747,7 @@ fun BudgetScreen(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
-                            currentView = BudgetScreenView.BUDGET_TRACKER
+                            showLeaveConfirmation = true
                         }
                     )
                 )
@@ -1778,6 +1775,25 @@ fun BudgetScreen(
                     }
                 }
                 userToRemove = null
+            }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Budget Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { id ->
+                    roomViewModel.removeAccess(id, "Budget", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                currentView = BudgetScreenView.BUDGET_TRACKER
+                showLeaveConfirmation = false
             }
         )
     }

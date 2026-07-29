@@ -234,6 +234,7 @@ fun VenueScreen(
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -372,11 +373,7 @@ fun VenueScreen(
                                         toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                     },
                                     onLeave = {
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
-                                        }
-                                        toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                        showRoomAccess = false
+                                        showLeaveConfirmation = true
                                     },
                                     searchResults = searchResults,
                                     onSearch = { roomViewModel.searchUsers(it) },
@@ -555,7 +552,7 @@ fun VenueScreen(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
-                            showRoomAccess = false
+                            showLeaveConfirmation = true
                         }
                     )
                 )
@@ -581,6 +578,25 @@ fun VenueScreen(
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null
+            }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Venue Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                showRoomAccess = false
+                showLeaveConfirmation = false
             }
         )
     }
