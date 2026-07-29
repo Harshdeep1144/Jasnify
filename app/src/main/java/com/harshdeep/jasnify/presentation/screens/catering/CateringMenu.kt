@@ -589,7 +589,8 @@ fun CateringMenuScreen(
                                     shape = CircleShape
                                 ) {
                                     Row(
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier
+                                            .fillMaxWidth()
                                             .padding(4.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -1097,9 +1098,9 @@ fun CateringMenuScreen(
         )
     }
 
-    if (userToRemove != null) {
+    userToRemove?.let {
         ConfirmationBottomSheet(
-            heading = "Remove Member from Catering Menu?",
+            heading = "Remove ${it.name} from Catering Menu?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
@@ -1228,7 +1229,8 @@ fun MenuCategoryCard(
     val focusManager = LocalFocusManager.current
 
     Card(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(CornerExtraLarge)),
         shape = SquircleShape(CornerExtraLarge),
         colors = CardDefaults.cardColors(
@@ -1258,7 +1260,8 @@ fun MenuCategoryCard(
             ) {
                 Text(
                     text = categoryTitle,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(vertical = 4.dp),
                     style = JasnifyTheme.typography.headingXLarge.copy(
                         fontFamily = Pattaya,
@@ -1317,7 +1320,11 @@ fun ItemDetailsSheetContent(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .border(width = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), shape = SquircleShape(20.dp)),
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                    shape = SquircleShape(20.dp)
+                ),
             shape = SquircleShape(20.dp),
             colors = CardDefaults.cardColors(
                 containerColor = Color.Transparent

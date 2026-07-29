@@ -790,9 +790,9 @@ fun ChecklistsTab(
             )
         }
 
-        if (userToRemove != null) {
+        userToRemove?.let {
             ConfirmationBottomSheet(
-                heading = "Remove Member from Checklist Room?",
+                heading = "Remove ${it.name} from Checklist Room?",
                 subHeading = "They will not be able to access this room anymore.",
                 confirmButtonText = "Remove",
                 onDismiss = {

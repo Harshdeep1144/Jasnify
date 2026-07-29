@@ -1758,9 +1758,9 @@ fun BudgetScreen(
         )
     }
 
-    if (userToRemove != null) {
+    userToRemove?.let {
         ConfirmationBottomSheet(
-            heading = "Remove Member from Budget Tracker?",
+            heading = "Remove ${it.name} from Budget Tracker?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {

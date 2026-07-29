@@ -563,9 +563,9 @@ fun VenueScreen(
         )
     }
 
-    if (userToRemove != null) {
+    userToRemove?.let {
         ConfirmationBottomSheet(
-            heading = "Remove Member from Venue Room?",
+            heading = "Remove ${it.name} from Venue Room?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
