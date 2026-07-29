@@ -102,7 +102,7 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -234,6 +234,7 @@ fun VenueScreen(
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -372,11 +373,7 @@ fun VenueScreen(
                                         toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                     },
                                     onLeave = {
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
-                                        }
-                                        toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                        showRoomAccess = false
+                                        showLeaveConfirmation = true
                                     },
                                     searchResults = searchResults,
                                     onSearch = { roomViewModel.searchUsers(it) },
@@ -555,7 +552,7 @@ fun VenueScreen(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
-                            showRoomAccess = false
+                            showLeaveConfirmation = true
                         }
                     )
                 )
@@ -566,21 +563,40 @@ fun VenueScreen(
         )
     }
 
-    if (userToRemove != null) {
-        CustomDeleteSheet(
-            heading = "Remove Member from Venue Room?",
+    userToRemove?.let {
+        ConfirmationBottomSheet(
+            heading = "Remove ${it.name} from Venue Room?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
                 userToRemove = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val target = userToRemove
                 if (target != null && activeEvent != null) {
                     roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null
+            }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Venue Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                showRoomAccess = false
+                showLeaveConfirmation = false
             }
         )
     }

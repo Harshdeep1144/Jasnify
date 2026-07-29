@@ -85,6 +85,9 @@ class EventViewModel @Inject constructor(
     private val _userEvents = MutableStateFlow<List<Event>>(emptyList())
     val userEvents: StateFlow<List<Event>> = _userEvents.asStateFlow()
 
+    private val _isUserEventsLoading = MutableStateFlow(false)
+    val isUserEventsLoading: StateFlow<Boolean> = _isUserEventsLoading.asStateFlow()
+
     private var isManuallyJoined = false
 
     init {
@@ -172,9 +175,11 @@ class EventViewModel @Inject constructor(
         val user = auth.currentUser ?: return
         val userId = user.uid
 
+        _isUserEventsLoading.value = true
         firestore.collection("events")
             .whereEqualTo("ownerId", userId)
             .addSnapshotListener { snapshot, e ->
+                _isUserEventsLoading.value = false
                 if (e != null) return@addSnapshotListener
 
                 val events = snapshot?.toObjects(Event::class.java) ?: emptyList()
@@ -443,6 +448,24 @@ class EventViewModel @Inject constructor(
             android.util.Log.e("EventViewModel", "CRITICAL: Event ID Search crashed for $inputId", e)
             null
         }
+    }
+
+    suspend fun checkUserHasAccess(eventId: String): Boolean {
+        val user = auth.currentUser ?: return false
+        
+        // 1. Resolve the Doc ID first for reliable check
+        val resolvedEvent = getEventById(eventId)
+        val actualDocId = resolvedEvent?.id ?: eventId
+
+        // 2. Check local profile first (Fastest)
+        val profile = userRepository.getUserProfile(user.uid)
+        if (profile?.joinedEvents?.any { it.eventId == actualDocId || it.eventId == eventId } == true) {
+            android.util.Log.d("EventViewModel", "Access GRANTED: Already in joinedEvents")
+            return true
+        }
+
+        // 3. Perform deep check in Firestore (Owner, Pending, Rooms)
+        return userRepository.checkUserHasAccessToEvent(eventId, user.email ?: "", user.uid)
     }
 
     suspend fun checkIfUserParticipatesInAnyEvent(): Boolean {

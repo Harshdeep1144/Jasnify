@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -33,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -51,6 +53,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.Painter
@@ -69,16 +72,22 @@ import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.UserEvent
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventSheetState
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinOrCreateBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -93,6 +102,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.util.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
@@ -112,6 +122,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -143,10 +154,11 @@ fun ProfileTab(
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
-    val userProfile by profileViewModel.userProfile.collectAsState()
+    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
     
     // Stop listening to enquiries if the user is null or being deleted
@@ -195,6 +207,13 @@ fun ProfileTab(
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
 
+    var showJoinOrCreateSheet by remember { mutableStateOf(false) }
+    var showJoinEventSheet by remember { mutableStateOf(false) }
+    var joinSheetStateEnum by remember { mutableStateOf(JoinEventSheetState.ENTER_ID) }
+    var enteredEventId by remember { mutableStateOf("") }
+    var verifiedEvent by remember { mutableStateOf<Event?>(null) }
+    var isVerifying by remember { mutableStateOf(false) }
+
     var toastData by remember { mutableStateOf(ToastData()) }
 
     LaunchedEffect(toastData.message) {
@@ -214,6 +233,8 @@ fun ProfileTab(
     val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val joinOrCreateSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val joinEventSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
@@ -312,7 +333,7 @@ fun ProfileTab(
             onUpdatePassword = { newPassword ->
                 authViewModel.updatePassword(newPassword)
             },
-            onForgotPassword = { /* Toast handled in bottom sheet */ }
+            onForgotPassword = { /* Need OTP Service */ }
         )
     }
 
@@ -331,6 +352,73 @@ fun ProfileTab(
             onDismiss = { showNavBarStyle = false },
             currentStyle = selectedNavBarStyle,
             onStyleSelected = { uiViewModel.updateNavBarStyle(it) }
+        )
+    }
+
+    if (showJoinOrCreateSheet) {
+        JoinOrCreateBottomSheet(
+            sheetState = joinOrCreateSheetState,
+            onDismiss = { showJoinOrCreateSheet = false },
+            onCreateNewEvent = {
+                showJoinOrCreateSheet = false
+                mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+            },
+            onJoinWithId = {
+                showJoinOrCreateSheet = false
+                enteredEventId = ""
+                verifiedEvent = null
+                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+                showJoinEventSheet = true
+            }
+        )
+    }
+
+    if (showJoinEventSheet) {
+        JoinEventBottomSheet(
+            sheetState = joinEventSheetState,
+            onDismiss = { showJoinEventSheet = false },
+            currentState = joinSheetStateEnum,
+            eventId = enteredEventId,
+            onEventIdChange = { enteredEventId = it },
+            verifiedEvent = verifiedEvent,
+            isVerifying = isVerifying,
+            onVerify = {
+                if (enteredEventId.isBlank()) {
+                    toastData = ToastData("Please enter an Event ID", ToastType.ERROR)
+                    return@JoinEventBottomSheet
+                }
+                isVerifying = true
+                coroutineScope.launch {
+                    val event = eventViewModel.getEventById(enteredEventId)
+                    isVerifying = false
+                    if (event != null) {
+                        verifiedEvent = event
+                        joinSheetStateEnum = JoinEventSheetState.EVENT_DETAILS
+                    } else {
+                        toastData = ToastData("Invalid Event ID", ToastType.ERROR)
+                    }
+                }
+            },
+            onJoin = {
+                val targetId = verifiedEvent?.id ?: enteredEventId
+                coroutineScope.launch {
+                    val hasAccess = eventViewModel.checkUserHasAccess(targetId)
+                    if (hasAccess) {
+                        eventViewModel.fetchAndSetActiveEvent(targetId)
+                        showJoinEventSheet = false
+                        internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                            popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                        }
+                        currentScreen = ProfileScreen.Root
+                    } else {
+                        toastData = ToastData("You don't have access to this event", ToastType.ERROR)
+                    }
+                }
+            },
+            onEditId = {
+                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+            },
+            toastData = toastData
         )
     }
 
@@ -392,8 +480,9 @@ fun ProfileTab(
 
                 ProfileScreen.ManageEvents -> {
                     ManageEventsScreen(
-                        profileViewModel = profileViewModel,
+                        userProfile = userProfile,
                         eventViewModel = eventViewModel,
+                        mainNavController = mainNavController,
                         ownedEvents = ownedEvents,
                         onBack = { currentScreen = ProfileScreen.Root },
                         onEventClick = { eventId ->
@@ -402,7 +491,8 @@ fun ProfileTab(
                                 popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
                             }
                             currentScreen = ProfileScreen.Root
-                        }
+                        },
+                        onJoinOrCreateClick = { showJoinOrCreateSheet = true }
                     )
                 }
 
@@ -439,8 +529,10 @@ fun ProfileTab(
             }
         }
 
+        val isSheetWithToastShowing = showJoinEventSheet || showEditProfile || showChangePassword
+        
         AnimatedVisibility(
-            visible = toastData.message != null,
+            visible = toastData.message != null && !isSheetWithToastShowing,
             enter = slideInVertically(initialOffsetY = { -it }),
             exit = slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
@@ -705,7 +797,7 @@ fun AccountSettingsScreen(
                 CustomTopBar(
                     title = "Account Settings",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -781,7 +873,7 @@ fun AppearanceScreen(
                 CustomTopBar(
                     title = "Appearance",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -833,15 +925,16 @@ fun AppearanceScreen(
 
 @Composable
 fun ManageEventsScreen(
-    profileViewModel: ProfileViewModel,
+    userProfile: com.harshdeep.jasnify.domain.model.User?,
     eventViewModel: EventViewModel,
+    mainNavController: NavHostController,
     ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
-    onEventClick: (String) -> Unit
+    onEventClick: (String) -> Unit,
+    onJoinOrCreateClick: () -> Unit
 ) {
-    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
-
+    val isUserEventsLoading by eventViewModel.isUserEventsLoading.collectAsStateWithLifecycle()
     val joinedEvents = userProfile?.joinedEvents ?: emptyList()
 
     // Merge owned events for old accounts that don't have joinedEvents populated
@@ -864,26 +957,77 @@ fun ManageEventsScreen(
         (ownedAsUserEvents + joinedEvents).distinctBy { it.eventId }
     }
 
+    // Redirect to event creation if no events found and loading is complete
+    LaunchedEffect(allUserEvents, isUserEventsLoading, userProfile) {
+        if (!isUserEventsLoading && userProfile != null && allUserEvents.isEmpty()) {
+            mainNavController.navigate(Screen.OnboardingType.route)
+        }
+    }
+
     var showEventMenu by remember { mutableStateOf(false) }
     var selectedEventForMenu by remember { mutableStateOf<UserEvent?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
 
     if (showEventMenu && selectedEventForMenu != null) {
+        val isCurrentEvent = selectedEventForMenu!!.eventId == activeEventId
+        val isAdminOfEvent = userProfile?.uid == selectedEventForMenu!!.adminId
+
         MenuBottomSheet(
-            items = listOf(
+            items = listOfNotNull(
+                if (!isCurrentEvent) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Switch to Event",
+                            icon = painterResource(R.drawable.ic_shuffle),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                onEventClick(selectedEventForMenu!!.eventId)
+                                showEventMenu = false
+                            }
+                        )
+                    )
+                } else null,
                 listOf(
                     MenuSheetActionItem(
-                        text = "Leave Event",
-                        icon = painterResource(R.drawable.ic_logout),
+                        text = "Event Detail",
+                        icon = painterResource(R.drawable.ic_info),
                         iconPlacement = IconPlacement.Left,
-                        contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
-                            eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
+                            mainNavController.navigate(Screen.EventDetail.route)
                             showEventMenu = false
                         }
                     )
-                )
+                ),
+                if (!isAdminOfEvent) {
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Event",
+                            icon = painterResource(R.drawable.ic_logout),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showEventMenu = false
+                                showLeaveConfirmation = true
+                            }
+                        )
+                    )
+                } else null
             ),
             onCancelClick = { showEventMenu = false }
+        )
+    }
+
+    if (showLeaveConfirmation && selectedEventForMenu != null) {
+        ConfirmationBottomSheet(
+            heading = "Are you sure?",
+            subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
+            confirmButtonText = "Leave Event",
+            onDismiss = { showLeaveConfirmation = false },
+            isDestructive = true,
+            onConfirm = {
+                eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
+                showLeaveConfirmation = false
+            }
         )
     }
 
@@ -893,32 +1037,82 @@ fun ManageEventsScreen(
                 CustomTopBar(
                     title = "Manage Events",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
         containerColor = BackgroundPrimary,
         bottomBar = {
-            CustomTextButton(
-                onClick = { /* Navigate to event creation or join flow */ },
-                text = "Join or Create Event",
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-            )
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Transparent,
+                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                1.00f to BackgroundPrimary
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .height(62.dp)
+                        .pill360Shadow(
+                            ambientColor = Color.Black.copy(alpha = 0.10f),
+                            ambientBlur = 12.dp,
+                            ambientSpread = 2.dp,
+                            spotColor = Color.Black.copy(alpha = 0.15f),
+                            spotBlur = 18.dp,
+                            spotOffsetY = 4.dp
+                        ),
+                    color = SurfacePrimary,
+                    shape = CircleShape
+                ) {
+                    CustomTextButton(
+                        onClick = onJoinOrCreateClick,
+                        text = "Join or Create Event",
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    )
+                }
+            }
         }
     ) { padding ->
         if (allUserEvents.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No events joined yet.", color = ContentSecondary)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(color = ContentSecondary)
+                    Text(
+                        text = "Redirecting to event creation...",
+                        color = ContentSecondary
+                    )
+                }
             }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(allUserEvents) { userEvent ->
                     ManageEventCard(
@@ -956,7 +1150,7 @@ fun MyEnquiriesScreen(
                 CustomTopBar(
                     title = "My Enquiries",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -992,7 +1186,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 CustomTopBar(
                     title = "Notifications",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -1026,7 +1220,7 @@ fun LegalScreen(title: String, onBack: () -> Unit) {
                 CustomTopBar(
                     title = title,
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },

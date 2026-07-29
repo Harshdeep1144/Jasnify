@@ -29,7 +29,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 
 object NavAnimations {
-    private const val DURATION = 500
+    private const val DURATION = 250
     val slideInFromRight: EnterTransition =
         slideInHorizontally(
             initialOffsetX = { fullWidth -> fullWidth },

@@ -82,7 +82,7 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -284,6 +284,7 @@ fun BudgetScreen(
     val addCustomCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
     val sortOptions = remember { listOf("Newest First", "Oldest First", "Highest Amount", "Lowest Amount") }
@@ -1426,11 +1427,7 @@ fun BudgetScreen(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
-                                    activeEvent?.id?.let { id ->
-                                        roomViewModel.removeAccess(id, "Budget", currentUserUid)
-                                    }
-                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                    currentView = BudgetScreenView.BUDGET_TRACKER
+                                    showLeaveConfirmation = true
                                 },
                                 searchResults = searchResults,
                                 onSearch = { roomViewModel.searchUsers(it) },
@@ -1580,14 +1577,14 @@ fun BudgetScreen(
     }
 
     if (expenseToDelete != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The expense amount will be added back to the total budget.",
             confirmButtonText = "Delete Expense",
             onDismiss = {
                 expenseToDelete = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val currentExpenseId = expenseToDelete?.id
                 if (currentExpenseId != null) {
                     viewModel.deleteExpense(currentExpenseId)
@@ -1721,14 +1718,14 @@ fun BudgetScreen(
     }
 
     if (categoryToDeleteConfirm != null) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The category will be deleted permanently.",
             confirmButtonText = "Delete Category",
             onDismiss = {
                 categoryToDeleteConfirm = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val categoryToDelete = categoryToDeleteConfirm
                 if (categoryToDelete != null) {
                     viewModel.deleteExpensesByCategory(categoryToDelete)
@@ -1750,7 +1747,7 @@ fun BudgetScreen(
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
-                            currentView = BudgetScreenView.BUDGET_TRACKER
+                            showLeaveConfirmation = true
                         }
                     )
                 )
@@ -1761,15 +1758,15 @@ fun BudgetScreen(
         )
     }
 
-    if (userToRemove != null) {
-        CustomDeleteSheet(
-            heading = "Remove Member from Budget Tracker?",
+    userToRemove?.let {
+        ConfirmationBottomSheet(
+            heading = "Remove ${it.name} from Budget Tracker?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onDismiss = {
                 userToRemove = null
             },
-            onConfirmRemove = {
+            onConfirm = {
                 val target = userToRemove
                 if (target != null) {
                     activeEvent?.id?.let { id ->
@@ -1778,6 +1775,25 @@ fun BudgetScreen(
                     }
                 }
                 userToRemove = null
+            }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Budget Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { id ->
+                    roomViewModel.removeAccess(id, "Budget", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                currentView = BudgetScreenView.BUDGET_TRACKER
+                showLeaveConfirmation = false
             }
         )
     }

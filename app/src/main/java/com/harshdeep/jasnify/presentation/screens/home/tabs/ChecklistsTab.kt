@@ -103,7 +103,7 @@ import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.ChecklistItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomDeleteSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
@@ -228,6 +228,7 @@ fun ChecklistsTab(
     }
 
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
     // Search and Focus states
@@ -442,11 +443,7 @@ fun ChecklistsTab(
                                     toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                 },
                                 onLeave = {
-                                    activeEvent?.id?.let { id ->
-                                        roomViewModel.removeAccess(id, "Checklist", currentUserUid)
-                                    }
-                                    toastData = ToastData("You left the room", ToastType.DEFAULT)
-                                    showRoomAccess = false
+                                    showLeaveConfirmation = true
                                 },
                                 searchResults = searchResults,
                                 onSearch = { roomViewModel.searchUsers(it) },
@@ -782,7 +779,7 @@ fun ChecklistsTab(
                             contentColor = MaterialTheme.colorScheme.error,
                             onClick = {
                                 showRoomMenuBottomSheet = false
-                                showRoomAccess = false
+                                showLeaveConfirmation = true
                             }
                         )
                     )
@@ -793,21 +790,40 @@ fun ChecklistsTab(
             )
         }
 
-        if (userToRemove != null) {
-            CustomDeleteSheet(
-                heading = "Remove Member from Checklist Room?",
+        userToRemove?.let {
+            ConfirmationBottomSheet(
+                heading = "Remove ${it.name} from Checklist Room?",
                 subHeading = "They will not be able to access this room anymore.",
                 confirmButtonText = "Remove",
                 onDismiss = {
                     userToRemove = null
                 },
-                onConfirmRemove = {
+                onConfirm = {
                     val target = userToRemove
                     if (target != null && activeEvent != null) {
                         roomViewModel.removeAccess(activeEvent!!.id, "Checklist", target.uid)
                         toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
                     userToRemove = null
+                }
+            )
+        }
+
+        if (showLeaveConfirmation) {
+            ConfirmationBottomSheet(
+                heading = "Leaving Checklist Room?",
+                subHeading = "You will lose access to this room and won't be able to see updates.",
+                confirmButtonText = "Leave",
+                onDismiss = {
+                    showLeaveConfirmation = false
+                },
+                onConfirm = {
+                    activeEvent?.id?.let { id ->
+                        roomViewModel.removeAccess(id, "Checklist", currentUserUid)
+                    }
+                    toastData = ToastData("You left the room", ToastType.DEFAULT)
+                    showRoomAccess = false
+                    showLeaveConfirmation = false
                 }
             )
         }
@@ -1336,12 +1352,12 @@ fun ChecklistDetailScreen(
     }
 
     if (showDeleteConfirmation) {
-        CustomDeleteSheet(
+        ConfirmationBottomSheet(
             heading = "Are you sure?",
             subHeading = "The checklist will be deleted permanently.",
             confirmButtonText = "Delete Checklist",
             onDismiss = { showDeleteConfirmation = false },
-            onConfirmRemove = {
+            onConfirm = {
                 showDeleteConfirmation = false
                 checklist?.id?.let { onDelete(it) }
             }
