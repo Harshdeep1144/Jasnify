@@ -128,6 +128,16 @@ class UserRepositoryImpl @Inject constructor(
         val cleanEmail = email.lowercase().trim()
 
         try {
+            // Check if user already exists in the system
+            val existingUser = getUserByEmail(cleanEmail)
+            val isAlreadyMemberOfEvent = existingUser?.joinedEvents?.any { it.eventId == eventId } == true
+
+            if (existingUser != null && isAlreadyMemberOfEvent) {
+                android.util.Log.d("UserRepository", "User $cleanEmail exists and is already a member of event $eventId. Granting DIRECT access.")
+                grantDirectRoomAccess(eventId, roomType, cleanEmail, existingUser.uid, role)
+                return
+            }
+
             // CRITICAL: Explicitly create/update the room document so it's a "real" parent.
             firestore.collection("events").document(eventId)
                 .collection("rooms").document(roomType)
@@ -137,8 +147,7 @@ class UserRepositoryImpl @Inject constructor(
                 ), com.google.firebase.firestore.SetOptions.merge())
                 .await()
 
-            // REQUIREMENT: Always store in pending_access first, even if user exists.
-            // This forces the user to use the "Have an Event ID" flow to join.
+            // User doesn't exist, store in pending_access for when they sign up
             val pendingData = mapOf(
                 "eventId" to eventId,
                 "roomType" to roomType,
@@ -154,7 +163,7 @@ class UserRepositoryImpl @Inject constructor(
 
             android.util.Log.d("UserRepository", "Successfully stored invitation for $cleanEmail")
         } catch (e: Exception) {
-            android.util.Log.e("UserRepository", "CRITICAL: Failed to store invitation for $cleanEmail", e)
+            android.util.Log.e("UserRepository", "CRITICAL: Failed to grant access for $cleanEmail", e)
             throw e
         }
     }
@@ -289,32 +298,37 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String) {
         val collectionName = getUserCollectionName(roomType)
         try {
+            // 1. Delete from room sub-collection
             firestore.collection("events").document(eventId)
                 .collection("rooms").document(roomType)
                 .collection(collectionName).document(uid)
                 .delete().await()
 
-            // ALSO: Remove this room role from the user's joinedEvents list
-            val user = getUserProfile(uid) ?: return
-            val currentEvents = user.joinedEvents.toMutableList()
-            val index = currentEvents.indexOfFirst { it.eventId == eventId }
+            // 2. Remove this room role from the user's profile
+            val userSnapshot = firestore.collection("users").document(uid).get().await()
+            if (userSnapshot.exists()) {
+                val user = userSnapshot.toObject(User::class.java) ?: return
+                val currentEvents = user.joinedEvents.toMutableList()
+                val index = currentEvents.indexOfFirst { it.eventId == eventId }
 
-            if (index != -1) {
-                val existingEvent = currentEvents[index]
-                val updatedRoles = existingEvent.roomRoles.filterKeys { it != roomType }
+                if (index != -1) {
+                    val existingEvent = currentEvents[index]
+                    // Case-insensitive filtering to be robust
+                    val updatedRoles = existingEvent.roomRoles.filterKeys { it.equals(roomType, ignoreCase = true).not() }
 
-                if (updatedRoles.isEmpty()) {
-                    currentEvents.removeAt(index)
-                } else {
-                    currentEvents[index] = existingEvent.copy(roomRoles = updatedRoles)
+                    if (updatedRoles.isEmpty()) {
+                        currentEvents.removeAt(index)
+                    } else {
+                        currentEvents[index] = existingEvent.copy(roomRoles = updatedRoles)
+                    }
+
+                    firestore.collection("users").document(uid)
+                        .update("joinedEvents", currentEvents)
+                        .await()
                 }
-
-                firestore.collection("users").document(uid)
-                    .update("joinedEvents", currentEvents)
-                    .await()
             }
         } catch (e: Exception) {
-            android.util.Log.e("UserRepository", "Error in removeRoomAccess/joinedEvents update", e)
+            android.util.Log.e("UserRepository", "Error in removeRoomAccess: ${e.message}", e)
         }
     }
 
@@ -526,22 +540,29 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun leaveEvent(uid: String, eventId: String) {
         try {
-            // 1. Remove from User's joinedEvents list
-            val user = getUserProfile(uid) ?: return
-            val updatedEvents = user.joinedEvents.filterNot { it.eventId == eventId }
-            val updateMap = mutableMapOf<String, Any>("joinedEvents" to updatedEvents)
+            // 1. Remove from User's joinedEvents list entirely
+            val userSnapshot = firestore.collection("users").document(uid).get().await()
+            if (userSnapshot.exists()) {
+                val user = userSnapshot.toObject(User::class.java) ?: return
+                val updatedEvents = user.joinedEvents.filterNot { it.eventId == eventId }
+                val updateMap = mutableMapOf<String, Any>("joinedEvents" to updatedEvents)
 
-            // If they are leaving the current event, clear currentEventId
-            if (user.currentEventId == eventId) {
-                updateMap["currentEventId"] = com.google.firebase.firestore.FieldValue.delete()
+                if (user.currentEventId == eventId) {
+                    updateMap["currentEventId"] = com.google.firebase.firestore.FieldValue.delete()
+                }
+
+                firestore.collection("users").document(uid).update(updateMap).await()
             }
 
-            firestore.collection("users").document(uid).update(updateMap).await()
-
-            // 2. Remove from all rooms in the event
+            // 2. Remove from all rooms in the event (Deletes from room sub-collections)
+            // We use the room sub-collection deletion part only since profile is already updated
             val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
             for (room in rooms) {
-                removeRoomAccess(eventId, room, uid)
+                val collectionName = getUserCollectionName(room)
+                firestore.collection("events").document(eventId)
+                    .collection("rooms").document(room)
+                    .collection(collectionName).document(uid)
+                    .delete().await()
             }
         } catch (e: Exception) {
             android.util.Log.e("UserRepository", "Error leaving event $eventId for user $uid", e)
@@ -560,14 +581,26 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun updateUserJoinedEvents(uid: String, userEvent: UserEvent) {
         try {
-            val user = getUserProfile(uid) ?: return
+            val userSnapshot = firestore.collection("users").document(uid).get().await()
+            if (!userSnapshot.exists()) return
+
+            val user = userSnapshot.toObject(User::class.java) ?: return
             val currentEvents = user.joinedEvents.toMutableList()
             val index = currentEvents.indexOfFirst { it.eventId == userEvent.eventId }
 
             if (index != -1) {
                 val existingEvent = currentEvents[index]
                 val mergedRoles = existingEvent.roomRoles.toMutableMap()
-                mergedRoles.putAll(userEvent.roomRoles)
+                
+                // Merge roles with case-insensitive key matching to prevent duplicates
+                userEvent.roomRoles.forEach { (room, role) ->
+                    val existingKey = mergedRoles.keys.find { it.equals(room, ignoreCase = true) }
+                    if (existingKey != null) {
+                        mergedRoles[existingKey] = role
+                    } else {
+                        mergedRoles[room] = role
+                    }
+                }
 
                 currentEvents[index] = existingEvent.copy(
                     eventName = if (userEvent.eventName.isNotEmpty()) userEvent.eventName else existingEvent.eventName,
@@ -575,12 +608,28 @@ class UserRepositoryImpl @Inject constructor(
                     roomRoles = mergedRoles
                 )
             } else {
-                currentEvents.add(userEvent)
+                // If adding a new event, try to ensure we have the name and adminId
+                var finalEvent = userEvent
+                if (userEvent.eventName.isEmpty() || userEvent.adminId.isEmpty()) {
+                    try {
+                        val eventDoc = firestore.collection("events").document(userEvent.eventId).get().await()
+                        if (eventDoc.exists()) {
+                            finalEvent = userEvent.copy(
+                                eventName = if (userEvent.eventName.isEmpty()) eventDoc.getString("name") ?: "Event" else userEvent.eventName,
+                                adminId = if (userEvent.adminId.isEmpty()) eventDoc.getString("ownerId") ?: "" else userEvent.adminId
+                            )
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.w("UserRepository", "Could not fetch event details for joining: ${userEvent.eventId}")
+                    }
+                }
+                currentEvents.add(finalEvent)
             }
 
             firestore.collection("users").document(uid)
                 .update("joinedEvents", currentEvents)
                 .await()
+            android.util.Log.d("UserRepository", "Successfully updated joinedEvents for $uid")
         } catch (e: Exception) {
             android.util.Log.e("UserRepository", "Error updating joined events for user $uid", e)
         }

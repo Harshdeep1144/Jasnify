@@ -151,7 +151,7 @@ fun ProfileTab(
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
-    val userProfile by profileViewModel.userProfile.collectAsState()
+    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
     
     // Stop listening to enquiries if the user is null or being deleted
@@ -397,7 +397,7 @@ fun ProfileTab(
 
                 ProfileScreen.ManageEvents -> {
                     ManageEventsScreen(
-                        profileViewModel = profileViewModel,
+                        userProfile = userProfile,
                         eventViewModel = eventViewModel,
                         mainNavController = mainNavController,
                         ownedEvents = ownedEvents,
@@ -839,14 +839,13 @@ fun AppearanceScreen(
 
 @Composable
 fun ManageEventsScreen(
-    profileViewModel: ProfileViewModel,
+    userProfile: com.harshdeep.jasnify.domain.model.User?,
     eventViewModel: EventViewModel,
     mainNavController: NavHostController,
     ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
     onEventClick: (String) -> Unit
 ) {
-    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
 
     val joinedEvents = userProfile?.joinedEvents ?: emptyList()
