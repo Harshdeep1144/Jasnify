@@ -26,9 +26,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -51,14 +53,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -79,8 +85,10 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
 import com.harshdeep.jasnify.presentation.components.cards.ManageEventCard
@@ -93,6 +101,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.util.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
@@ -394,6 +403,7 @@ fun ProfileTab(
                     ManageEventsScreen(
                         profileViewModel = profileViewModel,
                         eventViewModel = eventViewModel,
+                        mainNavController = mainNavController,
                         ownedEvents = ownedEvents,
                         onBack = { currentScreen = ProfileScreen.Root },
                         onEventClick = { eventId ->
@@ -835,6 +845,7 @@ fun AppearanceScreen(
 fun ManageEventsScreen(
     profileViewModel: ProfileViewModel,
     eventViewModel: EventViewModel,
+    mainNavController: NavHostController,
     ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
     onEventClick: (String) -> Unit
@@ -872,6 +883,29 @@ fun ManageEventsScreen(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
+                        text = "Switch Event",
+                        icon = painterResource(R.drawable.ic_arrow_switch_horizontal),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            onEventClick(selectedEventForMenu!!.eventId)
+                            showEventMenu = false
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Event Detail",
+                        icon = painterResource(R.drawable.ic_info),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            eventViewModel.fetchAndSetActiveEvent(selectedEventForMenu!!.eventId)
+                            mainNavController.navigate(Screen.EventDetail.route)
+                            showEventMenu = false
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
                         text = "Leave Event",
                         icon = painterResource(R.drawable.ic_logout),
                         iconPlacement = IconPlacement.Left,
@@ -899,13 +933,49 @@ fun ManageEventsScreen(
         },
         containerColor = BackgroundPrimary,
         bottomBar = {
-            CustomTextButton(
-                onClick = { /* Navigate to event creation or join flow */ },
-                text = "Join or Create Event",
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
-            )
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Transparent,
+                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                1.00f to BackgroundPrimary
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .height(62.dp)
+                        .pill360Shadow(
+                            ambientColor = Color.Black.copy(alpha = 0.10f),
+                            ambientBlur = 12.dp,
+                            ambientSpread = 2.dp,
+                            spotColor = Color.Black.copy(alpha = 0.15f),
+                            spotBlur = 18.dp,
+                            spotOffsetY = 4.dp
+                        ),
+                    color = SurfacePrimary,
+                    shape = CircleShape
+                ) {
+                    CustomTextButton(
+                        onClick = { /* Navigate to event creation or join flow */ },
+                        text = "Join or Create Event",
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp)
+                    )
+                }
+            }
         }
     ) { padding ->
         if (allUserEvents.isEmpty()) {

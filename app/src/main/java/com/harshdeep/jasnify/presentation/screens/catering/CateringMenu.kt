@@ -30,6 +30,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -37,10 +38,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -50,6 +53,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
@@ -96,6 +100,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -312,6 +317,7 @@ fun CateringMenuScreen(
             when (targetScreen) {
                 CateringMenuView.MENU -> {
                     Scaffold(
+                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
                         topBar = {
                             Column(
                                 modifier = Modifier
@@ -555,49 +561,68 @@ fun CateringMenuScreen(
                                     .background(
                                         brush = Brush.verticalGradient(
                                             colorStops = arrayOf(
-                                                0.0f to Color.Transparent,
-                                                0.55f to Color.Transparent,
-                                                0.85f to BackgroundPrimary.copy(alpha = 0.85f),
-                                                1.0f to BackgroundPrimary
+                                                0.00f to Color.Transparent,
+                                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                                1.00f to BackgroundPrimary
                                             )
                                         )
                                     )
-                                    .padding(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 16.dp)
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 12.dp, vertical = 12.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(62.dp)
+                                        .pill360Shadow(
+                                            ambientColor = Color.Black.copy(alpha = 0.10f),
+                                            ambientBlur = 12.dp,
+                                            ambientSpread = 2.dp,
+                                            spotColor = Color.Black.copy(alpha = 0.15f),
+                                            spotBlur = 18.dp,
+                                            spotOffsetY = 4.dp
+                                        ),
+                                    color = SurfacePrimary,
+                                    shape = CircleShape
                                 ) {
-                                    CustomTextButton(
-                                        onClick = {
-                                            focusManager.clearFocus()
-                                            /* Handle Suggestions */
-                                        },
-                                        text = "AI Suggestions",
-                                        type = ButtonType.Secondary,
-                                        shapeStyle = ButtonShapeStyle.Round,
-                                        leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                        modifier = if (isViewer) Modifier.weight(1f) else Modifier
-                                    )
-
-                                    if (!isViewer) {
-                                        Spacer(Modifier.width(8.dp))
-
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .padding(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         CustomTextButton(
                                             onClick = {
                                                 focusManager.clearFocus()
-                                                editingItem = null
-                                                newItemName = ""
-                                                newItemCuisine = "Indian"
-                                                newItemType = "Starters"
-                                                newItemDietary = Dietary.Veg
-                                                showAddItemSheet = true
+                                                /* Handle Suggestions */
                                             },
-                                            text = "Add an Item",
-                                            type = ButtonType.Primary,
+                                            text = "AI Suggestions",
+                                            type = ButtonType.Secondary,
                                             shapeStyle = ButtonShapeStyle.Round,
-                                            modifier = Modifier.weight(1f)
+                                            leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                            modifier = if (isViewer) Modifier.weight(1f) else Modifier
                                         )
+
+                                        if (!isViewer) {
+                                            Spacer(Modifier.width(4.dp))
+
+                                            CustomTextButton(
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                    editingItem = null
+                                                    newItemName = ""
+                                                    newItemCuisine = "Indian"
+                                                    newItemType = "Starters"
+                                                    newItemDietary = Dietary.Veg
+                                                    showAddItemSheet = true
+                                                },
+                                                text = "Add an Item",
+                                                type = ButtonType.Primary,
+                                                shapeStyle = ButtonShapeStyle.Round,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
                                     }
                                 }
                             }

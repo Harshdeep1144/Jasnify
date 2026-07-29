@@ -72,12 +72,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.dropShadow
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.shadow.Shadow
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -86,6 +87,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
@@ -93,7 +95,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.zIndex
+import androidx.core.graphics.ColorUtils
+import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
@@ -122,6 +127,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.sections.VenueAllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.VenueGalleryDetailScreen
@@ -601,16 +607,32 @@ private fun VenueDetailContent(
             )
         }
 
-        FloatingBottomActionBar(
-            onMessageClick = { onChatClick(venue) },
-            onBookCallClick = { },
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .background(
+                    brush = Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0.00f to Color.Transparent,
+                            0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                            0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                            0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                            1.00f to BackgroundPrimary
+                        )
+                    )
+                )
                 .navigationBarsPadding()
-                .graphicsLayer { translationY = 0f } // Ensure it's not shifted
-                .zIndex(10f) // Keep it on top
-        )
+                .zIndex(10f)
+        ) {
+            FloatingBottomActionBar(
+                onMessageClick = { onChatClick(venue) },
+                onBookCallClick = { },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+            )
+        }
 
 // ============================================================= Bottom Sheets ===============================================
 
@@ -1518,17 +1540,15 @@ fun FloatingBottomActionBar(
 ) {
     Surface(
         modifier = modifier
-            .padding(horizontal = 12.dp, vertical = 8.dp)
             .fillMaxWidth()
-            .height(64.dp)
-            .dropShadow(
-                shape = CircleShape,
-                shadow = Shadow(
-                    radius = 16.dp,
-                    spread = 0.dp,
-                    color = ContentPrimary.copy(alpha = 0.2f),
-                    offset = DpOffset(0.dp, 6.dp)
-                )
+            .height(62.dp)
+            .pill360Shadow(
+                ambientColor = Color.Black.copy(alpha = 0.10f),
+                ambientBlur = 12.dp,
+                ambientSpread = 2.dp,
+                spotColor = Color.Black.copy(alpha = 0.15f),
+                spotBlur = 18.dp,
+                spotOffsetY = 4.dp
             ),
         color = SurfacePrimary,
         shape = CircleShape
@@ -1544,7 +1564,8 @@ fun FloatingBottomActionBar(
                 onClick = onMessageClick,
                 icon = painterResource(R.drawable.ic_message),
                 type = ButtonType.Secondary,
-                modifier = Modifier.weight(0.4f)
+                modifier = Modifier.weight(0.4f),
+                shapeStyle = ButtonShapeStyle.Round
             )
             Spacer(modifier = Modifier.width(4.dp))
 
@@ -1552,7 +1573,8 @@ fun FloatingBottomActionBar(
                 onClick = onBookCallClick,
                 text = "Book a Call",
                 type = ButtonType.Primary,
-                modifier = Modifier.weight(1.6f)
+                modifier = Modifier.weight(1.6f),
+                shapeStyle = ButtonShapeStyle.Round
             )
         }
     }
