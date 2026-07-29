@@ -316,7 +316,7 @@ fun ProfileTab(
             onUpdatePassword = { newPassword ->
                 authViewModel.updatePassword(newPassword)
             },
-            onForgotPassword = { /* Toast handled in bottom sheet */ }
+            onForgotPassword = { /* Need OTP Service */ }
         )
     }
 
