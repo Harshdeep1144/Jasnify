@@ -711,7 +711,7 @@ fun AccountSettingsScreen(
                 CustomTopBar(
                     title = "Account Settings",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -787,7 +787,7 @@ fun AppearanceScreen(
                 CustomTopBar(
                     title = "Appearance",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -847,7 +847,6 @@ fun ManageEventsScreen(
     onEventClick: (String) -> Unit
 ) {
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
-
     val joinedEvents = userProfile?.joinedEvents ?: emptyList()
 
     // Merge owned events for old accounts that don't have joinedEvents populated
@@ -943,7 +942,7 @@ fun ManageEventsScreen(
                 CustomTopBar(
                     title = "Manage Events",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -1042,7 +1041,7 @@ fun MyEnquiriesScreen(
                 CustomTopBar(
                     title = "My Enquiries",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -1078,7 +1077,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 CustomTopBar(
                     title = "Notifications",
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
@@ -1112,7 +1111,7 @@ fun LegalScreen(title: String, onBack: () -> Unit) {
                 CustomTopBar(
                     title = title,
                     onBackClick = onBack,
-                    buttonStyle = ButtonBackground.TRANSPARENT
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
         },
