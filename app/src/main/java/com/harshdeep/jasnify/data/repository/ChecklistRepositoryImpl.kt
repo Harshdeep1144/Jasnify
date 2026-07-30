@@ -73,10 +73,13 @@ class ChecklistRepositoryImpl @Inject constructor(
                             val entityToInsert = if (existing != null) {
                                 checklist.toChecklistEntity().copy(
                                     pinned = existing.pinned,
-                                    archived = existing.archived
+                                    archived = existing.archived,
+                                    createdAt = if (existing.createdAt != 0L) existing.createdAt else (if (checklist.createdAt != 0L) checklist.createdAt else System.currentTimeMillis())
                                 )
                             } else {
-                                checklist.toChecklistEntity()
+                                checklist.toChecklistEntity().let { 
+                                    if (it.createdAt == 0L) it.copy(createdAt = System.currentTimeMillis()) else it
+                                }
                             }
                             dao.insertChecklist(entityToInsert)
                         }

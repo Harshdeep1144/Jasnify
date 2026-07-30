@@ -118,10 +118,9 @@ fun SelectableListBottomSheet(
     initialSelectedItem: SelectableItem,
     onItemSelected: (SelectableItem) -> Unit,
     onDismiss: () -> Unit,
-    selectButtonText: String
+    selectButtonText: String,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     var selectedItem by remember {
         mutableStateOf(
             if (items.isNotEmpty()) items.first() else initialSelectedItem
@@ -143,8 +142,8 @@ fun SelectableListBottomSheet(
 
     CustomBottomSheet(
         heading = heading,
-        sheetState = sheetState,
         onDismiss = onDismiss,
+        onProgress = onProgress,
         sheetHeight = sheetHeight
     ) {
         // This outer column now takes up the remaining space inside the sheet

@@ -30,11 +30,11 @@ import kotlinx.coroutines.yield
 @Composable
 fun EditBudgetBottomSheet(
     initialBudgetValue: String,
-    sheetState: SheetState,
     isBudgetNotSet: Boolean = false,
     onDismiss: () -> Unit,
     onUpdateBudget: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     // Reverted back to simple String state to match BudgetInput's clean signature
     var budgetValue by remember { mutableStateOf(initialBudgetValue) }
@@ -91,8 +91,8 @@ fun EditBudgetBottomSheet(
 
     CustomBottomSheet(
         heading = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
-        sheetState = sheetState,
         onDismiss = onDismiss,
+        onProgress = onProgress,
         sheetHeight = dynamicSheetHeight
     ) {
         // --- INSTANT KEYBOARD & FOCUS FLOW ---
@@ -305,15 +305,12 @@ private fun convertLessThanThousand(number: Long): String {
     return result.toString().trim()
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Preview(showBackground = true, name = "Edit Budget Sheet Light Preview")
 @Composable
 private fun EditBudgetBottomSheetPreview() {
-    val mockSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     JasnifyTheme {
         EditBudgetBottomSheet(
             initialBudgetValue = "INR10000000",
-            sheetState = mockSheetState,
             onDismiss = {},
             onUpdateBudget = {}
         )

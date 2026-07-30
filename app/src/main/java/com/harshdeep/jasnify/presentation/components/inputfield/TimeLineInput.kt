@@ -4,24 +4,50 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,6 +57,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -67,19 +95,20 @@ fun TimeLineInput(
     modifier: Modifier = Modifier,
     backgroundColor: Color = SurfaceSecondary,
     hasBorder: Boolean = true,
-    isEditable: Boolean = true
+    isEditable: Boolean = true,
+    onShowDatePicker: ((SubEventItem) -> Unit)? = null
 ) {
     var tempItemState by remember { mutableStateOf(item) }
 
     var selectedDate by remember { mutableStateOf<LocalDate?>(null) }
     var isDatePickerVisible by remember { mutableStateOf(false) }
 
-    // Update the temporary state whenever the hoisted item changes
+    // Update local state whenever hoisted item changes
     LaunchedEffect(item) {
         tempItemState = item
     }
 
-    // Update tempItemState when selectedDate changes
+    // Update tempItemState when local fallback date picker changes
     LaunchedEffect(selectedDate) {
         selectedDate?.let { date ->
             val formattedDate = date.format(DisplayDateFormatter)
@@ -88,7 +117,6 @@ fun TimeLineInput(
         }
     }
 
-    // Determine the active state of the component
     val currentState = when {
         tempItemState.isEditing && isEditable -> TimelineState.EDITING
         tempItemState.dateString.isEmpty() && tempItemState.name.isEmpty() -> TimelineState.EMPTY
@@ -112,10 +140,8 @@ fun TimeLineInput(
                 animationSpec = tween(durationMillis = 300)
             )
 
-            // Combine enter and exit with SizeTransform for card morphing
             enterTransition.togetherWith(exitTransition)
                 .using(
-                    // Animates the container size change (height difference between states)
                     SizeTransform(clip = false, sizeAnimationSpec = { _, _ ->
                         tween(durationMillis = 300)
                     })
@@ -132,7 +158,6 @@ fun TimeLineInput(
                     hasBorder = hasBorder,
                     onValueChange = { newItem -> tempItemState = newItem },
                     onDone = {
-                        // When done, mark it as existing and exit editing mode
                         onUpdate(tempItemState.copy(isEditing = false, isExisting = true))
                     },
                     onCancel = {
@@ -143,7 +168,13 @@ fun TimeLineInput(
                         }
                     },
                     onDelete = { onDelete(item) },
-                    onShowDatePicker = { isDatePickerVisible = true },
+                    onShowDatePicker = {
+                        if (onShowDatePicker != null) {
+                            onShowDatePicker(tempItemState)
+                        } else {
+                            isDatePickerVisible = true
+                        }
+                    },
                     modifier = modifier
                 )
             }
@@ -152,7 +183,15 @@ fun TimeLineInput(
                     backgroundColor = backgroundColor,
                     hasBorder = hasBorder,
                     onEdit = {
-                        if (isEditable) onUpdate(item.copy(isEditing = true))
+                        if (isEditable) {
+                            val editingItem = item.copy(isEditing = true)
+                            onUpdate(editingItem)
+                            if (onShowDatePicker != null) {
+                                onShowDatePicker(editingItem)
+                            } else {
+                                isDatePickerVisible = true
+                            }
+                        }
                     },
                     isEditable = isEditable,
                     modifier = modifier
@@ -173,24 +212,30 @@ fun TimeLineInput(
         }
     }
 
-    // Show the date picker bottom sheet when needed
-    if (isDatePickerVisible && isEditable) {
-        DatePickerSheet(
-            onDismiss = { isDatePickerVisible = false },
-            onDateSelected = { date ->
-                selectedDate = date
-                isDatePickerVisible = false
+    if (onShowDatePicker == null && isDatePickerVisible && isEditable) {
+        Popup(
+            onDismissRequest = { isDatePickerVisible = false },
+            properties = PopupProperties(focusable = true)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                DatePickerSheet(
+                    isVisible = true,
+                    onDismiss = { isDatePickerVisible = false },
+                    onDateSelected = { date ->
+                        selectedDate = date
+                        isDatePickerVisible = false
+                    },
+                    initialDate = tempItemState.date?.let {
+                        java.time.Instant.ofEpochMilli(it)
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate()
+                    } ?: java.time.LocalDate.now()
+                )
             }
-        )
+        }
     }
 }
 
-
-
-//--------------------------------------- Helper Functions ----------------------------------------
-
-
-// ---- Empty Display Card (Matching uploaded design mockup) ----
 @Composable
 private fun EmptyDisplayTimeLine(
     backgroundColor: Color,
@@ -224,7 +269,6 @@ private fun EmptyDisplayTimeLine(
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-            // --- Date Placeholder ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -253,7 +297,6 @@ private fun EmptyDisplayTimeLine(
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
 
-            // --- Name Placeholder ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -273,8 +316,6 @@ private fun EmptyDisplayTimeLine(
     }
 }
 
-
-// ---- Editable Card ----
 @Composable
 private fun EditableTimeLineCard(
     item: SubEventItem,
@@ -300,18 +341,18 @@ private fun EditableTimeLineCard(
 
     Surface(
         color = backgroundColor,
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
-
-            // --- Date Input Field ---
             Row(
-                modifier = Modifier.fillMaxWidth().
-                heightIn(min = 56.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
                     .clickable(onClick = onShowDatePicker)
                     .padding(all = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -321,7 +362,8 @@ private fun EditableTimeLineCard(
                     style = JasnifyTheme.typography.labelXLarge.copy(
                         color = if (item.dateString.isEmpty()) ContentSecondary.copy(alpha = 0.7f) else ContentPrimary
                     ),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .clickable(
                             onClick = onShowDatePicker,
                             indication = null,
@@ -340,10 +382,10 @@ private fun EditableTimeLineCard(
 
             HorizontalDivider(Modifier.height(1.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
-            // --- Name Input Field ---
             Row(
-                modifier = Modifier.fillMaxWidth().
-                heightIn(min = 56.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 56.dp)
                     .padding(all = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -358,15 +400,14 @@ private fun EditableTimeLineCard(
 
             HorizontalDivider(Modifier.height(1.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
-            // --- Action Buttons (Delete, Cancel, Done) ---
             Row(
-                modifier = Modifier.fillMaxWidth().
-                heightIn(min = 74.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 74.dp)
                     .padding(all = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
                 if (isExisting) {
                     CustomIconButton(
                         onClick = onDelete,
@@ -399,7 +440,7 @@ private fun EditableTimeLineCard(
                         colors = ButtonDefaults.buttonColors(containerColor = SurfaceInvPrimary),
                         shape = SquircleShape(100, CornerSmoothingDefault),
                         contentPadding = PaddingValues(16.dp, 12.dp),
-                        enabled = item.name.isNotBlank() && item.dateString.isNotBlank() // Ensure date is also selected
+                        enabled = item.name.isNotBlank() && item.dateString.isNotBlank()
                     ) {
                         Text("Done", style = JasnifyTheme.typography.labelLarge.copy(ContentInvPrimary))
                     }
@@ -409,7 +450,6 @@ private fun EditableTimeLineCard(
     }
 }
 
-// ---- Custom BasicTextField wrapper ---
 @Composable
 private fun InputTextField(
     value: String,
@@ -438,7 +478,6 @@ private fun InputTextField(
     )
 }
 
-// --- Display Card  ---
 @Composable
 private fun DisplayTimeLine(
     item: SubEventItem,
@@ -459,7 +498,8 @@ private fun DisplayTimeLine(
     }
 
     Card(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
             .then(borderModifier),
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(containerColor = backgroundColor),
@@ -500,14 +540,11 @@ private fun DisplayTimeLine(
     }
 }
 
-// ---  Preview ---
-
-
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true)
 @Composable
 fun TimeLineInputPreview() {
-    MaterialTheme() {
+    MaterialTheme {
         val items = remember {
             mutableStateListOf(
                 SubEventItem(id = "1", dateString = "15 Oct 2025", name = "Project Review Meeting", isExisting = true),
@@ -516,13 +553,10 @@ fun TimeLineInputPreview() {
             )
         }
 
-        // Auto-generate unique IDs for new items
         val nextNewId = remember { mutableStateOf(0) }
 
-        // --- Check if any item is currently unsaved and being edited ---
         val hasUnsavedEditingItem by remember {
             derivedStateOf {
-                // Check if any item is in editing mode AND is not yet marked as existing (i.e., not saved once)
                 items.any { it.isEditing && !it.isExisting }
             }
         }
@@ -535,10 +569,8 @@ fun TimeLineInputPreview() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                // --- Button to Add New Item ---
                 Button(
                     onClick = {
-                        // Add a new item to the start of the list, marked for editing, but NOT existing
                         items.add(0, SubEventItem(
                             id = "new-${nextNewId.value++}",
                             isEditing = true,
@@ -548,7 +580,6 @@ fun TimeLineInputPreview() {
                     modifier = Modifier.fillMaxWidth(),
                     shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
                     colors = ButtonDefaults.buttonColors(containerColor = Color.DarkGray),
-                    // --- Disable if an unsaved item is currently being edited ---
                     enabled = !hasUnsavedEditingItem
                 ) {
                     Text("Add New Timeline Item", color = Color.White, fontWeight = FontWeight.SemiBold)
@@ -559,18 +590,15 @@ fun TimeLineInputPreview() {
             items(items.size) { index ->
                 TimeLineInput(
                     item = items[index],
-                    // Showcasing parameter overrides if needed (e.g., custom background and optional border)
                     backgroundColor = SurfaceSecondary,
                     hasBorder = true,
                     onUpdate = { updatedItem ->
-                        // Only update if the ID matches to prevent concurrent modification issues
                         val foundIndex = items.indexOfFirst { it.id == updatedItem.id }
                         if (foundIndex != -1) {
                             items[foundIndex] = updatedItem
                         }
                     },
                     onDelete = { itemToDelete ->
-                        // Remove the item from the list when deleted
                         items.remove(itemToDelete)
                     }
                 )

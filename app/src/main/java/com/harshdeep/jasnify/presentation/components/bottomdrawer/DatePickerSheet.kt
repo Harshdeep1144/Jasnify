@@ -7,13 +7,38 @@ import androidx.annotation.RequiresApi
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,9 +61,10 @@ import java.time.LocalDate
 import java.time.Month
 import java.time.format.TextStyle as JavaTextStyle
 import java.util.Locale
-import kotlinx.coroutines.launch
 
-// ---  DATE PICKER COLUMN ---
+/**
+ * Generic wheel picker column for selecting dates (Years, Months, Days).
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun <T> DatePickerColumn(
@@ -46,28 +72,25 @@ fun <T> DatePickerColumn(
     scrollState: LazyListState,
     itemHeight: Dp,
     visibleItems: Int,
-    reportUpdates: Boolean = true, // Guard updates during programmatic scrolls
-    // Callback to report the item currently centered (real-time)
+    reportUpdates: Boolean = true,
     onCenteredItemChanged: (T) -> Unit,
     content: @Composable (T) -> Unit
 ) {
     val halfVisibleItems = visibleItems / 2
-    // Ensures smooth snapping behavior
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = scrollState)
 
-    // List with null spacers for centering the visible items
+    // Add empty spacers at top and bottom to center wheel items
     val itemsWithSpacers = remember(items) {
         List<T?>(halfVisibleItems) { null } + items + List<T?>(halfVisibleItems) { null }
     }
 
-    // INSTANTLY calculate the index of the item closest to the center using derivedStateOf
+    // Instantly calculate the index of the item closest to the middle viewport offset
     val centeredItemIndex by remember {
         derivedStateOf {
             val layoutInfo = scrollState.layoutInfo
             if (layoutInfo.visibleItemsInfo.isEmpty()) return@derivedStateOf -1
 
             val viewportCenter = layoutInfo.viewportEndOffset / 2
-
             val closestItem = layoutInfo.visibleItemsInfo.minByOrNull {
                 kotlin.math.abs((it.offset + it.size / 2) - viewportCenter)
             }
@@ -76,12 +99,11 @@ fun <T> DatePickerColumn(
         }
     }
 
-    // Determine the actual centered item object
     val centeredItem: T? = remember(centeredItemIndex, items) {
         centeredItemIndex.takeIf { it in items.indices }?.let { items[it] }
     }
 
-    // Report the centered item up instantly if reporting is enabled
+    // Report selection update when centered item changes
     LaunchedEffect(centeredItem, reportUpdates) {
         if (reportUpdates && centeredItem != null) {
             onCenteredItemChanged(centeredItem)
@@ -95,9 +117,9 @@ fun <T> DatePickerColumn(
             .height(itemHeight * visibleItems),
         horizontalAlignment = Alignment.CenterHorizontally,
         contentPadding = PaddingValues(0.dp),
-        flingBehavior = flingBehavior // Snap behavior is key for smooth scrolling
+        flingBehavior = flingBehavior
     ) {
-        itemsIndexed(itemsWithSpacers) { index, item ->
+        itemsIndexed(itemsWithSpacers) { _, item ->
             Box(
                 modifier = Modifier
                     .height(itemHeight)
@@ -115,11 +137,11 @@ fun <T> DatePickerColumn(
                     ) {
                         val textStyle = if (isSelected) {
                             JasnifyTheme.typography.displayMedium.copy(
-                                color = ContentBrandDark,
+                                color = ContentBrandDark
                             )
                         } else {
                             JasnifyTheme.typography.displaySmall.copy(
-                                color = ContentSecondary,
+                                color = ContentSecondary
                             )
                         }
 
@@ -135,8 +157,9 @@ fun <T> DatePickerColumn(
     }
 }
 
-
-// ---  STANDALONE DATE PICKER SLIDER ---
+/**
+ * Standalone triple-column slider for date selection (Year, Month, Day).
+ */
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -158,21 +181,18 @@ fun DatePickerSlider(
         derivedStateOf { (1..daysInMonth).toList() }
     }
 
-    // Instantly derive correct starting index corresponding to the current state
     val initialYearIndex = remember { years.indexOf(selectedDate.year).coerceAtLeast(0) }
     val initialMonthIndex = remember { months.indexOf(selectedDate.month).coerceAtLeast(0) }
     val initialDayIndex = remember { (selectedDate.dayOfMonth - 1).coerceIn(0, daysInMonth - 1) }
 
-    // Initialize the states directly at the correct indexes to avoid incorrect early layout measurements
     val yearScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialYearIndex)
     val monthScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMonthIndex)
     val dayScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialDayIndex)
 
-    // Tracks if a scroll is programmatic to stop loop updates
     var isProgrammaticScroll by remember { mutableStateOf(false) }
     var lastScrollReportedDate by remember { mutableStateOf(selectedDate) }
 
-    // Sync scroll states if selectedDate changes from outside (e.g. external reset, calendar sync)
+    // Synchronize scroll states if selectedDate updates from external caller
     LaunchedEffect(selectedDate, years, days) {
         if (selectedDate != lastScrollReportedDate) {
             isProgrammaticScroll = true
@@ -197,7 +217,7 @@ fun DatePickerSlider(
         }
     }
 
-    // Coerce the scroll position if the maximum available days list changes size
+    // Coerce day index if month changes to one with fewer days (e.g., Jan 31 -> Feb)
     LaunchedEffect(days) {
         val currentDayIndex = dayScrollState.firstVisibleItemIndex
         val maxDayIndex = days.size - 1
@@ -208,7 +228,6 @@ fun DatePickerSlider(
         }
     }
 
-    // Helper to safely build dates and push updates back up
     val updateDateValue = remember(selectedDate, onDateChanged) {
         { newYear: Int?, newMonth: Month?, newDay: Int? ->
             try {
@@ -224,8 +243,8 @@ fun DatePickerSlider(
                     lastScrollReportedDate = calculatedDate
                     onDateChanged(calculatedDate)
                 }
-            } catch (e: Exception) {
-                // Ignore unexpected exceptions
+            } catch (_: Exception) {
+                // Ignore transient invalid dates during scroll
             }
         }
     }
@@ -259,7 +278,6 @@ fun DatePickerSlider(
                     )
             )
 
-            // Date Columns Selector
             Row(
                 modifier = Modifier.fillMaxSize(),
                 horizontalArrangement = Arrangement.Center,
@@ -316,38 +334,39 @@ fun DatePickerSlider(
     }
 }
 
-
-// ---  DATE PICKER SHEET ---
+/**
+ * DatePickerSheet modal component powered by fluid physics-based CustomBottomSheet container.
+ */
 @RequiresApi(Build.VERSION_CODES.O)
 @SuppressLint("FrequentlyChangingValue")
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DatePickerSheet(
     onDismiss: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
-    initialDate: LocalDate = LocalDate.now()
+    initialDate: LocalDate = LocalDate.now(),
+    isVisible: Boolean = true,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var selectedDate by remember { mutableStateOf(initialDate) }
 
-    // Custom Bottom Sheet Container
     CustomBottomSheet(
         heading = "Pick a date",
-        sheetState = sheetState,
         onDismiss = onDismiss,
+        isVisible = isVisible,
         sheetHeight = 336.dp,
-        sheetGesturesEnabled = false
+        sheetGesturesEnabled = false,
+        showDragHandle = false,
+        onProgress = onProgress
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp, 0.dp)
+                .padding(horizontal = 12.dp)
         ) {
-            // Reusable Standalone DatePickerSlider View
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .weight(1f)
             ) {
                 DatePickerSlider(
@@ -359,7 +378,6 @@ fun DatePickerSheet(
                 )
             }
 
-            // Done button section
             CustomTextButton(
                 onClick = {
                     onDateSelected(selectedDate)
@@ -370,24 +388,29 @@ fun DatePickerSheet(
                 size = ButtonSize.Medium,
                 modifier = Modifier.fillMaxWidth(),
                 type = ButtonType.Primary,
-                shapeStyle = ButtonShapeStyle.Square,
+                shapeStyle = ButtonShapeStyle.Square
             )
         }
     }
 }
 
-
 @RequiresApi(Build.VERSION_CODES.O)
-@Preview(showBackground = true, widthDp = 360, heightDp = 480)
+@Preview(showBackground = true, widthDp = 360, heightDp = 520)
 @Composable
 fun DatePickerSheetPreview() {
-    MaterialTheme {
-        val currentDate = LocalDate.now()
+    JasnifyTheme {
+        Surface {
+            val currentDate = remember { LocalDate.now() }
+            var isSheetVisible by remember { mutableStateOf(true) }
 
-        DatePickerSheet(
-            onDismiss = { /* Preview stub */ },
-            onDateSelected = { /* Preview stub */ },
-            initialDate = currentDate
-        )
+            Box(modifier = Modifier.fillMaxSize()) {
+                DatePickerSheet(
+                    isVisible = isSheetVisible,
+                    onDismiss = { isSheetVisible = false },
+                    onDateSelected = { /* Handle selected date */ },
+                    initialDate = currentDate
+                )
+            }
+        }
     }
 }

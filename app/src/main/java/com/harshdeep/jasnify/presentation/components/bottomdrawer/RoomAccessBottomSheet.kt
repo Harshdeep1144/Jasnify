@@ -54,10 +54,9 @@ fun RoomAccessBottomSheet(
     onDismissRequest: () -> Unit,
     onGrantAccess: (String, UserRole) -> Unit,
     searchResults: List<User>,
-    onSearch: (String) -> Unit
+    onSearch: (String) -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     // Hoisting state variables to compute the bottom sheet's height dynamically
     var searchQuery by remember { mutableStateOf("") }
     var selectedUser by remember { mutableStateOf<User?>(null) }
@@ -88,9 +87,9 @@ fun RoomAccessBottomSheet(
 
     CustomBottomSheet(
         heading = "Share Room Access",
-        sheetState = sheetState,
         onDismiss = onDismissRequest,
-        sheetHeight = animatedSheetHeight
+        sheetHeight = animatedSheetHeight,
+        onProgress = onProgress
     ) {
         RoomAccessBottomSheetContent(
             searchQuery = searchQuery,

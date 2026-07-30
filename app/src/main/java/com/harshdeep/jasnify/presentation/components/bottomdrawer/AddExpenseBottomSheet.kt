@@ -36,10 +36,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -162,7 +159,6 @@ class ThousandsSeparatorVisualTransformation : VisualTransformation {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddExpenseBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     onSave: (amount: Long, receiver: String, category: String, emoji: String, phoneNumber: String, note: String) -> Unit,
     categories: List<String>,
@@ -172,15 +168,16 @@ fun AddExpenseBottomSheet(
     initialCategory: String = "",
     initialEmoji: String = "",
     initialPhoneNumber: String = "",
-    initialNote: String = ""
+    initialNote: String = "",
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
-
     var toastData by remember { mutableStateOf(ToastData()) }
+    var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000.milliseconds)
+            activeToastData = toastData
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -202,143 +199,80 @@ fun AddExpenseBottomSheet(
     var dynamicCategories by remember(categories) { mutableStateOf(categories) }
 
     var showCustomCategorySheet by remember { mutableStateOf(false) }
-    val customCategorySheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val headingTitle = if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = null,
-        sheetGesturesEnabled = true,
-    ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            var parent = view.parent
-            var dialogWindow: android.view.Window? = null
-            while (parent != null) {
-                if (parent is DialogWindowProvider) {
-                    dialogWindow = parent.window
-                    break
-                }
-                parent = parent.parent
-            }
-            dialogWindow?.let { w ->
-                val colorInt = SurfacePrimary.toArgb()
-                w.navigationBarColor = colorInt
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    w.isNavigationBarContrastEnforced = false
-                }
-                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
-            }
-            onDispose {}
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    CustomBottomSheet(
+        heading = headingTitle,
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true,
+        hasToast = toastData.message != null,
+        toast = {
             AnimatedVisibility(
                 visible = toastData.message != null,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
-                    .zIndex(998f)
+                    .statusBarsPadding()
+                    .padding(12.dp)
             ) {
-                CustomToast(
-                    message = toastData.message ?: "",
-                    type = toastData.type
-                )
+                activeToastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
+                    )
+                }
             }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(999f)
-                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                    .background(SurfacePrimary)
-                    .navigationBarsPadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, shape = SquircleShape(100))
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = headingTitle,
-                        style = JasnifyTheme.typography.displayLarge,
-                        color = ContentPrimary
-                    )
-                    TopBarIconButton(
-                        backgroundStyle = ButtonBackground.OPAQUE,
-                        icon = TopIcon.Predefined.CLOSE,
-                        iconSize = 18.dp,
-                        onClick = onDismiss
-                    )
-                }
-
-                Box(modifier = Modifier.fillMaxWidth().height(600.dp)) {
-                    AddExpenseSheetContent(
-                        amountTextFieldValue = amountTextFieldValue,
-                        onAmountChange = { amountTextFieldValue = it },
-                        receiverName = receiverName,
-                        onReceiverChange = { receiverName = it },
-                        selectedCategory = selectedCategory,
-                        onCategorySelect = { selectedCategory = it },
-                        dynamicCategories = dynamicCategories,
-                        selectedEmoji = selectedEmoji,
-                        onEmojiChange = { selectedEmoji = it },
-                        phoneNumber = phoneNumber,
-                        onPhoneNumberChange = { phoneNumber = it },
-                        note = note,
-                        onNoteChange = { note = it },
-                        onCustomCategoryClick = { showCustomCategorySheet = true },
-                        onDismiss = onDismiss,
-                        onSave = { amt, rec, cat ->
-                            if (amountTextFieldValue.text.isBlank()) {
-                                toastData = ToastData("Please enter the expense!", ToastType.ERROR)
-                            }else if (receiverName.isBlank()) {
-                                toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
-                            }else if (selectedCategory.isBlank()) {
-                                toastData = ToastData("Please select an expense category!", ToastType.ERROR)
-                            } else {
-                                // Default fallback to 💸 emoji if left blank by user
-                                val finalEmoji = selectedEmoji.ifBlank { "💸" }
-                                onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
-                            }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
+                AddExpenseSheetContent(
+                    amountTextFieldValue = amountTextFieldValue,
+                    onAmountChange = { amountTextFieldValue = it },
+                    receiverName = receiverName,
+                    onReceiverChange = { receiverName = it },
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = { selectedCategory = it },
+                    dynamicCategories = dynamicCategories,
+                    selectedEmoji = selectedEmoji,
+                    onEmojiChange = { selectedEmoji = it },
+                    phoneNumber = phoneNumber,
+                    onPhoneNumberChange = { phoneNumber = it },
+                    note = note,
+                    onNoteChange = { note = it },
+                    onCustomCategoryClick = { showCustomCategorySheet = true },
+                    onDismiss = onDismiss,
+                    onSave = { amt, rec, cat ->
+                        if (amountTextFieldValue.text.isBlank()) {
+                            toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                        }else if (receiverName.isBlank()) {
+                            toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
+                        }else if (selectedCategory.isBlank()) {
+                            toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                        } else {
+                            // Default fallback to 💸 emoji if left blank by user
+                            val finalEmoji = selectedEmoji.ifBlank { "💸" }
+                            onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }
 
     if (showCustomCategorySheet) {
         AddCustomCategoryBottomSheet(
-            sheetState = customCategorySheetState,
             onDismiss = {
-                coroutineScope.launch { customCategorySheetState.hide() }.invokeOnCompletion {
-                    showCustomCategorySheet = false
-                }
+                showCustomCategorySheet = false
             },
             onAddCategory = { newCategory ->
                 if (newCategory.isBlank()) {
@@ -347,9 +281,7 @@ fun AddExpenseBottomSheet(
                     onAddCategory(newCategory)
                     dynamicCategories = dynamicCategories + newCategory
                     selectedCategory = newCategory
-                    coroutineScope.launch { customCategorySheetState.hide() }.invokeOnCompletion {
-                        showCustomCategorySheet = false
-                    }
+                    showCustomCategorySheet = false
                 }
             }
         )
@@ -359,94 +291,32 @@ fun AddExpenseBottomSheet(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCustomCategoryBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     onAddCategory: (String) -> Unit,
     initialCategoryName: String = "",
-    heading: String = "Add custom category"
+    heading: String = "Add custom category",
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = null,
-        sheetGesturesEnabled = true,
+    CustomBottomSheet(
+        heading = heading,
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
     ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            var parent = view.parent
-            var dialogWindow: android.view.Window? = null
-            while (parent != null) {
-                if (parent is DialogWindowProvider) {
-                    dialogWindow = parent.window
-                    break
-                }
-                parent = parent.parent
-            }
-            dialogWindow?.let { w ->
-                val colorInt = SurfacePrimary.toArgb()
-                w.navigationBarColor = colorInt
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    w.isNavigationBarContrastEnforced = false
-                }
-                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
-            }
-            onDispose {}
-        }
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(999f)
-                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                    .background(SurfacePrimary)
-                    .navigationBarsPadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, shape = SquircleShape(100))
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 161.dp)) {
+                AddCustomCategorySheetContent(
+                    onDismiss = onDismiss,
+                    onAddCategory = onAddCategory,
+                    initialCategoryName = initialCategoryName
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = heading,
-                        style = JasnifyTheme.typography.displayLarge,
-                        color = ContentPrimary
-                    )
-                    TopBarIconButton(
-                        backgroundStyle = ButtonBackground.OPAQUE,
-                        icon = TopIcon.Predefined.CLOSE,
-                        iconSize = 18.dp,
-                        onClick = onDismiss
-                    )
-                }
-
-                Box(modifier = Modifier.fillMaxWidth().height(161.dp)) {
-                    AddCustomCategorySheetContent(
-                        onDismiss = onDismiss,
-                        onAddCategory = onAddCategory,
-                        initialCategoryName = initialCategoryName
-                    )
-                }
             }
         }
     }

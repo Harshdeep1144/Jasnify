@@ -25,44 +25,23 @@ fun ConfirmationBottomSheet(
     onConfirm: () -> Unit,
     modifier: Modifier = Modifier,
     confirmButtonText: String? = null,
-    isDestructive: Boolean = true
+    isDestructive: Boolean = true,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SurfacePrimary,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 8.dp)
-                    .width(56.dp)
-                    .height(4.dp)
-                    .background(ContentTertiary, shape = RoundedCornerShape(100))
-            )
-        },
-        shape = RoundedCornerShape(CornerExtraLarge, CornerExtraLarge),
-        modifier = modifier
+    CustomBottomSheet(
+        heading = heading,
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(
-                text = heading,
-                style = JasnifyTheme.typography.displayLarge,
-                fontWeight = FontWeight.Medium,
-                color = ContentPrimary,
-                textAlign = TextAlign.Start,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(8.dp))
-
             Text(
                 text = subHeading,
                 style = JasnifyTheme.typography.bodyLarge,
@@ -97,7 +76,6 @@ fun ConfirmationBottomSheet(
 @Preview(name = "Light Mode Preview", showBackground = true)
 @Composable
 fun CustomDeleteSheetPreview() {
-    val sheetState = rememberModalBottomSheetState()
     JasnifyTheme {
         ConfirmationBottomSheet(
             heading = "Remove item?",

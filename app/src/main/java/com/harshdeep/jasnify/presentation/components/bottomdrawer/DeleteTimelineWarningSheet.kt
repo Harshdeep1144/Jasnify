@@ -40,25 +40,15 @@ fun DeleteTimelineWarningSheet(
     vendorCount: Int,
     onReviewVenues: () -> Unit,
     onReviewVendors: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SurfacePrimary,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 8.dp)
-                    .width(56.dp)
-                    .height(4.dp)
-                    .background(ContentTertiary, shape = SquircleShape(100))
-            )
-        },
-        modifier = modifier
+    CustomBottomSheet(
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = false
     ) {
         DeleteTimelineWarningContent(
             onDismiss = onDismiss,

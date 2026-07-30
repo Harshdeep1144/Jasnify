@@ -11,7 +11,8 @@ import com.harshdeep.jasnify.R
 fun CountryBottomSheet(
     initialSelection: SelectableItem,
     onItemSelected: (SelectableItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     val countryCodes = remember {
         listOf(
@@ -74,6 +75,7 @@ fun CountryBottomSheet(
         initialSelectedItem = initialSelection,
         onItemSelected = onItemSelected,
         onDismiss = onDismiss,
+        onProgress = onProgress,
         selectButtonText = "Select",
         sheetHeight = 512.dp
     )

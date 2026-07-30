@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -26,8 +27,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -59,24 +58,25 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun SortFilterBottomSheet(
-    sheetState: SheetState,
     sortOptions: List<String>,
     initialSortOption: String,
     filterByOptions: List<String>,
     initialFilterOptions: Set<String>,
     onDismiss: () -> Unit,
-    onApply: (String, Set<String>) -> Unit
+    onApply: (String, Set<String>) -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SurfacePrimary,
-        scrimColor = Color.Black.copy(alpha = 0.8f),
-        dragHandle = null,
-        shape = SquircleShape(topStart = 28.dp, topEnd = 28.dp)
+    CustomBottomSheet(
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = false
     ) {
         SortFilterBottomSheetContent(
             sortOptions = sortOptions,
@@ -110,22 +110,11 @@ fun SortFilterBottomSheetContent(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
     ) {
-        // Drag Handle
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(vertical = 8.dp)
-                .width(56.dp)
-                .height(4.dp)
-                .background(ContentTertiary, shape = RoundedCornerShape(100))
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(596.dp)
+                .heightIn(max = 596.dp)
         ) {
             // Tab Header System with Adaptive Width & Smooth Slider Animation
             val horizontalPadding = 12.dp
@@ -145,7 +134,6 @@ fun SortFilterBottomSheetContent(
                 )
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.height(4.dp))
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -159,8 +147,7 @@ fun SortFilterBottomSheetContent(
                                     .clickable(
                                         interactionSource = remember { MutableInteractionSource() },
                                         indication = null
-                                    ) { activeTab = index }
-                                    .padding(top = 12.dp),
+                                    ) { activeTab = index },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(

@@ -16,10 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,26 +60,16 @@ data class MenuSheetActionItem(
 fun MenuBottomSheet(
     items: List<List<MenuSheetActionItem>>,
     onCancelClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onCancelClick,
-        sheetState = sheetState,
+    CustomBottomSheet(
+        onDismiss = onCancelClick,
+        onProgress = onProgress,
+        sheetHeight = null,
         containerColor = SurfaceSecondary,
-        shape = SquircleShape(CornerExtraLarge, CornerExtraLarge),
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .width(56.dp)
-                    .height(4.dp)
-                    .background(ContentTertiary, shape = RoundedCornerShape(100))
-            )
-        },
-        modifier = modifier
+        showDragHandle = true,
+        showCloseButton = false
     ) {
         MenuBottomSheetContent(
             items = items,
