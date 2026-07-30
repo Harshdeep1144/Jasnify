@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -29,8 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,20 +80,22 @@ import kotlin.time.Duration.Companion.milliseconds
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     userName: String,
     userHandle: String,
     profilePic: Any,
     updateState: ProfileUpdateState = ProfileUpdateState.Idle,
     resetUpdateState: () -> Unit = {},
-    onUpdateProfile: (String, String, Uri?, Boolean) -> Unit
+    onUpdateProfile: (String, String, Uri?, Boolean) -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     var toastData by remember { mutableStateOf(ToastData()) }
-    
+    var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000.milliseconds)
+            activeToastData = toastData
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -109,113 +110,56 @@ fun EditProfileBottomSheet(
         }
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = null,
-        sheetGesturesEnabled = true,
-    ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            var parent = view.parent
-            var dialogWindow: android.view.Window? = null
-            while (parent != null) {
-                if (parent is DialogWindowProvider) {
-                    dialogWindow = parent.window
-                    break
-                }
-                parent = parent.parent
-            }
-            dialogWindow?.let { w ->
-                val colorInt = SurfacePrimary.toArgb()
-                w.navigationBarColor = colorInt
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    w.isNavigationBarContrastEnforced = false
-                }
-                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
-            }
-            onDispose {}
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    CustomBottomSheet(
+        heading = "Edit Profile",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true,
+        hasToast = toastData.message != null,
+        toast = {
             AnimatedVisibility(
                 visible = toastData.message != null,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
-                    .zIndex(998f)
+                    .statusBarsPadding()
+                    .padding(12.dp)
             ) {
-                CustomToast(
-                    message = toastData.message ?: "",
-                    type = toastData.type
-                )
+                activeToastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
+                    )
+                }
             }
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(999f)
-                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                    .background(SurfacePrimary)
-                    .navigationBarsPadding()
-            ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, shape = SquircleShape(100))
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Edit Profile",
-                        style = JasnifyTheme.typography.displayLarge,
-                        color = ContentPrimary
-                    )
-                    TopBarIconButton(
-                        backgroundStyle = ButtonBackground.OPAQUE,
-                        icon = TopIcon.Predefined.CLOSE,
-                        iconSize = 18.dp,
-                        onClick = onDismiss
-                    )
-                }
 
-                Box(modifier = Modifier.fillMaxWidth().height(600.dp)) {
-                    EditProfileContent(
-                        userName = userName,
-                        userHandle = userHandle,
-                        profilePic = profilePic,
-                        isUpdating = updateState is ProfileUpdateState.Loading,
-                        onUpdateProfile = { n, h, uri, remove ->
-                            if (n.isBlank()) {
-                                toastData = ToastData("Name cannot be empty", ToastType.ERROR)
-                            } else if (h.isBlank()) {
-                                toastData = ToastData("Username cannot be empty", ToastType.ERROR)
-                            } else {
-                                onUpdateProfile(n, h, uri, remove)
-                            }
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
+                EditProfileContent(
+                    userName = userName,
+                    userHandle = userHandle,
+                    profilePic = profilePic,
+                    isUpdating = updateState is ProfileUpdateState.Loading,
+                    onUpdateProfile = { n, h, uri, remove ->
+                        if (n.isBlank()) {
+                            toastData = ToastData("Name cannot be empty", ToastType.ERROR)
+                        } else if (h.isBlank()) {
+                            toastData = ToastData("Username cannot be empty", ToastType.ERROR)
+                        } else {
+                            onUpdateProfile(n, h, uri, remove)
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }
@@ -246,8 +190,6 @@ fun EditProfileContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .navigationBarsPadding()
-            .imePadding()
     ) {
         Column(
             modifier = Modifier

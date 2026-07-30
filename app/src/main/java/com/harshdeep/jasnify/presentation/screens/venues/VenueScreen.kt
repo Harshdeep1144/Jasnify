@@ -10,6 +10,10 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
@@ -57,21 +61,19 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -79,6 +81,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -101,8 +104,8 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -133,24 +136,20 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.CloudWhisper
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.LightSkyBlue
-import com.harshdeep.jasnify.theme.PaleLavender
-import com.harshdeep.jasnify.theme.SoftMint
-import com.harshdeep.jasnify.theme.SoftPeach
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
@@ -264,6 +263,20 @@ fun VenueScreen(
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
 
+    val sortOptions = listOf(
+        "Newest First (Default)",
+        "Oldest First",
+        "Highest to Lowest Amount",
+        "Lowest to Highest Amount"
+    )
+    var appliedSortOption by remember { mutableStateOf(sortOptions[0]) }
+
+    val filterByOptions = listOf(
+        "Venue", "Catering", "Gifts", "Staff & Crew",
+        "Costumes", "Vendors", "Transportation", "Entertainment"
+    )
+    var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
+
     LaunchedEffect(toastData?.message) {
         if (toastData?.message != null) {
             delay(3000.milliseconds)
@@ -272,6 +285,9 @@ fun VenueScreen(
     }
 
     val focusManager = LocalFocusManager.current
+
+    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     BackHandler(enabled = isLocationPickerVisible || showRoomAccess || selectedVenueForDetail != null) {
         if (isLocationPickerVisible) {
@@ -284,7 +300,25 @@ fun VenueScreen(
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
-            showFilterDialog || showSaveListBottomSheet || showMenuSheet
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation
+
+    val targetScale = if (isAnySheetVisible) {
+        0.92f + (0.08f * sheetMotionProgress)
+    } else {
+        1.0f
+    }
+
+    val backdropScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadius by animateDpAsState(
+        targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
 
     val isSavedListToast = remember(toastData, lastSavedVenue) {
         toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
@@ -300,27 +334,38 @@ fun VenueScreen(
     val isViewer = currentUserRole == UserRole.VIEWER
 
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
         SharedTransitionLayout {
-            RoomAccessGuardian(
-                hasAccess = hasAccess,
-                roomName = "Venue",
-                onBackClick = onBackClick
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = backdropScale
+                        scaleY = backdropScale
+                        clip = isAnySheetVisible || backdropCornerRadius > 0.dp
+                        shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                    }
             ) {
-                AnimatedContent(
-                    targetState = when {
-                        isLocationPickerVisible -> "picker"
-                        showRoomAccess -> "room"
-                        selectedVenueForDetail != null -> "detail"
-                        else -> "main"
-                    },
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                    },
-                    label = "venue_screen_transition",
-                    modifier = Modifier.fillMaxSize()
-                ) { state ->
+                RoomAccessGuardian(
+                    hasAccess = hasAccess,
+                    roomName = "Venue",
+                    onBackClick = onBackClick
+                ) {
+                    AnimatedContent(
+                        targetState = when {
+                            isLocationPickerVisible -> "picker"
+                            showRoomAccess -> "room"
+                            selectedVenueForDetail != null -> "detail"
+                            else -> "main"
+                        },
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+                        },
+                        label = "venue_screen_transition",
+                        modifier = Modifier.fillMaxSize()
+                    ) { state ->
+                        // ... (rest of AnimatedContent)
                     when (state) {
                         "picker" -> {
                             LocationScreen(
@@ -440,34 +485,12 @@ fun VenueScreen(
                                 showMenuSheet = showMenuSheet,
                                 onShowMenuSheetChange = { showMenuSheet = it },
                                 timelineEvents = timelineEvents,
-                                onAddNewEvent = { subEventItem ->
-                                    activeEvent?.let { event ->
-                                        val newSubEvent = SubEvent(
-                                            id = subEventItem.id,
-                                            name = subEventItem.name,
-                                            date = subEventItem.date,
-                                            completed = subEventItem.isCompleted
-                                        )
-                                        val updatedEvent = event.copy(subEvents = event.subEvents + newSubEvent)
-                                        eventViewModel.updateEvent(updatedEvent)
-
-                                        activeTargetVenue?.let { venue ->
-                                            venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
-                                        }
-
-                                        selectedSaveEventId = subEventItem.id
-                                        isMySavedListChecked = false
-                                    }
-                                },
-                                activeTargetVenue = activeTargetVenue,
                                 onActiveTargetVenueChange = { activeTargetVenue = it },
                                 isMySavedListChecked = isMySavedListChecked,
                                 onMySavedListCheckedChange = { isMySavedListChecked = it },
                                 selectedSaveEventId = selectedSaveEventId,
                                 onSelectedSaveEventIdChange = { selectedSaveEventId = it },
                                 venueSavedDestinations = venueSavedDestinations,
-                                onVenueSavedDestinationsChange = { updatedDestinations ->
-                                },
                                 onToggleSaveVenue = { venue, destination ->
                                     venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
                                 },
@@ -478,8 +501,11 @@ fun VenueScreen(
                                 isOwner = isOwner,
                                 selectedTab = selectedTab,
                                 onSelectedTabChange = { selectedTab = it },
+                                appliedSortOption = appliedSortOption,
+                                appliedFilterOptions = appliedFilterOptions,
                                 sharedTransitionScope = this@SharedTransitionLayout,
-                                animatedVisibilityScope = this@AnimatedContent
+                                animatedVisibilityScope = this@AnimatedContent,
+                                onProgress = { sheetMotionProgress = it }
                             )
                         }
                     }
@@ -487,7 +513,122 @@ fun VenueScreen(
             }
         }
 
-        AnimatedVisibility(
+        if (showFilterDialog) {
+            SortFilterBottomSheet(
+                sortOptions = sortOptions,
+                initialSortOption = appliedSortOption,
+                filterByOptions = filterByOptions,
+                initialFilterOptions = appliedFilterOptions,
+                onDismiss = { showFilterDialog = false },
+                onApply = { sortOption, filterSet ->
+                    appliedSortOption = sortOption
+                    appliedFilterOptions = filterSet
+                    showFilterDialog = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showSaveListBottomSheet) {
+            SaveListBottomSheet(
+                timelineEvents = timelineEvents,
+                isMySavedListChecked = isMySavedListChecked,
+                onMySavedListToggled = { checked ->
+                    isMySavedListChecked = checked
+                    if (checked) {
+                        selectedSaveEventId = null
+                    }
+                },
+                selectedEventId = selectedSaveEventId,
+                onEventSelected = { eventId ->
+                    selectedSaveEventId = eventId
+                    if (eventId != null) {
+                        isMySavedListChecked = false
+                    }
+                },
+                onAddNewEvent = { subEventItem ->
+                    activeEvent?.let { event ->
+                        val newSubEvent = SubEvent(
+                            id = subEventItem.id,
+                            name = subEventItem.name,
+                            date = subEventItem.date,
+                            completed = subEventItem.isCompleted
+                        )
+                        val updatedEvent = event.copy(subEvents = event.subEvents + newSubEvent)
+                        eventViewModel.updateEvent(updatedEvent)
+
+                        activeTargetVenue?.let { venue ->
+                            venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
+                        }
+
+                        selectedSaveEventId = subEventItem.id
+                        isMySavedListChecked = false
+                    }
+                },
+                isViewer = isViewer,
+                onDismiss = { showSaveListBottomSheet = false },
+                onDone = {
+                    activeTargetVenue?.let { venue ->
+                        val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
+                        if (destination != null) {
+                            venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
+                            lastSavedVenue = venue
+                            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        } else {
+                            venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                            toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                        }
+                    }
+                    showSaveListBottomSheet = false
+                    activeTargetVenue = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showMenuSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Change Location",
+                            icon = painterResource(R.drawable.ic_location_marker),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showMenuSheet = false
+                                isLocationPickerVisible = true
+                            }
+                        )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = if (isOwner) "Manage Room Access" else "Room Members",
+                            icon = painterResource(R.drawable.ic_user_default),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showMenuSheet = false
+                                showRoomAccess = true
+                            }
+                        )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Help & Feedback",
+                            icon = painterResource(R.drawable.ic_help_feedback),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showMenuSheet = false
+                            }
+                        )
+                    )
+                ),
+                onCancelClick = { showMenuSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+    }
+
+    AnimatedVisibility(
             visible = toastData?.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }),
@@ -559,7 +700,8 @@ fun VenueScreen(
             ),
             onCancelClick = {
                 showRoomMenuBottomSheet = false
-            }
+            },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 
@@ -578,7 +720,8 @@ fun VenueScreen(
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null
-            }
+            },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 
@@ -597,7 +740,8 @@ fun VenueScreen(
                 toastData = ToastData("You left the room", ToastType.DEFAULT)
                 showRoomAccess = false
                 showLeaveConfirmation = false
-            }
+            },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 }
@@ -622,15 +766,12 @@ fun VenueMainContent(
     showMenuSheet: Boolean,
     onShowMenuSheetChange: (Boolean) -> Unit,
     timelineEvents: List<TimelineEvent>,
-    onAddNewEvent: (SubEventItem) -> Unit,
-    activeTargetVenue: Venue?,
     onActiveTargetVenueChange: (Venue?) -> Unit,
     isMySavedListChecked: Boolean,
     onMySavedListCheckedChange: (Boolean) -> Unit,
     selectedSaveEventId: String?,
     onSelectedSaveEventIdChange: (String?) -> Unit,
     venueSavedDestinations: Map<String, String>,
-    onVenueSavedDestinationsChange: (Map<String, String>) -> Unit,
     onToggleSaveVenue: (Venue, String?) -> Unit,
     lastSavedVenue: Venue?,
     onLastSavedVenueChange: (Venue?) -> Unit,
@@ -639,8 +780,11 @@ fun VenueMainContent(
     isOwner: Boolean,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
+    appliedSortOption: String,
+    appliedFilterOptions: Set<String>,
     sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onProgress: (Float) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -660,9 +804,6 @@ fun VenueMainContent(
         text = ""
         focusManager.clearFocus()
     }
-
-    val filterSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val saveListSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val exploreVenues = remember(allVenues) {
         allVenues.ifEmpty { MockData.sampleVenues1 }
@@ -714,20 +855,6 @@ fun VenueMainContent(
             TabItem("Saved", "saved", badgeCount = savedVenuesList.size)
         )
     }
-
-    val sortOptions = listOf(
-        "Newest First (Default)",
-        "Oldest First",
-        "Highest to Lowest Amount",
-        "Lowest to Highest Amount"
-    )
-    var appliedSortOption by remember { mutableStateOf(sortOptions[0]) }
-
-    val filterByOptions = listOf(
-        "Venue", "Catering", "Gifts", "Staff & Crew",
-        "Costumes", "Vendors", "Transportation", "Entertainment"
-    )
-    var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
     val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
         var result = exploreVenues.map { venue ->
@@ -1019,101 +1146,6 @@ fun VenueMainContent(
             }
         }
     }
-
-    if (showFilterDialog) {
-        SortFilterBottomSheet(
-            sheetState = filterSheetState,
-            sortOptions = sortOptions,
-            initialSortOption = appliedSortOption,
-            filterByOptions = filterByOptions,
-            initialFilterOptions = appliedFilterOptions,
-            onDismiss = { onShowFilterDialogChange(false) },
-            onApply = { sortOption, filterSet ->
-                appliedSortOption = sortOption
-                appliedFilterOptions = filterSet
-                onShowFilterDialogChange(false)
-            }
-        )
-    }
-
-    if (showSaveListBottomSheet) {
-        SaveListBottomSheet(
-            sheetState = saveListSheetState,
-            timelineEvents = timelineEvents,
-            isMySavedListChecked = isMySavedListChecked,
-            onMySavedListToggled = { checked ->
-                onMySavedListCheckedChange(checked)
-                if (checked) {
-                    onSelectedSaveEventIdChange(null)
-                }
-            },
-            selectedEventId = selectedSaveEventId,
-            onEventSelected = { eventId ->
-                onSelectedSaveEventIdChange(eventId)
-                if (eventId != null) {
-                    onMySavedListCheckedChange(false)
-                }
-            },
-            onAddNewEvent = onAddNewEvent,
-            isViewer = isViewer,
-            onDismiss = { onShowSaveListBottomSheetChange(false) },
-            onDone = {
-                activeTargetVenue?.let { venue ->
-                    val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
-                    if (destination != null) {
-                        onToggleSaveVenue(venue, destination)
-                        onLastSavedVenueChange(venue)
-                        onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
-                    } else {
-                        onToggleSaveVenue(venue, null)
-                        onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
-                    }
-                }
-                onShowSaveListBottomSheetChange(false)
-                onActiveTargetVenueChange(null)
-            }
-        )
-    }
-
-    if (showMenuSheet) {
-        MenuBottomSheet(
-            items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Change Location",
-                        icon = painterResource(R.drawable.ic_location_marker),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            onShowMenuSheetChange(false)
-                            onLocationSelectorClick()
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(R.drawable.ic_user_default),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            onShowMenuSheetChange(false)
-                            onManageRoomAccessClick()
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Help & Feedback",
-                        icon = painterResource(R.drawable.ic_help_feedback),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            onShowMenuSheetChange(false)
-                        }
-                    )
-                )
-            ),
-            onCancelClick = { onShowMenuSheetChange(false) }
-        )
-    }
 }
 
 @Composable
@@ -1149,7 +1181,6 @@ fun LazyItemScope.EmptySavedState() {
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SaveListBottomSheet(
-    sheetState: SheetState,
     timelineEvents: List<TimelineEvent>,
     isMySavedListChecked: Boolean,
     onMySavedListToggled: (Boolean) -> Unit,
@@ -1158,19 +1189,23 @@ fun SaveListBottomSheet(
     onAddNewEvent: (SubEventItem) -> Unit,
     isViewer: Boolean,
     onDismiss: () -> Unit,
-    onDone: () -> Unit
+    onDone: () -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
     var showInfoSheet by remember { mutableStateOf(false) }
 
     if (showInfoSheet) {
-        EventTimeLineInfoSheet(onDismiss = { showInfoSheet = false })
+        EventTimeLineInfoSheet(
+            onDismiss = { showInfoSheet = false },
+            onProgress = onProgress
+        )
     }
 
     CustomBottomSheet(
         heading = "Manage Saved List",
-        sheetState = sheetState,
         onDismiss = onDismiss,
+        onProgress = onProgress,
         sheetHeight = 560.dp,
         sheetGesturesEnabled = false
     ) {
@@ -1303,6 +1338,7 @@ fun SaveListBottomSheet(
                             backgroundColor = SurfaceSecondary,
                             hasBorder = true
                         )
+                        Spacer(Modifier.height(12.dp))
                     }
                 }
 

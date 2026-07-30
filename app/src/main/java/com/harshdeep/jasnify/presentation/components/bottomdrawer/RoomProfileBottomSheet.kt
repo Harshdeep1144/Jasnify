@@ -20,10 +20,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -82,25 +79,15 @@ fun RoomProfileBottomSheet(
     onReport: () -> Unit,
     onLeave: () -> Unit,
     modifier: Modifier = Modifier,
-    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
+    CustomBottomSheet(
+        onDismiss = onDismissRequest,
+        onProgress = onProgress,
+        sheetHeight = null,
         containerColor = SurfaceSecondary,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = {
-            // Elegant matching drag handle
-            Box(
-                modifier = Modifier
-                    .padding(top = 12.dp, bottom = 8.dp)
-                    .width(56.dp)
-                    .height(4.dp)
-                    .background(ContentTertiary, shape = RoundedCornerShape(100))
-            )
-        },
-        modifier = modifier
+        showDragHandle = true,
+        showCloseButton = false
     ) {
         RoomProfileContent(
             user = user,

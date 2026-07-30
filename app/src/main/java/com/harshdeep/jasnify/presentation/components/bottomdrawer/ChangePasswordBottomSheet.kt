@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -32,8 +33,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -94,21 +93,23 @@ enum class ChangePasswordStep {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePasswordBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     lastChangedText: String = "Password never changed",
     onVerifyPassword: (String, () -> Unit) -> Unit,
     onUpdatePassword: (String) -> Unit,
     onForgotPassword: () -> Unit,
     authState: AuthState = AuthState.Idle,
-    resetAuthState: () -> Unit = {}
+    resetAuthState: () -> Unit = {},
+    onProgress: ((Float) -> Unit)? = null
 ) {
     var currentStep by remember { mutableStateOf(ChangePasswordStep.CURRENT_PASSWORD) }
     var toastData by remember { mutableStateOf(ToastData()) }
+    var activeToastData by remember { mutableStateOf<ToastData?>(null) }
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000.milliseconds)
+            activeToastData = toastData
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -128,126 +129,63 @@ fun ChangePasswordBottomSheet(
         }
     }
 
-    val animatedSheetHeight by animateDpAsState(
-        targetValue = if (currentStep == ChangePasswordStep.NEW_PASSWORD) 440.dp else 280.dp,
-        animationSpec = tween(durationMillis = 300),
-        label = "SheetHeightAnimation"
-    )
+    val animatedSheetHeight = if (currentStep == ChangePasswordStep.NEW_PASSWORD) 440.dp else 280.dp
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = null,
-        sheetGesturesEnabled = true,
-    ) {
-        val view = LocalView.current
-        DisposableEffect(view) {
-            var parent = view.parent
-            var dialogWindow: android.view.Window? = null
-            while (parent != null) {
-                if (parent is DialogWindowProvider) {
-                    dialogWindow = parent.window
-                    break
-                }
-                parent = parent.parent
-            }
-            dialogWindow?.let { w ->
-                val colorInt = SurfacePrimary.toArgb()
-                w.navigationBarColor = colorInt
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    w.isNavigationBarContrastEnforced = false
-                }
-                val isLightBackground = ColorUtils.calculateLuminance(colorInt) > 0.5
-                WindowCompat.getInsetsController(w, view).isAppearanceLightNavigationBars = isLightBackground
-            }
-            onDispose {}
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+    CustomBottomSheet(
+        heading = "Change Password",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = animatedSheetHeight,
+        showDragHandle = true,
+        showCloseButton = true,
+        hasToast = toastData.message != null,
+        toast = {
             AnimatedVisibility(
                 visible = toastData.message != null,
                 enter = slideInVertically(initialOffsetY = { it }),
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
-                    .zIndex(998f)
+                    .statusBarsPadding()
+                    .padding(12.dp)
             ) {
-                CustomToast(
-                    message = toastData.message ?: "",
-                    type = toastData.type
-                )
+                activeToastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
+                    )
+                }
             }
-
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .zIndex(999f)
-                    .clip(SquircleShape(CornerExtraLarge, CornerExtraLarge, 0.dp, 0.dp))
-                    .background(SurfacePrimary)
-                    .navigationBarsPadding()
+                    .heightIn(max = animatedSheetHeight)
             ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, shape = SquircleShape(100))
+                ChangePasswordContent(
+                    currentStep = currentStep,
+                    onStepChange = { currentStep = it },
+                    lastChangedText = lastChangedText,
+                    onVerifyPassword = onVerifyPassword,
+                    onUpdatePassword = onUpdatePassword,
+                    onForgotPassword = {
+                        toastData = ToastData("otp service is currently not available", ToastType.DEFAULT)
+                        onForgotPassword()
+                    },
+                    onWeakPassword = {
+                        toastData = ToastData("password too weak", ToastType.ERROR)
+                    },
+                    onPasswordMismatch = {
+                        toastData = ToastData("enter same password", ToastType.ERROR)
+                    },
+                    isLoading = authState is AuthState.Loading
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp)
-                        .padding(12.dp, 0.dp, 12.dp, 0.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "Change Password",
-                        style = JasnifyTheme.typography.displayLarge,
-                        color = ContentPrimary
-                    )
-                    TopBarIconButton(
-                        backgroundStyle = ButtonBackground.OPAQUE,
-                        icon = TopIcon.Predefined.CLOSE,
-                        iconSize = 18.dp,
-                        onClick = onDismiss
-                    )
-                }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(animatedSheetHeight)
-                ) {
-                    ChangePasswordContent(
-                        currentStep = currentStep,
-                        onStepChange = { currentStep = it },
-                        lastChangedText = lastChangedText,
-                        onVerifyPassword = onVerifyPassword,
-                        onUpdatePassword = onUpdatePassword,
-                        onForgotPassword = {
-                            toastData = ToastData("otp service is currently not available", ToastType.DEFAULT)
-                            onForgotPassword()
-                        },
-                        onWeakPassword = {
-                            toastData = ToastData("password too weak", ToastType.ERROR)
-                        },
-                        onPasswordMismatch = {
-                            toastData = ToastData("enter same password", ToastType.ERROR)
-                        },
-                        isLoading = authState is AuthState.Loading
-                    )
-                }
             }
         }
     }

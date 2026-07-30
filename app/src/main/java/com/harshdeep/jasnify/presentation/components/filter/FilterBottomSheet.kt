@@ -22,8 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,29 +48,31 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
 
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun FilterBottomSheet(
     title: String,
-    sheetState: SheetState,
     options: List<String>,
     initialSelectedOptions: Set<String>,
     showSearchBar: Boolean,
     onDismiss: () -> Unit,
     onApply: (Set<String>) -> Unit,
     modifier: Modifier = Modifier,
-    isMultiSelect: Boolean = true // Added parameter to toggle between single and multi selection mode
+    isMultiSelect: Boolean = true,
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SurfacePrimary,
-        scrimColor = Color.Black.copy(alpha = 0.8f),
-        dragHandle = null,
-        shape = SquircleShape(topStart = 28.dp, topEnd = 28.dp)
+    CustomBottomSheet(
+        heading = title,
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
     ) {
         FilterBottomSheetContent(
-            title = title,
+            title = "", // Title is handled by CustomBottomSheet
             options = options,
             initialSelectedOptions = initialSelectedOptions,
             showSearchBar = showSearchBar,
@@ -110,14 +110,16 @@ fun FilterBottomSheetContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             // Header Title
-            Text(
-                text = title,
-                style = JasnifyTheme.typography.displayMedium,
-                color = ContentPrimary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp, 16.dp, 16.dp, 8.dp)
-            )
+            if (title.isNotEmpty()) {
+                Text(
+                    text = title,
+                    style = JasnifyTheme.typography.displayMedium,
+                    color = ContentPrimary,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp, 16.dp, 16.dp, 8.dp)
+                )
+            }
 
             // Optional Search Bar Integration
             if (showSearchBar) {

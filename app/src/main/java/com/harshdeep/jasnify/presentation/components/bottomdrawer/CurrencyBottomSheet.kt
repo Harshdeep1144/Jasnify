@@ -10,9 +10,11 @@ import com.harshdeep.jasnify.R // Assuming R.drawable.ic_google is a placeholder
 fun CurrencyBottomSheet(
     initialSelection: SelectableItem,
     onItemSelected: (SelectableItem) -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     val currencyCodes = remember {
+        // ... (rest of the list)
         listOf(
             SelectableItem("INR", "Indian Rupee", "IN"),
             SelectableItem("USD", "United States Dollar", "US"),
@@ -65,7 +67,6 @@ fun CurrencyBottomSheet(
             SelectableItem("MAD", "Moroccan Dirham", "MA"),
             SelectableItem("TWD", "New Taiwan Dollar", "TW"),
             SelectableItem("PHP", "Philippine Peso", "PH")
-
         )
     }
 
@@ -75,6 +76,7 @@ fun CurrencyBottomSheet(
         initialSelectedItem = initialSelection,
         onItemSelected = onItemSelected,
         onDismiss = onDismiss,
+        onProgress = onProgress,
         selectButtonText = "Select",
         sheetHeight = 512.dp
     )

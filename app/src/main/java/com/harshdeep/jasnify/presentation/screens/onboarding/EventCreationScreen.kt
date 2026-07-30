@@ -4,6 +4,10 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,12 +18,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -47,6 +54,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -91,7 +99,7 @@ fun EventCreation(
 ) {
     SetStatusBarTheme(
         useDarkIcons = true,
-        statusBarColor = BackgroundPrimary
+        statusBarColor = Color.Transparent
     )
 
     var eventData by remember {
@@ -122,13 +130,42 @@ fun EventCreation(
     var toastData by remember { mutableStateOf(ToastData()) }
     LaunchedEffect(toastData.message) {
         if (toastData.message != null && toastData.type != ToastType.SUCCESS) {
-            delay(3000L)
+            delay(3000L.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
 
     // --- Bottom Sheet Visibility State ---
     var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
+    var showTimelineDatePicker by remember { mutableStateOf(false) }
+    var selectedTimelineItem by remember { mutableStateOf<SubEventItem?>(null) }
+    var isSingleDayDatePickerVisible by remember { mutableStateOf(false) }
+
+    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
+
+    val isAnyBottomSheetOpen by remember {
+        derivedStateOf {
+            isTimelineInfoSheetVisible || showTimelineDatePicker || isSingleDayDatePickerVisible
+        }
+    }
+
+    val targetScale = if (isAnyBottomSheetOpen) {
+        0.92f + (0.08f * sheetMotionProgress)
+    } else {
+        1.0f
+    }
+
+    val backdropScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadius by animateDpAsState(
+        targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
 
     // --- Observe Event State for feedback ---
     val eventState by eventViewModel.eventState.collectAsState()
@@ -275,7 +312,11 @@ fun EventCreation(
         else -> currentStep.stepNumber
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black) // Background for scaling effect
+    ) {
         Scaffold(
             topBar = {
                 Surface(
@@ -392,14 +433,19 @@ fun EventCreation(
                                 EventCreationStep.EVENT_DATE -> EventSingleDayContent(
                                     eventData,
                                     updateEventData,
-                                    onSkip
+                                    onSkip,
+                                    onShowDatePicker = { isSingleDayDatePickerVisible = true }
                                 )
 
                                 EventCreationStep.EVENT_TIMELINE -> EventMultiDayContent(
                                     eventData,
                                     updateEventData,
                                     onSkip,
-                                    onInfoClick = { isTimelineInfoSheetVisible = true }
+                                    onInfoClick = { isTimelineInfoSheetVisible = true },
+                                    onShowDatePicker = { item ->
+                                        selectedTimelineItem = item
+                                        showTimelineDatePicker = true
+                                    }
                                 )
 
                                 EventCreationStep.EVENT_BUDGET -> EventBudgetContent(
@@ -411,7 +457,13 @@ fun EventCreation(
                         }
                     }
                 }
-            }
+            },
+            modifier = Modifier
+                .graphicsLayer {
+                    scaleX = backdropScale
+                    scaleY = backdropScale
+                }
+                .clip(RoundedCornerShape(backdropCornerRadius))
         )
 
         // --- CustomToast Display  ---
@@ -437,11 +489,52 @@ fun EventCreation(
         // --- Event Timeline Info Bottom Sheet ---
         if (isTimelineInfoSheetVisible) {
             EventTimeLineInfoSheet(
-                onDismiss = { isTimelineInfoSheetVisible = false }
+                onDismiss = { isTimelineInfoSheetVisible = false },
+                onProgress = { sheetMotionProgress = it }
             )
         }
+
+        DatePickerSheet(
+            isVisible = isSingleDayDatePickerVisible,
+            onDismiss = { isSingleDayDatePickerVisible = false },
+            onDateSelected = { date ->
+                val dateString = date.format(PersistenceDateFormatter)
+                val millis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                eventData = eventData.copy(
+                    singleDayDateString = dateString,
+                    singleDayDate = millis
+                )
+                isSingleDayDatePickerVisible = false
+            },
+            initialDate = eventData.singleDayDateString?.let {
+                try { LocalDate.parse(it, PersistenceDateFormatter) } catch (e: Exception) { LocalDate.now() }
+            } ?: LocalDate.now(),
+            onProgress = { sheetMotionProgress = it }
+        )
+
+        DatePickerSheet(
+            isVisible = showTimelineDatePicker,
+            onDismiss = { showTimelineDatePicker = false },
+            onDateSelected = { date ->
+                selectedTimelineItem?.let { item ->
+                    val formattedDate = date.format(DisplayDateFormatter)
+                    val timestamp = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+
+                    val newList = eventData.subEvents.map {
+                        if (it.id == item.id) it.copy(date = timestamp, dateString = formattedDate) else it
+                    }
+                    eventData = eventData.copy(subEvents = newList)
+                }
+                showTimelineDatePicker = false
+            },
+            initialDate = selectedTimelineItem?.date?.let {
+                Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
+            } ?: LocalDate.now(),
+            onProgress = { sheetMotionProgress = it }
+        )
     }
 }
+
 
 // ---------------------   Step Content Components -------------------------------------
 
@@ -583,10 +676,9 @@ fun EventDaysContent(
 fun EventSingleDayContent(
     eventData: EventCreateUiState,
     updateEventData: (EventCreateUiState) -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    onShowDatePicker: () -> Unit
 ) {
-    var isDatePickerVisible by remember { mutableStateOf(false) }
-
     val selectedDate = remember(eventData.singleDayDateString) {
         eventData.singleDayDateString?.let {
             try {
@@ -646,7 +738,7 @@ fun EventSingleDayContent(
                 modifier = Modifier
                     .weight(1f)
                     .clickable(
-                        onClick = { isDatePickerVisible = true },
+                        onClick = onShowDatePicker,
                         indication = null,
                         interactionSource = remember { MutableInteractionSource() }
                     )
@@ -658,7 +750,7 @@ fun EventSingleDayContent(
                 tint = ContentSecondary,
                 modifier = Modifier
                     .size(24.dp)
-                    .clickable(onClick = { isDatePickerVisible = true })
+                    .clickable(onClick = onShowDatePicker)
             )
         }
 
@@ -679,22 +771,6 @@ fun EventSingleDayContent(
                 modifier = Modifier.clickable(onClick = onSkip)
             )
         }
-
-        if (isDatePickerVisible) {
-            DatePickerSheet(
-                onDismiss = { isDatePickerVisible = false },
-                onDateSelected = { date ->
-                    val dateString = date.format(PersistenceDateFormatter)
-                    val millis = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                    updateEventData(eventData.copy(
-                        singleDayDateString = dateString,
-                        singleDayDate = millis
-                    ))
-                    isDatePickerVisible = false
-                },
-                initialDate = selectedDate ?: LocalDate.now()
-            )
-        }
     }
 }
 
@@ -705,7 +781,8 @@ fun EventMultiDayContent(
     eventData: EventCreateUiState,
     updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit,
-    onInfoClick: () -> Unit
+    onInfoClick: () -> Unit,
+    onShowDatePicker: (SubEventItem) -> Unit
 ) {
     val hasUnsavedEditingItem by remember(eventData.subEvents) {
         derivedStateOf {
@@ -762,7 +839,8 @@ fun EventMultiDayContent(
                             newList
                         }
                         updateEventData(eventData.copy(subEvents = finalNewList))
-                    }
+                    },
+                    onShowDatePicker = onShowDatePicker
                 )
             }
 

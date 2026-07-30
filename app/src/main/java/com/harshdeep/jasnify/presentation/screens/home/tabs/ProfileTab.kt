@@ -41,7 +41,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.graphicsLayer
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -116,6 +124,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -196,10 +205,6 @@ fun ProfileTab(
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
 
-    LaunchedEffect(currentScreen) {
-        onBottomBarVisibilityChange(currentScreen == ProfileScreen.Root)
-    }
-
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
     var showAppTheme by remember { mutableStateOf(false) }
@@ -209,16 +214,57 @@ fun ProfileTab(
 
     var showJoinOrCreateSheet by remember { mutableStateOf(false) }
     var showJoinEventSheet by remember { mutableStateOf(false) }
+    var showEventMenu by remember { mutableStateOf(false) }
+    var selectedEventForMenu by remember { mutableStateOf<UserEvent?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
     var joinSheetStateEnum by remember { mutableStateOf(JoinEventSheetState.ENTER_ID) }
     var enteredEventId by remember { mutableStateOf("") }
     var verifiedEvent by remember { mutableStateOf<Event?>(null) }
     var isVerifying by remember { mutableStateOf(false) }
 
+    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    val isAnyBottomSheetOpen by remember {
+        derivedStateOf {
+            showEditProfile ||
+                    showChangePassword ||
+                    showAppTheme ||
+                    showNavBarStyle ||
+                    showJoinOrCreateSheet ||
+                    showJoinEventSheet ||
+                    showEventMenu ||
+                    showLeaveConfirmation
+        }
+    }
+
+    LaunchedEffect(currentScreen, isAnyBottomSheetOpen) {
+        onBottomBarVisibilityChange(currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen)
+    }
+
+    val targetScale = if (isAnyBottomSheetOpen) {
+        0.92f + (0.08f * sheetMotionProgress)
+    } else {
+        1.0f
+    }
+
+    val backdropScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadius by animateDpAsState(
+        targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
+
     var toastData by remember { mutableStateOf(ToastData()) }
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000.milliseconds)
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -229,17 +275,9 @@ fun ProfileTab(
     val profileUpdateState by profileViewModel.updateState.collectAsState()
     val authState by authViewModel.authState.collectAsState()
 
-    val editProfileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val changePasswordSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val appThemeSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val navBarStyleSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val joinOrCreateSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val joinEventSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     LaunchedEffect(profileUpdateState) {
         if (profileUpdateState is ProfileUpdateState.Success) {
             delay(2000.milliseconds)
-            editProfileSheetState.hide()
             showEditProfile = false
             profileViewModel.resetUpdateState()
         }
@@ -249,7 +287,6 @@ fun ProfileTab(
         if (authState is AuthState.Success) {
             if ((authState as AuthState.Success).message == "Password updated successfully") {
                 delay(2000.milliseconds)
-                changePasswordSheetState.hide()
                 showChangePassword = false
                 authViewModel.resetAuthState()
             } else if ((authState as AuthState.Success).message == "Account deleted successfully" || 
@@ -300,231 +337,124 @@ fun ProfileTab(
         )
     }
 
-    if (showEditProfile) {
-        EditProfileBottomSheet(
-            sheetState = editProfileSheetState,
-            onDismiss = { showEditProfile = false },
-            userName = userName,
-            userHandle = userHandle,
-            profilePic = profilePic,
-            updateState = profileUpdateState,
-            resetUpdateState = { profileViewModel.resetUpdateState() },
-            onUpdateProfile = { name, handle, uri, shouldRemove ->
-                profileViewModel.updateProfile(name, handle, uri, shouldRemove)
-            }
-        )
-    }
-
-
-    if (showChangePassword) {
-        val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
-        ChangePasswordBottomSheet(
-            sheetState = changePasswordSheetState,
-            onDismiss = {
-                showChangePassword = false
-                authViewModel.resetAuthState()
-            },
-            lastChangedText = lastChangedText,
-            authState = authState,
-            resetAuthState = { authViewModel.resetAuthState() },
-            onVerifyPassword = { password, onSuccess ->
-                authViewModel.verifyPassword(password, onSuccess)
-            },
-            onUpdatePassword = { newPassword ->
-                authViewModel.updatePassword(newPassword)
-            },
-            onForgotPassword = { /* Need OTP Service */ }
-        )
-    }
-
-    if (showAppTheme) {
-        AppThemeBottomSheet(
-            sheetState = appThemeSheetState,
-            onDismiss = { showAppTheme = false },
-            currentTheme = selectedTheme,
-            onThemeSelected = { selectedTheme = it }
-        )
-    }
-
-    if (showNavBarStyle) {
-        NavBarStyleBottomSheet(
-            sheetState = navBarStyleSheetState,
-            onDismiss = { showNavBarStyle = false },
-            currentStyle = selectedNavBarStyle,
-            onStyleSelected = { uiViewModel.updateNavBarStyle(it) }
-        )
-    }
-
-    if (showJoinOrCreateSheet) {
-        JoinOrCreateBottomSheet(
-            sheetState = joinOrCreateSheetState,
-            onDismiss = { showJoinOrCreateSheet = false },
-            onCreateNewEvent = {
-                showJoinOrCreateSheet = false
-                mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
-            },
-            onJoinWithId = {
-                showJoinOrCreateSheet = false
-                enteredEventId = ""
-                verifiedEvent = null
-                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
-                showJoinEventSheet = true
-            }
-        )
-    }
-
-    if (showJoinEventSheet) {
-        JoinEventBottomSheet(
-            sheetState = joinEventSheetState,
-            onDismiss = { showJoinEventSheet = false },
-            currentState = joinSheetStateEnum,
-            eventId = enteredEventId,
-            onEventIdChange = { enteredEventId = it },
-            verifiedEvent = verifiedEvent,
-            isVerifying = isVerifying,
-            onVerify = {
-                if (enteredEventId.isBlank()) {
-                    toastData = ToastData("Please enter an Event ID", ToastType.ERROR)
-                    return@JoinEventBottomSheet
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = backdropScale
+                    scaleY = backdropScale
+                    clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
+                    shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                 }
-                isVerifying = true
-                coroutineScope.launch {
-                    val event = eventViewModel.getEventById(enteredEventId)
-                    isVerifying = false
-                    if (event != null) {
-                        verifiedEvent = event
-                        joinSheetStateEnum = JoinEventSheetState.EVENT_DETAILS
+        ) {
+            AnimatedContent(
+                targetState = currentScreen,
+                transitionSpec = {
+                    if (targetState == ProfileScreen.Root) {
+                        (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
                     } else {
-                        toastData = ToastData("Invalid Event ID", ToastType.ERROR)
+                        (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
                     }
-                }
-            },
-            onJoin = {
-                val targetId = verifiedEvent?.id ?: enteredEventId
-                coroutineScope.launch {
-                    val hasAccess = eventViewModel.checkUserHasAccess(targetId)
-                    if (hasAccess) {
-                        eventViewModel.fetchAndSetActiveEvent(targetId)
-                        showJoinEventSheet = false
-                        internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
-                            popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
-                        }
+                },
+                label = "ProfileTabNavigation",
+                modifier = Modifier.fillMaxSize()
+            ) { screen ->
+                if (screen != ProfileScreen.Root) {
+                    BackHandler {
                         currentScreen = ProfileScreen.Root
-                    } else {
-                        toastData = ToastData("You don't have access to this event", ToastType.ERROR)
                     }
                 }
-            },
-            onEditId = {
-                joinSheetStateEnum = JoinEventSheetState.ENTER_ID
-            },
-            toastData = toastData
-        )
-    }
+                when (screen) {
+                    ProfileScreen.Root -> {
+                        ProfileTabContent(
+                            userName = userName,
+                            userHandle = userHandle,
+                            profilePic = profilePic,
+                            eventCount = eventCount,
+                            enquiryCount = enquiryCount,
+                            onEditProfile = { showEditProfile = true },
+                            onNavigateTo = { currentScreen = it },
+                            onLogout = { showLogoutDialog = true }
+                        )
+                    }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        AnimatedContent(
-            targetState = currentScreen,
-            transitionSpec = {
-                if (targetState == ProfileScreen.Root) {
-                    (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
-                } else {
-                    (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
-                }
-            },
-            label = "ProfileTabNavigation",
-            modifier = Modifier.fillMaxSize()
-        ) { screen ->
-            if (screen != ProfileScreen.Root) {
-                BackHandler {
-                    currentScreen = ProfileScreen.Root
-                }
-            }
-            when (screen) {
-                ProfileScreen.Root -> {
-                    ProfileTabContent(
-                        userName = userName,
-                        userHandle = userHandle,
-                        profilePic = profilePic,
-                        eventCount = eventCount,
-                        enquiryCount = enquiryCount,
-                        onEditProfile = { showEditProfile = true },
-                        onNavigateTo = { currentScreen = it },
-                        onLogout = { showLogoutDialog = true }
-                    )
-                }
+                    ProfileScreen.AccountSettings -> {
+                        val firebaseUserCurrent = FirebaseAuth.getInstance().currentUser
+                        val isGoogleUser = firebaseUserCurrent?.providerData?.any { it.providerId == "google.com" } ?: false
+                        val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
+                        AccountSettingsScreen(
+                            email = userEmail,
+                            isGoogleUser = isGoogleUser,
+                            lastChangedText = lastChangedText,
+                            onBack = { currentScreen = ProfileScreen.Root },
+                            onChangePassword = { showChangePassword = true },
+                            onDeleteAccount = { showDeleteAccountDialog = true }
+                        )
+                    }
 
-                ProfileScreen.AccountSettings -> {
-                    val firebaseUserCurrent = FirebaseAuth.getInstance().currentUser
-                    val isGoogleUser = firebaseUserCurrent?.providerData?.any { it.providerId == "google.com" } ?: false
-                    val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
-                    AccountSettingsScreen(
-                        email = userEmail,
-                        isGoogleUser = isGoogleUser,
-                        lastChangedText = lastChangedText,
-                        onBack = { currentScreen = ProfileScreen.Root },
-                        onChangePassword = { showChangePassword = true },
-                        onDeleteAccount = { showDeleteAccountDialog = true }
-                    )
-                }
+                    ProfileScreen.Appearance -> {
+                        AppearanceScreen(
+                            currentTheme = selectedTheme,
+                            currentNavBarStyle = selectedNavBarStyle,
+                            onBack = { currentScreen = ProfileScreen.Root },
+                            onChangeTheme = { showAppTheme = true },
+                            onChangeNavBarStyle = { showNavBarStyle = true }
+                        )
+                    }
 
-                ProfileScreen.Appearance -> {
-                    AppearanceScreen(
-                        currentTheme = selectedTheme,
-                        currentNavBarStyle = selectedNavBarStyle,
-                        onBack = { currentScreen = ProfileScreen.Root },
-                        onChangeTheme = { showAppTheme = true },
-                        onChangeNavBarStyle = { showNavBarStyle = true }
-                    )
-                }
-
-                ProfileScreen.ManageEvents -> {
-                    ManageEventsScreen(
-                        userProfile = userProfile,
-                        eventViewModel = eventViewModel,
-                        mainNavController = mainNavController,
-                        ownedEvents = ownedEvents,
-                        onBack = { currentScreen = ProfileScreen.Root },
-                        onEventClick = { eventId ->
-                            eventViewModel.fetchAndSetActiveEvent(eventId)
-                            internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
-                                popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                    ProfileScreen.ManageEvents -> {
+                        ManageEventsScreen(
+                            userProfile = userProfile,
+                            eventViewModel = eventViewModel,
+                            mainNavController = mainNavController,
+                            ownedEvents = ownedEvents,
+                            onBack = { currentScreen = ProfileScreen.Root },
+                            onEventClick = { eventId ->
+                                eventViewModel.fetchAndSetActiveEvent(eventId)
+                                internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                                }
+                                currentScreen = ProfileScreen.Root
+                            },
+                            onJoinOrCreateClick = { showJoinOrCreateSheet = true },
+                            onShowMenu = { event ->
+                                selectedEventForMenu = event
+                                showEventMenu = true
                             }
-                            currentScreen = ProfileScreen.Root
-                        },
-                        onJoinOrCreateClick = { showJoinOrCreateSheet = true }
-                    )
-                }
+                        )
+                    }
 
-                ProfileScreen.MyEnquiries -> {
-                    MyEnquiriesScreen(
-                        enquiryViewModel = enquiryViewModel,
-                        userId = firebaseUser?.uid ?: "",
-                        onBack = { currentScreen = ProfileScreen.Root },
-                        onEnquiryClick = { enquiry ->
-                            mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
-                        }
-                    )
-                }
+                    ProfileScreen.MyEnquiries -> {
+                        MyEnquiriesScreen(
+                            enquiryViewModel = enquiryViewModel,
+                            userId = firebaseUser?.uid ?: "",
+                            onBack = { currentScreen = ProfileScreen.Root },
+                            onEnquiryClick = { enquiry ->
+                                mainNavController.navigate("chat_screen/${enquiry.merchantId}/${enquiry.venueId}")
+                            }
+                        )
+                    }
 
-                ProfileScreen.Notifications -> {
-                    NotificationsScreen(
-                        onBack = { currentScreen = ProfileScreen.Root }
-                    )
-                }
+                    ProfileScreen.Notifications -> {
+                        NotificationsScreen(
+                            onBack = { currentScreen = ProfileScreen.Root }
+                        )
+                    }
 
-                ProfileScreen.TermsAndConditions -> {
-                    LegalScreen(
-                        title = "Terms & Conditions",
-                        onBack = { currentScreen = ProfileScreen.Root }
-                    )
-                }
+                    ProfileScreen.TermsAndConditions -> {
+                        LegalScreen(
+                            title = "Terms & Conditions",
+                            onBack = { currentScreen = ProfileScreen.Root }
+                        )
+                    }
 
-                ProfileScreen.PrivacyPolicy -> {
-                    LegalScreen(
-                        title = "Privacy Policy",
-                        onBack = { currentScreen = ProfileScreen.Root }
-                    )
+                    ProfileScreen.PrivacyPolicy -> {
+                        LegalScreen(
+                            title = "Privacy Policy",
+                            onBack = { currentScreen = ProfileScreen.Root }
+                        )
+                    }
                 }
             }
         }
@@ -532,7 +462,7 @@ fun ProfileTab(
         val isSheetWithToastShowing = showJoinEventSheet || showEditProfile || showChangePassword
         
         AnimatedVisibility(
-            visible = toastData.message != null && !isSheetWithToastShowing,
+            visible = toastData.message != null && !isSheetWithToastShowing && !isAnyBottomSheetOpen,
             enter = slideInVertically(initialOffsetY = { -it }),
             exit = slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
@@ -546,8 +476,201 @@ fun ProfileTab(
                 type = toastData.type
             )
         }
+
+        if (showEditProfile) {
+            EditProfileBottomSheet(
+                onDismiss = { showEditProfile = false },
+                userName = userName,
+                userHandle = userHandle,
+                profilePic = profilePic,
+                updateState = profileUpdateState,
+                resetUpdateState = { profileViewModel.resetUpdateState() },
+                onUpdateProfile = { name, handle, uri, shouldRemove ->
+                    profileViewModel.updateProfile(name, handle, uri, shouldRemove)
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+
+        if (showChangePassword) {
+            val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
+            ChangePasswordBottomSheet(
+                onDismiss = {
+                    showChangePassword = false
+                    authViewModel.resetAuthState()
+                },
+                lastChangedText = lastChangedText,
+                authState = authState,
+                resetAuthState = { authViewModel.resetAuthState() },
+                onVerifyPassword = { password, onSuccess ->
+                    authViewModel.verifyPassword(password, onSuccess)
+                },
+                onUpdatePassword = { newPassword ->
+                    authViewModel.updatePassword(newPassword)
+                },
+                onForgotPassword = { /* Need OTP Service */ },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAppTheme) {
+            AppThemeBottomSheet(
+                onDismiss = { showAppTheme = false },
+                currentTheme = selectedTheme,
+                onThemeSelected = { selectedTheme = it },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showNavBarStyle) {
+            NavBarStyleBottomSheet(
+                onDismiss = { showNavBarStyle = false },
+                currentStyle = selectedNavBarStyle,
+                onStyleSelected = { uiViewModel.updateNavBarStyle(it) },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showJoinOrCreateSheet) {
+            JoinOrCreateBottomSheet(
+                onDismiss = { showJoinOrCreateSheet = false },
+                onCreateNewEvent = {
+                    showJoinOrCreateSheet = false
+                    mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+                },
+                onJoinWithId = {
+                    showJoinOrCreateSheet = false
+                    enteredEventId = ""
+                    verifiedEvent = null
+                    joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+                    showJoinEventSheet = true
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showJoinEventSheet) {
+            JoinEventBottomSheet(
+                onDismiss = { showJoinEventSheet = false },
+                currentState = joinSheetStateEnum,
+                eventId = enteredEventId,
+                onEventIdChange = { enteredEventId = it },
+                verifiedEvent = verifiedEvent,
+                isVerifying = isVerifying,
+                onVerify = {
+                    if (enteredEventId.isBlank()) {
+                        toastData = ToastData("Please enter an Event ID", ToastType.ERROR)
+                        return@JoinEventBottomSheet
+                    }
+                    isVerifying = true
+                    coroutineScope.launch {
+                        val event = eventViewModel.getEventById(enteredEventId)
+                        isVerifying = false
+                        if (event != null) {
+                            verifiedEvent = event
+                            joinSheetStateEnum = JoinEventSheetState.EVENT_DETAILS
+                        } else {
+                            toastData = ToastData("Invalid Event ID", ToastType.ERROR)
+                        }
+                    }
+                },
+                onJoin = {
+                    val targetId = verifiedEvent?.id ?: enteredEventId
+                    coroutineScope.launch {
+                        val hasAccess = eventViewModel.checkUserHasAccess(targetId)
+                        if (hasAccess) {
+                            eventViewModel.fetchAndSetActiveEvent(targetId)
+                            showJoinEventSheet = false
+                            internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                                popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                            }
+                            currentScreen = ProfileScreen.Root
+                        } else {
+                            toastData = ToastData("You don't have access to this event", ToastType.ERROR)
+                        }
+                    }
+                },
+                onEditId = {
+                    joinSheetStateEnum = JoinEventSheetState.ENTER_ID
+                },
+                toastData = toastData,
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showEventMenu && selectedEventForMenu != null) {
+            val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+            val isCurrentEvent = selectedEventForMenu!!.eventId == activeEventId
+            val isAdminOfEvent = userProfile?.uid == selectedEventForMenu!!.adminId
+
+            MenuBottomSheet(
+                items = listOfNotNull(
+                    if (!isCurrentEvent) {
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Switch to Event",
+                                icon = painterResource(R.drawable.ic_shuffle),
+                                iconPlacement = IconPlacement.Left,
+                                onClick = {
+                                    eventViewModel.fetchAndSetActiveEvent(selectedEventForMenu!!.eventId)
+                                    internalNavController.navigate(Screen.HomeTabScreen.Home.route) {
+                                        popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                                    }
+                                    currentScreen = ProfileScreen.Root
+                                    showEventMenu = false
+                                }
+                            )
+                        )
+                    } else null,
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Event Detail",
+                            icon = painterResource(R.drawable.ic_info),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                mainNavController.navigate(Screen.EventDetail.route)
+                                showEventMenu = false
+                            }
+                        )
+                    ),
+                    if (!isAdminOfEvent) {
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Leave Event",
+                                icon = painterResource(R.drawable.ic_logout),
+                                iconPlacement = IconPlacement.Left,
+                                contentColor = MaterialTheme.colorScheme.error,
+                                onClick = {
+                                    showEventMenu = false
+                                    showLeaveConfirmation = true
+                                }
+                            )
+                        )
+                    } else null
+                ),
+                onCancelClick = { showEventMenu = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showLeaveConfirmation && selectedEventForMenu != null) {
+            ConfirmationBottomSheet(
+                heading = "Are you sure?",
+                subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
+                confirmButtonText = "Leave Event",
+                onDismiss = { showLeaveConfirmation = false },
+                isDestructive = true,
+                onConfirm = {
+                    eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
+                    showLeaveConfirmation = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
     }
 }
+
 
 // ============================================================================================================================================
 // ROOT SCREEN: PROFILE CONTENT
@@ -931,7 +1054,8 @@ fun ManageEventsScreen(
     ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
     onBack: () -> Unit,
     onEventClick: (String) -> Unit,
-    onJoinOrCreateClick: () -> Unit
+    onJoinOrCreateClick: () -> Unit,
+    onShowMenu: (UserEvent) -> Unit
 ) {
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val isUserEventsLoading by eventViewModel.isUserEventsLoading.collectAsStateWithLifecycle()
@@ -962,73 +1086,6 @@ fun ManageEventsScreen(
         if (!isUserEventsLoading && userProfile != null && allUserEvents.isEmpty()) {
             mainNavController.navigate(Screen.OnboardingType.route)
         }
-    }
-
-    var showEventMenu by remember { mutableStateOf(false) }
-    var selectedEventForMenu by remember { mutableStateOf<UserEvent?>(null) }
-    var showLeaveConfirmation by remember { mutableStateOf(false) }
-
-    if (showEventMenu && selectedEventForMenu != null) {
-        val isCurrentEvent = selectedEventForMenu!!.eventId == activeEventId
-        val isAdminOfEvent = userProfile?.uid == selectedEventForMenu!!.adminId
-
-        MenuBottomSheet(
-            items = listOfNotNull(
-                if (!isCurrentEvent) {
-                    listOf(
-                        MenuSheetActionItem(
-                            text = "Switch to Event",
-                            icon = painterResource(R.drawable.ic_shuffle),
-                            iconPlacement = IconPlacement.Left,
-                            onClick = {
-                                onEventClick(selectedEventForMenu!!.eventId)
-                                showEventMenu = false
-                            }
-                        )
-                    )
-                } else null,
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Event Detail",
-                        icon = painterResource(R.drawable.ic_info),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            mainNavController.navigate(Screen.EventDetail.route)
-                            showEventMenu = false
-                        }
-                    )
-                ),
-                if (!isAdminOfEvent) {
-                    listOf(
-                        MenuSheetActionItem(
-                            text = "Leave Event",
-                            icon = painterResource(R.drawable.ic_logout),
-                            iconPlacement = IconPlacement.Left,
-                            contentColor = MaterialTheme.colorScheme.error,
-                            onClick = {
-                                showEventMenu = false
-                                showLeaveConfirmation = true
-                            }
-                        )
-                    )
-                } else null
-            ),
-            onCancelClick = { showEventMenu = false }
-        )
-    }
-
-    if (showLeaveConfirmation && selectedEventForMenu != null) {
-        ConfirmationBottomSheet(
-            heading = "Are you sure?",
-            subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
-            confirmButtonText = "Leave Event",
-            onDismiss = { showLeaveConfirmation = false },
-            isDestructive = true,
-            onConfirm = {
-                eventViewModel.leaveEvent(selectedEventForMenu!!.eventId)
-                showLeaveConfirmation = false
-            }
-        )
     }
 
     Scaffold(
@@ -1121,8 +1178,7 @@ fun ManageEventsScreen(
                         isAdmin = userProfile?.uid == userEvent.adminId,
                         onEventClick = { onEventClick(userEvent.eventId) },
                         onMenuClick = {
-                            selectedEventForMenu = userEvent
-                            showEventMenu = true
+                            onShowMenu(userEvent)
                         }
                     )
                 }

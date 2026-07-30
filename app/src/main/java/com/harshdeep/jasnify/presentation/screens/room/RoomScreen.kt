@@ -1,5 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.room
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -19,7 +23,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,6 +47,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBot
 import com.harshdeep.jasnify.presentation.components.cards.UserListItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -63,10 +71,40 @@ fun RoomScreen(
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
+
+    SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
+
     var searchQuery by remember { mutableStateOf("") }
     var showProfileBottomSheet by remember { mutableStateOf(false) }
     var showAccessBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
+
+    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    val isAnyBottomSheetOpen by remember {
+        derivedStateOf {
+            showProfileBottomSheet || showAccessBottomSheet
+        }
+    }
+
+    val targetScale = if (isAnyBottomSheetOpen) {
+        0.92f + (0.08f * sheetMotionProgress)
+    } else {
+        1.0f
+    }
+
+    val backdropScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadius by animateDpAsState(
+        targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
 
     val isAdmin = currentUserRole == UserRole.OWNER
 
@@ -78,128 +116,151 @@ fun RoomScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        focusManager.clearFocus()
-                    }
-            ) {
-                CustomTopBar(
-                    title = "Manage Room Access",
-                    onBackClick = onBackClick,
-                    menuIcon = if (isAdmin) TopIcon.Predefined.PLUS else TopIcon.Predefined.MENU_VERTICAL,
-                    onMenuClick = {
-                        if (isAdmin) {
-                            showAccessBottomSheet = true
-                        } else {
-                            onMenuClick()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        Scaffold(
+            topBar = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            focusManager.clearFocus()
                         }
-                    },
-                    backIcon = TopIcon.Predefined.BACK,
-                    buttonStyle = ButtonBackground.TRANSLUCENT,
-                    translucentAlpha = 0.5f
-                )
-            }
-        },
-        modifier = modifier.fillMaxSize()
-            .statusBarsPadding(),
-        containerColor = BackgroundSecondary,
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(12.dp)
-                .pointerInput(Unit) {
-                    detectTapGestures(onTap = { focusManager.clearFocus() })
-                }
-        ) {
-            CustomSearchBar(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = "Search a user",
-                backgroundColor = SurfacePrimary
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // List of Users Container
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(CornerExtraLarge))
-                    .background(Color.Transparent)
-                    .navigationBarsPadding(),
-            ) {
-                itemsIndexed(filteredUsers) { index, user ->
-                    val isFirst = index == 0
-                    val isLast = index == filteredUsers.size - 1
-
-                    // Determine shape based on position in list
-                    val itemShape = when {
-                        isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
-                        isFirst -> RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge)
-                        isLast -> RoundedCornerShape(bottomStart = CornerExtraLarge, bottomEnd = CornerExtraLarge)
-                        else -> RectangleShape
-                    }
-
-                    UserListItem(
-                        user = user,
-                        shape = itemShape,
-                        onClick = {
-                            selectedUser = user
-                            showProfileBottomSheet = true
+                ) {
+                    CustomTopBar(
+                        title = "Manage Room Access",
+                        onBackClick = onBackClick,
+                        menuIcon = if (isAdmin) TopIcon.Predefined.PLUS else TopIcon.Predefined.MENU_VERTICAL,
+                        onMenuClick = {
+                            if (isAdmin) {
+                                showAccessBottomSheet = true
+                            } else {
+                                onMenuClick()
+                            }
                         },
-                        modifier = Modifier.padding(bottom = 2.dp)
+                        backIcon = TopIcon.Predefined.BACK,
+                        buttonStyle = ButtonBackground.TRANSLUCENT,
+                        translucentAlpha = 0.5f
                     )
+                }
+            },
+            modifier = modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = backdropScale
+                    scaleY = backdropScale
+                    clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
+                    shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                },
+            containerColor = BackgroundSecondary,
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(12.dp)
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { focusManager.clearFocus() })
+                    }
+            ) {
+                CustomSearchBar(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = "Search a user",
+                    backgroundColor = SurfacePrimary
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // List of Users Container
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(CornerExtraLarge))
+                        .background(Color.Transparent)
+                        .navigationBarsPadding(),
+                ) {
+                    itemsIndexed(filteredUsers) { index, user ->
+                        val isFirst = index == 0
+                        val isLast = index == filteredUsers.size - 1
+
+                        // Determine shape based on position in list
+                        val itemShape = when {
+                            isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
+                            isFirst -> RoundedCornerShape(
+                                topStart = CornerExtraLarge,
+                                topEnd = CornerExtraLarge
+                            )
+
+                            isLast -> RoundedCornerShape(
+                                bottomStart = CornerExtraLarge,
+                                bottomEnd = CornerExtraLarge
+                            )
+
+                            else -> RectangleShape
+                        }
+
+                        UserListItem(
+                            user = user,
+                            shape = itemShape,
+                            onClick = {
+                                selectedUser = user
+                                showProfileBottomSheet = true
+                            },
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
+                    }
                 }
             }
         }
-    }
 
-    if (showAccessBottomSheet) {
-        focusManager.clearFocus()
-        RoomAccessBottomSheet(
-            onDismissRequest = { showAccessBottomSheet = false },
-            onGrantAccess = { email, role ->
-                onGrantAccess(email, role)
-                showAccessBottomSheet = false
-            },
-            searchResults = searchResults,
-            onSearch = onSearch
-        )
-    }
+        if (showAccessBottomSheet) {
+            focusManager.clearFocus()
+            RoomAccessBottomSheet(
+                onDismissRequest = { showAccessBottomSheet = false },
+                onGrantAccess = { email, role ->
+                    onGrantAccess(email, role)
+                    showAccessBottomSheet = false
+                },
+                searchResults = searchResults,
+                onSearch = onSearch,
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
 
-    if (showProfileBottomSheet && selectedUser != null) {
-        focusManager.clearFocus()
-        RoomProfileBottomSheet(
-            user = selectedUser!!,
-            currentUserRole = currentUserRole,
-            isSelf = isSelf(selectedUser!!),
-            onDismissRequest = { showProfileBottomSheet = false },
-            onRoleChange = { newRole ->
-                onRoleChange(selectedUser!!, newRole)
-                showProfileBottomSheet = false
-            },
-            onRemove = {
-                onRemove(selectedUser!!)
-                showProfileBottomSheet = false
-            },
-            onReport = {
-                onReport(selectedUser!!)
-                showProfileBottomSheet = false
-            },
-            onLeave = {
-                onLeave()
-                showProfileBottomSheet = false
-            }
-        )
+        if (showProfileBottomSheet && selectedUser != null) {
+            focusManager.clearFocus()
+            RoomProfileBottomSheet(
+                user = selectedUser!!,
+                currentUserRole = currentUserRole,
+                isSelf = isSelf(selectedUser!!),
+                onDismissRequest = { showProfileBottomSheet = false },
+                onRoleChange = { newRole ->
+                    onRoleChange(selectedUser!!, newRole)
+                    showProfileBottomSheet = false
+                },
+                onRemove = {
+                    onRemove(selectedUser!!)
+                    showProfileBottomSheet = false
+                },
+                onReport = {
+                    onReport(selectedUser!!)
+                    showProfileBottomSheet = false
+                },
+                onLeave = {
+                    onLeave()
+                    showProfileBottomSheet = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
     }
 }
 

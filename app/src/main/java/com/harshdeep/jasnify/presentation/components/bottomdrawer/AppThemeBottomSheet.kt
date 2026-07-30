@@ -22,16 +22,16 @@ enum class AppThemeOption(val label: String, val bodyText: String? = null) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppThemeBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     currentTheme: AppThemeOption,
-    onThemeSelected: (AppThemeOption) -> Unit
+    onThemeSelected: (AppThemeOption) -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     CustomBottomSheet(
         heading = "App Theme",
         sheetHeight = 306.dp,
-        sheetState = sheetState,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        onProgress = onProgress
     ) {
         AppThemeContent(
             currentTheme = currentTheme,

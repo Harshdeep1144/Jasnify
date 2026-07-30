@@ -60,11 +60,11 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -271,11 +271,11 @@ private fun VenueDetailContent(
     val coroutineScope = rememberCoroutineScope()
     val venue = venueDetail
 
-    val addressSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAddressSheet by remember { mutableStateOf(false) }
 
-    val aboutSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showAboutSheet by remember { mutableStateOf(false) }
+
+    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
 
     // Intercept back button if any custom bottom sheet is open inside this content block
     BackHandler(enabled = showAddressSheet || showAboutSheet) {
@@ -639,8 +639,8 @@ private fun VenueDetailContent(
         if (showAddressSheet) {
             CustomBottomSheet(
                 heading = "Venue Address",
-                sheetState = addressSheetState,
                 onDismiss = { showAddressSheet = false },
+                onProgress = { sheetMotionProgress = it },
                 sheetHeight = 360.dp
             ) {
                 val context = LocalContext.current
@@ -732,34 +732,19 @@ private fun VenueDetailContent(
         }
 
         if (showAboutSheet) {
-            ModalBottomSheet(
-                onDismissRequest = { showAboutSheet = false },
-                sheetState = aboutSheetState,
-                dragHandle = {
-                    Box(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .width(56.dp)
-                            .height(4.dp)
-                            .background(ContentTertiary, shape = SquircleShape(100))
-                    )
-                },
-                scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-                containerColor = SurfacePrimary,
+            CustomBottomSheet(
+                heading = "About ${venue.name}",
+                onDismiss = { showAboutSheet = false },
+                onProgress = { sheetMotionProgress = it },
+                sheetHeight = null,
+                showDragHandle = true,
+                showCloseButton = true
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
                         .padding(12.dp),
                 ) {
-                    Text(
-                        text = "About ${venue.name}",
-                        style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                        color = ContentPrimary
-                    )
-                    Spacer(Modifier.height(16.dp))
-
                     // Simulating the data coming from database
                     val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
                     val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")

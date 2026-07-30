@@ -25,7 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,15 +77,18 @@ enum class NavBarStyleOption(val label: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavBarStyleBottomSheet(
-    sheetState: SheetState,
     onDismiss: () -> Unit,
     currentStyle: NavBarStyleOption,
-    onStyleSelected: (NavBarStyleOption) -> Unit
+    onStyleSelected: (NavBarStyleOption) -> Unit,
+    onProgress: ((Float) -> Unit)? = null
 ) {
     CustomBottomSheet(
         heading = "Nav Bar Style",
-        sheetState = sheetState,
-        onDismiss = onDismiss
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
     ) {
         NavBarStyleContent(
             currentStyle = currentStyle,

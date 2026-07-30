@@ -1,6 +1,5 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,11 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.SheetState
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,23 +35,14 @@ fun CustomSuccessBottomSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     buttonText: String = "Close",
-    sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    onProgress: ((Float) -> Unit)? = null
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = SurfacePrimary,
-        shape = SquircleShape(topStart = 28.dp, topEnd = 28.dp),
-        scrimColor = MaterialTheme.colorScheme.scrim.copy(alpha = 0.8f),
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .size(width = 44.dp, height = 4.dp)
-                    .background(Color.Gray.copy(alpha = 0.4f), RoundedCornerShape(2.dp))
-            )
-        },
-        modifier = modifier
+    CustomBottomSheet(
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = false
     ) {
         Column {
             Column(
