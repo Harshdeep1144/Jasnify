@@ -1,9 +1,8 @@
 package com.harshdeep.jasnify.domain.model
 
-import com.google.firebase.firestore.PropertyName
 import java.util.UUID
 
-enum class VenueStatus {
+enum class VendorStatus {
     DRAFT,
     PENDING,
     PUBLISHED,
@@ -11,38 +10,40 @@ enum class VenueStatus {
     HIDDEN
 }
 
-data class Venue(
+data class Vendor(
     val id: String = UUID.randomUUID().toString(),
     val merchantId: String = "",
     val name: String = "",
-    val status: VenueStatus = VenueStatus.DRAFT,
+    val category: String = "",
+    val categoryIconRes: String? = null,
+    val status: VendorStatus = VendorStatus.DRAFT,
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
-    val type: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",
     val priceStartsFrom: String = "₹0",
+    val priceUnit: String = "per day",
     val images: List<String> = emptyList(),
     val enquiriesLastMonth: Int = 0,
     val favorite: Boolean = false,
     val aboutText: String? = null,
-    val mediaItems: List<VenueMediaItem> = emptyList(),
-    val pricingItems: List<VenuePricingItem> = emptyList(),
-    val highlightItems: List<VenueHighlightItem> = emptyList(),
-    val galleryCategories: List<VenueGalleryCategory> = emptyList(),
-    val reviewsData: VenueReviewsData? = null,
+    val mediaItems: List<VendorMediaItem> = emptyList(),
+    val pricingItems: List<VendorPricingItem> = emptyList(),
+    val highlightItems: List<VendorHighlightItem> = emptyList(),
+    val galleryCategories: List<VendorGalleryCategory> = emptyList(),
+    val reviewsData: VendorReviewsData? = null,
     val timestamp: Long = System.currentTimeMillis()
 )
 
-data class VenueMediaItem(
+data class VendorMediaItem(
     val url: String = "",
     val video: Boolean = false,
     val videoDuration: String? = null
 )
 
-data class VenuePricingItem(
-    val id: String = java.util.UUID.randomUUID().toString(),
+data class VendorPricingItem(
+    val id: String = UUID.randomUUID().toString(),
     val title: String = "",
     val price: String = "",
     val unit: String = "",
@@ -50,33 +51,32 @@ data class VenuePricingItem(
     val labelText: String = "Price Point Offer"
 )
 
-data class VenueHighlightItem(
-    val id: String = java.util.UUID.randomUUID().toString(),
+data class VendorHighlightItem(
+    val id: String = UUID.randomUUID().toString(),
     val label: String = "",
     val value: String = "",
     val iconRes: String? = null
 )
 
-data class VenueGalleryCategory(
+data class VendorGalleryCategory(
     val categoryName: String = "",
-    val mediaItems: List<VenueMediaItem> = emptyList()
+    val mediaItems: List<VendorMediaItem> = emptyList()
 )
 
-data class VenueReviewsData(
-    val ratingBreakdown: List<VenueRatingBreakdown> = emptyList(),
-    val reviews: List<VenueReview> = emptyList(),
+data class VendorReviewsData(
+    val ratingBreakdown: List<VendorRatingBreakdown> = emptyList(),
+    val reviews: List<VendorReview> = emptyList(),
     val totalRatingsCount: String = "0",
     val distribution: List<Float> = listOf(0f, 0f, 0f, 0f, 0f),
-    val subMetrics: List<VenueRatingBreakdown> = emptyList()
+    val subMetrics: List<VendorRatingBreakdown> = emptyList()
 )
 
-data class VenueRatingBreakdown(
+data class VendorRatingBreakdown(
     val score: String = "0.0",
     val label: String = ""
 )
 
-
-data class VenueReview(
+data class VendorReview(
     val id: String = "",
     val userName: String = "",
     val userAvatarUrl: String? = null,
@@ -85,11 +85,11 @@ data class VenueReview(
     val reviewText: String = "",
     val isVerified: Boolean = false,
     val attachedImages: List<String> = emptyList(),
-    val merchantReply: VenueMerchantReply? = null,
+    val merchantReply: VendorMerchantReply? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
 
-data class VenueMerchantReply(
+data class VendorMerchantReply(
     val merchantName: String = "",
     val merchantAvatarUrl: String? = null,
     val relativeTime: String = "",

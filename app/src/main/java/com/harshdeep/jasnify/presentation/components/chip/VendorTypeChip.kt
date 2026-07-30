@@ -46,7 +46,7 @@ fun VendorTypeChip(
         Column(
             modifier = modifier
                 .clip(SquircleShape(CornerLargeIncrease))
-                .widthIn(min = 190.dp)
+                .widthIn(min = 120.dp)
                 .background(SurfaceSecondary)
                 .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLargeIncrease))
                 .clickable { onClick() }
@@ -57,13 +57,13 @@ fun VendorTypeChip(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = label,
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(60.dp),
                 contentScale = ContentScale.Fit
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
-                style = JasnifyTheme.typography.headingMedium,
+                style = JasnifyTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
                 color = ContentPrimary
             )
@@ -89,7 +89,7 @@ fun VendorTypeChip(
             Column{
                 Text(
                     text = label,
-                    style = JasnifyTheme.typography.headingMedium,
+                    style = JasnifyTheme.typography.labelLarge,
                     fontWeight = FontWeight.Medium,
                     color = ContentPrimary
                 )
