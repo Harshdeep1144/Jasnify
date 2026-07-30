@@ -59,9 +59,8 @@ fun EventTimeLineInfoSheet(
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp),
+                    .height(250.dp),
                 contentScale = ContentScale.Crop,
-                alpha = 0.8f
             )
         }
     ) {

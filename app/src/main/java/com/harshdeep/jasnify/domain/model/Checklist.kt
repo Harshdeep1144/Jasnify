@@ -12,7 +12,8 @@ data class Checklist(
     val bgColorHex: Long = 0xFFE1F5FE, // Use Long for hex color
     val pinned: Boolean = false,
     val archived: Boolean = false,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val createdAt: Long = System.currentTimeMillis()
 )
 
 data class ChecklistItem(

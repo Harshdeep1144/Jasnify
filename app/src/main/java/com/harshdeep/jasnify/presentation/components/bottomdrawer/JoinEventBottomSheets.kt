@@ -141,13 +141,25 @@ fun JoinEventBottomSheet(
     }
 
     CustomBottomSheet(
-        heading = if (currentState == JoinEventSheetState.ENTER_ID) "Event ID" else "Event Details",
+        heading = if (currentState == JoinEventSheetState.ENTER_ID) "Event ID" else "",
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
         showDragHandle = true,
         showCloseButton = true,
         hasToast = toastData.message != null,
+        headerBackgroundImage = {
+            if(currentState == JoinEventSheetState.EVENT_DETAILS){
+                Image(
+                    painter = painterResource(id = R.drawable.bg_pattern_overlay_events_doodle),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(250.dp),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+        },
         toast = {
             AnimatedVisibility(
                 visible = toastData.message != null,

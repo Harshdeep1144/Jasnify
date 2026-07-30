@@ -15,7 +15,8 @@ fun ChecklistEntity.toChecklist(): Checklist {
         bgColorHex = bgColorHex,
         pinned = pinned,
         archived = archived,
-        lastUpdated = lastUpdated
+        lastUpdated = lastUpdated,
+        createdAt = createdAt
     )
 }
 
@@ -30,6 +31,7 @@ fun Checklist.toChecklistEntity(): ChecklistEntity {
         bgColorHex = bgColorHex,
         pinned = pinned,
         archived = archived,
-        lastUpdated = lastUpdated
+        lastUpdated = lastUpdated,
+        createdAt = createdAt
     )
 }

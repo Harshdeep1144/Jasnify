@@ -15,5 +15,6 @@ data class ChecklistEntity(
     val bgColorHex: Long,
     val pinned: Boolean,
     val archived: Boolean,
-    val lastUpdated: Long
+    val lastUpdated: Long,
+    val createdAt: Long
 )

@@ -704,7 +704,8 @@ fun ChecklistsTab(
                                                         "Oldest First" -> list.sortedWith(
                                                             compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated })
 
-                                                        else -> list.sortedByDescending { it.pinned }
+                                                        else -> list.sortedWith(
+                                                            compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt })
                                                     }
                                                 }
                                             }
@@ -1100,7 +1101,8 @@ fun ChecklistDetailScreen(
             bgColorHex = bgColor.toArgb().toLong(),
             pinned = pinned,
             archived = archived,
-            lastUpdated = System.currentTimeMillis()
+            lastUpdated = System.currentTimeMillis(),
+            createdAt = checklist?.createdAt ?: System.currentTimeMillis()
         )
         onBackClick(result)
     }
@@ -1153,7 +1155,8 @@ fun ChecklistDetailScreen(
                                 bgColorHex = bgColor.toArgb().toLong(),
                                 pinned = pinned,
                                 archived = archived,
-                                lastUpdated = System.currentTimeMillis()
+                                lastUpdated = System.currentTimeMillis(),
+                                createdAt = checklist?.createdAt ?: System.currentTimeMillis()
                             )
                             onBackClick(result)
                         },
@@ -1509,7 +1512,7 @@ fun ChecklistArchivesScreen(
             when (selectedFilter) {
                 "Recent First" -> list.sortedByDescending { it.lastUpdated }
                 "Oldest First" -> list.sortedBy { it.lastUpdated }
-                else -> list
+                else -> list.sortedByDescending { it.createdAt }
             }
         }
     }
