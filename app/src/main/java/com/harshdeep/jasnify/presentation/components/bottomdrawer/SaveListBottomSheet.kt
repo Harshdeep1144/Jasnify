@@ -41,12 +41,14 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
@@ -73,13 +75,6 @@ fun SaveListBottomSheet(
 ) {
     var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
     var showInfoSheet by remember { mutableStateOf(false) }
-
-    if (showInfoSheet) {
-        EventTimeLineInfoSheet(
-            onDismiss = { showInfoSheet = false },
-            onProgress = onProgress
-        )
-    }
 
     CustomBottomSheet(
         heading = "Manage Saved List",
@@ -293,5 +288,12 @@ fun SaveListBottomSheet(
                 }
             }
         }
+    }
+
+    if (showInfoSheet) {
+        EventTimeLineInfoSheet(
+            onDismiss = { showInfoSheet = false },
+            onProgress = onProgress
+        )
     }
 }

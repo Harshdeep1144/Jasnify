@@ -235,8 +235,14 @@ fun ChecklistsTab(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
+    // Detail Screen Bottom Sheets (Hoisted to root level to prevent scale issues)
+    var showDetailColorPicker by remember { mutableStateOf(false) }
+    var showDetailMenu by remember { mutableStateOf(false) }
+    var showDetailDeleteConfirmation by remember { mutableStateOf(false) }
+    var detailColorBeforePicker by remember { mutableStateOf(Color.Transparent) }
+    var currentDetailBgColor by remember { mutableStateOf(Color.Transparent) }
+
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
-    var isDetailSheetOpen by remember { mutableStateOf(false) }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
@@ -244,7 +250,9 @@ fun ChecklistsTab(
                     showRoomMenuBottomSheet ||
                     (userToRemove != null) ||
                     showLeaveConfirmation ||
-                    isDetailSheetOpen
+                    showDetailColorPicker ||
+                    showDetailMenu ||
+                    showDetailDeleteConfirmation
         }
     }
 
@@ -325,7 +333,7 @@ fun ChecklistsTab(
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || (userToRemove != null)
+    val isAnySheetVisible = isAnyBottomSheetOpen
 
     RoomAccessGuardian(
         hasAccess = hasAccess,
@@ -365,6 +373,9 @@ fun ChecklistsTab(
                                     isViewer = isViewer,
                                     onBackClick = { updatedChecklist ->
                                         focusManager.clearFocus()
+                                        showDetailColorPicker = false
+                                        showDetailMenu = false
+                                        showDetailDeleteConfirmation = false
                                         if (updatedChecklist != null) {
                                             val isEmpty =
                                                 updatedChecklist.title.isBlank() && updatedChecklist.items.isEmpty()
@@ -388,6 +399,9 @@ fun ChecklistsTab(
                                     },
                                     onDelete = { id ->
                                         focusManager.clearFocus()
+                                        showDetailColorPicker = false
+                                        showDetailMenu = false
+                                        showDetailDeleteConfirmation = false
                                         viewModel.deleteChecklist(id)
                                         selectedChecklist = null
                                         isAddingNew = false
@@ -401,6 +415,9 @@ fun ChecklistsTab(
                                     },
                                     onArchive = { checklist ->
                                         focusManager.clearFocus()
+                                        showDetailColorPicker = false
+                                        showDetailMenu = false
+                                        showDetailDeleteConfirmation = false
                                         viewModel.toggleArchive(checklist, isViewer)
                                         selectedChecklist = null
                                         isAddingNew = false
@@ -412,8 +429,15 @@ fun ChecklistsTab(
                                     isArchived = archivedChecklists.any { it.id == targetScreenState.checklist?.id },
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@AnimatedContent,
-                                    onSheetVisibilityChange = { isDetailSheetOpen = it },
-                                    onProgress = { sheetMotionProgress = it }
+                                    onOpenColorPicker = { initialColor ->
+                                        detailColorBeforePicker = initialColor
+                                        currentDetailBgColor = initialColor
+                                        showDetailColorPicker = true
+                                    },
+                                    onOpenMenu = {
+                                        showDetailMenu = true
+                                    },
+                                    currentBgColor = currentDetailBgColor
                                 )
                             }
 
@@ -946,6 +970,81 @@ fun ChecklistsTab(
                 )
             }
 
+            // Detail Screen Bottom Sheets Hoisted Outside Scaled Container
+            if (showDetailColorPicker) {
+                ColorPickerBottomSheet(
+                    initialColor = detailColorBeforePicker,
+                    onColorPreview = { previewColor ->
+                        currentDetailBgColor = previewColor
+                    },
+                    onConfirm = { finalColor ->
+                        currentDetailBgColor = finalColor
+                        detailColorBeforePicker = finalColor
+                        showDetailColorPicker = false
+                    },
+                    onDismiss = {
+                        currentDetailBgColor = detailColorBeforePicker
+                        showDetailColorPicker = false
+                    },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
+
+            if (showDetailMenu) {
+                val isDetailArchived = archivedChecklists.any { it.id == selectedChecklist?.id }
+                MenuBottomSheet(
+                    items = listOf(
+                        listOf(
+                            MenuSheetActionItem(
+                                text = if (isDetailArchived) "Unarchive" else "Archive",
+                                icon = painterResource(R.drawable.ic_box),
+                                iconPlacement = IconPlacement.Left,
+                                onClick = {
+                                    showDetailMenu = false
+                                    selectedChecklist?.let { checklist ->
+                                        viewModel.toggleArchive(checklist, isViewer)
+                                    }
+                                }
+                            )
+                        ),
+                        if (!isViewer) {
+                            listOf(
+                                MenuSheetActionItem(
+                                    text = "Delete",
+                                    icon = painterResource(R.drawable.ic_delete),
+                                    iconPlacement = IconPlacement.Left,
+                                    contentColor = MaterialTheme.colorScheme.error,
+                                    onClick = {
+                                        showDetailMenu = false
+                                        showDetailDeleteConfirmation = true
+                                    }
+                                )
+                            )
+                        } else null
+                    ).filterNotNull(),
+                    onCancelClick = { showDetailMenu = false },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
+
+            if (showDetailDeleteConfirmation) {
+                ConfirmationBottomSheet(
+                    heading = "Are you sure?",
+                    subHeading = "The checklist will be deleted permanently.",
+                    confirmButtonText = "Delete Checklist",
+                    onDismiss = { showDetailDeleteConfirmation = false },
+                    onConfirm = {
+                        showDetailDeleteConfirmation = false
+                        selectedChecklist?.id?.let { id ->
+                            viewModel.deleteChecklist(id)
+                            selectedChecklist = null
+                            isAddingNew = false
+                        }
+                    },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
+
             AnimatedVisibility(
                 visible = (showDiscardToast || toastData.message != null) && !isAnySheetVisible,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }),
@@ -981,8 +1080,9 @@ fun ChecklistDetailScreen(
     isViewer: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null,
-    onSheetVisibilityChange: (Boolean) -> Unit = {},
-    onProgress: (Float) -> Unit = {}
+    onOpenColorPicker: (Color) -> Unit = {},
+    onOpenMenu: () -> Unit = {},
+    currentBgColor: Color = Color.Transparent
 ) {
     var title by remember { mutableStateOf(checklist?.title ?: "") }
 
@@ -1013,15 +1113,18 @@ fun ChecklistDetailScreen(
             }
         )
     }
-    var colorBeforePicker by remember { mutableStateOf(bgColor) }
+
+    LaunchedEffect(currentBgColor) {
+        if (currentBgColor != Color.Transparent) {
+            bgColor = currentBgColor
+        }
+    }
+
     var pinned by remember { mutableStateOf(checklist?.pinned ?: false) }
     var archived by remember { mutableStateOf(checklist?.archived ?: isArchived) }
-    var showColorPicker by remember { mutableStateOf(false) }
-    var showMenu by remember { mutableStateOf(false) }
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
-    LaunchedEffect(showColorPicker, showMenu, showDeleteConfirmation) {
-        onSheetVisibilityChange(showColorPicker || showMenu || showDeleteConfirmation)
+    LaunchedEffect(isArchived) {
+        archived = isArchived
     }
 
     var draggedItemIndex by remember { mutableStateOf<Int?>(null) }
@@ -1169,7 +1272,7 @@ fun ChecklistDetailScreen(
                         },
                         onMenuClick = {
                             focusManager.clearFocus()
-                            showMenu = true
+                            onOpenMenu()
                         },
                         buttonStyle = ButtonBackground.TRANSLUCENT,
                         translucentAlpha = 0.5f
@@ -1413,80 +1516,11 @@ fun ChecklistDetailScreen(
                         onRedo = { performRedo() },
                         onColorClick = {
                             focusManager.clearFocus()
-                            colorBeforePicker = bgColor
-                            showColorPicker = true
+                            onOpenColorPicker(bgColor)
                         }
                     )
                 }
             }
-        }
-
-        if (showColorPicker) {
-            ColorPickerBottomSheet(
-                initialColor = colorBeforePicker,
-                onColorPreview = { previewColor ->
-                    bgColor = previewColor
-                },
-                onConfirm = { finalColor ->
-                    bgColor = finalColor
-                    colorBeforePicker = finalColor
-                    showColorPicker = false
-                },
-                onDismiss = {
-                    bgColor = colorBeforePicker
-                    showColorPicker = false
-                },
-                onProgress = { onProgress(it) }
-            )
-        }
-
-        if (showMenu) {
-            MenuBottomSheet(
-                items = listOf(
-                    listOf(
-                        MenuSheetActionItem(
-                            text = if (archived) "Unarchive" else "Archive",
-                            icon = painterResource(R.drawable.ic_box),
-                            iconPlacement = IconPlacement.Left,
-                            onClick = {
-                                showMenu = false
-                                archived = !archived
-                                checklist?.let { onArchive(it) }
-                            }
-                        )
-                    ),
-                    if (!isViewer) {
-                        listOf(
-                            MenuSheetActionItem(
-                                text = "Delete",
-                                icon = painterResource(R.drawable.ic_delete),
-                                iconPlacement = IconPlacement.Left,
-                                contentColor = MaterialTheme.colorScheme.error,
-                                onClick = {
-                                    showMenu = false
-                                    showDeleteConfirmation = true
-                                }
-                            )
-                        )
-                    } else null
-                ).filterNotNull(),
-                onCancelClick = { showMenu = false },
-                onProgress = { onProgress(it) }
-            )
-        }
-
-        if (showDeleteConfirmation) {
-            ConfirmationBottomSheet(
-                heading = "Are you sure?",
-                subHeading = "The checklist will be deleted permanently.",
-                confirmButtonText = "Delete Checklist",
-                onDismiss = { showDeleteConfirmation = false },
-                onConfirm = {
-                    showDeleteConfirmation = false
-                    checklist?.id?.let { onDelete(it) }
-                },
-                onProgress = { onProgress(it) }
-            )
         }
     }
 }

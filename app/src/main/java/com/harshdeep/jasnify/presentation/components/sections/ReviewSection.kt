@@ -177,9 +177,17 @@ fun ReviewsSection(
                 )
             }
 
-            reviewsData.ratingBreakdown.forEach { item ->
-                VerticalDivider(modifier = Modifier.height(32.dp), thickness = 1.dp, color = ContentTertiary)
-                RatingBreakdownItem(item.score, item.label)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                reviewsData.ratingBreakdown.forEachIndexed { index, item ->
+                    if (index > 0) {
+                        VerticalDivider(
+                            modifier = Modifier.height(24.dp).padding(horizontal = 12.dp),
+                            thickness = 1.dp,
+                            color = ContentTertiary
+                        )
+                    }
+                    RatingBreakdownItem(item.score, item.label)
+                }
             }
         }
 
