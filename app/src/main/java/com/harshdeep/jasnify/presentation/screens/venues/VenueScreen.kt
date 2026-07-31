@@ -135,6 +135,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -1207,7 +1208,6 @@ fun SaveListBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = 560.dp,
-        sheetGesturesEnabled = false
     ) {
         Column(
             modifier = Modifier
@@ -1606,77 +1606,6 @@ fun LocationSelectorPill(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun TrendingAiSearchesSection(
-    onTrendingClick: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
-    val trendingQueries = listOf(
-        "4.5+ Rated",
-        "Hotels for 800 guests",
-        "Vintage Themed Hotels"
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_trend_up),
-                    contentDescription = "Trending",
-                    tint = ContentPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Trending AI Searches",
-                    style = JasnifyTheme.typography.headingMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = ContentPrimary
-                )
-            }
-
-            CustomIconButton(
-                onClick = { },
-                icon = painterResource(R.drawable.ic_info),
-                contentColor = ContentPrimary,
-                containerColor = SurfacePrimary,
-                size = ButtonSize.Small
-            )
-        }
-
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            trendingQueries.forEach { query ->
-                FilterChip(
-                    label = query,
-                    isSelected = false,
-                    shapeStyle = ChipShapeStyle.Round,
-                    size = ChipSize.Small,
-                    leadingIcon = aiIcon,
-                    onClick = { onTrendingClick(query) },
-                    hasStroke = true,
-                    isAiMode = true
-                )
-            }
-        }
-    }
-}
 
 private fun parsePrice(priceString: String): Int {
     val clean = priceString
