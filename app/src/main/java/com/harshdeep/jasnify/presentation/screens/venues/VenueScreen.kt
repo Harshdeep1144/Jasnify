@@ -160,6 +160,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.content.edit
 
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
@@ -1074,10 +1075,18 @@ fun VenueMainContent(
                                     RecentSearchesSection(
                                         onVenueClick = handleVenueClick,
                                         recentVenues = recentVenuesList,
-                                        onClearAll = {
-                                            clearRecentSearches(context)
-                                            recentSearches = emptyList()
-                                        }
+                                        onRemoveVenue = { venue ->
+                                            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                            val current = getRecentSearches(context).toMutableList()
+                                            current.remove(venue.name)
+                                            prefs.edit {
+                                                putString(
+                                                    KEY_RECENT_SEARCHES,
+                                                    current.joinToString("|||")
+                                                )
+                                            }
+                                            recentSearches = getRecentSearches(context)
+                                        },
                                     )
                                 }
                             }

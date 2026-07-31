@@ -6,7 +6,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -24,12 +24,15 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 fun RecentSearchesSection(
     recentVenues: List<Venue> = emptyList(),
     recentVendors: List<Vendor> = emptyList(),
-    onClearAll: () -> Unit,
+    onRemoveVenue: ((Venue) -> Unit)? = null,
+    onRemoveVendor: ((Vendor) -> Unit)? = null,
     onVenueClick: ((Venue) -> Unit)? = null,
     onVendorClick: ((Vendor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (recentVenues.isEmpty() && recentVendors.isEmpty()) return
+    
+    var isEditing by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier.fillMaxWidth()
@@ -58,11 +61,11 @@ fun RecentSearchesSection(
             }
 
             TextButton(
-                onClick = onClearAll,
+                onClick =  { isEditing = !isEditing },
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Clear all",
+                    text = if (isEditing) "Done" else "Edit",
                     style = JasnifyTheme.typography.labelXLarge,
                     color = ContentBrandDark
                 )
@@ -81,6 +84,8 @@ fun RecentSearchesSection(
                     VenueCardCompact(
                         venue = venue,
                         onCardClick = { onVenueClick?.invoke(venue) },
+                        onRemoveClick = if (isEditing) { { onRemoveVenue?.invoke(venue) } } else null,
+                        showLikeButton = false,
                         compactCardSize = CompactCardSize.SMALL
                     )
                 }
@@ -89,6 +94,8 @@ fun RecentSearchesSection(
                     VendorCardCompact(
                         vendor = vendor,
                         onCardClick = { onVendorClick?.invoke(vendor) },
+                        onRemoveClick = if (isEditing) { { onRemoveVendor?.invoke(vendor) } } else null,
+                        showLikeButton = false,
                         compactCardSize = CompactCardSize.SMALL
                     )
                 }

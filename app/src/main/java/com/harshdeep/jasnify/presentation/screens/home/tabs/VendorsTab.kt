@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -273,9 +274,14 @@ fun VendorsTab(mainNavController: NavHostController) {
                                 RecentSearchesSection(
                                     recentVendors = recentVendorsList,
                                     onVendorClick = handleVendorClick,
-                                    onClearAll = {
-                                        clearRecentSearches(context)
-                                        recentSearchesNames = emptyList()
+                                    onRemoveVendor = { vendor ->
+                                        val current = getRecentSearches(context).toMutableList()
+                                        current.remove(vendor.name)
+                                        val limited = current.take(8)
+                                        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit {
+                                            putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))
+                                        }
+                                        recentSearchesNames = getRecentSearches(context)
                                     }
                                 )
                             }
