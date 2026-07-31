@@ -22,9 +22,9 @@ import com.harshdeep.jasnify.theme.*
 @Composable
 fun VenueCarousel(
     title: String,
-    venues: List<Venue>, 
+    venues: List<Venue>,
     modifier: Modifier = Modifier,
-    onSeeAllClick: () -> Unit = {},
+    onSeeAllClick: (() -> Unit)? = null,
     onVenueClick: (Venue) -> Unit = {},
     onFavoriteToggle: (Venue) -> Unit = {},
     onOfferClick: (Venue) -> Unit = {}
@@ -39,7 +39,13 @@ fun VenueCarousel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                .clickable { onSeeAllClick() },
+                .then(
+                    if (onSeeAllClick != null) {
+                        Modifier.clickable { onSeeAllClick() }
+                    } else {
+                        Modifier
+                    }
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -49,17 +55,19 @@ fun VenueCarousel(
                 fontWeight = FontWeight.Medium,
                 color = ContentPrimary,
             )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "See All",
-                tint = ContentPrimary,
-                modifier = Modifier.size(24.dp)
-            )
+            // Show arrow icon only if onSeeAllClick callback is provided
+            if (onSeeAllClick != null) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "See All",
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Horizontal Carousel
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp),
@@ -77,36 +85,12 @@ fun VenueCarousel(
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PreviewVenueCarousel() {
-    val sampleVenues = List(5) {
-        Venue(
-            name = "Hotel Imperial Inn",
-            location = "Sampatchak, Patna",
-            type = null,
-            rating = 4.4,
-            totalReviews = "1k",
-            priceStartsFrom = "₹2,999",
-            images = listOf("")
-        )
-    }
-
-    VenueCarousel(
-        title = "Trending Venues in Patna",
-        venues = sampleVenues,
-        onVenueClick = { /* Handle click */ },
-        onFavoriteToggle = { /* Handle favorite */ },
-        onOfferClick = { /* Handle offer click */ }
-    )
-}
-
 @Composable
 fun VendorCarousel(
     title: String,
     vendors: List<Vendor>,
     modifier: Modifier = Modifier,
-    onSeeAllClick: () -> Unit = {},
+    onSeeAllClick: (() -> Unit)? = null,
     onVendorClick: (Vendor) -> Unit = {},
     onFavoriteToggle: (Vendor) -> Unit = {},
     onOfferClick: (Vendor) -> Unit = {}
@@ -121,7 +105,13 @@ fun VendorCarousel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                .clickable { onSeeAllClick() },
+                .then(
+                    if (onSeeAllClick != null) {
+                        Modifier.clickable { onSeeAllClick() }
+                    } else {
+                        Modifier
+                    }
+                ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -131,17 +121,19 @@ fun VendorCarousel(
                 fontWeight = FontWeight.Medium,
                 color = ContentPrimary,
             )
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = "See All",
-                tint = ContentPrimary,
-                modifier = Modifier.size(24.dp)
-            )
+            // Show arrow icon only if onSeeAllClick callback is provided
+            if (onSeeAllClick != null) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "See All",
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
-        // Horizontal Carousel
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp),
@@ -157,4 +149,56 @@ fun VendorCarousel(
             }
         }
     }
+}
+
+
+// ==================================================== Preview ======================================================
+
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewVenueCarouselWithSeeAll() {
+    val sampleVenues = List(5) {
+        Venue(
+            name = "Hotel Imperial Inn",
+            location = "Sampatchak, Patna",
+            type = null,
+            rating = 4.4,
+            totalReviews = "1k",
+            priceStartsFrom = "₹2,999",
+            images = listOf("")
+        )
+    }
+
+    VenueCarousel(
+        title = "Trending Venues in Patna",
+        venues = sampleVenues,
+        onSeeAllClick = { /* Navigate to See All */ },
+        onVenueClick = { /* Handle click */ },
+        onFavoriteToggle = { /* Handle favorite */ },
+        onOfferClick = { /* Handle offer click */ }
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewVenueCarouselWithoutSeeAll() {
+    val sampleVenues = List(5) {
+        Venue(
+            name = "Hotel Imperial Inn",
+            location = "Sampatchak, Patna",
+            type = null,
+            rating = 4.4,
+            totalReviews = "1k",
+            priceStartsFrom = "₹2,999",
+            images = listOf("")
+        )
+    }
+
+    VenueCarousel(
+        title = "Featured Venues",
+        venues = sampleVenues,
+        onSeeAllClick = null, // No See All click passed
+        onVenueClick = { /* Handle click */ }
+    )
 }

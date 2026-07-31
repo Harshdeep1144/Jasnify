@@ -155,6 +155,16 @@ import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
+/**
+ * Represents the primary navigation screens within the Venue module.
+ */
+enum class VenueScreenState {
+    MAIN,
+    LOCATION_PICKER,
+    ROOM_ACCESS,
+    VENUE_DETAIL
+}
+
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
 
@@ -194,8 +204,7 @@ fun VenueScreen(
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
-    var isLocationPickerVisible by remember { mutableStateOf(false) }
-    var showRoomAccess by remember { mutableStateOf(false) }
+    var screenState by remember { mutableStateOf(VenueScreenState.MAIN) }
     var selectedTab by remember { mutableStateOf(initialTab) }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
 
@@ -284,13 +293,16 @@ fun VenueScreen(
     // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    BackHandler(enabled = isLocationPickerVisible || showRoomAccess || selectedVenueForDetail != null) {
-        if (isLocationPickerVisible) {
-            isLocationPickerVisible = false
-        } else if (showRoomAccess) {
-            showRoomAccess = false
-        } else if (selectedVenueForDetail != null) {
-            selectedVenueForDetail = null
+    BackHandler(enabled = screenState != VenueScreenState.MAIN) {
+        when (screenState) {
+            VenueScreenState.LOCATION_PICKER -> screenState = VenueScreenState.MAIN
+            VenueScreenState.ROOM_ACCESS -> screenState = VenueScreenState.MAIN
+            VenueScreenState.VENUE_DETAIL -> {
+                selectedVenueForDetail = null
+                venueViewModel.setSelectedVenueId(null)
+                screenState = VenueScreenState.MAIN
+            }
+            VenueScreenState.MAIN -> {}
         }
     }
 
@@ -348,160 +360,157 @@ fun VenueScreen(
                     onBackClick = onBackClick
                 ) {
                     AnimatedContent(
-                        targetState = when {
-                            isLocationPickerVisible -> "picker"
-                            showRoomAccess -> "room"
-                            selectedVenueForDetail != null -> "detail"
-                            else -> "main"
-                        },
+                        targetState = screenState,
                         transitionSpec = {
                             fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
                         },
                         label = "venue_screen_transition",
                         modifier = Modifier.fillMaxSize()
-                    ) { state ->
-                        // ... (rest of AnimatedContent)
-                    when (state) {
-                        "picker" -> {
-                            LocationScreen(
-                                initialSearches = emptyList(),
-                                currentAddress = currentAddress,
-                                onAddressSelected = {
-                                    currentAddress = it
-                                    isLocationPickerVisible = false
-                                },
-                                onBackClick = { isLocationPickerVisible = false },
-                            )
-                        }
-                        "room" -> {
-                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                val self = User(
-                                    uid = currentUserUid,
-                                    name = auth.currentUser?.displayName ?: "Me",
-                                    email = auth.currentUser?.email ?: "",
-                                    role = currentUserRole,
-                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                                )
-                                (listOf(self) + roomUsers).distinctBy { it.uid }
-                            } else {
-                                roomUsers
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(SurfaceSecondary)
-                            ) {
-                                RoomScreen(
-                                    allUsers = displayUsers,
-                                    currentUserRole = currentUserRole,
-                                    isSelf = { it.uid == currentUserUid },
-                                    onBackClick = { showRoomAccess = false },
-                                    onMenuClick = {
-                                        focusManager.clearFocus()
-                                        showRoomMenuBottomSheet = true
+                    ) { targetState ->
+                        when (targetState) {
+                            VenueScreenState.LOCATION_PICKER -> {
+                                LocationScreen(
+                                    initialSearches = emptyList(),
+                                    currentAddress = currentAddress,
+                                    onAddressSelected = {
+                                        currentAddress = it
+                                        screenState = VenueScreenState.MAIN
                                     },
-                                    onRoleChange = { targetUser, newRole ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
-                                        }
-                                    },
-                                    onRemove = { targetUser ->
-                                        userToRemove = targetUser
-                                    },
-                                    onReport = { targetUser ->
-                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
-                                    },
-                                    onLeave = {
-                                        showLeaveConfirmation = true
-                                    },
-                                    searchResults = searchResults,
-                                    onSearch = { roomViewModel.searchUsers(it) },
-                                    onGrantAccess = { email, role ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.grantAccess(eventId, "Venue", email, role)
-                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    onBackClick = { screenState = VenueScreenState.MAIN },
                                 )
                             }
-                        }
-                        "detail" -> {
-                            selectedVenueForDetail?.let { venue ->
-                                val detailData = remember(venue, allVenues, venueReviews) {
-                                    val base = allVenues.find { it.id == venue.id } ?:
-                                    MockData.venueDetailsMap[venue.name] ?:
-                                    MockData.getDetailsForVenue(venue)
-
-                                    if (venueReviews.isNotEmpty()) {
-                                        base.copy(reviewsData = base.reviewsData?.copy(reviews = venueReviews) ?: VenueReviewsData(
-                                            reviews = venueReviews
-                                        )
-                                        )
-                                    } else {
-                                        base
-                                    }
+                            VenueScreenState.ROOM_ACCESS -> {
+                                val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                                    val self = User(
+                                        uid = currentUserUid,
+                                        name = auth.currentUser?.displayName ?: "Me",
+                                        email = auth.currentUser?.email ?: "",
+                                        role = currentUserRole,
+                                        username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                                    )
+                                    (listOf(self) + roomUsers).distinctBy { it.uid }
+                                } else {
+                                    roomUsers
                                 }
-                                VenueDetailScreen(
-                                    venueDetail = detailData,
-                                    onBackClick = {
-                                        selectedVenueForDetail = null
-                                        venueViewModel.setSelectedVenueId(null)
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(SurfaceSecondary)
+                                ) {
+                                    RoomScreen(
+                                        allUsers = displayUsers,
+                                        currentUserRole = currentUserRole,
+                                        isSelf = { it.uid == currentUserUid },
+                                        onBackClick = { screenState = VenueScreenState.MAIN },
+                                        onMenuClick = {
+                                            focusManager.clearFocus()
+                                            showRoomMenuBottomSheet = true
+                                        },
+                                        onRoleChange = { targetUser, newRole ->
+                                            activeEvent?.id?.let { eventId ->
+                                                roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
+                                            }
+                                        },
+                                        onRemove = { targetUser ->
+                                            userToRemove = targetUser
+                                        },
+                                        onReport = { targetUser ->
+                                            toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                        },
+                                        onLeave = {
+                                            showLeaveConfirmation = true
+                                        },
+                                        searchResults = searchResults,
+                                        onSearch = { roomViewModel.searchUsers(it) },
+                                        onGrantAccess = { email, role ->
+                                            activeEvent?.id?.let { eventId ->
+                                                roomViewModel.grantAccess(eventId, "Venue", email, role)
+                                                toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            VenueScreenState.VENUE_DETAIL -> {
+                                selectedVenueForDetail?.let { venue ->
+                                    val detailData = remember(venue, allVenues, venueReviews) {
+                                        val base = allVenues.find { it.id == venue.id } ?:
+                                        MockData.venueDetailsMap[venue.name] ?:
+                                        MockData.getDetailsForVenue(venue)
+
+                                        if (venueReviews.isNotEmpty()) {
+                                            base.copy(
+                                                reviewsData = base.reviewsData?.copy(reviews = venueReviews)
+                                                    ?: VenueReviewsData(reviews = venueReviews)
+                                            )
+                                        } else {
+                                            base
+                                        }
+                                    }
+                                    VenueDetailScreen(
+                                        venueDetail = detailData,
+                                        onBackClick = {
+                                            selectedVenueForDetail = null
+                                            venueViewModel.setSelectedVenueId(null)
+                                            screenState = VenueScreenState.MAIN
+                                        },
+                                        onChatClick = { venueChat ->
+                                            onChatClick(venueChat)
+                                        },
+                                        sharedTransitionScope = this@SharedTransitionLayout,
+                                        animatedVisibilityScope = this@AnimatedContent,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            VenueScreenState.MAIN -> {
+                                VenueMainContent(
+                                    allVenues = allVenues,
+                                    selectedLocation = currentAddress,
+                                    onVenueClick = { venue ->
+                                        selectedVenueForDetail = venue
+                                        venueViewModel.setSelectedVenueId(venue.id)
+                                        screenState = VenueScreenState.VENUE_DETAIL
+                                        onVenueClick(venue)
                                     },
-                                    onChatClick = { venue ->
-                                        onChatClick(venue)
+                                    onLocationSelectorClick = { screenState = VenueScreenState.LOCATION_PICKER },
+                                    onManageRoomAccessClick = { screenState = VenueScreenState.ROOM_ACCESS },
+                                    onBackClick = onBackClick,
+                                    isScreenActive = isScreenActive,
+                                    toastData = toastData,
+                                    onShowToast = { toastData = it },
+                                    showFilterDialog = showFilterDialog,
+                                    onShowFilterDialogChange = { showFilterDialog = it },
+                                    showSaveListBottomSheet = showSaveListBottomSheet,
+                                    onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
+                                    showMenuSheet = showMenuSheet,
+                                    onShowMenuSheetChange = { showMenuSheet = it },
+                                    timelineEvents = timelineEvents,
+                                    onActiveTargetVenueChange = { activeTargetVenue = it },
+                                    isMySavedListChecked = isMySavedListChecked,
+                                    onMySavedListCheckedChange = { isMySavedListChecked = it },
+                                    selectedSaveEventId = selectedSaveEventId,
+                                    onSelectedSaveEventIdChange = { selectedSaveEventId = it },
+                                    venueSavedDestinations = venueSavedDestinations,
+                                    onToggleSaveVenue = { venue, destination ->
+                                        venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
                                     },
+                                    lastSavedVenue = lastSavedVenue,
+                                    onLastSavedVenueChange = { lastSavedVenue = it },
+                                    isMultiDay = activeEvent?.multiDay ?: false,
+                                    isViewer = isViewer,
+                                    isOwner = isOwner,
+                                    selectedTab = selectedTab,
+                                    onSelectedTabChange = { selectedTab = it },
+                                    appliedSortOption = appliedSortOption,
+                                    appliedFilterOptions = appliedFilterOptions,
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@AnimatedContent,
-                                    modifier = Modifier.fillMaxSize()
+                                    onProgress = { sheetMotionProgress = it }
                                 )
                             }
-                        }
-                        else -> {
-                            VenueMainContent(
-                                allVenues = allVenues,
-                                selectedLocation = currentAddress,
-                                onVenueClick = { venue ->
-                                    selectedVenueForDetail = venue
-                                    venueViewModel.setSelectedVenueId(venue.id)
-                                    onVenueClick(venue)
-                                },
-                                onLocationSelectorClick = { isLocationPickerVisible = true },
-                                onManageRoomAccessClick = { showRoomAccess = true },
-                                onBackClick = onBackClick,
-                                isScreenActive = isScreenActive,
-                                toastData = toastData,
-                                onShowToast = { toastData = it },
-                                showFilterDialog = showFilterDialog,
-                                onShowFilterDialogChange = { showFilterDialog = it },
-                                showSaveListBottomSheet = showSaveListBottomSheet,
-                                onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
-                                showMenuSheet = showMenuSheet,
-                                onShowMenuSheetChange = { showMenuSheet = it },
-                                timelineEvents = timelineEvents,
-                                onActiveTargetVenueChange = { activeTargetVenue = it },
-                                isMySavedListChecked = isMySavedListChecked,
-                                onMySavedListCheckedChange = { isMySavedListChecked = it },
-                                selectedSaveEventId = selectedSaveEventId,
-                                onSelectedSaveEventIdChange = { selectedSaveEventId = it },
-                                venueSavedDestinations = venueSavedDestinations,
-                                onToggleSaveVenue = { venue, destination ->
-                                    venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
-                                },
-                                lastSavedVenue = lastSavedVenue,
-                                onLastSavedVenueChange = { lastSavedVenue = it },
-                                isMultiDay = activeEvent?.multiDay ?: false,
-                                isViewer = isViewer,
-                                isOwner = isOwner,
-                                selectedTab = selectedTab,
-                                onSelectedTabChange = { selectedTab = it },
-                                appliedSortOption = appliedSortOption,
-                                appliedFilterOptions = appliedFilterOptions,
-                                sharedTransitionScope = this@SharedTransitionLayout,
-                                animatedVisibilityScope = this@AnimatedContent,
-                                onProgress = { sheetMotionProgress = it }
-                            )
                         }
                     }
                 }
@@ -591,7 +600,7 @@ fun VenueScreen(
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showMenuSheet = false
-                                isLocationPickerVisible = true
+                                screenState = VenueScreenState.LOCATION_PICKER
                             }
                         )
                     ),
@@ -602,7 +611,7 @@ fun VenueScreen(
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showMenuSheet = false
-                                showRoomAccess = true
+                                screenState = VenueScreenState.ROOM_ACCESS
                             }
                         )
                     ),
@@ -621,9 +630,8 @@ fun VenueScreen(
                 onProgress = { sheetMotionProgress = it }
             )
         }
-    }
 
-    AnimatedVisibility(
+        AnimatedVisibility(
             visible = toastData?.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }),
@@ -733,7 +741,7 @@ fun VenueScreen(
                     roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
                 }
                 toastData = ToastData("You left the room", ToastType.DEFAULT)
-                showRoomAccess = false
+                screenState = VenueScreenState.MAIN
                 showLeaveConfirmation = false
             },
             onProgress = { sheetMotionProgress = it }
@@ -1621,7 +1629,6 @@ fun LocationSelectorPill(
         }
     }
 }
-
 
 private fun parsePrice(priceString: String): Int {
     val clean = priceString
