@@ -180,7 +180,8 @@ fun VendorsTab(
     sharedTransitionScope: SharedTransitionScope? = null,
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
-    vendorViewModel: VendorViewModel = hiltViewModel()
+    vendorViewModel: VendorViewModel = hiltViewModel(),
+    onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -214,11 +215,19 @@ fun VendorsTab(
         }
     }
 
+    LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
+    }
+
     LaunchedEffect(activeEventId) {
-        activeEventId?.let { id ->
-            roomViewModel.verifyAccess(id, "Vendors", FirebaseAuth.getInstance().currentUser?.uid ?: "")
-            roomViewModel.loadRoomUsers(id, "Vendors")
-            vendorViewModel.setEventId(id)
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        if (activeEventId != null) {
+            roomViewModel.verifyAccess(activeEventId!!, "Vendors", uid)
+            roomViewModel.loadRoomUsers(activeEventId!!, "Vendors")
+            vendorViewModel.setEventId(activeEventId!!)
+        } else {
+            // If no active event, we allow browsing by setting hasAccess to true
+            roomViewModel.setAccessState(true)
         }
     }
 
@@ -299,8 +308,8 @@ fun VendorsTab(
         }
     }
 
-    LaunchedEffect(showMenuSheet, isSearchActive, currentScreenState, showSaveListBottomSheet) {
-        val isBottomBarVisible = !showMenuSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
+    LaunchedEffect(showMenuSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess) {
+        val isBottomBarVisible = hasAccess == true && !showMenuSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
         onBottomBarVisibilityChange(isBottomBarVisible)
     }
 
@@ -328,7 +337,7 @@ fun VendorsTab(
                     currentScreenState = VendorScreenState.MAIN
                 }
                 VendorScreenState.MAIN -> {
-                    // Let the system handle it (exit tab/app)
+                    onBackClick()
                 }
             }
         }
@@ -345,7 +354,7 @@ fun VendorsTab(
         RoomAccessGuardian(
             hasAccess = hasAccess,
             roomName = "Vendors",
-            onBackClick = { currentScreenState = VendorScreenState.MAIN }
+            onBackClick = onBackClick
         ) {
             Box(
                 modifier = Modifier

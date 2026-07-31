@@ -45,7 +45,12 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Vendors.route) {
         VendorsTab(
             mainNavController = mainNavController,
-            onBottomBarVisibilityChange = onBottomBarVisibilityChange
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            onBackClick = {
+                navController.navigate(Screen.HomeTabScreen.Home.route) {
+                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                }
+            }
         )
     }
 

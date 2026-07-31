@@ -52,6 +52,10 @@ class RoomViewModel @Inject constructor(
         _hasAccess.value = null
     }
 
+    fun setAccessState(hasAccess: Boolean?) {
+        _hasAccess.value = hasAccess
+    }
+
     fun searchUsers(query: String) {
         viewModelScope.launch {
             try {

@@ -186,6 +186,7 @@ fun BudgetScreen(
 
     // Fetch user events to ensure we have an active event
     LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
         eventViewModel.fetchUserEvents()
     }
 

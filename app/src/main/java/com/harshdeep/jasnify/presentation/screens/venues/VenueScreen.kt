@@ -211,14 +211,18 @@ fun VenueScreen(
     val currentUserUid = auth.currentUser?.uid ?: ""
 
     LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
         eventViewModel.fetchUserEvents()
     }
 
     LaunchedEffect(activeEvent) {
-        activeEvent?.let { event ->
-            roomViewModel.verifyAccess(event.id, "Venue", currentUserUid)
-            roomViewModel.loadRoomUsers(event.id, "Venue")
-            venueViewModel.setEventId(event.id)
+        if (activeEvent != null) {
+            roomViewModel.verifyAccess(activeEvent!!.id, "Venue", currentUserUid)
+            roomViewModel.loadRoomUsers(activeEvent!!.id, "Venue")
+            venueViewModel.setEventId(activeEvent!!.id)
+        } else {
+            // No active event, allow browsing by setting access to true
+            roomViewModel.setAccessState(true)
         }
     }
 

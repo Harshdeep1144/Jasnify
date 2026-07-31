@@ -198,6 +198,7 @@ fun ChecklistsTab(
     val isViewer = currentUserRole == UserRole.VIEWER
 
     LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
         eventViewModel.fetchUserEvents()
     }
 
