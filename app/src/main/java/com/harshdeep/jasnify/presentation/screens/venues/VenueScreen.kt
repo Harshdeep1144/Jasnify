@@ -839,13 +839,6 @@ fun VenueMainContent(
         }
     }
 
-    val bottomTabs = remember(savedVenuesList.size) {
-        listOf(
-            TabItem("Explore", "explore", badgeCount = 24),
-            TabItem("Saved", "saved", badgeCount = savedVenuesList.size)
-        )
-    }
-
     val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
         var result = exploreVenues.map { venue ->
             venue.copy(favorite = venueSavedDestinations.containsKey(venue.name))
@@ -876,6 +869,13 @@ fun VenueMainContent(
         }
 
         result
+    }
+
+    val bottomTabs = remember(filteredAndSortedExploreVenues.size, savedVenuesList.size) {
+        listOf(
+            TabItem("Explore", "explore", badgeCount = filteredAndSortedExploreVenues.size),
+            TabItem("Saved", "saved", badgeCount = savedVenuesList.size)
+        )
     }
 
     val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents) {
