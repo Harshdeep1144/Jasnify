@@ -44,7 +44,7 @@ fun NavGraphBuilder.homeNavGraph(
 
     composable(route = Screen.HomeTabScreen.Vendors.route) {
         LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
-        VendorsTab()
+        VendorsTab(mainNavController = mainNavController)
     }
 
     composable(route = Screen.HomeTabScreen.Inspirations.route) {

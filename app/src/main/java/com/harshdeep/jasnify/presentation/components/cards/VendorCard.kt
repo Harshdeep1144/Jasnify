@@ -76,6 +76,7 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val VIRTUAL_PAGE_COUNT = 10000
+private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -474,24 +475,12 @@ fun VendorCardCompact(
                         style = JasnifyTheme.typography.labelSmall,
                         color = ContentSecondary
                     )
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = vendor.priceStartsFrom,
-                            style = JasnifyTheme.typography.displaySmall,
-                            color = ContentPrimary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (vendor.priceUnit.isNotBlank()) {
-                            Text(
-                                text = "/ ${vendor.priceUnit}",
-                                style = JasnifyTheme.typography.labelSmall,
-                                color = ContentSecondary
-                            )
-                        }
-                    }
+                    Text(
+                        text = vendor.priceStartsFrom,
+                        style = JasnifyTheme.typography.displaySmall,
+                        color = ContentPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
@@ -739,8 +728,6 @@ fun Modifier.vendorShadow(
         }
     }
 }
-
-private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 @SuppressLint("LocalContextResourcesRead")
 @Composable

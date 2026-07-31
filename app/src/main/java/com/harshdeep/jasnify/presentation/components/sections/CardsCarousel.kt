@@ -15,6 +15,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.theme.*
 
 @Composable
@@ -30,6 +32,7 @@ fun VenueCarousel(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .padding(vertical = 12.dp)
     ) {
         // Section Header
         Row(
@@ -96,4 +99,62 @@ fun PreviewVenueCarousel() {
         onFavoriteToggle = { /* Handle favorite */ },
         onOfferClick = { /* Handle offer click */ }
     )
+}
+
+@Composable
+fun VendorCarousel(
+    title: String,
+    vendors: List<Vendor>,
+    modifier: Modifier = Modifier,
+    onSeeAllClick: () -> Unit = {},
+    onVendorClick: (Vendor) -> Unit = {},
+    onFavoriteToggle: (Vendor) -> Unit = {},
+    onOfferClick: (Vendor) -> Unit = {}
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        // Section Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .clickable { onSeeAllClick() },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                style = JasnifyTheme.typography.headingLarge,
+                fontWeight = FontWeight.Medium,
+                color = ContentPrimary,
+            )
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = "See All",
+                tint = ContentPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Horizontal Carousel
+        LazyRow(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(vendors) { vendor ->
+                VendorCardCompact(
+                    vendor = vendor,
+                    onCardClick = { onVendorClick(vendor) },
+                    onFavoriteToggle = { onFavoriteToggle(vendor) },
+                    onOfferClick = { onOfferClick(vendor) }
+                )
+            }
+        }
+    }
 }

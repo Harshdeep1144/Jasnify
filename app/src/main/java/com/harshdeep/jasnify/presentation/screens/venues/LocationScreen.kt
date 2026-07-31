@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.venues
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
@@ -64,7 +65,7 @@ import java.util.Locale
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
-    currentAddress: String, // Hoisted global state
+    currentAddress: String, // Hoisted global state (Simplified: "City, State")
     onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
     onBackClick: () -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -83,6 +84,11 @@ fun LocationScreen(
     // Initialize Android Local Storage via SharedPreferences
     val sharedPrefs = remember {
         context.getSharedPreferences("jasnify_location_prefs", Context.MODE_PRIVATE)
+    }
+
+    // Persistent storage for the last known exact/full address to show in the picker
+    var lastKnownFullAddress by remember {
+        mutableStateOf(sharedPrefs.getString("exact_full_address_key", null))
     }
 
     // Load recent searches from Local Storage, using fallback default list if empty
@@ -123,6 +129,35 @@ fun LocationScreen(
             searchDatabase
         } else {
             searchDatabase.filter { it.contains(text, ignoreCase = true) }
+        }
+    }
+
+    /**
+     * Converts a detailed Address object into a simplified "Locality, State" string.
+     */
+    fun simplifyAddress(address: Address): String {
+        val city = address.locality ?: address.subAdminArea ?: ""
+        val state = address.adminArea ?: ""
+        return when {
+            city.isNotEmpty() && state.isNotEmpty() -> "$city, $state"
+            city.isNotEmpty() -> city
+            state.isNotEmpty() -> state
+            else -> "Unknown Location"
+        }
+    }
+
+    /**
+     * Utility to resolve a full address string into a simplified version.
+     */
+    suspend fun resolveAndSimplifyAddress(fullAddress: String): String {
+        return withContext(Dispatchers.IO) {
+            try {
+                val geocoder = Geocoder(context, Locale.getDefault())
+                val addresses = geocoder.getFromLocationName(fullAddress, 1)
+                if (!addresses.isNullOrEmpty()) simplifyAddress(addresses[0]) else fullAddress
+            } catch (e: Exception) {
+                fullAddress
+            }
         }
     }
 
@@ -176,11 +211,16 @@ fun LocationScreen(
                             val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
                             if (!addresses.isNullOrEmpty()) {
                                 val addressObj = addresses[0]
-                                val formattedAddress = addressObj.getAddressLine(0) ?: "${addressObj.locality}, ${addressObj.adminArea}"
+                                val fullAddress = addressObj.getAddressLine(0) ?: ""
+                                val simpleAddress = simplifyAddress(addressObj)
 
                                 withContext(Dispatchers.Main) {
+                                    // Save the full exact address locally for the picker display
+                                    sharedPrefs.edit().putString("exact_full_address_key", fullAddress).apply()
+                                    lastKnownFullAddress = fullAddress
+
                                     exactAddressState = null // reset local text feedback
-                                    handleLocationSelected(formattedAddress)
+                                    handleLocationSelected(simpleAddress)
                                 }
                             } else {
                                 withContext(Dispatchers.Main) {
@@ -311,7 +351,7 @@ fun LocationScreen(
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 12.dp)) {
                         LocationPicker(
-                            exactLocationAddress = exactAddressState ?: currentAddress,
+                            exactLocationAddress = exactAddressState ?: lastKnownFullAddress ?: currentAddress,
                             onClick = {
                                 val hasFinePermission = ActivityCompat.checkSelfPermission(
                                     context, Manifest.permission.ACCESS_FINE_LOCATION

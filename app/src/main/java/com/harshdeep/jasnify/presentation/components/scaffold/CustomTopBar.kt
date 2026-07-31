@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.components.scaffold
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -17,7 +18,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
@@ -56,8 +60,8 @@ fun CustomTopBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(64.dp)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
+                .heightIn(min = 64.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
@@ -93,14 +97,31 @@ fun CustomTopBar(
                         Spacer(modifier = Modifier.width(8.dp))
                     }
 
-                    Column {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center
+                    ) {
                         if (title != null) {
                             Text(
                                 text = title,
                                 style = if (isLargeTitle) {
-                                    JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium)
+                                    JasnifyTheme.typography.headingXLarge.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                        lineHeightStyle = LineHeightStyle(
+                                            alignment = LineHeightStyle.Alignment.Center,
+                                            trim = LineHeightStyle.Trim.None
+                                        )
+                                    )
                                 } else {
-                                    JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
+                                    JasnifyTheme.typography.headingLarge.copy(
+                                        fontWeight = FontWeight.Normal,
+                                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                        lineHeightStyle = LineHeightStyle(
+                                            alignment = LineHeightStyle.Alignment.Center,
+                                            trim = LineHeightStyle.Trim.None
+                                        )
+                                    )
                                 },
                                 color = textColor
                             )
@@ -108,7 +129,18 @@ fun CustomTopBar(
                         if (subtitle != null) {
                             Text(
                                 text = subtitle,
-                                style = JasnifyTheme.typography.labelMedium,
+                                maxLines = 1,
+                                softWrap = false,
+                                modifier = Modifier
+                                    .padding(horizontal = 12.dp)
+                                    .basicMarquee(),
+                                style = JasnifyTheme.typography.labelMedium.copy(
+                                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                                    lineHeightStyle = LineHeightStyle(
+                                        alignment = LineHeightStyle.Alignment.Center,
+                                        trim = LineHeightStyle.Trim.None
+                                    )
+                                ),
                                 color = ContentSecondary
                             )
                         }
@@ -244,22 +276,51 @@ private fun TopBarTextLayout(
                     onClick = onClick
                 ) else Modifier
             ),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = title,
             style = if (isLargeTitle) {
-                JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium)
+                JasnifyTheme.typography.headingXLarge.copy(
+                    fontWeight = FontWeight.Medium,
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.None
+                    )
+                )
             } else {
-                JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
+                JasnifyTheme.typography.headingLarge.copy(
+                    fontWeight = FontWeight.Normal,
+                    platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    lineHeightStyle = LineHeightStyle(
+                        alignment = LineHeightStyle.Alignment.Center,
+                        trim = LineHeightStyle.Trim.None
+                    )
+                )
             },
             color = textColor
         )
         if (subtitle != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 12.dp)
+            ) {
                 Text(
                     text = subtitle,
-                    style = JasnifyTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .basicMarquee(),
+                    style = JasnifyTheme.typography.labelMedium.copy(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.None
+                        )
+                    ),
                     color = ContentSecondary
                 )
                 if (isClickable) {
@@ -267,7 +328,7 @@ private fun TopBarTextLayout(
                     Icon(
                         imageVector = Icons.Outlined.KeyboardArrowDown,
                         contentDescription = null,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(18.dp),
                         tint = ContentSecondary
                     )
                 }
@@ -303,20 +364,48 @@ private fun TopBarProfileLayout(
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
-        Column {
+        Column(
+            modifier = Modifier.weight(1f, fill = false),
+            verticalArrangement = Arrangement.Center
+        ) {
             Text(
                 text = title,
                 style = if (isLargeTitle) {
-                    JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium)
+                    JasnifyTheme.typography.headingXLarge.copy(
+                        fontWeight = FontWeight.Medium,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.None
+                        )
+                    )
                 } else {
-                    JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Normal)
+                    JasnifyTheme.typography.headingLarge.copy(
+                        fontWeight = FontWeight.Normal,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.None
+                        )
+                    )
                 },
                 color = textColor
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    style = JasnifyTheme.typography.labelMedium,
+                    maxLines = 1,
+                    softWrap = false,
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
+                        .basicMarquee(),
+                    style = JasnifyTheme.typography.labelMedium.copy(
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.None
+                        )
+                    ),
                     color = ContentSecondary
                 )
             }
@@ -364,7 +453,7 @@ fun CustomTopBarVariantsPreview() {
         // 5. Classic Center Layout (Back + Label + Dropdown + Menu)
         CustomTopBar(
             title = "Standard Workspace",
-            subtitle = "General files",
+            subtitle = "General files contain common-purpose documents and resources that are not specific to any single project or department.",
             onBackClick = {},
             onDropdownClick = {},
             onMenuClick = {},
@@ -375,7 +464,7 @@ fun CustomTopBarVariantsPreview() {
         CustomTopBar(
             title = "Jane Doe",
             subtitle = "Active 2 mins ago",
-            image = painterResource(R.drawable.ic_google), // Using vector checklist painter as placeholder
+            image = painterResource(R.drawable.ic_google),
             onBackClick = {},
             onMenuClick = {},
             buttonStyle = ButtonBackground.OPAQUE

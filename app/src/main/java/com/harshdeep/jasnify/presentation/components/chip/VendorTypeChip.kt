@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.presentation.components.chip
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
@@ -57,7 +60,7 @@ fun VendorTypeChip(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = label,
-                modifier = Modifier.size(60.dp),
+                modifier = Modifier.height(60.dp),
                 contentScale = ContentScale.Fit
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -65,7 +68,12 @@ fun VendorTypeChip(
                 text = label,
                 style = JasnifyTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
-                color = ContentPrimary
+                color = ContentPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                modifier = Modifier.basicMarquee(
+                    iterations = Int.MAX_VALUE,
+                )
             )
         }
     } else {
@@ -116,7 +124,7 @@ fun VendorTypeChipLargePreview() {
     ) {
         VendorTypeChip(
             label = "Gifts",
-            icon = R.drawable.ill_bride_and_groom,
+            icon = R.drawable.ill_vendor_food,
             isLarge = true
         )
         VendorTypeChip(

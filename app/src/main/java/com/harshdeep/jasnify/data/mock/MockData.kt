@@ -252,6 +252,171 @@ object MockData {
         )
     )
 
+    val sampleMakeupArtists = listOf(
+        Vendor(
+            name = "MUA by Sanwlee",
+            locality = "New Delhi",
+            city = "Delhi NCR",
+            rating = 4.8,
+            priceStartsFrom = "₹65,000",
+            images = listOf("https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 24
+        ),
+        Vendor(
+            name = "Tanya's L'Oreal S...",
+            locality = "Ghaziabad",
+            city = "Delhi NCR",
+            rating = 4.7,
+            priceStartsFrom = "₹60,000",
+            images = listOf("https://images.unsplash.com/photo-1512496011951-aacf7080f56e?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1516975080664-ed2fc6a32937?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 15
+        ),
+        Vendor(
+            name = "Glam by Gauri",
+            locality = "South Delhi",
+            city = "Delhi NCR",
+            rating = 4.9,
+            priceStartsFrom = "₹85,000",
+            images = listOf("https://images.unsplash.com/photo-1457974182554-a04bb41d9a2f?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1526045612212-70caf35c11bc?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 42
+        ),
+        Vendor(
+            name = "Preeti's Makeover",
+            locality = "Noida Sector 18",
+            city = "Delhi NCR",
+            rating = 4.6,
+            priceStartsFrom = "₹45,000",
+            images = listOf("https://images.unsplash.com/photo-1503910397258-41d3e21aa51b?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1496440737103-cd596325d314?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 12
+        )
+    )
+
+    val samplePhotographers = listOf(
+        Vendor(
+            name = "Royal Starlight Photography",
+            locality = "Sector 62",
+            city = "Noida",
+            rating = 4.8,
+            priceStartsFrom = "₹45,000",
+            images = listOf("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 18
+        ),
+        Vendor(
+            name = "Candid Moments",
+            locality = "Gurugram",
+            city = "Delhi NCR",
+            rating = 4.6,
+            priceStartsFrom = "₹55,000",
+            images = listOf("https://images.unsplash.com/photo-1537633552985-df8429e8048b?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 12
+        ),
+        Vendor(
+            name = "The Wedding Story",
+            locality = "Vasant Kunj",
+            city = "Delhi NCR",
+            rating = 4.9,
+            priceStartsFrom = "₹1,20,000",
+            images = listOf("https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 55
+        ),
+        Vendor(
+            name = "Visual Vibes",
+            locality = "Rohini",
+            city = "Delhi NCR",
+            rating = 4.5,
+            priceStartsFrom = "₹35,000",
+            images = listOf("https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1470633534180-264d8523c9b9?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 8
+        )
+    )
+
+    val sampleMehendiArtists = listOf(
+        Vendor(
+            name = "Deepak Mehendi Art",
+            locality = "Dwarka",
+            city = "Delhi NCR",
+            rating = 4.9,
+            priceStartsFrom = "₹15,000",
+            images = listOf("https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 30
+        ),
+        Vendor(
+            name = "Sona Mehendi Designs",
+            locality = "Karol Bagh",
+            city = "Delhi NCR",
+            rating = 4.5,
+            priceStartsFrom = "₹12,000",
+            images = listOf("https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 10
+        ),
+        Vendor(
+            name = "Anjali's Henna",
+            locality = "Lajpat Nagar",
+            city = "Delhi NCR",
+            rating = 4.7,
+            priceStartsFrom = "₹20,000",
+            images = listOf("https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 25
+        ),
+        Vendor(
+            name = "Rajasthani Mehendi Hub",
+            locality = "Chandni Chowk",
+            city = "Delhi NCR",
+            rating = 4.8,
+            priceStartsFrom = "₹18,000",
+            images = listOf("https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 45
+        )
+    )
+
+
+    val sampleWeddingPlanners = listOf(
+        Vendor(
+            name = "Dream Weddings",
+            locality = "South Ex",
+            city = "Delhi NCR",
+            rating = 4.9,
+            priceStartsFrom = "₹2,50,000",
+            images = listOf("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 60
+        ),
+        Vendor(
+            name = "Elite Events",
+            locality = "Greater Kailash",
+            city = "Delhi NCR",
+            rating = 4.7,
+            priceStartsFrom = "₹1,80,000",
+            images = listOf("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1478147427282-58a87a120781?auto=format&fit=crop&w=800"),
+            favorite = false,
+            enquiriesLastMonth = 35
+        ),
+        Vendor(
+            name = "Purple Planners",
+            locality = "Sakit",
+            city = "Delhi NCR",
+            rating = 4.8,
+            priceStartsFrom = "₹3,00,000",
+            images = listOf("https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800", "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800"),
+            favorite = true,
+            enquiriesLastMonth = 80
+        )
+    )
+
+    val sampleVendors = sampleMakeupArtists + samplePhotographers + sampleMehendiArtists + sampleWeddingPlanners
+
     // Generator function that constructs robust mock detail screens for any given card.
     fun getDetailsForVenue(venue: Venue): Venue {
         val detailImages = venue.images.toMutableList()
