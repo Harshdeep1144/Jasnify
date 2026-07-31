@@ -27,13 +27,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -51,6 +51,8 @@ import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
@@ -93,7 +95,10 @@ private fun clearRecentSearches(context: Context) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VendorsTab(mainNavController: NavHostController) {
+fun VendorsTab(
+    mainNavController: NavHostController,
+    onBottomBarVisibilityChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
@@ -132,6 +137,10 @@ fun VendorsTab(mainNavController: NavHostController) {
     val handleVendorClick: (Vendor) -> Unit = { vendor ->
         saveRecentSearch(context, vendor.name)
         recentSearchesNames = getRecentSearches(context)
+    }
+
+    LaunchedEffect(showMenuSheet, isSearchActive) {
+        onBottomBarVisibilityChange(!showMenuSheet && !isSearchActive)
     }
 
     BackHandler(enabled = isSearchActive) {
@@ -181,16 +190,28 @@ fun VendorsTab(mainNavController: NavHostController) {
                     Column(
                         modifier = Modifier.statusBarsPadding()
                     ) {
-                        CustomTopBar(
-                            title = "Vendors",
-                            subtitle = selectedCity,
-                            onBackClick = {},
-                            onMenuClick = if (!isSearchActive) { { showMenuSheet = true } } else null,
-                            onDropdownClick = if (!isSearchActive) {
-                                { mainNavController.navigate(Screen.LocationSelector.route) }
-                            } else null,
-                            isLargeTitle = true
-                        )
+                        if (isSearchActive) {
+                            CustomTopBar(
+                                title = "Search Vendors",
+                                onBackClick = {
+                                    isSearchActive = false
+                                    searchQuery = ""
+                                    focusManager.clearFocus()
+                                },
+                                backIcon = TopIcon.Predefined.DOWN,
+                                buttonStyle = ButtonBackground.OPAQUE,
+                                isLargeTitle = true
+                            )
+                        } else {
+                            CustomTopBar(
+                                title = "Vendors",
+                                subtitle = selectedCity,
+                                onBackClick = {},
+                                onMenuClick = { showMenuSheet = true },
+                                onDropdownClick = { mainNavController.navigate(Screen.LocationSelector.route) },
+                                isLargeTitle = true
+                            )
+                        }
                     }
                 },
                 containerColor = BackgroundPrimary
@@ -282,7 +303,7 @@ fun VendorsTab(mainNavController: NavHostController) {
                                             putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))
                                         }
                                         recentSearchesNames = getRecentSearches(context)
-                                    }
+                                    },
                                 )
                             }
                         }

@@ -36,8 +36,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,17 +80,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.content.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
@@ -110,17 +107,14 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineI
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
-import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
-import com.harshdeep.jasnify.presentation.components.chip.ChipSize
-import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
@@ -160,7 +154,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.core.content.edit
 
 private const val PREFS_NAME = "venue_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
@@ -177,12 +170,12 @@ private fun saveRecentSearch(context: Context, name: String) {
     current.remove(name)
     current.add(0, name)
     val limited = current.take(8)
-    prefs.edit().putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")).apply()
+    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")) }
 }
 
 private fun clearRecentSearches(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    prefs.edit().remove(KEY_RECENT_SEARCHES).apply()
+    prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -948,12 +941,26 @@ fun VenueMainContent(
                             focusManager.clearFocus()
                         }
                 ) {
-                    CustomTopBar(
-                        title = "Venue",
-                        onBackClick = { onBackClick() },
-                        onMenuClick = if (!isSearchActive) { { onShowMenuSheetChange(true) } } else null,
-                        isLargeTitle = true,
-                    )
+                    if (isSearchActive) {
+                        CustomTopBar(
+                            title = "Search Venues",
+                            onBackClick = {
+                                isSearchActive = false
+                                text = ""
+                                focusManager.clearFocus()
+                            },
+                            backIcon = TopIcon.Predefined.DOWN,
+                            buttonStyle = ButtonBackground.OPAQUE,
+                            isLargeTitle = true,
+                        )
+                    } else {
+                        CustomTopBar(
+                            title = "Venue",
+                            onBackClick = { onBackClick() },
+                            onMenuClick = { onShowMenuSheetChange(true) },
+                            isLargeTitle = true,
+                        )
+                    }
                 }
             },
             bottomBar = {
