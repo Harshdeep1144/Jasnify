@@ -611,7 +611,7 @@ fun ChecklistsTab(
                                                     ) {
                                                         CustomTopBar(
                                                             title = "Checklist",
-                                                            titleIcon = TopIcon.Predefined.CHECKLIST,
+                                                            titleIcon = painterResource(R.drawable.ic_checklists),
                                                             isLeftAligned = true,
                                                             isLargeTitle = true,
                                                             secondaryIcon = TopIcon.Predefined.SEARCH,
@@ -668,7 +668,7 @@ fun ChecklistsTab(
                                                 focusManager.clearFocus()
                                             }
                                     ) {
-                                        Spacer(Modifier.height(12.dp))
+                                        Spacer(Modifier.height(24.dp))
 
                                         Row(
                                             modifier = Modifier

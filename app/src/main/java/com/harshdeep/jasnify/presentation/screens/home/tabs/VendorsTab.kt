@@ -651,10 +651,11 @@ fun VendorMainContent(
                     CustomTopBar(
                         title = "Vendors",
                         subtitle = selectedCity,
-                        onBackClick = {},
                         onMenuClick = onMenuClick,
                         onDropdownClick = onLocationClick,
-                        isLargeTitle = true
+                        titleIcon = painterResource(R.drawable.ic_vendor),
+                        isLargeTitle = true,
+                        isLeftAligned = true
                     )
                 }
             }
@@ -669,6 +670,7 @@ fun VendorMainContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
+                Spacer(Modifier.height(12.dp))
                 CustomSearchBar(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
