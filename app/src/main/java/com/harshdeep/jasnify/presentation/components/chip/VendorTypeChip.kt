@@ -32,6 +32,7 @@ import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
@@ -45,13 +46,15 @@ fun VendorTypeChip(
     isLarge: Boolean = true,
     onClick: () -> Unit = {}
 ) {
+    val shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+
     if (isLarge) {
         Column(
             modifier = modifier
-                .clip(SquircleShape(CornerLargeIncrease))
+                .clip(shape)
                 .widthIn(min = 120.dp)
                 .background(SurfaceSecondary)
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLargeIncrease))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), shape)
                 .clickable { onClick() }
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -79,10 +82,10 @@ fun VendorTypeChip(
     } else {
         Row(
             modifier = modifier
-                .clip(SquircleShape(CornerLargeIncrease))
+                .clip(shape)
                 .widthIn(min = 162.dp)
                 .background(SurfaceSecondary)
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLargeIncrease))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), shape)
                 .clickable { onClick() }
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -94,7 +97,7 @@ fun VendorTypeChip(
                 contentScale = ContentScale.Fit
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Column{
+            Column {
                 Text(
                     text = label,
                     style = JasnifyTheme.typography.labelLarge,
