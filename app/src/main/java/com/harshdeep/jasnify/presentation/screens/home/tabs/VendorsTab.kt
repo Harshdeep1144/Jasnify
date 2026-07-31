@@ -23,7 +23,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,6 +33,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -42,11 +42,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -60,7 +58,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -90,8 +87,6 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
-import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
@@ -102,6 +97,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
+import com.harshdeep.jasnify.presentation.components.others.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
@@ -113,27 +109,23 @@ import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearches
 import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
-import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorScreenState {
-    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL
+    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR
 }
 
 data class VendorCategoryItem(val name: String, val icon: Int)
@@ -191,6 +183,7 @@ fun VendorsTab(
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     var currentScreenState by remember { mutableStateOf(VendorScreenState.MAIN) }
+    var previousScreenState by remember { mutableStateOf<VendorScreenState?>(null) }
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
 
@@ -207,6 +200,11 @@ fun VendorsTab(
     }
 
     var toastData by remember { mutableStateOf(ToastData()) }
+    var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
+
+    val isSavedListToast = remember(toastData, lastSavedVendor) {
+        toastData.message?.contains("Saved List") == true && lastSavedVendor != null
+    }
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
@@ -294,17 +292,21 @@ fun VendorsTab(
         saveRecentSearch(context, vendor.name)
         recentSearchesNames = getRecentSearches(context)
         selectedVendor = vendor
+        previousScreenState = currentScreenState
         currentScreenState = VendorScreenState.VENDOR_DETAIL
     }
 
     val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
         val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
         if (alreadySaved) {
+            // When user clicks heart on an already saved vendor (wants to dislike/manage), open bottom sheet directly
             activeTargetVendor = vendor
             showSaveListBottomSheet = true
         } else {
+            // First time like: add to default list and show bottom toast with "Change" button
             vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
-            toastData = ToastData("Added to My Saved List", ToastType.SUCCESS)
+            lastSavedVendor = vendor
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
 
@@ -323,18 +325,14 @@ fun VendorsTab(
         } else {
             when (currentScreenState) {
                 VendorScreenState.VENDOR_DETAIL -> {
-                    if (selectedCategory != null) {
-                        currentScreenState = VendorScreenState.CATEGORY_DETAIL
-                    } else {
-                        currentScreenState = VendorScreenState.MAIN
-                    }
+                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
                 }
                 VendorScreenState.CATEGORY_DETAIL -> {
                     currentScreenState = VendorScreenState.MAIN
                     selectedCategory = null
                 }
-                VendorScreenState.ROOM, VendorScreenState.ALL_SAVED -> {
-                    currentScreenState = VendorScreenState.MAIN
+                VendorScreenState.ROOM, VendorScreenState.ALL_SAVED, VendorScreenState.LOCATION_SELECTOR -> {
+                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
                 }
                 VendorScreenState.MAIN -> {
                     onBackClick()
@@ -382,7 +380,10 @@ fun VendorsTab(
                                 isSearchActive = isSearchActive,
                                 onSearchActiveChange = { isSearchActive = it },
                                 onMenuClick = { showMenuSheet = true },
-                                onLocationClick = { mainNavController.navigate(Screen.LocationSelector.route) },
+                                onLocationClick = { 
+                                    previousScreenState = VendorScreenState.MAIN
+                                    currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                },
                                 onCategoryClick = { category ->
                                     selectedCategory = category
                                     currentScreenState = VendorScreenState.CATEGORY_DETAIL
@@ -402,7 +403,10 @@ fun VendorsTab(
                                     category = category,
                                     selectedCity = selectedCity,
                                     onBackClick = { currentScreenState = VendorScreenState.MAIN },
-                                    onLocationClick = { mainNavController.navigate(Screen.LocationSelector.route) },
+                                    onLocationClick = { 
+                                        previousScreenState = VendorScreenState.CATEGORY_DETAIL
+                                        currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                    },
                                     onMenuClick = { showMenuSheet = true },
                                     onVendorClick = handleVendorClick,
                                     onFavoriteToggle = handleFavoriteToggle,
@@ -417,7 +421,7 @@ fun VendorsTab(
                             selectedVendor?.let { vendor ->
                                 VendorDetailScreen(
                                     vendorDetail = vendor,
-                                    onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                    onBackClick = { currentScreenState = previousScreenState ?: VendorScreenState.MAIN },
                                     onFavoriteToggle = { handleFavoriteToggle(it) },
                                     sharedTransitionScope = sharedTransitionScope
                                 )
@@ -446,6 +450,19 @@ fun VendorsTab(
                                 )
                             }
                         }
+                        VendorScreenState.LOCATION_SELECTOR -> {
+                            LocationScreen(
+                                initialSearches = emptyList(),
+                                currentAddress = selectedCity,
+                                onAddressSelected = {
+                                    mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
+                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                },
+                                onBackClick = {
+                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                }
+                            )
+                        }
                         else -> {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                 Text("Screen for $state coming soon")
@@ -456,20 +473,51 @@ fun VendorsTab(
             }
         }
 
+        // Standard Top Toast
         AnimatedVisibility(
-            visible = toastData.message != null && !isAnySheetVisible,
+            visible = toastData.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .zIndex(99f)
+                .zIndex(100f)
                 .padding(horizontal = 12.dp, vertical = 16.dp)
         ) {
             CustomToast(
                 message = toastData.message ?: "",
                 type = toastData.type
+            )
+        }
+
+        // Bottom Saved List Toast with "Change" Action Button
+        AnimatedVisibility(
+            visible = toastData.message != null && isSavedListToast && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp)
+        ) {
+            CustomToast(
+                message = toastData.message ?: "",
+                type = toastData.type,
+                leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                buttonText = if (activeEvent?.multiDay == true) "Change" else null,
+                onButtonClick = if (activeEvent?.multiDay == true) {
+                    {
+                        toastData = ToastData()
+                        lastSavedVendor?.let { vendor ->
+                            activeTargetVendor = vendor
+                            showSaveListBottomSheet = true
+                        }
+                    }
+                } else null
             )
         }
 
@@ -491,7 +539,7 @@ fun VendorsTab(
                         text = "Manage Room Access",
                         icon = painterResource(R.drawable.ic_user_default),
                         iconPlacement = IconPlacement.Left,
-                        onClick = { 
+                        onClick = {
                             showMenuSheet = false
                             currentScreenState = VendorScreenState.ROOM
                         }
@@ -528,6 +576,7 @@ fun VendorsTab(
                 onProgress = { sheetMotionProgress = it }
             )
         }
+
         if (showSaveListBottomSheet) {
             val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] }
             SaveListBottomSheet(
@@ -557,7 +606,7 @@ fun VendorsTab(
                             completed = subEventItem.isCompleted
                         )
                         eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
-                        
+
                         activeTargetVendor?.let { vendor ->
                             vendorViewModel.toggleSaveVendor(vendor, isViewer, subEventItem.id)
                         }
@@ -565,7 +614,19 @@ fun VendorsTab(
                 },
                 isViewer = isViewer,
                 onDismiss = { showSaveListBottomSheet = false },
-                onDone = { showSaveListBottomSheet = false },
+                onDone = {
+                    activeTargetVendor?.let { vendor ->
+                        val isSaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+                        if (isSaved) {
+                            lastSavedVendor = vendor
+                            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        } else {
+                            toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                        }
+                    }
+                    showSaveListBottomSheet = false
+                    activeTargetVendor = null
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
@@ -762,8 +823,8 @@ fun VendorCategoryDetailContent(
     val focusManager = LocalFocusManager.current
     var selectedTab by remember { mutableStateOf("explore") }
 
-    var selectedViewType by remember { mutableStateOf("By List") }
-    val viewOptions = listOf("By Timeline", "By List")
+    var selectedViewType by remember { mutableStateOf("By Timeline") }
+    val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showFilterSheet by remember { mutableStateOf(false) }
@@ -799,7 +860,7 @@ fun VendorCategoryDetailContent(
 
     val filteredVendors = remember(allVendors, searchQuery, appliedSortOption, appliedFilterOptions, vendorSavedDestinations) {
         var result = allVendors.filter { it.name.contains(searchQuery, ignoreCase = true) }
-        
+
         // Apply Filters
         if (appliedFilterOptions.contains("Top Rated")) {
             result = result.filter { it.rating >= 4.5 }
@@ -963,7 +1024,7 @@ fun VendorCategoryDetailContent(
                 val savedTimelineEvents = remember(savedVendorsForCategory, timelineEvents, allVendors) {
                     val list = mutableListOf<TimelineEvent>()
                     val defaultSaved = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == "mysaved" } }.map { it.copy(favorite = true) }
-                    
+
                     if (defaultSaved.isNotEmpty()) {
                         list.add(TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List", venues = emptyList()))
                     }
@@ -990,7 +1051,7 @@ fun VendorCategoryDetailContent(
                         )
                     }
 
-                    if (selectedViewType == "By List") {
+                    if (selectedViewType == "All Saved") {
                         if (savedVendorsList.isEmpty()) {
                             item { EmptySavedState() }
                         } else {
@@ -1010,12 +1071,12 @@ fun VendorCategoryDetailContent(
                         } else {
                             items(savedTimelineEvents) { timelineItem ->
                                 val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
-                                VendorTimelineSection(
+                                TimelineSection(
                                     date = timelineItem.date,
                                     event = timelineItem.event,
                                     vendors = vendorsForEvent,
                                     onVendorClick = onVendorClick,
-                                    onFavoriteToggle = onFavoriteToggle,
+                                    onVendorFavoriteToggle = onFavoriteToggle,
                                     sharedTransitionScope = sharedTransitionScope
                                 )
                             }
@@ -1040,60 +1101,6 @@ fun VendorCategoryDetailContent(
                 showFilterSheet = false
             }
         )
-    }
-}
-
-@Composable
-fun VendorTimelineSection(
-    date: String,
-    event: String,
-    vendors: List<Vendor>,
-    onVendorClick: (Vendor) -> Unit,
-    onFavoriteToggle: (Vendor) -> Unit,
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null
-) {
-    val listState = rememberLazyListState()
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(20.dp, CornerSmoothingDefault)
-            )
-            .background(SurfaceSecondary),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(text = date, style = JasnifyTheme.typography.labelLarge, color = ContentSecondary)
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(text = event, style = JasnifyTheme.typography.labelXLarge, color = ContentBrandDark, fontWeight = FontWeight.Medium)
-            }
-        }
-
-        LazyRow(
-            state = listState,
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
-        ) {
-            items(vendors) { vendor ->
-                VendorCardCompact(
-                    vendor = vendor,
-                    onCardClick = { onVendorClick(vendor) },
-                    onFavoriteToggle = { onFavoriteToggle(vendor) },
-                    compactCardSize = CompactCardSize.SMALL,
-                    sharedTransitionScope = sharedTransitionScope
-                )
-            }
-        }
     }
 }
 
@@ -1135,8 +1142,8 @@ fun AllSavedVendorsContent(
     allVendors: List<Vendor>,
     sharedTransitionScope: SharedTransitionScope? = null
 ) {
-    var selectedViewType by remember { mutableStateOf("By List") }
-    val viewOptions = listOf("By Timeline", "By List")
+    var selectedViewType by remember { mutableStateOf("By Timeline") }
+    val viewOptions = listOf("By Timeline", "All Saved")
 
     val savedVendorsList = remember(vendorSavedDestinations, allVendors) {
         allVendors.filter { v -> vendorSavedDestinations.containsKey("${v.name}-${v.category}") }
@@ -1192,7 +1199,7 @@ fun AllSavedVendorsContent(
                 )
             }
 
-            if (selectedViewType == "By List") {
+            if (selectedViewType == "All Saved") {
                 if (savedVendorsList.isEmpty()) {
                     item {
                         Box(modifier = Modifier
@@ -1222,12 +1229,12 @@ fun AllSavedVendorsContent(
                             vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
                         }.map { it.copy(favorite = true) }
 
-                        VendorTimelineSection(
+                        TimelineSection(
                             date = timelineItem.date,
                             event = timelineItem.event,
                             vendors = vendorsForEvent,
                             onVendorClick = onVendorClick,
-                            onFavoriteToggle = onFavoriteToggle,
+                            onVendorFavoriteToggle = onFavoriteToggle,
                             modifier = Modifier.padding(horizontal = 12.dp),
                             sharedTransitionScope = sharedTransitionScope
                         )
@@ -1258,7 +1265,7 @@ fun VendorRoomContent(
     // Ensure current user is in the list shown with correct info
     val displayUsers = remember(roomUsers, currentUser) {
         if (currentUser == null) return@remember roomUsers
-        
+
         val self = User(
             uid = currentUser.uid,
             name = currentUser.displayName ?: "Me",
@@ -1266,7 +1273,7 @@ fun VendorRoomContent(
             role = roomUsers.find { it.uid == currentUser.uid }?.role ?: currentUserRole,
             username = currentUser.email?.substringBefore("@") ?: "me"
         )
-        
+
         // If current user is already in list but missing info, replace with 'self'
         val baseList = if (roomUsers.any { it.uid == currentUser.uid }) {
             roomUsers.map { if (it.uid == currentUser.uid) self.copy(role = it.role) else it }
@@ -1326,10 +1333,19 @@ fun VendorCategoryGrid(categories: List<VendorCategoryItem>, onCategoryClick: (V
 fun ExploreCategoriesHorizontal(categories: List<VendorCategoryItem>, onCategoryClick: (VendorCategoryItem) -> Unit) {
     Column(modifier = Modifier
         .fillMaxWidth()
-        .padding(vertical = 12.dp)) {
-        Text(text = "Explore Categories", style = JasnifyTheme.typography.headingLarge, fontWeight = FontWeight.Medium, color = ContentPrimary, modifier = Modifier.padding(horizontal = 12.dp))
+        .padding(vertical = 12.dp))
+    {
+        Text(text = "Explore Categories",
+            style = JasnifyTheme.typography.headingLarge,
+            fontWeight = FontWeight.Medium,
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        )
         Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             items(categories) { item ->
                 VendorTypeChip(
                     label = item.name,
