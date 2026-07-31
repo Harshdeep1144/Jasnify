@@ -54,14 +54,12 @@ import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -102,26 +100,20 @@ import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
-import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
-import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
@@ -134,19 +126,14 @@ import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerExtraSmall
-import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
@@ -1198,246 +1185,6 @@ fun LazyItemScope.EmptySavedState() {
                 color = ContentTertiary,
                 textAlign = TextAlign.Center
             )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@RequiresApi(Build.VERSION_CODES.O)
-@Composable
-fun SaveListBottomSheet(
-    timelineEvents: List<TimelineEvent>,
-    isMySavedListChecked: Boolean,
-    onMySavedListToggled: (Boolean) -> Unit,
-    selectedEventId: String?,
-    onEventSelected: (String?) -> Unit,
-    onAddNewEvent: (SubEventItem) -> Unit,
-    isViewer: Boolean,
-    onDismiss: () -> Unit,
-    onDone: () -> Unit,
-    onProgress: ((Float) -> Unit)? = null
-) {
-    var draftNewEvent by remember { mutableStateOf<SubEventItem?>(null) }
-    var showInfoSheet by remember { mutableStateOf(false) }
-
-    if (showInfoSheet) {
-        EventTimeLineInfoSheet(
-            onDismiss = { showInfoSheet = false },
-            onProgress = onProgress
-        )
-    }
-
-    CustomBottomSheet(
-        heading = "Manage Saved List",
-        onDismiss = onDismiss,
-        onProgress = onProgress,
-        sheetHeight = 560.dp,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(SurfacePrimary)
-        ) {
-            Spacer(Modifier.height(12.dp))
-
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
-            )
-
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(12.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(SquircleShape(CornerLargeIncrease))
-                            .background(SurfaceSecondary)
-                            .clickable { onMySavedListToggled(!isMySavedListChecked) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "My Saved List",
-                            style = JasnifyTheme.typography.labelXLarge,
-                            color = ContentPrimary
-                        )
-
-                        CustomChecker(
-                            checked = isMySavedListChecked,
-                            onCheckedChange = null
-                        )
-                    }
-                }
-
-                item {
-                    OrDivider(
-                        text = "OR",
-                        dividerGap = 24.dp,
-                    )
-                }
-
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Save for an event",
-                                style = JasnifyTheme.typography.headingLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = ContentPrimary
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Icon(
-                                painter = painterResource(R.drawable.ic_info),
-                                contentDescription = "Info panel",
-                                tint = ContentPrimary,
-                                modifier = Modifier
-                                    .size(20.dp)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) {
-                                        showInfoSheet = true
-                                    }
-                            )
-                        }
-
-                        if (!isViewer) {
-                            Row(
-                                modifier = Modifier.clickable {
-                                    draftNewEvent = SubEventItem(
-                                        dateString = "",
-                                        name = "",
-                                        isExisting = false,
-                                        isEditing = true
-                                    )
-                                },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_plus),
-                                    contentDescription = null,
-                                    tint = ContentBrandDark,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "New Event",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentBrandDark
-                                )
-                            }
-                        }
-                    }
-                }
-
-                if (draftNewEvent != null) {
-                    item {
-                        TimeLineInput(
-                            item = draftNewEvent!!,
-                            onUpdate = { updatedItem ->
-                                if (!updatedItem.isEditing) {
-                                    if (updatedItem.isExisting) {
-                                        onAddNewEvent(updatedItem)
-                                    }
-                                    draftNewEvent = null
-                                } else {
-                                    draftNewEvent = updatedItem
-                                }
-                            },
-                            onDelete = {
-                                draftNewEvent = null
-                            },
-                            backgroundColor = SurfaceSecondary,
-                            hasBorder = true
-                        )
-                        Spacer(Modifier.height(12.dp))
-                    }
-                }
-
-                itemsIndexed(timelineEvents) { index, eventItem ->
-                    val isSelected = selectedEventId == eventItem.id
-
-                    val cardShape = when {
-                        timelineEvents.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
-                        index == 0 -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
-                        index == timelineEvents.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
-                        else -> RoundedCornerShape(CornerExtraSmall)
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(cardShape)
-                            .background(SurfaceSecondary)
-                            .clickable { onEventSelected(if (isSelected) null else eventItem.id) }
-                            .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Column {
-                            Text(
-                                text = eventItem.date,
-                                style = JasnifyTheme.typography.labelLarge,
-                                color = ContentSecondary
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = eventItem.event,
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentPrimary
-                            )
-                        }
-
-                        CustomChecker(
-                            checked = isSelected,
-                            onCheckedChange = null
-                        )
-                    }
-
-                    if (index < timelineEvents.lastIndex) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                    }
-                }
-            }
-
-            HorizontalDivider(
-                thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
-            )
-
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = SurfacePrimary,
-                tonalElevation = 0.dp
-            ) {
-                Column {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(12.dp)
-                    ) {
-                        CustomTextButton(
-                            onClick = onDone,
-                            text = "Done",
-                            shapeStyle = ButtonShapeStyle.Square,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                }
-            }
         }
     }
 }
