@@ -52,6 +52,7 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FamousCityChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -78,6 +79,7 @@ fun LocationScreen(
     currentAddress: String, // Hoisted global state (Simplified: "City, State")
     onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
     onBackClick: () -> Unit,
+    backIcon: TopIcon = TopIcon.Predefined.BACK,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -344,6 +346,7 @@ fun LocationScreen(
                     title = "Location",
                     onBackClick = onBackClick,
                     isLargeTitle = true,
+                    backIcon = backIcon
                 )
             }
 

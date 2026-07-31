@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.others
+package com.harshdeep.jasnify.presentation.components.sections
 
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -43,6 +43,7 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
@@ -187,7 +188,7 @@ fun CarouselIndicator(
         modifier = modifier
             .width(trackWidth)
             .height(4.dp)
-            .background(color = SurfaceSecondary, shape = CircleShape)
+            .background(color = SurfacePrimary, shape = CircleShape)
     ) {
         Box(
             modifier = Modifier

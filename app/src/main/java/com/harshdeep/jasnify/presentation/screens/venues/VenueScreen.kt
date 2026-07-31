@@ -115,7 +115,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
-import com.harshdeep.jasnify.presentation.components.others.TimelineSection
+import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab

@@ -42,6 +42,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -53,6 +54,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -87,7 +89,10 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
@@ -97,7 +102,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
-import com.harshdeep.jasnify.presentation.components.others.TimelineSection
+import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
@@ -163,7 +168,13 @@ private fun saveCategoryRecentSearch(context: Context, category: String, name: S
     prefs.edit { putString("${KEY_RECENT_SEARCHES}_$category", limited.joinToString("|||"))}
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+private fun parsePrice(priceString: String): Int {
+    return priceString
+        .replace(Regex("[^0-9]"), "")
+        .toIntOrNull() ?: 0
+}
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorsTab(
@@ -460,13 +471,9 @@ fun VendorsTab(
                                 },
                                 onBackClick = {
                                     currentScreenState = previousScreenState ?: VendorScreenState.MAIN
-                                }
+                                },
+                                backIcon = TopIcon.Predefined.DOWN
                             )
-                        }
-                        else -> {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Screen for $state coming soon")
-                            }
                         }
                     }
                 }
@@ -753,7 +760,8 @@ fun VendorMainContent(
                         title = "Top Makeup Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
                         onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
                     )
                 }
                 item {
@@ -761,7 +769,8 @@ fun VendorMainContent(
                         title = "Best Photographers in $selectedCity",
                         vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
                         onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
                     )
                 }
                 item {
@@ -769,7 +778,8 @@ fun VendorMainContent(
                         title = "Expert Mehendi Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
                         onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
                     )
                 }
                 item {
@@ -827,13 +837,12 @@ fun VendorCategoryDetailContent(
     val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var showFilterSheet by remember { mutableStateOf(false) }
 
     var recentSearchesNames by remember { mutableStateOf(getCategoryRecentSearches(context, category.name)) }
 
-    val sortOptions = listOf("Relevance", "Price: Low to High", "Price: High to Low", "Rating: High to Low")
-    var appliedSortOption by remember { mutableStateOf(sortOptions[0]) }
-    val filterByOptions = listOf("Premium", "Top Rated", "Available Now")
+    val filters = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
+
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
     val allVendors by vendorViewModel.getVendorsByCategory(category.name).collectAsStateWithLifecycle(initialValue = emptyList())
@@ -858,20 +867,20 @@ fun VendorCategoryDetailContent(
         focusManager.clearFocus()
     }
 
-    val filteredVendors = remember(allVendors, searchQuery, appliedSortOption, appliedFilterOptions, vendorSavedDestinations) {
+    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
         var result = allVendors.filter { it.name.contains(searchQuery, ignoreCase = true) }
+
+        // Apply Sorting/Filtering based on selectedFilterIndex
+        result = when (selectedFilterIndex) {
+            1 -> result.sortedByDescending { it.rating }
+            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
+            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
+            else -> result // "Most Relevant" - default order
+        }
 
         // Apply Filters
         if (appliedFilterOptions.contains("Top Rated")) {
             result = result.filter { it.rating >= 4.5 }
-        }
-
-        // Apply Sorting
-        result = when (appliedSortOption) {
-            "Price: Low to High" -> result.sortedBy { it.priceStartsFrom.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }
-            "Price: High to Low" -> result.sortedByDescending { it.priceStartsFrom.filter { c -> c.isDigit() }.toIntOrNull() ?: 0 }
-            "Rating: High to Low" -> result.sortedByDescending { it.rating }
-            else -> result
         }
 
         result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
@@ -880,15 +889,22 @@ fun VendorCategoryDetailContent(
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
-                CustomTopBar(
-                    title = category.name,
-                    subtitle = selectedCity,
-                    onBackClick = onBackClick,
-                    backIcon = TopIcon.Predefined.BACK,
-                    onMenuClick = onMenuClick,
-                    onDropdownClick = onLocationClick,
-                    isLargeTitle = true
-                )
+                if(!isSearchActive){
+                    CustomTopBar(
+                        title = category.name,
+                        subtitle = selectedCity,
+                        onBackClick = onBackClick,
+                        backIcon = TopIcon.Predefined.BACK,
+                        onMenuClick = onMenuClick,
+                        onDropdownClick = onLocationClick,
+                    )
+                }else{
+                    CustomTopBar(
+                        title = "Search ${category.name}",
+                        onBackClick = onBackClick,
+                        backIcon = TopIcon.Predefined.BACK,
+                    )
+                }
             }
         },
         bottomBar = {
@@ -940,16 +956,6 @@ fun VendorCategoryDetailContent(
                                 isAiSearch = true,
                                 placeholder = "Search ${category.name}"
                             )
-                            AnimatedVisibility(
-                                visible = !isSearchActive,
-                                enter = fadeIn(animationSpec = tween(200)) + expandHorizontally(expandFrom = Alignment.End, animationSpec = tween(250)),
-                                exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(shrinkTowards = Alignment.End, animationSpec = tween(250))
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Spacer(Modifier.width(8.dp))
-                                    FilterButton(onClick = { showFilterSheet = true })
-                                }
-                            }
                         }
                     }
 
@@ -969,6 +975,24 @@ fun VendorCategoryDetailContent(
 
                         item {
                             OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                        }
+
+                        item {
+                            LazyRow(
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                itemsIndexed(filters) { index, filter ->
+                                    val isSelected = selectedFilterIndex == index
+                                    FilterChip(
+                                        label = filter,
+                                        isSelected = isSelected,
+                                        hasStroke = true,
+                                        shapeStyle = ChipShapeStyle.Round,
+                                        onClick = { selectedFilterIndex = index }
+                                    )
+                                }
+                            }
                         }
 
                         items(filteredVendors) { vendor ->
@@ -1087,21 +1111,6 @@ fun VendorCategoryDetailContent(
             }
         }
     }
-
-    if (showFilterSheet) {
-        SortFilterBottomSheet(
-            sortOptions = sortOptions,
-            initialSortOption = appliedSortOption,
-            filterByOptions = filterByOptions,
-            initialFilterOptions = appliedFilterOptions,
-            onDismiss = { showFilterSheet = false },
-            onApply = { sort, filters ->
-                appliedSortOption = sort
-                appliedFilterOptions = filters
-                showFilterSheet = false
-            }
-        )
-    }
 }
 
 @Composable
@@ -1201,13 +1210,7 @@ fun AllSavedVendorsContent(
 
             if (selectedViewType == "All Saved") {
                 if (savedVendorsList.isEmpty()) {
-                    item {
-                        Box(modifier = Modifier
-                            .fillParentMaxHeight(0.7f)
-                            .fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Text("No saved vendors yet", style = JasnifyTheme.typography.bodyLarge, color = ContentPrimary)
-                        }
-                    }
+                    item {EmptySavedState()}
                 } else {
                     items(savedVendorsList) { vendor ->
                         VendorCardFull(

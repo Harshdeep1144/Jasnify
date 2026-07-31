@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.theme.*
 
@@ -27,7 +28,8 @@ fun VenueCarousel(
     onSeeAllClick: (() -> Unit)? = null,
     onVenueClick: (Venue) -> Unit = {},
     onFavoriteToggle: (Venue) -> Unit = {},
-    onOfferClick: (Venue) -> Unit = {}
+    onOfferClick: (Venue) -> Unit = {},
+    cardSize: CompactCardSize = CompactCardSize.SMALL
 ) {
     Column(
         modifier = modifier
@@ -78,7 +80,8 @@ fun VenueCarousel(
                     venue = venue,
                     onCardClick = { onVenueClick(venue) },
                     onFavoriteToggle = { onFavoriteToggle(venue) },
-                    onOfferClick = { onOfferClick(venue) }
+                    onOfferClick = { onOfferClick(venue) },
+                    compactCardSize = cardSize
                 )
             }
         }
@@ -93,7 +96,8 @@ fun VendorCarousel(
     onSeeAllClick: (() -> Unit)? = null,
     onVendorClick: (Vendor) -> Unit = {},
     onFavoriteToggle: (Vendor) -> Unit = {},
-    onOfferClick: (Vendor) -> Unit = {}
+    onOfferClick: (Vendor) -> Unit = {},
+    cardSize: CompactCardSize = CompactCardSize.SMALL
 ) {
     Column(
         modifier = modifier
@@ -144,7 +148,8 @@ fun VendorCarousel(
                     vendor = vendor,
                     onCardClick = { onVendorClick(vendor) },
                     onFavoriteToggle = { onFavoriteToggle(vendor) },
-                    onOfferClick = { onOfferClick(vendor) }
+                    onOfferClick = { onOfferClick(vendor) },
+                    compactCardSize = cardSize
                 )
             }
         }
