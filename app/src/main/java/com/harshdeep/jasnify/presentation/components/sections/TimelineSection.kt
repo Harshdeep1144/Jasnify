@@ -59,11 +59,12 @@ fun TimelineSection(
     onVendorClick: (Vendor) -> Unit = {},
     onVendorFavoriteToggle: (Vendor) -> Unit = {},
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
     val listState = rememberLazyListState()
-    val hasItems = venues.isNotEmpty() || vendors.isNotEmpty()
+    val hasItems = (venues.isNotEmpty() || vendors.isNotEmpty()) || isLoading
 
     Column(
         modifier = modifier
@@ -122,39 +123,49 @@ fun TimelineSection(
                     .fillMaxWidth()
                     .padding(bottom = 16.dp)
             ) {
-                if (venues.isNotEmpty()) {
-                    items(venues) { venue ->
-                        VenueCardCompact(
-                            venue = venue,
-                            onCardClick = { onVenueClick(venue) },
-                            onFavoriteToggle = { onVenueFavoriteToggle(venue) },
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            compactCardSize = CompactCardSize.SMALL
-                        )
+                if (isLoading) {
+                    items(3) {
+                        CompactCardLoading(cardSize = CompactCardSize.SMALL)
                     }
-                }
-                if (vendors.isNotEmpty()) {
-                    items(vendors) { vendor ->
-                        VendorCardCompact(
-                            vendor = vendor,
-                            onCardClick = { onVendorClick(vendor) },
-                            onFavoriteToggle = { onVendorFavoriteToggle(vendor) },
-                            sharedTransitionScope = sharedTransitionScope,
-                            animatedVisibilityScope = animatedVisibilityScope,
-                            compactCardSize = CompactCardSize.SMALL
-                        )
+                } else {
+                    if (venues.isNotEmpty()) {
+                        items(venues) { venue ->
+                            VenueCardCompact(
+                                venue = venue,
+                                onCardClick = { onVenueClick(venue) },
+                                onFavoriteToggle = { onVenueFavoriteToggle(venue) },
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                compactCardSize = CompactCardSize.SMALL
+                            )
+                        }
+                    }
+                    if (vendors.isNotEmpty()) {
+                        items(vendors) { vendor ->
+                            VendorCardCompact(
+                                vendor = vendor,
+                                onCardClick = { onVendorClick(vendor) },
+                                onFavoriteToggle = { onVendorFavoriteToggle(vendor) },
+                                sharedTransitionScope = sharedTransitionScope,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                compactCardSize = CompactCardSize.SMALL
+                            )
+                        }
                     }
                 }
             }
 
-            CarouselIndicator(
-                listState = listState,
-                totalItems = venues.size + vendors.size,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 16.dp)
-            )
+            if (!isLoading) {
+                CarouselIndicator(
+                    listState = listState,
+                    totalItems = venues.size + vendors.size,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

@@ -13,10 +13,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -37,7 +35,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -94,22 +91,21 @@ import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
-import com.harshdeep.jasnify.presentation.components.filter.FilterButton
-import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
-import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
+import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
 import com.harshdeep.jasnify.presentation.navigation.Screen
@@ -205,6 +201,7 @@ fun VendorsTab(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
     val allVendorsFromRepo by vendorViewModel.allVendors.collectAsStateWithLifecycle()
+    val isLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
 
     val vendorSavedDestinations = remember(savedVendorsFromCloud) {
         savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
@@ -405,7 +402,8 @@ fun VendorsTab(
                                 focusManager = focusManager,
                                 context = context,
                                 onRecentSearchesUpdate = { recentSearchesNames = it },
-                                allVendors = allVendorsFromRepo
+                                allVendors = allVendorsFromRepo,
+                                isLoading = isLoading
                             )
                         }
                         VendorScreenState.CATEGORY_DETAIL -> {
@@ -424,6 +422,7 @@ fun VendorsTab(
                                     vendorSavedDestinations = vendorSavedDestinations,
                                     timelineEvents = timelineEvents,
                                     vendorViewModel = vendorViewModel,
+                                    isLoading = isLoading,
                                     sharedTransitionScope = sharedTransitionScope
                                 )
                             }
@@ -446,6 +445,7 @@ fun VendorsTab(
                                 vendorSavedDestinations = vendorSavedDestinations,
                                 timelineEvents = timelineEvents,
                                 allVendors = allVendorsFromRepo,
+                                isLoading = isLoading,
                                 sharedTransitionScope = sharedTransitionScope
                             )
                         }
@@ -698,7 +698,8 @@ fun VendorMainContent(
     focusManager: androidx.compose.ui.focus.FocusManager,
     context: Context,
     onRecentSearchesUpdate: (List<String>) -> Unit,
-    allVendors: List<Vendor>
+    allVendors: List<Vendor>,
+    isLoading: Boolean
 ) {
     Scaffold(
         topBar = {
@@ -759,6 +760,7 @@ fun VendorMainContent(
                     VendorCarousel(
                         title = "Top Makeup Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                        isLoading = isLoading,
                         onVendorClick = onVendorClick,
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
@@ -768,6 +770,7 @@ fun VendorMainContent(
                     VendorCarousel(
                         title = "Best Photographers in $selectedCity",
                         vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                        isLoading = isLoading,
                         onVendorClick = onVendorClick,
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
@@ -777,6 +780,7 @@ fun VendorMainContent(
                     VendorCarousel(
                         title = "Expert Mehendi Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                        isLoading = isLoading,
                         onVendorClick = onVendorClick,
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
@@ -827,6 +831,7 @@ fun VendorCategoryDetailContent(
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
     vendorViewModel: VendorViewModel,
+    isLoading: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null
 ) {
     val context = LocalContext.current
@@ -964,6 +969,7 @@ fun VendorCategoryDetailContent(
                             VendorCarousel(
                                 title = "Top-Rated ${category.name}",
                                 vendors = filteredVendors.filter { it.rating >= 4.5 },
+                                isLoading = isLoading,
                                 onVendorClick = { vendor ->
                                     saveCategoryRecentSearch(context, category.name, vendor.name)
                                     recentSearchesNames = getCategoryRecentSearches(context, category.name)
@@ -995,18 +1001,28 @@ fun VendorCategoryDetailContent(
                             }
                         }
 
-                        items(filteredVendors) { vendor ->
-                            VendorCardFull(
-                                vendor = vendor,
-                                onCardClick = {
-                                    saveCategoryRecentSearch(context, category.name, vendor.name)
-                                    recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                    onVendorClick(vendor)
-                                },
-                                onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                sharedTransitionScope = sharedTransitionScope
-                            )
+                        if (isLoading) {
+                            items(5) {
+                                VendorCardFull(
+                                    vendor = Vendor(), // Mock empty vendor
+                                    isLoading = true,
+                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                )
+                            }
+                        } else {
+                            items(filteredVendors) { vendor ->
+                                VendorCardFull(
+                                    vendor = vendor,
+                                    onCardClick = {
+                                        saveCategoryRecentSearch(context, category.name, vendor.name)
+                                        recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                        onVendorClick(vendor)
+                                    },
+                                    onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                    modifier = Modifier.padding(horizontal = 12.dp),
+                                    sharedTransitionScope = sharedTransitionScope
+                                )
+                            }
                         }
 
                         item { FooterJansify() }
@@ -1076,7 +1092,14 @@ fun VendorCategoryDetailContent(
                     }
 
                     if (selectedViewType == "All Saved") {
-                        if (savedVendorsList.isEmpty()) {
+                        if (isLoading) {
+                            items(5) {
+                                VendorCardFull(
+                                    vendor = Vendor(),
+                                    isLoading = true,
+                                )
+                            }
+                        } else if (savedVendorsList.isEmpty()) {
                             item { EmptySavedState() }
                         } else {
                             items(savedVendorsList) { vendor ->
@@ -1090,7 +1113,15 @@ fun VendorCategoryDetailContent(
                         }
                     } else {
                         // TIMELINE VIEW
-                        if (savedTimelineEvents.isEmpty()) {
+                        if (isLoading) {
+                            items(3) {
+                                TimelineSection(
+                                    date = "Loading...",
+                                    event = "Fetching your plans",
+                                    isLoading = true
+                                )
+                            }
+                        } else if (savedTimelineEvents.isEmpty()) {
                             item { EmptySavedState() }
                         } else {
                             items(savedTimelineEvents) { timelineItem ->
@@ -1149,6 +1180,7 @@ fun AllSavedVendorsContent(
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
     allVendors: List<Vendor>,
+    isLoading: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null
 ) {
     var selectedViewType by remember { mutableStateOf("By Timeline") }
@@ -1209,7 +1241,15 @@ fun AllSavedVendorsContent(
             }
 
             if (selectedViewType == "All Saved") {
-                if (savedVendorsList.isEmpty()) {
+                if (isLoading) {
+                    items(5) {
+                        VendorCardFull(
+                            vendor = Vendor(),
+                            isLoading = true,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
+                } else if (savedVendorsList.isEmpty()) {
                     item {EmptySavedState()}
                 } else {
                     items(savedVendorsList) { vendor ->
@@ -1224,7 +1264,16 @@ fun AllSavedVendorsContent(
                 }
             } else {
                 // Timeline implementation
-                if (savedTimelineEvents.isEmpty()) {
+                if (isLoading) {
+                    items(3) {
+                        TimelineSection(
+                            date = "Loading...",
+                            event = "Fetching your plans",
+                            isLoading = true,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
+                } else if (savedTimelineEvents.isEmpty()) {
                     item { EmptySavedState() }
                 } else {
                     items(savedTimelineEvents) { timelineItem ->

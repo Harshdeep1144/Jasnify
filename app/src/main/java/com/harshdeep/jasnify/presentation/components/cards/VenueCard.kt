@@ -60,6 +60,9 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
+import com.harshdeep.jasnify.presentation.components.sections.CompactCardLoading
+import com.harshdeep.jasnify.presentation.components.sections.shimmerBrush
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -86,12 +89,17 @@ enum class CompactCardSize {
 fun VenueCardFull(
     venue: Venue,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    if (isLoading) {
+        FullCardLoading(modifier = modifier)
+        return
+    }
     val actualPageCount = venue.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
     val initialPage =
@@ -285,6 +293,7 @@ fun VenueCardFull(
 fun VenueCardCompact(
     venue: Venue,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onRemoveClick: (() -> Unit)? = null,
@@ -294,6 +303,10 @@ fun VenueCardCompact(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    if (isLoading) {
+        CompactCardLoading(cardSize = compactCardSize)
+        return
+    }
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isMedium = compactCardSize == CompactCardSize.MEDIUM

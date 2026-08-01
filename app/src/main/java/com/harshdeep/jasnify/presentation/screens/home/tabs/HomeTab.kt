@@ -59,6 +59,7 @@ import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -79,9 +80,11 @@ fun HomeTab(
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel = hiltViewModel(),
-    budgetViewModel: BudgetViewModel = hiltViewModel()
+    budgetViewModel: BudgetViewModel = hiltViewModel(),
+    venueViewModel: VenueViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
 
     // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
@@ -155,7 +158,8 @@ fun HomeTab(
         mainNavController = mainNavController,
         onMenuClick = onMenuClick,
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-        eventViewModel = eventViewModel
+        eventViewModel = eventViewModel,
+        isVenuesLoading = isVenuesLoading
     )
 }
 
@@ -170,7 +174,8 @@ fun HomeTabContent(
     mainNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
-    eventViewModel: EventViewModel? = null
+    eventViewModel: EventViewModel? = null,
+    isVenuesLoading: Boolean = false
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     val coroutineScope = rememberCoroutineScope()
@@ -354,6 +359,7 @@ fun HomeTabContent(
                                 VenueCarousel(
                                     title = "Trending Venues in Patna",
                                     venues = MockData.sampleVenues1,
+                                    isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
                                     onFavoriteToggle = { },
                                     onOfferClick = { }
@@ -362,6 +368,7 @@ fun HomeTabContent(
                                 VenueCarousel(
                                     title = "More Venues to Explore",
                                     venues = MockData.sampleVenues2,
+                                    isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
                                     onFavoriteToggle = { },
                                     onOfferClick = { }

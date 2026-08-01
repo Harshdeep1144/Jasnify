@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
+import com.harshdeep.jasnify.presentation.components.sections.CompactCardLoading
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -84,12 +86,17 @@ private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: F
 fun VendorCardFull(
     vendor: Vendor,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {},
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    if (isLoading) {
+        FullCardLoading(modifier = modifier)
+        return
+    }
     val actualPageCount = vendor.images.size
     val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
     val initialPage =
@@ -297,6 +304,7 @@ fun VendorCardFull(
 fun VendorCardCompact(
     vendor: Vendor,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onRemoveClick: (() -> Unit)? = null,
@@ -306,6 +314,10 @@ fun VendorCardCompact(
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
+    if (isLoading) {
+        CompactCardLoading(cardSize = compactCardSize)
+        return
+    }
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp.dp
     val isMedium = compactCardSize == CompactCardSize.MEDIUM

@@ -115,6 +115,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
+import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
@@ -204,6 +205,7 @@ fun VenueScreen(
     val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
     val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
     val venueReviews by venueViewModel.venueReviews.collectAsStateWithLifecycle()
+    val isLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
 
     val venueSavedDestinations = remember(savedVenuesFromCloud) {
         savedVenuesFromCloud.associate { it.venueName to it.destination }
@@ -498,6 +500,7 @@ fun VenueScreen(
                                     onSelectedTabChange = { selectedTab = it },
                                     appliedSortOption = appliedSortOption,
                                     appliedFilterOptions = appliedFilterOptions,
+                                    isLoading = isLoading,
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     animatedVisibilityScope = this@AnimatedContent,
                                     onProgress = { sheetMotionProgress = it }
@@ -777,6 +780,7 @@ fun VenueMainContent(
     onSelectedTabChange: (String) -> Unit,
     appliedSortOption: String,
     appliedFilterOptions: Set<String>,
+    isLoading: Boolean = false,
     sharedTransitionScope: SharedTransitionScope,
     animatedVisibilityScope: AnimatedVisibilityScope,
     onProgress: (Float) -> Unit = {}
@@ -784,7 +788,7 @@ fun VenueMainContent(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    val viewOptions = listOf("By Timeline", "By List")
+    val viewOptions = listOf("By Timeline", "All Saved")
     var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
 
     var text by remember { mutableStateOf("") }
@@ -1053,20 +1057,30 @@ fun VenueMainContent(
                         }
 
                         if (!isSearchActive) {
-                            items(
-                                items = filteredAndSortedExploreVenues,
-                                key = { it.name }
-                            ) { venueItem ->
-                                VenueCardFull(
-                                    venue = venueItem,
-                                    onFavoriteToggle = { handleFavoriteToggle(venueItem) },
-                                    onCardClick = { handleVenueClick(venueItem) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp),
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope
-                                )
+                            if (isLoading) {
+                                items(5) {
+                                    VenueCardFull(
+                                        venue = Venue(), // Mock empty venue
+                                        isLoading = true,
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                }
+                            } else {
+                                items(
+                                    items = filteredAndSortedExploreVenues,
+                                    key = { it.name }
+                                ) { venueItem ->
+                                    VenueCardFull(
+                                        venue = venueItem,
+                                        onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                        onCardClick = { handleVenueClick(venueItem) },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp),
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
                             }
                         } else {
                             item {
@@ -1120,7 +1134,17 @@ fun VenueMainContent(
                         }
 
                         if (selectedViewType == "By Timeline") {
-                            if (savedTimelineEvents.isEmpty()) {
+                            if (isLoading) {
+                                items(3) {
+                                    TimelineSection(
+                                        date = "Loading...",
+                                        event = "Fetching your plans",
+                                        isLoading = true,
+                                        sharedTransitionScope = sharedTransitionScope,
+                                        animatedVisibilityScope = animatedVisibilityScope
+                                    )
+                                }
+                            } else if (savedTimelineEvents.isEmpty()) {
                                 item {
                                     EmptySavedState()
                                 }
@@ -1138,7 +1162,14 @@ fun VenueMainContent(
                                 }
                             }
                         } else {
-                            if (savedVenuesList.isEmpty()) {
+                            if (isLoading) {
+                                items(5) {
+                                    VenueCardFull(
+                                        venue = Venue(),
+                                        isLoading = true,
+                                    )
+                                }
+                            } else if (savedVenuesList.isEmpty()) {
                                 item {
                                     EmptySavedState()
                                 }
@@ -1191,141 +1222,6 @@ fun LazyItemScope.EmptySavedState() {
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-@OptIn(ExperimentalSharedTransitionApi::class)
-@Composable
-fun TimelineSection(
-    date: String,
-    event: String,
-    venues: List<Venue>,
-    onVenueClick: (Venue) -> Unit,
-    onFavoriteToggle: (Venue) -> Unit,
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope
-) {
-    val listState = rememberLazyListState()
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(SquircleShape(20.dp, 0f))
-            .border(
-                width = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(20.dp, 0f)
-            )
-            .background(SurfaceSecondary),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = date,
-                    style = JasnifyTheme.typography.labelLarge,
-                    color = ContentSecondary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = event,
-                    style = JasnifyTheme.typography.labelXLarge,
-                    color = ContentBrandDark,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-        }
-
-        if (venues.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No venues saved yet.",
-                    style = JasnifyTheme.typography.bodyMedium,
-                    color = ContentSecondary,
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
-            LazyRow(
-                state = listState,
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp)
-            ) {
-                items(venues) { venue ->
-                    VenueCardCompact(
-                        venue = venue,
-                        onCardClick = { onVenueClick(venue) },
-                        onFavoriteToggle = { onFavoriteToggle(venue) },
-                        sharedTransitionScope = sharedTransitionScope,
-                        animatedVisibilityScope = animatedVisibilityScope,
-                        compactCardSize = CompactCardSize.SMALL
-                    )
-                }
-            }
-
-            CarouselIndicator(
-                listState = listState,
-                totalItems = venues.size,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .padding(bottom = 16.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun CarouselIndicator(
-    listState: LazyListState,
-    totalItems: Int,
-    modifier: Modifier = Modifier
-) {
-    if (totalItems <= 1) return
-    val progress by remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            if (visibleItems.isEmpty()) 0f
-            else {
-                val firstItem = visibleItems.first()
-                val firstItemOffset = -firstItem.offset.toFloat()
-                val totalScrollableRange = layoutInfo.totalItemsCount * firstItem.size - layoutInfo.viewportSize.width
-                val currentScroll = (firstItem.index * firstItem.size) + firstItemOffset
-                if (totalScrollableRange <= 0) 0f
-                else (currentScroll / totalScrollableRange).coerceIn(0f, 1f)
-            }
-        }
-    }
-    val trackWidth = 28.dp
-    val thumbWidth = trackWidth / totalItems
-
-    Box(
-        modifier = modifier
-            .width(trackWidth)
-            .height(4.dp)
-            .background(color = SurfaceSecondary, shape = CircleShape)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .width(thumbWidth)
-                .offset(x = (trackWidth - thumbWidth) * progress)
-                .background(color = ContentBrandDark, shape = CircleShape)
-        )
     }
 }
 

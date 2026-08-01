@@ -6,20 +6,27 @@ import com.harshdeep.jasnify.domain.model.SavedVendor
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.repository.VendorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class VendorViewModel @Inject constructor(
     private val repository: VendorRepository
 ) : ViewModel() {
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     init {
         viewModelScope.launch {
             if (repository.isCatalogEmpty()) {
                 seedMockData(com.harshdeep.jasnify.data.mock.MockData.sampleVendors)
             }
+            delay(5000.milliseconds) // Small delay for shimmer effect visibility
+            _isLoading.value = false
         }
     }
 
