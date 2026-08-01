@@ -24,7 +24,7 @@ class VenueViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             // Simulate check or real check
-            delay(5000.milliseconds) // Small delay for shimmer effect visibility
+            delay(2000.milliseconds) // Small delay for shimmer effect visibility
             _isLoading.value = false
         }
     }

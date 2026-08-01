@@ -123,7 +123,7 @@ fun RoomAccessLoading(
     onBackClick: () -> Unit
 ) {
     val brush = shimmerBrush()
-    
+
     Scaffold(
         containerColor = BackgroundPrimary,
         topBar = {
@@ -155,7 +155,7 @@ fun RoomAccessLoading(
                         .background(brush)
                 )
             }
-            
+
             when (roomName) {
                 "Venue", "Vendors" -> {
                     items(3) {
@@ -264,7 +264,7 @@ private fun RoomAccessGuardianPreview() {
     JasnifyTheme {
         RoomAccessGuardian(
             hasAccess = false,
-            roomName = "Lounge",
+            roomName = "Budget",
             onBackClick = {},
             content = {}
         )

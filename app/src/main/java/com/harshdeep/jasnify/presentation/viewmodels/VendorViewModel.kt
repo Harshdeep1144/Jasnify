@@ -25,7 +25,7 @@ class VendorViewModel @Inject constructor(
             if (repository.isCatalogEmpty()) {
                 seedMockData(com.harshdeep.jasnify.data.mock.MockData.sampleVendors)
             }
-            delay(5000.milliseconds) // Small delay for shimmer effect visibility
+            delay(2000.milliseconds) // Small delay for shimmer effect visibility
             _isLoading.value = false
         }
     }
