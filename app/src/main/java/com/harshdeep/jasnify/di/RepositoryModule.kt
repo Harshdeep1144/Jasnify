@@ -49,4 +49,10 @@ abstract class RepositoryModule {
     abstract fun bindEnquiryRepository(
         enquiryRepositoryImpl: EnquiryRepositoryImpl
     ): EnquiryRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindVendorRepository(
+        vendorRepositoryImpl: com.harshdeep.jasnify.data.repository.VendorRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.VendorRepository
 }

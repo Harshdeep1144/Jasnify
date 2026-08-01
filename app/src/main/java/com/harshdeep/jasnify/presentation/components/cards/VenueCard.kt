@@ -287,6 +287,8 @@ fun VenueCardCompact(
     modifier: Modifier = Modifier,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
+    onRemoveClick: (() -> Unit)? = null,
+    showLikeButton: Boolean = true,
     onOfferClick: () -> Unit = {},
     compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -407,19 +409,34 @@ fun VenueCardCompact(
                         .align(Alignment.TopEnd)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .clip(CircleShape)
-                        .clickable { onFavoriteToggle() },
+                        .clickable { if (onRemoveClick != null) onRemoveClick() else if (showLikeButton) onFavoriteToggle() },
                     contentAlignment = Alignment.Center
                 ) {
-                    val iconRes =
-                        if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
-                            R.drawable.ic_heart
+                    if (onRemoveClick != null) {
+                        Surface(
+                            color = Color.Black,
+                            shape = CircleShape,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_cross),
+                                contentDescription = "Remove Icon",
+                                tint = Color.White,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    } else if (showLikeButton) {
+                        val iconRes =
+                            if (venue.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                                R.drawable.ic_heart
+                            )
+                        Icon(
+                            painter = iconRes,
+                            contentDescription = "Favorite Icon",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(24.dp),
                         )
-                    Icon(
-                        painter = iconRes,
-                        contentDescription = "Favorite Icon",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    }
                 }
 
                 if (isMedium && pagerState != null) {

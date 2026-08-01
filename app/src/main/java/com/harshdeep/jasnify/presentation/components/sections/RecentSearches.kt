@@ -6,36 +6,41 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.data.mock.MockData
+import androidx.compose.ui.text.font.FontWeight
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
-import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 
 @Composable
 fun RecentSearchesSection(
-    recentVenues: List<Venue>,
-    onClearAll: () -> Unit,
-    onVenueClick: (Venue) -> Unit,
+    recentVenues: List<Venue> = emptyList(),
+    recentVendors: List<Vendor> = emptyList(),
+    onRemoveVenue: ((Venue) -> Unit)? = null,
+    onRemoveVendor: ((Vendor) -> Unit)? = null,
+    onVenueClick: ((Venue) -> Unit)? = null,
+    onVendorClick: ((Vendor) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    if (recentVenues.isEmpty() && recentVendors.isEmpty()) return
+    
+    var isEditing by remember { mutableStateOf(false) }
+
     Column(
-        modifier = modifier
-            .fillMaxWidth()
+        modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 0.dp),
+                .padding(horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -56,11 +61,11 @@ fun RecentSearchesSection(
             }
 
             TextButton(
-                onClick = onClearAll,
+                onClick =  { isEditing = !isEditing },
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Clear all",
+                    text = if (isEditing) "Done" else "Edit",
                     style = JasnifyTheme.typography.labelXLarge,
                     color = ContentBrandDark
                 )
@@ -69,34 +74,32 @@ fun RecentSearchesSection(
 
         Spacer(Modifier.height(8.dp))
 
-        // Horizontal list of recently searched items
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(horizontal = 12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            items(recentVenues) { venue ->
-                VenueCardCompact(
-                    venue = venue,
-                    onCardClick = { onVenueClick(venue) },
-                    compactCardSize = CompactCardSize.SMALL
-                )
+            if (recentVenues.isNotEmpty()) {
+                items(recentVenues) { venue ->
+                    VenueCardCompact(
+                        venue = venue,
+                        onCardClick = { onVenueClick?.invoke(venue) },
+                        onRemoveClick = if (isEditing) { { onRemoveVenue?.invoke(venue) } } else null,
+                        showLikeButton = false,
+                        compactCardSize = CompactCardSize.SMALL
+                    )
+                }
+            } else if (recentVendors.isNotEmpty()) {
+                items(recentVendors) { vendor ->
+                    VendorCardCompact(
+                        vendor = vendor,
+                        onCardClick = { onVendorClick?.invoke(vendor) },
+                        onRemoveClick = if (isEditing) { { onRemoveVendor?.invoke(vendor) } } else null,
+                        showLikeButton = false,
+                        compactCardSize = CompactCardSize.SMALL
+                    )
+                }
             }
         }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun RecentSearchesSectionPreview() {
-    Box(
-        modifier = Modifier.padding(horizontal = 0.dp)
-    ){
-        RecentSearchesSection(
-            onVenueClick = {},
-            recentVenues = MockData.sampleVenues1,
-            onClearAll = {}
-        )
     }
 }

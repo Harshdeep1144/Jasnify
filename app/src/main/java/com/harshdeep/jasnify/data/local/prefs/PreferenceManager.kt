@@ -6,8 +6,9 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOpt
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import androidx.core.content.edit
 
-@Singleton
+  @Singleton
 class PreferenceManager @Inject constructor(
     @ApplicationContext context: Context
 ) {
@@ -15,7 +16,7 @@ class PreferenceManager @Inject constructor(
         context.getSharedPreferences("jasnify_prefs", Context.MODE_PRIVATE)
 
     fun saveNavBarStyle(style: NavBarStyleOption) {
-        sharedPreferences.edit().putString(KEY_NAV_BAR_STYLE, style.name).apply()
+        sharedPreferences.edit { putString(KEY_NAV_BAR_STYLE, style.name) }
     }
 
     fun getNavBarStyle(): NavBarStyleOption {

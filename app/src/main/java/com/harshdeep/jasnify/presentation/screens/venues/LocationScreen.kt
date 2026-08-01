@@ -1,15 +1,22 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.location.LocationManager
+import android.net.Uri
 import android.os.Build
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.*
@@ -42,7 +49,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import com.google.android.gms.common.api.ResolvableApiException
+import com.google.android.gms.location.*
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FamousCityChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -54,19 +64,22 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
 import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
-    currentAddress: String, // Hoisted global state
+    currentAddress: String, // Hoisted global state (Simplified: "City, State")
     onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
     onBackClick: () -> Unit,
+    backIcon: TopIcon = TopIcon.Predefined.BACK,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -83,6 +96,11 @@ fun LocationScreen(
     // Initialize Android Local Storage via SharedPreferences
     val sharedPrefs = remember {
         context.getSharedPreferences("jasnify_location_prefs", Context.MODE_PRIVATE)
+    }
+
+    // Persistent storage for the last known exact/full address to show in the picker
+    var lastKnownFullAddress by remember {
+        mutableStateOf(sharedPrefs.getString("exact_full_address_key", null))
     }
 
     // Load recent searches from Local Storage, using fallback default list if empty
@@ -105,9 +123,7 @@ fun LocationScreen(
 
     var selectedCityId by remember { mutableStateOf("") }
 
-    val locationManager = remember {
-        context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-    }
+    val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
     val searchDatabase = remember {
         listOf(
@@ -123,6 +139,20 @@ fun LocationScreen(
             searchDatabase
         } else {
             searchDatabase.filter { it.contains(text, ignoreCase = true) }
+        }
+    }
+
+    /**
+     * Converts a detailed Address object into a simplified "Locality, State" string.
+     */
+    fun simplifyAddress(address: Address): String {
+        val city = address.locality ?: address.subAdminArea ?: ""
+        val state = address.adminArea ?: ""
+        return when {
+            city.isNotEmpty() && state.isNotEmpty() -> "$city, $state"
+            city.isNotEmpty() -> city
+            state.isNotEmpty() -> state
+            else -> "Unknown Location"
         }
     }
 
@@ -142,67 +172,111 @@ fun LocationScreen(
         text = ""
         isSearchActive = false
         focusManager.clearFocus()
-        onAddressSelected(selectedAddress)
+        
+        // Use a small delay before calling the callback to ensure stable navigation return
+        coroutineScope.launch {
+            delay(100.milliseconds)
+            onAddressSelected(selectedAddress)
+        }
     }
 
-    BackHandler(enabled = isSearchActive) {
-        isSearchActive = false
-        text = ""
-        focusManager.clearFocus()
-    }
-
+    @SuppressLint("MissingPermission")
     fun fetchLocationAndResolveAddress() {
-        if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
-            exactAddressState = "Locating exact address..."
+        exactAddressState = "Locating..."
+        
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                coroutineScope.launch(Dispatchers.IO) {
+                    try {
+                        val geocoder = Geocoder(context, Locale.getDefault())
+                        val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                        if (!addresses.isNullOrEmpty()) {
+                            val addressObj = addresses[0]
+                            val fullAddress = addressObj.getAddressLine(0) ?: ""
+                            val simpleAddress = simplifyAddress(addressObj)
 
-            try {
-                val providers = locationManager.getProviders(true)
-                var bestLocation: Location? = null
-
-                for (provider in providers) {
-                    val loc = locationManager.getLastKnownLocation(provider) ?: continue
-                    if (bestLocation == null || loc.accuracy < bestLocation.accuracy) {
-                        bestLocation = loc
-                    }
-                }
-
-                val location = bestLocation
-                if (location != null) {
-                    coroutineScope.launch(Dispatchers.IO) {
-                        try {
-                            val geocoder = Geocoder(context, Locale.getDefault())
-                            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
-                            if (!addresses.isNullOrEmpty()) {
-                                val addressObj = addresses[0]
-                                val formattedAddress = addressObj.getAddressLine(0) ?: "${addressObj.locality}, ${addressObj.adminArea}"
-
-                                withContext(Dispatchers.Main) {
-                                    exactAddressState = null // reset local text feedback
-                                    handleLocationSelected(formattedAddress)
-                                }
-                            } else {
-                                withContext(Dispatchers.Main) {
-                                    exactAddressState = null
-                                    handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
-                                }
+                            withContext(Dispatchers.Main) {
+                                sharedPrefs.edit().putString("exact_full_address_key", fullAddress).apply()
+                                lastKnownFullAddress = fullAddress
+                                exactAddressState = null
+                                handleLocationSelected(simpleAddress)
                             }
-                        } catch (e: Exception) {
+                        } else {
                             withContext(Dispatchers.Main) {
                                 exactAddressState = null
                                 handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
-                                Toast.makeText(context, "Could not fetch street details: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
                         }
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            exactAddressState = null
+                            handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
+                        }
                     }
-                } else {
-                    exactAddressState = null
-                    Toast.makeText(context, "No cached location. Try opening Google Maps first.", Toast.LENGTH_LONG).show()
                 }
-            } catch (e: SecurityException) {
-                exactAddressState = null
-                Toast.makeText(context, "Location access restricted.", Toast.LENGTH_SHORT).show()
+            } else {
+                // Request a fresh location update if last location is null
+                val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
+                    .setMaxUpdates(1)
+                    .build()
+                
+                fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
+                    override fun onLocationResult(locationResult: LocationResult) {
+                        val newLoc = locationResult.lastLocation
+                        if (newLoc != null) {
+                            fetchLocationAndResolveAddress() // retry once
+                        } else {
+                            exactAddressState = null
+                            Toast.makeText(context, "Location not found. Please try again.", Toast.LENGTH_SHORT).show()
+                        }
+                        fusedLocationClient.removeLocationUpdates(this)
+                    }
+                }, context.mainLooper)
+            }
+        }.addOnFailureListener {
+            exactAddressState = null
+            Toast.makeText(context, "Failed to get location.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val gpsResolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            // User enabled GPS, automatically trigger location fetch
+            // Add a slight delay to allow the system settings to propagate
+            coroutineScope.launch {
+                delay(300)
+                fetchLocationAndResolveAddress()
+            }
+        }
+    }
+
+    fun checkSettingsAndFetchLocation() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000).build()
+        val builder = LocationSettingsRequest.Builder()
+            .addLocationRequest(locationRequest)
+            .setAlwaysShow(true)
+
+        val client: SettingsClient = LocationServices.getSettingsClient(context)
+        val task = client.checkLocationSettings(builder.build())
+
+        task.addOnSuccessListener {
+            fetchLocationAndResolveAddress()
+        }
+
+        task.addOnFailureListener { exception ->
+            if (exception is ResolvableApiException) {
+                try {
+                    val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
+                    gpsResolutionLauncher.launch(intentSenderRequest)
+                } catch (sendEx: Exception) {
+                    // Ignore
+                }
+            } else {
+                // If not resolvable, navigate to system settings
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                context.startActivity(intent)
             }
         }
     }
@@ -214,14 +288,20 @@ fun LocationScreen(
         val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
 
         if (fineLocationGranted || coarseLocationGranted) {
-            fetchLocationAndResolveAddress()
+            checkSettingsAndFetchLocation()
         } else {
-            Toast.makeText(
-                context,
-                "Permission Denied. Please ensure permissions are declared in AndroidManifest.xml or reset App Settings.",
-                Toast.LENGTH_LONG
-            ).show()
+            // Permission denied, redirect to app settings
+            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+            }
+            context.startActivity(intent)
         }
+    }
+
+    BackHandler(enabled = isSearchActive) {
+        isSearchActive = false
+        text = ""
+        focusManager.clearFocus()
     }
 
     data class City<T>(
@@ -266,6 +346,7 @@ fun LocationScreen(
                     title = "Location",
                     onBackClick = onBackClick,
                     isLargeTitle = true,
+                    backIcon = backIcon
                 )
             }
 
@@ -274,13 +355,13 @@ fun LocationScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                with(sharedTransitionScope) {
-                    CustomSearchBar(
-                        value = text,
-                        onValueChange = { text = it },
-                        onActiveChange = { isSearchActive = it },
-                        modifier = if (this != null && animatedVisibilityScope != null) {
-                            Modifier.sharedBounds(
+                if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+                    with(sharedTransitionScope) {
+                        CustomSearchBar(
+                            value = text,
+                            onValueChange = { text = it },
+                            onActiveChange = { isSearchActive = it },
+                            modifier = Modifier.sharedBounds(
                                 rememberSharedContentState(key = "location_picker"),
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 boundsTransform = { _, _ ->
@@ -291,7 +372,14 @@ fun LocationScreen(
                                 },
                                 resizeMode = SharedTransitionScope.ResizeMode.scaleToBounds(ContentScale.FillWidth, Alignment.Center)
                             )
-                        } else Modifier
+                        )
+                    }
+                } else {
+                    CustomSearchBar(
+                        value = text,
+                        onValueChange = { text = it },
+                        onActiveChange = { isSearchActive = it },
+                        modifier = Modifier
                     )
                 }
             }
@@ -311,7 +399,7 @@ fun LocationScreen(
                 ) {
                     Box(modifier = Modifier.padding(horizontal = 12.dp)) {
                         LocationPicker(
-                            exactLocationAddress = exactAddressState ?: currentAddress,
+                            exactLocationAddress = exactAddressState ?: lastKnownFullAddress ?: currentAddress,
                             onClick = {
                                 val hasFinePermission = ActivityCompat.checkSelfPermission(
                                     context, Manifest.permission.ACCESS_FINE_LOCATION
@@ -322,7 +410,7 @@ fun LocationScreen(
                                 ) == PackageManager.PERMISSION_GRANTED
 
                                 if (hasFinePermission || hasCoarsePermission) {
-                                    fetchLocationAndResolveAddress()
+                                    checkSettingsAndFetchLocation()
                                 } else {
                                     locationPermissionLauncher.launch(
                                         arrayOf(

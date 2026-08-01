@@ -184,8 +184,8 @@ class UserRepositoryImpl @Inject constructor(
                 "uid" to uid,
                 "email" to cleanEmail,
                 "role" to role.name,
-                "name" to user.name,
-                "username" to user.username,
+                "name" to user.name.ifBlank { user.email.substringBefore("@") },
+                "username" to user.username.ifBlank { user.email.substringBefore("@") },
                 "profilePictureUrl" to user.profilePictureUrl
             )
 
@@ -280,8 +280,8 @@ class UserRepositoryImpl @Inject constructor(
                         "uid" to uid,
                         "email" to cleanEmail,
                         "role" to role.name,
-                        "name" to user.name,
-                        "username" to user.username,
+                        "name" to user.name.ifBlank { user.email.substringBefore("@") },
+                        "username" to user.username.ifBlank { user.email.substringBefore("@") },
                         "profilePictureUrl" to user.profilePictureUrl
                     )
 

@@ -111,6 +111,7 @@ dependencies {
 
     // Google services
     implementation("com.google.android.gms:play-services-auth:21.2.0")
+    implementation(libs.play.services.location)
 
     // Material Icons
     implementation("androidx.compose.material:material-icons-core:1.7.7")

@@ -1,5 +1,4 @@
 package com.harshdeep.jasnify.presentation.screens.venues
-
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
@@ -53,7 +52,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -77,8 +75,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.shadow.Shadow
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -87,22 +83,18 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.zIndex
-import androidx.core.graphics.ColorUtils
-import androidx.core.view.WindowCompat
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
 import com.harshdeep.jasnify.domain.model.VenueHighlightItem
 import com.harshdeep.jasnify.domain.model.VenueMediaItem
 import com.harshdeep.jasnify.domain.model.VenuePricingItem
@@ -128,12 +120,18 @@ import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
+import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
+import com.harshdeep.jasnify.presentation.components.sections.GalleryCategoryUiModel
+import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
+import com.harshdeep.jasnify.presentation.components.sections.GallerySection
+import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
+import com.harshdeep.jasnify.presentation.components.sections.MediaItemUiModel
+import com.harshdeep.jasnify.presentation.components.sections.MerchantReplyUiModel
+import com.harshdeep.jasnify.presentation.components.sections.RatingBreakdownUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
-import com.harshdeep.jasnify.presentation.components.sections.VenueAllReviewsScreen
-import com.harshdeep.jasnify.presentation.components.sections.VenueGalleryDetailScreen
-import com.harshdeep.jasnify.presentation.components.sections.VenueGallerySection
-import com.harshdeep.jasnify.presentation.components.sections.VenueReviewDetailPostScreen
-import com.harshdeep.jasnify.presentation.components.sections.VenueReviewsSection
+import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostScreen
+import com.harshdeep.jasnify.presentation.components.sections.ReviewUiModel
+import com.harshdeep.jasnify.presentation.components.sections.ReviewsDataUiModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -167,6 +165,45 @@ enum class VenueActiveScreen {
 // MAIN SCREEN CONTAINERS
 // ============================================================================================================================================
 
+fun VenueReview.toUiModel() = ReviewUiModel(
+    id = id,
+    userName = userName,
+    userAvatarUrl = userAvatarUrl,
+    rating = rating,
+    relativeTime = relativeTime,
+    reviewText = reviewText,
+    isVerified = isVerified,
+    attachedImages = attachedImages,
+    merchantReply = merchantReply?.let {
+        MerchantReplyUiModel(
+            merchantName = it.merchantName,
+            merchantAvatarUrl = it.merchantAvatarUrl,
+            relativeTime = it.relativeTime,
+            replyText = it.replyText,
+            isVerified = it.isVerified
+        )
+    }
+)
+
+fun VenueReviewsData.toUiModel() = ReviewsDataUiModel(
+    reviews = reviews.map { it.toUiModel() },
+    ratingBreakdown = ratingBreakdown.map { RatingBreakdownUiModel(it.score, it.label) },
+    totalRatingsCount = totalRatingsCount,
+    distribution = distribution,
+    subMetrics = subMetrics.map { RatingBreakdownUiModel(it.score, it.label) }
+)
+
+fun VenueMediaItem.toUiModel() = MediaItemUiModel(
+    url = url,
+    video = video,
+    videoDuration = videoDuration
+)
+
+fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
+    categoryName = categoryName,
+    mediaItems = mediaItems.map { it.toUiModel() }
+)
+
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun VenueDetailScreen(
@@ -181,7 +218,7 @@ fun VenueDetailScreen(
     var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
     val currentScreen = screenStack.last()
 
-    var selectedReviewForPost by remember { mutableStateOf<VenueReview?>(null) }
+    var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
 
     // Intercepts the back gesture ONLY when there is a screen to pop locally
     BackHandler(enabled = screenStack.size > 1) {
@@ -213,9 +250,9 @@ fun VenueDetailScreen(
                 )
             }
             VenueActiveScreen.REVIEWS -> {
-                VenueAllReviewsScreen(
+                AllReviewsScreen(
                     title = venueDetail.name,
-                    reviewsData = venueDetail.reviewsData ?: VenueReviewsData(),
+                    reviewsData = venueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel(),
                     ratingValue = venueDetail.rating.toString(),
                     onBack = { screenStack = screenStack.dropLast(1) },
                     onOpenReviewPost = { review ->
@@ -228,16 +265,16 @@ fun VenueDetailScreen(
                 )
             }
             VenueActiveScreen.GALLERY -> {
-                VenueGalleryDetailScreen(
+                GalleryDetailScreen(
                     title = venueDetail.name,
-                    galleryCategories = venueDetail.galleryCategories,
+                    galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
                     onBack = { screenStack = screenStack.dropLast(1) },
                     onOpenAlbum = { }
                 )
             }
             VenueActiveScreen.POST -> {
-                VenueReviewDetailPostScreen(
-                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull() ?: VenueReview(
+                ReviewDetailPostScreen(
+                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull()?.toUiModel() ?: ReviewUiModel(
                         userName = "Anand K.",
                         rating = 4.4,
                         relativeTime = "1 week ago",
@@ -262,7 +299,7 @@ private fun VenueDetailContent(
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
-    onOpenReviewPost: (VenueReview) -> Unit,
+    onOpenReviewPost: (ReviewUiModel) -> Unit,
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
@@ -541,8 +578,8 @@ private fun VenueDetailContent(
 
                 if (!venueDetail.galleryCategories.isNullOrEmpty()) {
                     item(key = "gallery") {
-                        VenueGallerySection(
-                            galleryCategories = venueDetail.galleryCategories,
+                        GallerySection(
+                            galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
                             onSeeAllClick = onSeeAllGalleryClick
                         )
                     }
@@ -553,11 +590,12 @@ private fun VenueDetailContent(
 
                 if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
                     item(key = "reviews") {
-                        VenueReviewsSection(
-                            venue = venue,
-                            reviewsData = venueDetail.reviewsData!!,
+                        ReviewsSection(
+                            rating = venue.rating,
+                            totalReviews = venue.totalReviews,
+                            reviewsData = venueDetail.reviewsData!!.toUiModel(),
                             onSeeAllClick = onSeeAllReviewsClick,
-                            onReviewCardClick = onOpenReviewPost,
+                            onReviewCardClick = { onOpenReviewPost(it) },
                             onWriteReviewClick = { }
                         )
                     }

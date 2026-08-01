@@ -49,8 +49,6 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
-import com.harshdeep.jasnify.domain.model.VenueMediaItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -63,9 +61,21 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
+// Generic UI models for Gallery
+data class MediaItemUiModel(
+    val url: String,
+    val video: Boolean = false,
+    val videoDuration: String? = null
+)
+
+data class GalleryCategoryUiModel(
+    val categoryName: String,
+    val mediaItems: List<MediaItemUiModel> = emptyList()
+)
+
 @Composable
-fun VenueGallerySection(
-    galleryCategories: List<VenueGalleryCategory>,
+fun GallerySection(
+    galleryCategories: List<GalleryCategoryUiModel>,
     onSeeAllClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -153,7 +163,7 @@ fun VenueGallerySection(
             ) {
                 val mediaItem = mediaItems.getOrNull(0)
                 AsyncImage(
-                    model = mediaItem?.url ?: "image_2e5379.jpg",
+                    model = mediaItem?.url ?: "",
                     contentDescription = "Main Gallery",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
@@ -185,7 +195,7 @@ fun VenueGallerySection(
                 ) {
                     val mediaItem = mediaItems.getOrNull(1)
                     AsyncImage(
-                        model = mediaItem?.url ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "",
                         contentDescription = "Gallery Row 2",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -210,7 +220,7 @@ fun VenueGallerySection(
                 ) {
                     val mediaItem = mediaItems.getOrNull(2)
                     AsyncImage(
-                        model = mediaItem?.url ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "",
                         contentDescription = "Gallery Row 3",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -235,7 +245,7 @@ fun VenueGallerySection(
                 ) {
                     val mediaItem = mediaItems.getOrNull(3)
                     AsyncImage(
-                        model = mediaItem?.url ?: "image_2e5379.jpg",
+                        model = mediaItem?.url ?: "",
                         contentDescription = "Gallery Row OverView",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -287,19 +297,17 @@ fun VideoPlayOverlay(
 }
 
 @Composable
-fun VenueGalleryDetailScreen(
+fun GalleryDetailScreen(
     title: String,
-    onOpenAlbum: (VenueGalleryCategory) -> Unit,
-    galleryCategories: List<VenueGalleryCategory>,
+    onOpenAlbum: (GalleryCategoryUiModel) -> Unit,
+    galleryCategories: List<GalleryCategoryUiModel>,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Top primary horizontal section uses the first category ("All" or "Images")
     val topSection = galleryCategories.firstOrNull()
     val topMediaItems = topSection?.mediaItems.orEmpty()
     val topTitle = topSection?.categoryName ?: "Images"
 
-    // Remaining categories represent customized albums (e.g., Outdoor Area, Indoor Area, Rooms)
     val albumCategories = if (galleryCategories.size > 1) {
         galleryCategories.drop(1)
     } else {
@@ -425,7 +433,7 @@ fun VenueGalleryDetailScreen(
                 }
 
                 items(albumCategories) { album ->
-                    VenueAlbumGridCard(
+                    AlbumGridCard(
                         album = album,
                         onAlbumClick = { onOpenAlbum(album) },
                         modifier = Modifier.padding(horizontal = 12.dp)
@@ -437,8 +445,8 @@ fun VenueGalleryDetailScreen(
 }
 
 @Composable
-fun VenueAlbumGridCard(
-    album: VenueGalleryCategory,
+fun AlbumGridCard(
+    album: GalleryCategoryUiModel,
     onAlbumClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -562,110 +570,5 @@ fun VenueAlbumGridCard(
                 }
             }
         }
-    }
-}
-
-
-// ======================================== Preview ==============================================
-
-@Preview(showBackground = true, name = "Album Grid Card")
-@Composable
-fun AlbumGridCardPreview() {
-    val sampleAlbum = VenueGalleryCategory(
-        categoryName = "Outdoor Area",
-        mediaItems = listOf(
-            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500", video = true),
-            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
-            VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500")
-        )
-    )
-    JasnifyTheme {
-        VenueAlbumGridCard(album = sampleAlbum, onAlbumClick = {})
-    }
-}
-
-
-@Preview(showBackground = true, name = "Gallery Details - Hotel Imperial Inn")
-@Composable
-fun GalleryDetailScreenPreview() {
-    val sampleCategoriesData = listOf(
-        VenueGalleryCategory(
-            categoryName = "Images",
-            mediaItems = listOf(
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
-            )
-        ),
-        VenueGalleryCategory(
-            categoryName = "Outdoor Area",
-            mediaItems = listOf(
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500") // yields +2
-            )
-        ),
-        VenueGalleryCategory(
-            categoryName = "Indoor Area",
-            mediaItems = List(20) { VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500") } // yields +15
-        ),
-        VenueGalleryCategory(
-            categoryName = "Rooms",
-            mediaItems = List(26) { VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500") } // yields +21
-        )
-    )
-
-    JasnifyTheme {
-        VenueGalleryDetailScreen(
-            title = "Hotel Imperial Inn",
-            galleryCategories = sampleCategoriesData,
-            onBack = {},
-            onOpenAlbum = {}
-        )
-    }
-}
-
-@Preview(showBackground = true, name = "Gallery Section - Dashboard Component")
-@Composable
-fun GallerySectionPreview() {
-    val sampleData = listOf(
-        VenueGalleryCategory(
-            categoryName = "All",
-            mediaItems = listOf(
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500", video = true),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500")
-            )
-        ),
-        VenueGalleryCategory(
-            categoryName = "Interior",
-            mediaItems = listOf(
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
-            )
-        ),
-        VenueGalleryCategory(
-            categoryName = "Food",
-            mediaItems = listOf(
-                VenueMediaItem("https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?w=500"),
-                VenueMediaItem("https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=500")
-            )
-        )
-    )
-    JasnifyTheme {
-        VenueGallerySection(
-            galleryCategories = sampleData,
-            onSeeAllClick = {}
-        )
     }
 }

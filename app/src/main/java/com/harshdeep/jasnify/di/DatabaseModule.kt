@@ -56,4 +56,10 @@ object DatabaseModule {
     fun provideSavedVenueDao(database: AppDatabase): com.harshdeep.jasnify.data.local.SavedVenueDao {
         return database.savedVenueDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideSavedVendorDao(database: AppDatabase): com.harshdeep.jasnify.data.local.SavedVendorDao {
+        return database.savedVendorDao()
+    }
 }

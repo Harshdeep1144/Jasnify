@@ -349,7 +349,6 @@ fun HomeTabContent(
                             }
 
                             Column(
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 VenueCarousel(
@@ -359,8 +358,6 @@ fun HomeTabContent(
                                     onFavoriteToggle = { },
                                     onOfferClick = { }
                                 )
-
-                                Spacer(Modifier.height(12.dp))
 
                                 VenueCarousel(
                                     title = "More Venues to Explore",

@@ -43,8 +43,15 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(route = Screen.HomeTabScreen.Vendors.route) {
-        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
-        VendorsTab()
+        VendorsTab(
+            mainNavController = mainNavController,
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            onBackClick = {
+                navController.navigate(Screen.HomeTabScreen.Home.route) {
+                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                }
+            }
+        )
     }
 
     composable(route = Screen.HomeTabScreen.Inspirations.route) {

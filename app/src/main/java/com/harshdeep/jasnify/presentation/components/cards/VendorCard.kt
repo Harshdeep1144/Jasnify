@@ -76,6 +76,7 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val VIRTUAL_PAGE_COUNT = 10000
+private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -298,6 +299,8 @@ fun VendorCardCompact(
     modifier: Modifier = Modifier,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
+    onRemoveClick: (() -> Unit)? = null,
+    showLikeButton: Boolean = true,
     onOfferClick: () -> Unit = {},
     compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -415,19 +418,34 @@ fun VendorCardCompact(
                         .align(Alignment.TopEnd)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                         .clip(CircleShape)
-                        .clickable { onFavoriteToggle() },
+                        .clickable { if (onRemoveClick != null) onRemoveClick() else if (showLikeButton) onFavoriteToggle() },
                     contentAlignment = Alignment.Center
                 ) {
-                    val iconRes =
-                        if (vendor.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
-                            R.drawable.ic_heart
+                    if (onRemoveClick != null) {
+                        Surface(
+                            color = Color.Black,
+                            shape = CircleShape,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_cross),
+                                contentDescription = "Remove Icon",
+                                tint = Color.White,
+                                modifier = Modifier.padding(8.dp)
+                            )
+                        }
+                    } else if (showLikeButton) {
+                        val iconRes =
+                            if (vendor.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(
+                                R.drawable.ic_heart
+                            )
+                        Icon(
+                            painter = iconRes,
+                            contentDescription = "Favorite Icon",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(24.dp),
                         )
-                    Icon(
-                        painter = iconRes,
-                        contentDescription = "Favorite Icon",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(24.dp),
-                    )
+                    }
                 }
 
                 if (isMedium && pagerState != null) {
@@ -474,24 +492,12 @@ fun VendorCardCompact(
                         style = JasnifyTheme.typography.labelSmall,
                         color = ContentSecondary
                     )
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        Text(
-                            text = vendor.priceStartsFrom,
-                            style = JasnifyTheme.typography.displaySmall,
-                            color = ContentPrimary,
-                            fontWeight = FontWeight.Medium
-                        )
-                        if (vendor.priceUnit.isNotBlank()) {
-                            Text(
-                                text = "/ ${vendor.priceUnit}",
-                                style = JasnifyTheme.typography.labelSmall,
-                                color = ContentSecondary
-                            )
-                        }
-                    }
+                    Text(
+                        text = vendor.priceStartsFrom,
+                        style = JasnifyTheme.typography.displaySmall,
+                        color = ContentPrimary,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
         }
@@ -739,8 +745,6 @@ fun Modifier.vendorShadow(
         }
     }
 }
-
-private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 @SuppressLint("LocalContextResourcesRead")
 @Composable

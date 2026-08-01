@@ -165,14 +165,18 @@ fun CateringMenuScreen(
     }
 
     LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
         eventViewModel.fetchUserEvents()
     }
 
     LaunchedEffect(activeEventId) {
-        activeEventId?.let { id ->
-            cateringViewModel.setEventId(id)
-            roomViewModel.verifyAccess(id, "Catering", currentUserUid)
-            roomViewModel.loadRoomUsers(id, "Catering")
+        if (activeEventId != null) {
+            cateringViewModel.setEventId(activeEventId!!)
+            roomViewModel.verifyAccess(activeEventId!!, "Catering", currentUserUid)
+            roomViewModel.loadRoomUsers(activeEventId!!, "Catering")
+        } else {
+            // Allow access to view general menu if no event is active
+            roomViewModel.setAccessState(true)
         }
     }
 
