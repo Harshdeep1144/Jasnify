@@ -115,13 +115,15 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
-import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
+import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
+import com.harshdeep.jasnify.presentation.components.states.EmptyState
+import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
@@ -131,6 +133,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -806,7 +809,7 @@ fun VenueMainContent(
     }
 
     val exploreVenues = remember(allVenues) {
-        allVenues.ifEmpty { MockData.sampleVenues1 }
+        allVenues.ifEmpty { MockData.sampleVenues1 + MockData.sampleVenues2 }
     }
 
     val recentVenuesList = remember<List<Venue>>(recentSearches, exploreVenues) {
@@ -841,7 +844,7 @@ fun VenueMainContent(
         }
     }
 
-    val savedVenuesList = remember<List<Venue>>(venueSavedDestinations) {
+    val savedVenuesList = remember<List<Venue>>(venueSavedDestinations, exploreVenues) {
         exploreVenues.filter { venue ->
             venueSavedDestinations.containsKey(venue.name)
         }.map { venue ->
@@ -849,9 +852,19 @@ fun VenueMainContent(
         }
     }
 
-    val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions) {
+    val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions, text) {
         var result = exploreVenues.map { venue ->
             venue.copy(favorite = venueSavedDestinations.containsKey(venue.name))
+        }
+
+        if (text.isNotEmpty()) {
+            result = result.filter { 
+                it.name.contains(text, ignoreCase = true) || 
+                it.location.contains(text, ignoreCase = true) ||
+                it.locality.contains(text, ignoreCase = true) ||
+                it.city.contains(text, ignoreCase = true) ||
+                it.type?.contains(text, ignoreCase = true) == true
+            }
         }
 
         if (appliedFilterOptions.isNotEmpty()) {
@@ -888,7 +901,7 @@ fun VenueMainContent(
         )
     }
 
-    val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents) {
+    val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents, exploreVenues) {
         val list = mutableListOf<TimelineEvent>()
 
         val defaultSavedVenues = exploreVenues.filter { venue ->
@@ -1057,19 +1070,63 @@ fun VenueMainContent(
                             }
                         }
 
-                        if (!isSearchActive) {
-                            if (isLoading) {
+                        if (isSearchActive && text.isNotEmpty()) {
+                            // SUGGESTIONS MODE
+                            if (filteredAndSortedExploreVenues.isEmpty()) {
+                                item {
+                                    EmptyState(
+                                        message = "No matches for \"$text\"",
+                                        iconRes = R.drawable.ic_receipt
+                                    )
+                                }
+                            } else {
+                                items(filteredAndSortedExploreVenues) { venue ->
+                                    SearchSuggestionItem(
+                                        title = venue.name,
+                                        subtitle = "${venue.locality}, ${venue.city}",
+                                        onClick = {
+                                            handleVenueClick(venue)
+                                            focusManager.clearFocus()
+                                        }
+                                    )
+                                }
+                            }
+                        } else if (!isSearchActive && text.isNotEmpty()) {
+                            // RESULTS MODE (Optional: if we want to show full cards after user confirms search)
+                            // For now, let's stick to suggestions only while active, or maybe this state isn't reachable easily
+                            items(
+                                items = filteredAndSortedExploreVenues,
+                                key = { it.id.ifEmpty { it.name } }
+                            ) { venueItem ->
+                                VenueCardFull(
+                                    venue = venueItem,
+                                    onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                    onCardClick = { handleVenueClick(venueItem) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp),
+                                    sharedTransitionScope = sharedTransitionScope,
+                                    animatedVisibilityScope = animatedVisibilityScope
+                                )
+                            }
+                        } else if (!isSearchActive) {
+                            // DISCOVERY MODE: Regular UI
+                            if (isLoading && filteredAndSortedExploreVenues.isEmpty()) {
                                 items(5) {
                                     VenueCardFull(
-                                        venue = Venue(), // Mock empty venue
+                                        venue = Venue(),
                                         isLoading = true,
                                         modifier = Modifier.padding(horizontal = 12.dp)
                                     )
                                 }
+                            } else if (filteredAndSortedExploreVenues.isEmpty()) {
+                                item {
+                                    EmptyState(message = "No venues found")
+                                }
                             } else {
                                 items(
                                     items = filteredAndSortedExploreVenues,
-                                    key = { it.name }
+                                    key = { it.id.ifEmpty { it.name } }
                                 ) { venueItem ->
                                     VenueCardFull(
                                         venue = venueItem,
@@ -1193,35 +1250,6 @@ fun VenueMainContent(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun LazyItemScope.EmptySavedState() {
-    Box(
-        modifier = Modifier
-            .fillParentMaxHeight(0.7f)
-            .fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_receipt),
-                contentDescription = "No plans here yet",
-                tint = ContentTertiary,
-                modifier = Modifier.size(84.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "No plans here yet",
-                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                color = ContentTertiary,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }

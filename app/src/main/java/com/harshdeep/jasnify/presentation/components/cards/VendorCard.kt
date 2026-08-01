@@ -60,10 +60,10 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
-import com.harshdeep.jasnify.presentation.components.sections.CompactCardLoading
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
+import com.harshdeep.jasnify.presentation.components.states.FullCardLoading
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary

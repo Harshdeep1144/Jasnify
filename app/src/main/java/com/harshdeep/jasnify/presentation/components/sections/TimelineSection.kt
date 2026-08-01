@@ -39,6 +39,7 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
+import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault

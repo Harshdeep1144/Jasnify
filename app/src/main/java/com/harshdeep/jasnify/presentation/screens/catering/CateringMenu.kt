@@ -101,9 +101,9 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.others.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
-import com.harshdeep.jasnify.presentation.components.sections.shimmerBrush
+import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
+import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

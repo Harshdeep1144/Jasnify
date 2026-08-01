@@ -21,6 +21,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,6 +36,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -103,7 +105,9 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
-import com.harshdeep.jasnify.presentation.components.sections.FullCardLoading
+import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
+import com.harshdeep.jasnify.presentation.components.states.EmptyState
+import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
@@ -116,6 +120,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -702,6 +707,17 @@ fun VendorMainContent(
     allVendors: List<Vendor>,
     isLoading: Boolean
 ) {
+    val filteredAllVendors = remember(allVendors, searchQuery) {
+        val baseList = allVendors.ifEmpty { MockData.sampleVendors }
+        baseList.filter { 
+            it.name.contains(searchQuery, ignoreCase = true) || 
+            it.category.contains(searchQuery, ignoreCase = true) ||
+            it.locality.contains(searchQuery, ignoreCase = true) ||
+            it.city.contains(searchQuery, ignoreCase = true) ||
+            it.location.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
@@ -750,48 +766,74 @@ fun VendorMainContent(
                 )
             }
 
-            if (!isSearchActive) {
+            if (isSearchActive && searchQuery.isNotEmpty()) {
+                if (filteredAllVendors.isEmpty()) {
+                    item {
+                        EmptyState(message = "No matches for \"$searchQuery\"")
+                    }
+                } else {
+                    items(filteredAllVendors) { vendor ->
+                        SearchSuggestionItem(
+                            title = vendor.name,
+                            subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
+                        onClick = {
+                                onVendorClick(vendor)
+                                focusManager.clearFocus()
+                            }
+                        )
+                    }
+                }
+            } else if (!isSearchActive && searchQuery.isNotEmpty()) {
+                items(filteredAllVendors) { vendor ->
+                    VendorCardFull(
+                        vendor = vendor,
+                        onCardClick = { onVendorClick(vendor) },
+                        onFavoriteToggle = { onFavoriteToggle(vendor) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            } else if (!isSearchActive) {
                 item {
                     VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                item {
-                    OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-                }
-                item {
-                    VendorCarousel(
-                        title = "Top Makeup Artists in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
-                        isLoading = isLoading,
-                        onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle,
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item {
-                    VendorCarousel(
-                        title = "Best Photographers in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
-                        isLoading = isLoading,
-                        onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle,
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item {
-                    VendorCarousel(
-                        title = "Expert Mehendi Artists in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
-                        isLoading = isLoading,
-                        onVendorClick = onVendorClick,
-                        onFavoriteToggle = onFavoriteToggle,
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item {
-                    DashedDivider()
-                    ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
-                }
-                item { FooterJansify() }
+                    item {
+                        OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                    }
+                    item {
+                        VendorCarousel(
+                            title = "Top Makeup Artists in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                            isLoading = isLoading,
+                            onVendorClick = onVendorClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                    }
+                    item {
+                        VendorCarousel(
+                            title = "Best Photographers in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                            isLoading = isLoading,
+                            onVendorClick = onVendorClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                    }
+                    item {
+                        VendorCarousel(
+                            title = "Expert Mehendi Artists in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                            isLoading = isLoading,
+                            onVendorClick = onVendorClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                    }
+                    item {
+                        DashedDivider()
+                        ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
+                    }
+                    item { FooterJansify() }
             } else {
                 item {
                     TrendingAiSearchesSection(onTrendingClick = { query ->
@@ -874,7 +916,12 @@ fun VendorCategoryDetailContent(
     }
 
     val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
-        var result = allVendors.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
+        var result = baseList.filter { 
+            it.name.contains(searchQuery, ignoreCase = true) ||
+            it.locality.contains(searchQuery, ignoreCase = true) ||
+            it.city.contains(searchQuery, ignoreCase = true)
+        }
 
         // Apply Sorting/Filtering based on selectedFilterIndex
         result = when (selectedFilterIndex) {
@@ -965,7 +1012,39 @@ fun VendorCategoryDetailContent(
                         }
                     }
 
-                    if (!isSearchActive) {
+                    if (isSearchActive && searchQuery.isNotEmpty()) {
+                        if (filteredVendors.isEmpty()) {
+                            item {
+                                EmptyState(message = "No matches for \"$searchQuery\"")
+                            }
+                        } else {
+                            items(filteredVendors) { vendor ->
+                                SearchSuggestionItem(
+                                    title = vendor.name,
+                                    subtitle = "${vendor.locality}, ${vendor.city}",
+                                    onClick = {
+                                        onVendorClick(vendor)
+                                        focusManager.clearFocus()
+                                    }
+                                )
+                            }
+                        }
+                    } else if (!isSearchActive && searchQuery.isNotEmpty()) {
+                        items(filteredVendors) { vendor ->
+                            VendorCardFull(
+                                vendor = vendor,
+                                onCardClick = {
+                                    saveCategoryRecentSearch(context, category.name, vendor.name)
+                                    recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                    onVendorClick(vendor)
+                                },
+                                onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                sharedTransitionScope = sharedTransitionScope
+                            )
+                        }
+                    } else if (!isSearchActive) {
+                        // DISCOVERY MODE: Regular UI
                         item {
                             VendorCarousel(
                                 title = "Top-Rated ${category.name}",
@@ -1002,7 +1081,7 @@ fun VendorCategoryDetailContent(
                             }
                         }
 
-                        if (isLoading) {
+                        if (isLoading && filteredVendors.isEmpty()) {
                             items(5) {
                                 VendorCardFull(
                                     vendor = Vendor(), // Mock empty vendor
@@ -1010,6 +1089,8 @@ fun VendorCategoryDetailContent(
                                     modifier = Modifier.padding(horizontal = 12.dp)
                                 )
                             }
+                        } else if (filteredVendors.isEmpty()) {
+                            item { EmptyState(message = "No vendors found in this category") }
                         } else {
                             items(filteredVendors) { vendor ->
                                 VendorCardFull(
@@ -1141,33 +1222,6 @@ fun VendorCategoryDetailContent(
                     item { Spacer(Modifier.height(24.dp)) }
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun LazyItemScope.EmptySavedState() {
-    Box(
-        modifier = Modifier.fillParentMaxHeight(0.7f).fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_receipt),
-                contentDescription = "No plans here yet",
-                tint = ContentTertiary,
-                modifier = Modifier.size(84.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "No plans here yet",
-                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                color = ContentTertiary,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }
