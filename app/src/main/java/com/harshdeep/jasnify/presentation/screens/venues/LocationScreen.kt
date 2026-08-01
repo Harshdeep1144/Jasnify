@@ -70,7 +70,9 @@ import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.content.edit
 
+@SuppressLint("UseKtx")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -116,9 +118,9 @@ fun LocationScreen(
 
     // Helper to persist the current state of recent searches list to local storage
     val saveRecentSearchesToStorage: (List<String>) -> Unit = { list ->
-        sharedPrefs.edit()
-            .putString("recent_searches_key", list.joinToString("|||"))
-            .apply()
+        sharedPrefs.edit {
+            putString("recent_searches_key", list.joinToString("|||"))
+        }
     }
 
     var selectedCityId by remember { mutableStateOf("") }

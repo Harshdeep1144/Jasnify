@@ -11,7 +11,7 @@ import com.harshdeep.jasnify.presentation.screens.home.tabs.*
 
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 fun NavGraphBuilder.homeNavGraph(
     mainNavController: NavHostController,
     navController: NavHostController,
@@ -21,6 +21,7 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Home.route) {
         HomeTab(
             mainNavController = mainNavController,
+            internalNavController = navController,
             onMenuClick = {
                 mainNavController.navigate((Screen.EventDetail.route))
             },
@@ -45,6 +46,7 @@ fun NavGraphBuilder.homeNavGraph(
     composable(route = Screen.HomeTabScreen.Vendors.route) {
         VendorsTab(
             mainNavController = mainNavController,
+            internalNavController = navController,
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
             onBackClick = {
                 navController.navigate(Screen.HomeTabScreen.Home.route) {

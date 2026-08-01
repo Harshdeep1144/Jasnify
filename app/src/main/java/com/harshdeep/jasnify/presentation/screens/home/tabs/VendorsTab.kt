@@ -21,7 +21,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,19 +33,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -65,8 +60,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
@@ -92,7 +85,6 @@ import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
@@ -105,13 +97,17 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
-import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
-import com.harshdeep.jasnify.presentation.components.states.EmptyState
-import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
+import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryGrid
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
+import com.harshdeep.jasnify.presentation.components.states.EmptyState
+import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
@@ -119,11 +115,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.JasnifyTheme
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -133,8 +125,6 @@ import kotlin.time.Duration.Companion.milliseconds
 enum class VendorScreenState {
     MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR
 }
-
-data class VendorCategoryItem(val name: String, val icon: Int)
 
 private const val PREFS_NAME = "vendor_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
@@ -180,11 +170,13 @@ private fun parsePrice(priceString: String): Int {
 @Composable
 fun VendorsTab(
     mainNavController: NavHostController,
+    internalNavController: NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     sharedTransitionScope: SharedTransitionScope? = null,
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
+    initialCategory: VendorCategoryItem? = null,
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -192,12 +184,34 @@ fun VendorsTab(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    var currentScreenState by remember { mutableStateOf(VendorScreenState.MAIN) }
+    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    var currentScreenState by remember { 
+        mutableStateOf(if (initialCategory != null) VendorScreenState.CATEGORY_DETAIL else VendorScreenState.MAIN) 
+    }
     var previousScreenState by remember { mutableStateOf<VendorScreenState?>(null) }
-    var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
+
+    // Handle navigation from Home screen category clicks via NavController if not passed directly
+    val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow<String?>("selected_category_name", null)
+        ?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(selectedCategoryNameFromHome) {
+        selectedCategoryNameFromHome?.let { name ->
+            val cat = vendorCategories.find { it.name == name }
+            if (cat != null) {
+                selectedCategory = cat
+                currentScreenState = VendorScreenState.CATEGORY_DETAIL
+                // Clear it so it doesn't reopen on every recomposition
+                (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
+            }
+        }
+    }
+
 
     var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
 
@@ -250,17 +264,7 @@ fun VendorsTab(
         ?.getStateFlow("selected_location", "City, State")
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
-    val categories = listOf(
-        VendorCategoryItem("Grooming", R.drawable.ill_vendor_grooming),
-        VendorCategoryItem("Makeup", R.drawable.ill_vendor_makeup),
-        VendorCategoryItem("Photography", R.drawable.ill_vendor_photographers),
-        VendorCategoryItem("Mehendi", R.drawable.ill_vendor_mehendi),
-        VendorCategoryItem("Jewellery", R.drawable.ill_vendor_jewellery),
-        VendorCategoryItem("Outfits", R.drawable.ill_bride_and_groom),
-        VendorCategoryItem("Entertainment", R.drawable.ill_vendor_entertainment),
-        VendorCategoryItem("Food", R.drawable.ill_vendor_food),
-        VendorCategoryItem("Gifts", R.drawable.ill_vendor_gifts)
-    )
+    val categories = vendorCategories
 
     val allSampleVendors = MockData.sampleVendors
 
@@ -323,14 +327,16 @@ fun VendorsTab(
         }
     }
 
-    LaunchedEffect(showMenuSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess) {
-        val isBottomBarVisible = hasAccess == true && !showMenuSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
+    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess) {
+        val isBottomBarVisible = hasAccess == true && !showMenuSheet && !showRoomMenuBottomSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
         onBottomBarVisibilityChange(isBottomBarVisible)
     }
 
     BackHandler {
         if (showSaveListBottomSheet) {
             showSaveListBottomSheet = false
+        } else if (showRoomMenuBottomSheet) {
+            showRoomMenuBottomSheet = false
         } else if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
@@ -354,7 +360,7 @@ fun VendorsTab(
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
@@ -461,6 +467,7 @@ fun VendorsTab(
                                     eventId = event.id,
                                     roomViewModel = roomViewModel,
                                     onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                    onMenuClick = { showRoomMenuBottomSheet = true },
                                     onRemove = { userToRemove = it },
                                     onLeave = { showLeaveConfirmation = true },
                                     onShowToast = { toastData = it }
@@ -520,7 +527,7 @@ fun VendorsTab(
             CustomToast(
                 message = toastData.message ?: "",
                 type = toastData.type,
-                leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                leadingIcon = painterResource(id = R.drawable.ic_top_bar_heart),
                 buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                 onButtonClick = if (activeEvent?.multiDay == true) {
                     {
@@ -572,7 +579,7 @@ fun VendorsTab(
                 val savedVendorsItem = listOf(
                     MenuSheetActionItem(
                         text = "Saved Vendors",
-                        icon = painterResource(R.drawable.ic_heart),
+                        icon = painterResource(R.drawable.ic_top_bar_heart),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
@@ -586,6 +593,29 @@ fun VendorsTab(
             MenuBottomSheet(
                 items = menuItems,
                 onCancelClick = { showMenuSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showRoomMenuBottomSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Room",
+                            icon = painterResource(R.drawable.ic_logout),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                showLeaveConfirmation = true
+                            }
+                        )
+                    )
+                ),
+                onCancelClick = {
+                    showRoomMenuBottomSheet = false
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
@@ -861,6 +891,7 @@ fun VendorMainContent(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorCategoryDetailContent(
@@ -1358,6 +1389,7 @@ fun VendorRoomContent(
     eventId: String,
     roomViewModel: RoomViewModel,
     onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onRemove: (User) -> Unit,
     onLeave: () -> Unit,
     onShowToast: (ToastData) -> Unit
@@ -1395,7 +1427,7 @@ fun VendorRoomContent(
         currentUserRole = currentUserRole,
         isSelf = { it.uid == currentUser?.uid },
         onBackClick = onBackClick,
-        onMenuClick = {}, // Handled internally in RoomScreen for non-admins
+        onMenuClick = onMenuClick,
         onRoleChange = { user, newRole ->
             roomViewModel.updateRole(eventId, "Vendors", user, newRole)
         },
@@ -1409,61 +1441,4 @@ fun VendorRoomContent(
             onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
         }
     )
-}
-
-@Composable
-fun VendorCategoryGrid(categories: List<VendorCategoryItem>, onCategoryClick: (VendorCategoryItem) -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val rows = categories.chunked(3)
-        rows.forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowItems.forEach { item ->
-                    VendorTypeChip(
-                        label = item.name,
-                        icon = item.icon,
-                        isLarge = true,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            onCategoryClick(item)
-                        }
-                    )
-                }
-                if (rowItems.size < 3) repeat(3 - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-@Composable
-fun ExploreCategoriesHorizontal(categories: List<VendorCategoryItem>, onCategoryClick: (VendorCategoryItem) -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 12.dp))
-    {
-        Text(text = "Explore Categories",
-            style = JasnifyTheme.typography.headingLarge,
-            fontWeight = FontWeight.Medium,
-            color = ContentPrimary,
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(categories) { item ->
-                VendorTypeChip(
-                    label = item.name,
-                    icon = item.icon,
-                    subLabel = "Explore Now",
-                    isLarge = false,
-                    onClick = {
-                        onCategoryClick(item)
-                    }
-                )
-            }
-        }
-    }
 }

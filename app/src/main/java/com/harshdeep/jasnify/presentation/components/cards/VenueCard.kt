@@ -54,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -483,10 +484,19 @@ fun VenueCardCompact(
                 )
                 Spacer(Modifier.height(4.dp))
 
-                LocationAndTypeRow(
-                    venue = venue,
-                    compactCardSize = compactCardSize
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${venue.locality}, ${venue.city}",
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 if (isMedium) {
                     Spacer(Modifier.height(8.dp))
@@ -650,35 +660,7 @@ private fun BannerRow(
     }
 }
 
-@Composable
-private fun LocationAndTypeRow(
-    venue: Venue,
-    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM
-) {
-    val isMedium = compactCardSize == CompactCardSize.MEDIUM
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (isMedium) {
-            Icon(
-                painter = painterResource(R.drawable.ic_location_marker),
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = ContentSecondary
-            )
-            Spacer(Modifier.width(2.dp))
-        }
 
-        Text(
-            text = "${venue.locality}, ${venue.city}",
-            style = JasnifyTheme.typography.labelMedium,
-            color = ContentSecondary,
-            maxLines = 1,
-            modifier = Modifier.basicMarquee()
-        )
-    }
-}
 
 @Composable
 private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
@@ -688,7 +670,7 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
                 modifier = Modifier
                     .size(4.dp)
                     .background(
-                        color = if (index == currentPage) ContentBrandDark else SurfaceInvSecondary,
+                        color = if (index == currentPage) ContentBrandDark else SurfacePrimary,
                         shape = CircleShape
                     )
             )

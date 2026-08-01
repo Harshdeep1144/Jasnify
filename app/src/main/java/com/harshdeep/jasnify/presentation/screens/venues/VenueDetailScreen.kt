@@ -209,6 +209,7 @@ fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
 fun VenueDetailScreen(
     venueDetail: Venue,
     onBackClick: () -> Unit = {},
+    onFavoriteToggle: (Boolean) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
     modifier: Modifier = Modifier,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -237,6 +238,7 @@ fun VenueDetailScreen(
                 VenueDetailContent(
                     venueDetail = venueDetail,
                     onBackClick = onBackClick,
+                    onFavoriteToggle = onFavoriteToggle,
                     onChatClick = onChatClick,
                     onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
                     onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
@@ -290,12 +292,13 @@ fun VenueDetailScreen(
 }
 
 
-@SuppressLint("UseKtx")
+@SuppressLint("UseKtx", "FrequentlyChangingValue")
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VenueDetailContent(
     venueDetail: Venue,
     onBackClick: () -> Unit,
+    onFavoriteToggle: (Boolean) -> Unit,
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
@@ -538,7 +541,7 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (!venueDetail.pricingItems.isNullOrEmpty()) {
+                if (venueDetail.pricingItems.isNotEmpty()) {
                     item(key = "pricings") {
                         VenuePricingsSection(venue = venue, pricingItems = venueDetail.pricingItems)
                     }
@@ -547,7 +550,7 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (!venueDetail.highlightItems.isNullOrEmpty()) {
+                if (venueDetail.highlightItems.isNotEmpty()) {
                     item(key = "highlights") {
                         VenueHighlightsSection(highlightItems = venueDetail.highlightItems)
                     }
@@ -560,7 +563,7 @@ private fun VenueDetailContent(
                     item(key = "about") {
                         VenueAboutSection(
                             venue = venue,
-                            aboutText = venueDetail.aboutText!!,
+                            aboutText = venueDetail.aboutText,
                             onReadMoreClick = { showAboutSheet = true }
                         )
                     }
@@ -576,7 +579,7 @@ private fun VenueDetailContent(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                if (!venueDetail.galleryCategories.isNullOrEmpty()) {
+                if (venueDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
@@ -588,12 +591,12 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
+                if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
                     item(key = "reviews") {
                         ReviewsSection(
                             rating = venue.rating,
                             totalReviews = venue.totalReviews,
-                            reviewsData = venueDetail.reviewsData!!.toUiModel(),
+                            reviewsData = venueDetail.reviewsData.toUiModel(),
                             onSeeAllClick = onSeeAllReviewsClick,
                             onReviewCardClick = { onOpenReviewPost(it) },
                             onWriteReviewClick = { }
@@ -611,7 +614,7 @@ private fun VenueDetailContent(
             }
         }
 
-        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
+        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
 
         val scrollRange = maxOffsetPx - minOffsetPx
         val currentScrollOffset = maxOffsetPx - sheetOffsetPx
@@ -637,7 +640,10 @@ private fun VenueDetailContent(
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
-                onSecondaryClick = { isFavoriteState = !isFavoriteState },
+                onSecondaryClick = {
+                    isFavoriteState = !isFavoriteState
+                    onFavoriteToggle(isFavoriteState)
+                },
                 onMenuClick = { },
                 buttonStyle = dynamicButtonStyle,
                 translucentAlpha = topBarAlpha,
@@ -750,12 +756,12 @@ private fun VenueDetailContent(
                             }
                             try {
                                 context.startActivity(mapIntent)
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
                                 val webIntent = Intent(Intent.ACTION_VIEW, webUri)
                                 try {
                                     context.startActivity(webIntent)
-                                } catch (ignored: Exception) {}
+                                } catch (_: Exception) {}
                             }
                         },
                         text = "Get Directions",

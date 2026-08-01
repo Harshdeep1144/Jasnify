@@ -282,7 +282,7 @@ fun VendorDetailScreen(
     }
 }
 
-@SuppressLint("UseKtx")
+@SuppressLint("UseKt")
 @OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VendorDetailContent(
@@ -503,7 +503,7 @@ private fun VendorDetailContent(
             }
         }
 
-        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
+        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
         val scrollRange = maxOffsetPx - minOffsetPx
         val scrollFraction = if (scrollRange > 0f) ((maxOffsetPx - sheetOffsetPx) / scrollRange).coerceIn(0f, 1f) else 0f
         val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
@@ -518,7 +518,10 @@ private fun VendorDetailContent(
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
-                onSecondaryClick = onFavoriteToggle,
+                onSecondaryClick = {
+                    isFavoriteState = !isFavoriteState
+                    onFavoriteToggle()
+                },
                 onMenuClick = onMenuClick,
                 buttonStyle = dynamicButtonStyle,
                 translucentAlpha = topBarAlpha,

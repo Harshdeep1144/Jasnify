@@ -51,10 +51,14 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
+import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
@@ -72,11 +76,12 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val PARALLAX_RATE = 0.5f
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun HomeTab(
     mainNavController: NavHostController,
+    internalNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -156,6 +161,7 @@ fun HomeTab(
         remainingPercentage = remainingPercentage,
         amountText = amountText,
         mainNavController = mainNavController,
+        internalNavController = internalNavController,
         onMenuClick = onMenuClick,
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
         eventViewModel = eventViewModel,
@@ -172,12 +178,14 @@ fun HomeTabContent(
     remainingPercentage: Float,
     amountText: String,
     mainNavController: NavHostController,
+    internalNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel? = null,
     isVenuesLoading: Boolean = false
 ) {
     var currentScreen by remember { mutableStateOf("home") }
+    var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     // Determine proportions based on device screen height dynamically
@@ -204,6 +212,7 @@ fun HomeTabContent(
     }
 
     BackHandler(enabled = currentScreen != "home") {
+        selectedCategory = null
         currentScreen = "home"
     }
 
@@ -374,6 +383,17 @@ fun HomeTabContent(
                                     onOfferClick = { }
                                 )
                             }
+
+                            DashedDivider()
+
+                            ExploreCategoriesHorizontal(
+                                categories = vendorCategories,
+                                onCategoryClick = { category ->
+                                    selectedCategory = category
+                                    navigateTo("vendors")
+                                }
+                            )
+
                             FooterJansify()
                         }
                     }
@@ -407,6 +427,19 @@ fun HomeTabContent(
                             eventViewModel = vm
                         )
                     }
+                    "vendors" -> {
+                        VendorsTab(
+                            mainNavController = mainNavController,
+                            internalNavController = internalNavController,
+                            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+                            initialCategory = selectedCategory,
+                            onBackClick = {
+                                selectedCategory = null
+                                currentScreen = "home"
+                            },
+                            eventViewModel = eventViewModel ?: hiltViewModel()
+                        )
+                    }
                 }
             }
         }
@@ -424,6 +457,7 @@ fun HomeTabContentPreview() {
         remainingPercentage = 0.65f,
         amountText = "₹46L",
         mainNavController = NavHostController(context),
+        internalNavController = NavHostController(context),
         onMenuClick = {},
         onBottomBarVisibilityChange = {}
     )
