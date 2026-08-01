@@ -371,6 +371,7 @@ fun VendorsTab(
                         clip = isAnySheetVisible || backdropCornerRadius > 0.dp
                         shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                     }
+                    .background(BackgroundPrimary)
                     .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
             ) {
                 AnimatedContent(

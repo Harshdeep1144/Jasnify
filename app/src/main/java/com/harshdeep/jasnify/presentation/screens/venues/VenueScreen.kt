@@ -347,6 +347,7 @@ fun VenueScreen(
                         clip = isAnySheetVisible || backdropCornerRadius > 0.dp
                         shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                     }
+                    .background(BackgroundPrimary)
             ) {
                 RoomAccessGuardian(
                     hasAccess = hasAccess,
