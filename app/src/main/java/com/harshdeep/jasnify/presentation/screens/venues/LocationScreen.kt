@@ -9,7 +9,6 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
-import android.location.LocationManager
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -46,9 +45,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
+import androidx.core.content.edit
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.harshdeep.jasnify.R
@@ -58,19 +59,26 @@ import com.harshdeep.jasnify.presentation.components.chip.FamousCityChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import sv.lib.squircleshape.SquircleShape
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.core.content.edit
 
 @SuppressLint("UseKtx")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -78,8 +86,8 @@ import androidx.core.content.edit
 @Composable
 fun LocationScreen(
     initialSearches: List<String>,
-    currentAddress: String, // Hoisted global state (Simplified: "City, State")
-    onAddressSelected: (String) -> Unit, // Callback to update global address state and pop back
+    currentAddress: String,
+    onAddressSelected: (String) -> Unit,
     onBackClick: () -> Unit,
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     sharedTransitionScope: SharedTransitionScope? = null,
@@ -92,20 +100,18 @@ fun LocationScreen(
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    // local state to temporarily show geocoder feedback on the UI button row
+    var filteredSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
+    var isSearchingLocation by remember { mutableStateOf(false) }
     var exactAddressState by remember { mutableStateOf<String?>(null) }
 
-    // Initialize Android Local Storage via SharedPreferences
     val sharedPrefs = remember {
         context.getSharedPreferences("jasnify_location_prefs", Context.MODE_PRIVATE)
     }
 
-    // Persistent storage for the last known exact/full address to show in the picker
     var lastKnownFullAddress by remember {
         mutableStateOf(sharedPrefs.getString("exact_full_address_key", null))
     }
 
-    // Load recent searches from Local Storage, using fallback default list if empty
     val recentSearches = remember {
         val savedString = sharedPrefs.getString("recent_searches_key", null)
         val initialList = if (!savedString.isNullOrEmpty()) {
@@ -116,7 +122,6 @@ fun LocationScreen(
         mutableStateListOf<String>().apply { addAll(initialList) }
     }
 
-    // Helper to persist the current state of recent searches list to local storage
     val saveRecentSearchesToStorage: (List<String>) -> Unit = { list ->
         sharedPrefs.edit {
             putString("recent_searches_key", list.joinToString("|||"))
@@ -124,35 +129,165 @@ fun LocationScreen(
     }
 
     var selectedCityId by remember { mutableStateOf("") }
-
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    val searchDatabase = remember {
-        listOf(
-            "Hajipur, Bihar",
-            "Patna, Bihar",
-            "Muzaffarpur, Bihar",
-        )
-    }
+    // Active search job reference to cancel stale API requests when user types fast
+    var searchJob by remember { mutableStateOf<Job?>(null) }
 
-    // Live filtering based on the search query
-    val filteredSuggestions = remember(text) {
-        if (text.isBlank()) {
-            searchDatabase
-        } else {
-            searchDatabase.filter { it.contains(text, ignoreCase = true) }
+    LaunchedEffect(text) {
+        searchJob?.cancel()
+
+        val query = text.trim()
+        if (query.length < 2) {
+            filteredSuggestions = emptyList()
+            isSearchingLocation = false
+            return@LaunchedEffect
+        }
+
+        // Immediately filter and prioritize matching recent searches at the top
+        val matchingRecent = recentSearches.filter {
+            it.contains(query, ignoreCase = true)
+        }
+        filteredSuggestions = matchingRecent
+
+        isSearchingLocation = true
+
+        searchJob = launch(Dispatchers.IO) {
+            delay(250.milliseconds) // Debounce rapid user input
+
+            val searchResults = mutableListOf<String>()
+            searchResults.addAll(matchingRecent)
+
+            // 1. Android Native Geocoder Search (Fast & local)
+            try {
+                val geocoder = Geocoder(context, Locale("en", "IN"))
+                @Suppress("DEPRECATION")
+                val geocoderResults = geocoder.getFromLocationName("$query, India", 8)
+                if (!geocoderResults.isNullOrEmpty()) {
+                    for (addr in geocoderResults) {
+                        val formatted = buildString {
+                            val feature = addr.featureName
+                            val subLocality = addr.subLocality ?: addr.thoroughfare
+                            val locality = addr.locality ?: addr.subAdminArea
+                            val adminArea = addr.adminArea
+
+                            val parts = listOfNotNull(feature, subLocality, locality, adminArea)
+                                .filter { it.isNotBlank() && !it.equals("India", ignoreCase = true) && !it.equals("Bharat", ignoreCase = true) }
+                                .distinct()
+
+                            append(parts.take(3).joinToString(", "))
+                        }
+                        if (formatted.isNotBlank() && !formatted.equals("India", ignoreCase = true)) {
+                            searchResults.add(formatted)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Geocoder offline fallback
+            }
+
+            // 2. High-speed Photon API fallback (sub-50ms location resolution for OSM India)
+            if (searchResults.size < 5) {
+                try {
+                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                    val photonUrl = "https://photon.komoot.io/api/?q=$encodedQuery&limit=10&lang=en&bbox=68.7,8.0,97.23,35.5"
+                    val url = URL(photonUrl)
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.setRequestProperty("User-Agent", "JasnifyAndroidApp/1.0")
+                    connection.connectTimeout = 3000
+                    connection.readTimeout = 3000
+
+                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                        val jsonResponse = connection.inputStream.bufferedReader().use { it.readText() }
+                        val features = org.json.JSONObject(jsonResponse).optJSONArray("features") ?: JSONArray()
+
+                        for (i in 0 until features.length()) {
+                            val props = features.getJSONObject(i).optJSONObject("properties") ?: continue
+                            val name = props.optString("name", "").takeIf { it.isNotBlank() }
+                            val district = props.optString("district", "")
+                            val city = props.optString("city", "").ifEmpty { props.optString("county", "") }
+                            val state = props.optString("state", "")
+
+                            val parts = listOfNotNull(name, district, city, state)
+                                .filter { it.isNotBlank() && !it.equals("India", ignoreCase = true) }
+                                .distinct()
+
+                            val label = parts.take(3).joinToString(", ")
+                            if (label.isNotBlank() && !label.equals("India", ignoreCase = true)) {
+                                searchResults.add(label)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore Photon errors
+                }
+            }
+
+            // 3. Nominatim API with detailed boundary fallback if needed
+            if (searchResults.size < 3) {
+                try {
+                    val encodedQuery = URLEncoder.encode(query, "UTF-8")
+                    val urlString = "https://nominatim.openstreetmap.org/search?q=$encodedQuery&format=jsonv2&addressdetails=1&limit=8&countrycodes=in"
+                    val url = URL(urlString)
+                    val connection = url.openConnection() as HttpURLConnection
+                    connection.setRequestProperty("User-Agent", "JasnifyAndroidApp/1.0 (com.harshdeep.jasnify)")
+                    connection.connectTimeout = 3500
+                    connection.readTimeout = 3500
+
+                    if (connection.responseCode == HttpURLConnection.HTTP_OK) {
+                        val jsonResponse = connection.inputStream.bufferedReader().use { it.readText() }
+                        val jsonArray = JSONArray(jsonResponse)
+
+                        for (i in 0 until jsonArray.length()) {
+                            val item = jsonArray.getJSONObject(i)
+                            val name = item.optString("name", "").takeIf { it.isNotBlank() }
+                            val address = item.optJSONObject("address")
+
+                            val road = address?.optString("road", "") ?: ""
+                            val suburb = address?.optString("suburb")
+                                ?: address?.optString("neighbourhood")
+                                ?: address?.optString("subdistrict")
+                                ?: ""
+                            val city = address?.optString("city")
+                                ?: address?.optString("town")
+                                ?: address?.optString("village")
+                                ?: address?.optString("county")
+                                ?: ""
+                            val state = address?.optString("state", "") ?: ""
+
+                            val rawParts = listOfNotNull(name, road, suburb, city, state)
+                                .filter { it.isNotBlank() && !it.equals("India", ignoreCase = true) }
+                                .distinct()
+
+                            val label = rawParts.take(3).joinToString(", ")
+                            if (label.isNotBlank() && !label.equals("India", ignoreCase = true)) {
+                                searchResults.add(label)
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore network exceptions
+                }
+            }
+
+            withContext(Dispatchers.Main) {
+                filteredSuggestions = searchResults
+                    .filter { !it.equals("India", ignoreCase = true) && !it.equals("Bharat", ignoreCase = true) }
+                    .distinct()
+                isSearchingLocation = false
+            }
         }
     }
 
-    /**
-     * Converts a detailed Address object into a simplified "Locality, State" string.
-     */
     fun simplifyAddress(address: Address): String {
-        val city = address.locality ?: address.subAdminArea ?: ""
+        val locality = address.locality ?: address.subAdminArea ?: ""
+        val subLocality = address.subLocality ?: ""
         val state = address.adminArea ?: ""
+
         return when {
-            city.isNotEmpty() && state.isNotEmpty() -> "$city, $state"
-            city.isNotEmpty() -> city
+            subLocality.isNotEmpty() && locality.isNotEmpty() -> "$subLocality, $locality"
+            locality.isNotEmpty() && state.isNotEmpty() -> "$locality, $state"
+            locality.isNotEmpty() -> locality
             state.isNotEmpty() -> state
             else -> "Unknown Location"
         }
@@ -162,20 +297,16 @@ fun LocationScreen(
         recentSearches.remove(selectedAddress)
         recentSearches.add(0, selectedAddress)
 
-        // Trim history list to 10 items to save local memory
         if (recentSearches.size > 10) {
             recentSearches.removeLast()
         }
 
-        // Persist to local SharedPreferences storage
         saveRecentSearchesToStorage(recentSearches)
 
-        // Clear search inputs, close active search state, dismiss focus and bubble up selections
         text = ""
         isSearchActive = false
         focusManager.clearFocus()
-        
-        // Use a small delay before calling the callback to ensure stable navigation return
+
         coroutineScope.launch {
             delay(100.milliseconds)
             onAddressSelected(selectedAddress)
@@ -185,12 +316,13 @@ fun LocationScreen(
     @SuppressLint("MissingPermission")
     fun fetchLocationAndResolveAddress() {
         exactAddressState = "Locating..."
-        
+
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
                 coroutineScope.launch(Dispatchers.IO) {
                     try {
                         val geocoder = Geocoder(context, Locale.getDefault())
+                        @Suppress("DEPRECATION")
                         val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
                         if (!addresses.isNullOrEmpty()) {
                             val addressObj = addresses[0]
@@ -217,16 +349,15 @@ fun LocationScreen(
                     }
                 }
             } else {
-                // Request a fresh location update if last location is null
                 val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000)
                     .setMaxUpdates(1)
                     .build()
-                
+
                 fusedLocationClient.requestLocationUpdates(locationRequest, object : LocationCallback() {
                     override fun onLocationResult(locationResult: LocationResult) {
                         val newLoc = locationResult.lastLocation
                         if (newLoc != null) {
-                            fetchLocationAndResolveAddress() // retry once
+                            fetchLocationAndResolveAddress()
                         } else {
                             exactAddressState = null
                             Toast.makeText(context, "Location not found. Please try again.", Toast.LENGTH_SHORT).show()
@@ -245,10 +376,8 @@ fun LocationScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // User enabled GPS, automatically trigger location fetch
-            // Add a slight delay to allow the system settings to propagate
             coroutineScope.launch {
-                delay(300)
+                delay(300.milliseconds)
                 fetchLocationAndResolveAddress()
             }
         }
@@ -276,7 +405,6 @@ fun LocationScreen(
                     // Ignore
                 }
             } else {
-                // If not resolvable, navigate to system settings
                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 context.startActivity(intent)
             }
@@ -292,7 +420,6 @@ fun LocationScreen(
         if (fineLocationGranted || coarseLocationGranted) {
             checkSettingsAndFetchLocation()
         } else {
-            // Permission denied, redirect to app settings
             val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
                 data = Uri.fromParts("package", context.packageName, null)
             }
@@ -324,21 +451,18 @@ fun LocationScreen(
         City("Patna", R.drawable.ic_city_ptn, "patna")
     )
 
-
     Scaffold(modifier = Modifier) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .background(BackgroundPrimary)
                 .padding(paddingValues)
-                // Clear focus and hide the keyboard when tapping anywhere outside the SearchBar
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = {
                         focusManager.clearFocus()
                     })
                 }
         ) {
-            // Smoothly collapse / show TopBar based on Search Bar active state
             AnimatedVisibility(
                 visible = !isSearchActive,
                 enter = fadeIn() + expandVertically(),
@@ -391,7 +515,6 @@ fun LocationScreen(
                     .fillMaxWidth()
                     .weight(1f)
             ) {
-                // Background main content scroll layer
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -523,7 +646,7 @@ fun LocationScreen(
                     }
                 }
 
-                androidx.compose.animation.AnimatedVisibility(
+                this@Column.AnimatedVisibility(
                     visible = isSearchActive,
                     enter = fadeIn(),
                     exit = fadeOut()
@@ -532,17 +655,130 @@ fun LocationScreen(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(BackgroundPrimary)
-                            // Clear focus if tapping on the blank space in the overlay list
                             .pointerInput(Unit) {
                                 detectTapGestures(onTap = {
                                     focusManager.clearFocus()
                                 })
                             }
                     ) {
-                        if (filteredSuggestions.isEmpty() && text.isNotBlank()) {
+                        if (text.isBlank()) {
+                            // Show recent searches immediately when search bar is focused but empty
+                            if (recentSearches.isNotEmpty()) {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    item {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Recent Searches",
+                                                style = JasnifyTheme.typography.headingMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                            TextButton(
+                                                onClick = {
+                                                    recentSearches.clear()
+                                                    saveRecentSearchesToStorage(emptyList())
+                                                }
+                                            ) {
+                                                Text(
+                                                    text = "Clear all",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentBrandDark
+                                                )
+                                            }
+                                        }
+                                    }
+                                    items(recentSearches) { suggestion ->
+                                        ListItem(
+                                            headlineContent = { Text(suggestion) },
+                                            leadingContent = {
+                                                Icon(
+                                                    painter = painterResource(R.drawable.ic_clock_forward),
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                            },
+                                            trailingContent = {
+                                                IconButton(
+                                                    onClick = {
+                                                        recentSearches.remove(suggestion)
+                                                        saveRecentSearchesToStorage(recentSearches)
+                                                    }
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Close,
+                                                        contentDescription = "Remove search",
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable { handleLocationSelected(suggestion) },
+                                            colors = ListItemDefaults.colors(
+                                                containerColor = BackgroundPrimary
+                                            ),
+                                        )
+                                        HorizontalDivider(
+                                            thickness = 1.dp,
+                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 80.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_map),
+                                        contentDescription = null,
+                                        tint = ContentTertiary,
+                                        modifier = Modifier.size(84.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Text(
+                                        text = "Search for Area, \n City or State",
+                                        style = JasnifyTheme.typography.displayMedium.copy(
+                                            fontWeight = FontWeight.Medium
+                                        ),
+                                        color = ContentTertiary,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 32.dp)
+                                    )
+                                }
+                            }
+                        } else if (isSearchingLocation && filteredSuggestions.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(28.dp),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 2.5.dp
+                                )
+                            }
+                        } else if (filteredSuggestions.isEmpty() && text.isNotBlank()) {
                             ListItem(
                                 headlineContent = { Text("Search for \"$text\"") },
-                                leadingContent = { Icon(painter = painterResource(R.drawable.ic_location_marker), contentDescription = null) },
+                                leadingContent = {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_location_marker),
+                                        modifier = Modifier.size(24.dp),
+                                        contentDescription = null
+                                    )
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { handleLocationSelected(text) },
@@ -569,7 +805,11 @@ fun LocationScreen(
                                             containerColor = BackgroundPrimary
                                         ),
                                     )
-                                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                                    HorizontalDivider(
+                                        thickness = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
                                 }
                             }
                         }
@@ -593,7 +833,7 @@ fun LocationPicker(
                 color = ContentBrandDark,
                 shape = SquircleShape(20.dp, CornerSmoothingDefault)
             )
-            .clip(RoundedCornerShape(20.dp))
+            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
             .background(SurfaceBrandSecondary)
             .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),

@@ -1089,9 +1089,9 @@ fun CateringMenuScreen(
         )
     }
 
-    userToRemove?.let {
+    userToRemove?.let { user ->
         ConfirmationBottomSheet(
-            heading = "Remove ${it.name} from Catering Menu?",
+            heading = "Remove ${user.name} from Catering Menu?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onProgress = { sheetMotionProgress = it },
