@@ -309,10 +309,14 @@ fun BudgetScreen(
         }
     }
 
-    val targetScale = if (isAnyBottomSheetOpen) {
-        0.92f + (0.08f * sheetMotionProgress)
-    } else {
-        1.0f
+    val targetScale by remember {
+        derivedStateOf {
+            if (isAnyBottomSheetOpen) {
+                0.92f + (0.08f * sheetMotionProgress)
+            } else {
+                1.0f
+            }
+        }
     }
 
     val backdropScale by animateFloatAsState(
@@ -773,6 +777,9 @@ fun BudgetScreen(
                                                                 horizontal = 12.dp,
                                                                 vertical = 1.dp
                                                             )
+                                                            .graphicsLayer {
+                                                                // Use graphicsLayer for potentially better performance with shadows/clipping
+                                                            }
                                                             .clickable(
                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                 indication = null

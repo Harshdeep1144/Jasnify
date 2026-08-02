@@ -73,6 +73,8 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.runtime.getValue
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 
@@ -98,17 +100,23 @@ fun VenueCardFull(
     val initialPage =
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
 
+
+
     val pagerState = rememberPagerState(
         initialPage = initialPage,
         pageCount = { virtualCount }
     )
 
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
     if (actualPageCount > 1) {
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+        LaunchedEffect(isDragged) {
+            if (!isDragged) {
+                while (true) {
+                    delay(3000.milliseconds)
+                    if (!pagerState.isScrollInProgress) {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
                 }
             }
         }

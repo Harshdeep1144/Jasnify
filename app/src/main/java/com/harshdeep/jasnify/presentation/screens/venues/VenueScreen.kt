@@ -11,18 +11,13 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
@@ -41,13 +36,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -98,28 +87,15 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
-import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
-import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
-import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
-import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
-import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
-import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
-import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
-import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
-import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
-import com.harshdeep.jasnify.presentation.components.states.EmptyState
-import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
-import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
@@ -147,25 +123,27 @@ enum class VenueScreenState {
     TIMELINE_DETAIL
 }
 
-private const val PREFS_NAME = "venue_search_prefs"
-private const val KEY_RECENT_SEARCHES = "recent_searches"
+const val PREFS_NAME = "venue_prefs"
+const val KEY_RECENT_SEARCHES = "recent_searches"
 
-private fun getRecentSearches(context: Context): List<String> {
+fun getRecentSearches(context: Context): List<String> {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-    val raw = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
-    return if (raw.isEmpty()) emptyList() else raw.split("|||")
+    val saved = prefs.getString(KEY_RECENT_SEARCHES, null) ?: return emptyList()
+    return saved.split("|||").filter { it.isNotBlank() }
 }
 
-private fun saveRecentSearch(context: Context, name: String) {
+fun saveRecentSearch(context: Context, query: String) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     val current = getRecentSearches(context).toMutableList()
-    current.remove(name)
-    current.add(0, name)
-    val limited = current.take(8)
-    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")) }
+    current.remove(query)
+    current.add(0, query)
+    val limited = current.take(10)
+    prefs.edit {
+        putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))
+    }
 }
 
-private fun clearRecentSearches(context: Context) {
+fun clearRecentSearches(context: Context) {
     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
@@ -548,42 +526,18 @@ fun VenueScreen(
                                 onLocationSelectorClick = {
                                     screenStack = screenStack + VenueScreenState.LOCATION_PICKER
                                 },
-                                onManageRoomAccessClick = {
-                                    screenStack = screenStack + VenueScreenState.ROOM_ACCESS
-                                },
                                 onBackClick = onBackClick,
-                                isScreenActive = isScreenActive,
-                                toastData = toastData,
-                                onShowToast = { toastData = it },
-                                showFilterDialog = showFilterDialog,
-                                onShowFilterDialogChange = { showFilterDialog = it },
-                                showSaveListBottomSheet = showSaveListBottomSheet,
-                                onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
-                                showMenuSheet = showMenuSheet,
                                 onShowMenuSheetChange = { showMenuSheet = it },
-                                onActiveTargetVenueChange = { activeTargetVenue = it },
-                                isMySavedListChecked = isMySavedListChecked,
-                                onMySavedListCheckedChange = { isMySavedListChecked = it },
-                                selectedSaveEventId = selectedSaveEventId,
-                                onSelectedSaveEventIdChange = { selectedSaveEventId = it },
                                 venueSavedDestinations = venueSavedDestinations,
-                                onToggleSaveVenue = { venue, destination ->
-                                    venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
-                                },
                                 onFavoriteToggle = handleFavoriteToggle,
-                                lastSavedVenue = lastSavedVenue,
-                                onLastSavedVenueChange = { lastSavedVenue = it },
-                                isMultiDay = activeEvent?.multiDay ?: false,
-                                isViewer = isViewer,
-                                isOwner = isOwner,
                                 selectedTab = selectedTab,
                                 onSelectedTabChange = { selectedTab = it },
                                 selectedViewType = selectedViewType,
                                 onSelectedViewTypeChange = { selectedViewType = it },
                                 appliedSortOption = appliedSortOption,
                                 appliedFilterOptions = appliedFilterOptions,
+                                onShowFilterDialogChange = { showFilterDialog = it },
                                 isLoading = isLoading,
-                                onProgress = { sheetMotionProgress = it },
                                 onTimelineSeeAll = { event ->
                                     selectedTimelineEventId = event.id
                                     screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
@@ -781,6 +735,26 @@ fun VenueScreen(
         }
     }
 
+    userToRemove?.let { user ->
+        ConfirmationBottomSheet(
+            heading = "Remove ${user.name} from Venue Room?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirm = {
+                val target = userToRemove
+                if (target != null && activeEvent != null) {
+                    roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)
+                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
     if (showRoomMenuBottomSheet) {
         MenuBottomSheet(
             items = listOf(
@@ -799,26 +773,6 @@ fun VenueScreen(
             ),
             onCancelClick = {
                 showRoomMenuBottomSheet = false
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    userToRemove?.let {
-        ConfirmationBottomSheet(
-            heading = "Remove ${it.name} from Venue Room?",
-            subHeading = "They will not be able to access this room anymore.",
-            confirmButtonText = "Remove",
-            onDismiss = {
-                userToRemove = null
-            },
-            onConfirm = {
-                val target = userToRemove
-                if (target != null && activeEvent != null) {
-                    roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)
-                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
-                }
-                userToRemove = null
             },
             onProgress = { sheetMotionProgress = it }
         )
@@ -854,72 +808,27 @@ fun VenueMainContent(
     selectedLocation: String,
     onVenueClick: (Venue) -> Unit,
     onLocationSelectorClick: () -> Unit,
-    onManageRoomAccessClick: () -> Unit,
     onBackClick: () -> Unit,
-    isScreenActive: Boolean = true,
-    toastData: ToastData?,
-    onShowToast: (ToastData?) -> Unit,
-    showFilterDialog: Boolean,
-    onShowFilterDialogChange: (Boolean) -> Unit,
-    showSaveListBottomSheet: Boolean,
-    onShowSaveListBottomSheetChange: (Boolean) -> Unit,
-    showMenuSheet: Boolean,
     onShowMenuSheetChange: (Boolean) -> Unit,
-    onActiveTargetVenueChange: (Venue?) -> Unit,
-    isMySavedListChecked: Boolean,
-    onMySavedListCheckedChange: (Boolean) -> Unit,
-    selectedSaveEventId: String?,
-    onSelectedSaveEventIdChange: (String?) -> Unit,
     venueSavedDestinations: Map<String, String>,
-    onToggleSaveVenue: (Venue, String?) -> Unit,
-    lastSavedVenue: Venue?,
-    onLastSavedVenueChange: (Venue?) -> Unit,
-    isMultiDay: Boolean,
-    isViewer: Boolean,
-    isOwner: Boolean,
+    onFavoriteToggle: (Venue) -> Unit,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
     selectedViewType: String,
     onSelectedViewTypeChange: (String) -> Unit,
     appliedSortOption: String,
     appliedFilterOptions: Set<String>,
-    onFavoriteToggle: (Venue) -> Unit,
+    onShowFilterDialogChange: (Boolean) -> Unit,
     isLoading: Boolean = false,
-    onProgress: (Float) -> Unit = {},
     onTimelineSeeAll: (TimelineEvent) -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
-    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-
-    val viewOptions = listOf("By Timeline", "All Saved")
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    var recentSearches by remember {
-        mutableStateOf(getRecentSearches(context))
-    }
-
-    BackHandler(enabled = isSearchActive) {
-        isSearchActive = false
-        text = ""
-        focusManager.clearFocus()
-    }
-
-    val recentVenuesList = remember<List<Venue>>(recentSearches, exploreVenues) {
-        recentSearches.mapNotNull { name ->
-            exploreVenues.find { it.name == name }
-        }
-    }
-
-    val handleVenueClick: (Venue) -> Unit = { venue ->
-        saveRecentSearch(context, venue.name)
-        recentSearches = getRecentSearches(context)
-        onVenueClick(venue)
-    }
-
-    val savedVenuesList = remember<List<Venue>>(venueSavedDestinations, exploreVenues) {
+    val savedVenuesList = remember(venueSavedDestinations, exploreVenues) {
         exploreVenues.filter { venue ->
             venueSavedDestinations.containsKey(venue.name)
         }.map { venue ->
@@ -927,7 +836,7 @@ fun VenueMainContent(
         }
     }
 
-    val filteredAndSortedExploreVenues = remember<List<Venue>>(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions, text) {
+    val filteredAndSortedExploreVenues = remember(exploreVenues, venueSavedDestinations, appliedSortOption, appliedFilterOptions, text) {
         var result = exploreVenues.map { venue ->
             venue.copy(favorite = venueSavedDestinations.containsKey(venue.name))
         }
@@ -951,18 +860,10 @@ fun VenueMainContent(
         }
 
         result = when (appliedSortOption) {
-            "Highest to Lowest Amount" -> {
-                result.sortedByDescending { parsePrice(it.priceStartsFrom) }
-            }
-            "Lowest to Highest Amount" -> {
-                result.sortedBy { parsePrice(it.priceStartsFrom) }
-            }
-            "Oldest First" -> {
-                result.sortedBy { it.timestamp }
-            }
-            "Newest First (Default)" -> {
-                result.sortedByDescending { it.timestamp }
-            }
+            "Highest to Lowest Amount" -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
+            "Lowest to Highest Amount" -> result.sortedBy { parsePrice(it.priceStartsFrom) }
+            "Oldest First" -> result.sortedBy { it.timestamp }
+            "Newest First (Default)" -> result.sortedByDescending { it.timestamp }
             else -> result
         }
 
@@ -980,11 +881,7 @@ fun VenueMainContent(
         modifier = Modifier
             .fillMaxSize()
             .pointerInput(Unit) {
-                detectTapGestures(
-                    onTap = {
-                        focusManager.clearFocus()
-                    }
-                )
+                detectTapGestures(onTap = { focusManager.clearFocus() })
             }
     ) {
         Scaffold(
@@ -1001,26 +898,22 @@ fun VenueMainContent(
                             focusManager.clearFocus()
                         }
                 ) {
-                    if (isSearchActive) {
-                        CustomTopBar(
-                            title = "Search Venues",
-                            onBackClick = {
+                    CustomTopBar(
+                        title = if (isSearchActive) "Search Venues" else "Venue",
+                        onBackClick = {
+                            if (isSearchActive) {
                                 isSearchActive = false
                                 text = ""
                                 focusManager.clearFocus()
-                            },
-                            backIcon = TopIcon.Predefined.DOWN,
-                            buttonStyle = ButtonBackground.OPAQUE,
-                            isLargeTitle = true,
-                        )
-                    } else {
-                        CustomTopBar(
-                            title = "Venue",
-                            onBackClick = { onBackClick() },
-                            onMenuClick = { onShowMenuSheetChange(true) },
-                            isLargeTitle = true,
-                        )
-                    }
+                            } else {
+                                onBackClick()
+                            }
+                        },
+                        onMenuClick = if (isSearchActive) null else { { onShowMenuSheetChange(true) } },
+                        backIcon = if (isSearchActive) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                        buttonStyle = if (isSearchActive) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT,
+                        isLargeTitle = true,
+                    )
                 }
             },
             bottomBar = {
@@ -1054,245 +947,36 @@ fun VenueMainContent(
                 label = "explore_saved_slide_transition"
             ) { currentTab ->
                 if (currentTab == "explore") {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.Transparent),
-                        state = listState,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        item {
-                            AnimatedVisibility(
-                                visible = !isSearchActive,
-                                enter = fadeIn(animationSpec = tween(250)) + expandVertically(animationSpec = tween(300)),
-                                exit = fadeOut(animationSpec = tween(200)) + shrinkVertically(animationSpec = tween(250))
-                            ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
-                                ) {
-                                    Spacer(Modifier.height(12.dp))
-                                    LocationSelectorPill(
-                                        location = selectedLocation,
-                                        onLocationSelectorClick = onLocationSelectorClick,
-                                        modifier = Modifier
-                                    )
-                                }
-                            }
-                        }
-
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                CustomSearchBar(
-                                    value = text,
-                                    onValueChange = { text = it },
-                                    onActiveChange = { active -> isSearchActive = active },
-                                    modifier = Modifier.weight(1f),
-                                    isAiSearch = true,
-                                    placeholder = "Type your choices"
-                                )
-
-                                AnimatedVisibility(
-                                    visible = !isSearchActive,
-                                    enter = fadeIn(animationSpec = tween(200)) +
-                                            expandHorizontally(expandFrom = Alignment.End, animationSpec = tween(250)),
-                                    exit = fadeOut(animationSpec = tween(150)) +
-                                            shrinkHorizontally(shrinkTowards = Alignment.End, animationSpec = tween(250))
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Spacer(Modifier.width(8.dp))
-                                        FilterButton(onClick = { onShowFilterDialogChange(true) })
-                                    }
-                                }
-                            }
-                        }
-
-                        if (isSearchActive && text.isNotEmpty()) {
-                            if (filteredAndSortedExploreVenues.isEmpty()) {
-                                item {
-                                    EmptyState(
-                                        message = "No matches for \"$text\"",
-                                        iconRes = R.drawable.ic_receipt
-                                    )
-                                }
-                            } else {
-                                items(filteredAndSortedExploreVenues) { venue ->
-                                    SearchSuggestionItem(
-                                        title = venue.name,
-                                        subtitle = "${venue.locality}, ${venue.city}",
-                                        onClick = {
-                                            handleVenueClick(venue)
-                                            focusManager.clearFocus()
-                                        }
-                                    )
-                                }
-                            }
-                        } else if (!isSearchActive && text.isNotEmpty()) {
-                            items(
-                                items = filteredAndSortedExploreVenues,
-                                key = { it.id.ifEmpty { it.name } }
-                            ) { venueItem ->
-                                VenueCardFull(
-                                    venue = venueItem,
-                                    onFavoriteToggle = { onFavoriteToggle(venueItem) },
-                                    onCardClick = { handleVenueClick(venueItem) },
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 12.dp)
-                                )
-                            }
-                        } else if (!isSearchActive) {
-                            if (isLoading && filteredAndSortedExploreVenues.isEmpty()) {
-                                items(5) {
-                                    VenueCardFull(
-                                        venue = Venue(),
-                                        isLoading = true,
-                                        modifier = Modifier.padding(horizontal = 12.dp)
-                                    )
-                                }
-                            } else if (filteredAndSortedExploreVenues.isEmpty()) {
-                                item {
-                                    EmptyState(message = "No venues found")
-                                }
-                            } else {
-                                items(
-                                    items = filteredAndSortedExploreVenues,
-                                    key = { it.id.ifEmpty { it.name } }
-                                ) { venueItem ->
-                                    VenueCardFull(
-                                        venue = venueItem,
-                                        onFavoriteToggle = { onFavoriteToggle(venueItem) },
-                                        onCardClick = { handleVenueClick(venueItem) },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 12.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            item {
-                                TrendingAiSearchesSection(
-                                    onTrendingClick = { query ->
-                                        text = query
-                                        focusManager.clearFocus()
-                                    }
-                                )
-                            }
-                            if (recentVenuesList.isNotEmpty()) {
-                                item {
-                                    RecentSearchesSection(
-                                        onVenueClick = handleVenueClick,
-                                        recentVenues = recentVenuesList,
-                                        onRemoveVenue = { venue ->
-                                            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                                            val current = getRecentSearches(context).toMutableList()
-                                            current.remove(venue.name)
-                                            prefs.edit {
-                                                putString(
-                                                    KEY_RECENT_SEARCHES,
-                                                    current.joinToString("|||")
-                                                )
-                                            }
-                                            recentSearches = getRecentSearches(context)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        item { Spacer(Modifier.height(6.dp)) }
-                    }
+                    VenueExploreContent(
+                        exploreVenues = exploreVenues,
+                        filteredAndSortedExploreVenues = filteredAndSortedExploreVenues,
+                        selectedLocation = selectedLocation,
+                        onVenueClick = onVenueClick,
+                        onLocationSelectorClick = onLocationSelectorClick,
+                        onFavoriteToggle = onFavoriteToggle,
+                        onShowFilterDialogChange = onShowFilterDialogChange,
+                        isLoading = isLoading,
+                        listState = listState,
+                        text = text,
+                        onTextChange = { text = it }
+                    )
                 } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp)
-                            .background(Color.Transparent),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        item(span = { GridItemSpan(2) }) {
-                            IosSegmentedControl(
-                                options = viewOptions,
-                                selectedOption = selectedViewType,
-                                onOptionSelected = onSelectedViewTypeChange,
-                                modifier = Modifier
-                                    .padding(top = 12.dp)
-                                    .height(44.dp)
-                            )
-                        }
-
-                        if (selectedViewType == "By Timeline") {
-                            if (isLoading) {
-                                items(3, span = { GridItemSpan(2) }) {
-                                    TimelineSection(
-                                        date = "Loading...",
-                                        event = "Fetching your plans",
-                                        isLoading = true
-                                    )
-                                }
-                            } else if (savedTimelineEvents.isEmpty()) {
-                                item(span = { GridItemSpan(2) }) {
-                                    StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
-                                }
-                            } else {
-                                items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
-                                    TimelineSection(
-                                        date = timelineItem.date,
-                                        event = timelineItem.event,
-                                        venues = timelineItem.venues,
-                                        onVenueClick = handleVenueClick,
-                                        onVenueFavoriteToggle = { venue -> onFavoriteToggle(venue) },
-                                        onSeeAllClick = {
-                                            onTimelineSeeAll(timelineItem)
-                                        }
-                                    )
-                                }
-                            }
-                        } else {
-                            if (isLoading) {
-                                items(6) {
-                                    VenueCardCompact(
-                                        venue = Venue(),
-                                        isLoading = true,
-                                        modifier = Modifier.fillMaxWidth(),
-                                        compactCardSize = CompactCardSize.SMALL
-                                    )
-                                }
-                            } else if (savedVenuesList.isEmpty()) {
-                                item(span = { GridItemSpan(2) }) {
-                                    StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
-                                }
-                            } else {
-                                items(
-                                    items = savedVenuesList,
-                                    key = { it.name }
-                                ) { venueItem ->
-                                    VenueCardCompact(
-                                        venue = venueItem,
-                                        onFavoriteToggle = { onFavoriteToggle(venueItem) },
-                                        onCardClick = { handleVenueClick(venueItem) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        compactCardSize = CompactCardSize.SMALL
-                                    )
-                                }
-                            }
-                        }
-                        item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(6.dp)) }
-                    }
+                    VenueSavedContent(
+                        savedTimelineEvents = savedTimelineEvents,
+                        savedVenuesList = savedVenuesList,
+                        selectedViewType = selectedViewType,
+                        onSelectedViewTypeChange = onSelectedViewTypeChange,
+                        onVenueClick = onVenueClick,
+                        onFavoriteToggle = onFavoriteToggle,
+                        onTimelineSeeAll = onTimelineSeeAll,
+                        isLoading = isLoading
+                    )
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun LocationSelectorPill(
     location: String,
@@ -1302,7 +986,7 @@ fun LocationSelectorPill(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .clip(SquircleShape(16.dp, 0f))
+            .clip(SquircleShape(16.dp))
             .clickable { onLocationSelectorClick() },
         color = SurfaceBrandSecondary,
     ) {

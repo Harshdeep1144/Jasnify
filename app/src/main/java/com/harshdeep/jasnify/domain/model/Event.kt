@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.util.UUID
 
+@Immutable
 data class Event(
     val id: String = UUID.randomUUID().toString(),
     val ownerId: String = "",
@@ -15,6 +17,7 @@ data class Event(
     val subEvents: List<SubEvent> = emptyList()
 )
 
+@Immutable
 data class SubEvent(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
