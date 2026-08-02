@@ -424,8 +424,8 @@ fun VenueScreen(
                     transitionSpec = {
                         when {
                             // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
-                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopStaticFastTransition
-                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomStaticFastTransition
+                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
+                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }

@@ -428,12 +428,12 @@ fun VendorsTab(
                     transitionSpec = {
                         when {
                             // Location Selector Screen (Fast bottom-to-top & top-to-bottom static background)
-                            targetState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideBottomToTopStaticFastTransition
-                            initialState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideTopToBottomStaticFastTransition
+                            targetState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideBottomToTopFastTransition
+                            initialState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideTopToBottomSlowTransition
 
                             // Vendor Detail Screen (Fast bottom-to-top & top-to-bottom moving background)
-                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopStaticFastTransition
-                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomStaticFastTransition
+                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
+                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }

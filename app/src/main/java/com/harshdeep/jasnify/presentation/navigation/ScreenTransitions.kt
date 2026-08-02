@@ -25,12 +25,12 @@ object MotionConstants {
 object ScreenTransitions {
 
 // =========================================================================
-//   STATIC BACKGROUND TRANSITIONS (Previous screen DOES NOT change position)
+//  STATIC BACKGROUND TRANSITIONS (Previous screen DOES NOT change position)
 // =========================================================================
 
 
-    // Slide in from bottom-to-top while previous screen stays static (Fast - 250ms)
-    val SlideBottomToTopStaticFastTransition: ContentTransform =
+    // Slide in from bottom-to-top (Fast - 250ms)
+    val SlideBottomToTopFastTransition: ContentTransform =
         (slideInVertically(
             animationSpec = tween(durationMillis = MotionConstants.DURATION_FAST),
             initialOffsetY = { fullHeight -> fullHeight }
@@ -40,13 +40,24 @@ object ScreenTransitions {
             targetContentZIndex = 1f
         }
 
-    // Slide out top-to-bottom while previous screen stays static (Fast - 250ms)
-    val SlideTopToBottomStaticFastTransition: ContentTransform =
+    // Slide out top-to-bottom (Fast - 250ms)
+    val SlideTopToBottomFastTransition: ContentTransform =
         fadeIn(animationSpec = tween(MotionConstants.DURATION_FAST)).togetherWith(
             slideOutVertically(
                 animationSpec = tween(durationMillis = MotionConstants.DURATION_FAST),
                 targetOffsetY = { fullHeight -> fullHeight }
             ) + fadeOut(animationSpec = tween(MotionConstants.DURATION_FAST))
+        ).apply {
+            targetContentZIndex = 0f
+        }
+
+    // Slide out top-to-bottom (Slow - 500ms)
+    val SlideTopToBottomSlowTransition: ContentTransform =
+        fadeIn(animationSpec = tween(MotionConstants.DURATION_SLOW)).togetherWith(
+            slideOutVertically(
+                animationSpec = tween(durationMillis = MotionConstants.DURATION_SLOW),
+                targetOffsetY = { fullHeight -> fullHeight }
+            ) + fadeOut(animationSpec = tween(MotionConstants.DURATION_SLOW))
         ).apply {
             targetContentZIndex = 0f
         }
