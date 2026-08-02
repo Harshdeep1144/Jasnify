@@ -61,6 +61,40 @@ fun LazyItemScope.EmptySavedState() {
     EmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
 }
 
+@Composable
+fun StandaloneEmptyState(
+    message: String = "No results found",
+    iconRes: Int = R.drawable.ic_receipt,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 60.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                painter = painterResource(id = iconRes),
+                contentDescription = message,
+                tint = ContentTertiary,
+                modifier = Modifier.size(84.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = message,
+                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+                color = ContentTertiary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 32.dp)
+            )
+        }
+    }
+}
+
 /**
  * A suggestion item shown during active search.
  */

@@ -647,7 +647,7 @@ fun LocationScreen(
                 }
 
                 this@Column.AnimatedVisibility(
-                    visible = isSearchActive,
+                    visible = isSearchActive && text.isNotBlank(),
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
@@ -661,102 +661,7 @@ fun LocationScreen(
                                 })
                             }
                     ) {
-                        if (text.isBlank()) {
-                            // Show recent searches immediately when search bar is focused but empty
-                            if (recentSearches.isNotEmpty()) {
-                                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                    item {
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.SpaceBetween
-                                        ) {
-                                            Text(
-                                                text = "Recent Searches",
-                                                style = JasnifyTheme.typography.headingMedium,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                            TextButton(
-                                                onClick = {
-                                                    recentSearches.clear()
-                                                    saveRecentSearchesToStorage(emptyList())
-                                                }
-                                            ) {
-                                                Text(
-                                                    text = "Clear all",
-                                                    style = JasnifyTheme.typography.labelXLarge,
-                                                    color = ContentBrandDark
-                                                )
-                                            }
-                                        }
-                                    }
-                                    items(recentSearches) { suggestion ->
-                                        ListItem(
-                                            headlineContent = { Text(suggestion) },
-                                            leadingContent = {
-                                                Icon(
-                                                    painter = painterResource(R.drawable.ic_clock_forward),
-                                                    contentDescription = null,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                            },
-                                            trailingContent = {
-                                                IconButton(
-                                                    onClick = {
-                                                        recentSearches.remove(suggestion)
-                                                        saveRecentSearchesToStorage(recentSearches)
-                                                    }
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Close,
-                                                        contentDescription = "Remove search",
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            },
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable { handleLocationSelected(suggestion) },
-                                            colors = ListItemDefaults.colors(
-                                                containerColor = BackgroundPrimary
-                                            ),
-                                        )
-                                        HorizontalDivider(
-                                            thickness = 1.dp,
-                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                        )
-                                    }
-                                }
-                            } else {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(top = 80.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_map),
-                                        contentDescription = null,
-                                        tint = ContentTertiary,
-                                        modifier = Modifier.size(84.dp)
-                                    )
-                                    Spacer(modifier = Modifier.height(12.dp))
-                                    Text(
-                                        text = "Search for Area, \n City or State",
-                                        style = JasnifyTheme.typography.displayMedium.copy(
-                                            fontWeight = FontWeight.Medium
-                                        ),
-                                        color = ContentTertiary,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(horizontal = 32.dp)
-                                    )
-                                }
-                            }
-                        } else if (isSearchingLocation && filteredSuggestions.isEmpty()) {
+                        if (isSearchingLocation && filteredSuggestions.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -769,7 +674,7 @@ fun LocationScreen(
                                     strokeWidth = 2.5.dp
                                 )
                             }
-                        } else if (filteredSuggestions.isEmpty() && text.isNotBlank()) {
+                        } else if (filteredSuggestions.isEmpty()) {
                             ListItem(
                                 headlineContent = { Text("Search for \"$text\"") },
                                 leadingContent = {

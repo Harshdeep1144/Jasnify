@@ -1,9 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -82,7 +79,6 @@ private const val VIRTUAL_PAGE_COUNT = 10000
 private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorCardFull(
     vendor: Vendor,
@@ -90,9 +86,7 @@ fun VendorCardFull(
     isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
-    onOfferClick: () -> Unit = {},
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    onOfferClick: () -> Unit = {}
 ) {
     if (isLoading) {
         FullCardLoading(modifier = modifier)
@@ -129,23 +123,12 @@ fun VendorCardFull(
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
     ) {
         Column {
-            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier
-                        .fillMaxWidth()
-                        .height(230.dp)
-                        .sharedElement(
-                            rememberSharedContentState(key = "vendor_image_${vendor.name}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                }
-            } else {
-                Modifier
+            Box(
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(230.dp)
-            }
-
-            Box(modifier = sharedBoundsModifier) {
+                    .clip(SquircleShape(CornerLargeIncrease))
+            ) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -271,7 +254,7 @@ fun VendorCardFull(
 
                 Column {
                     Text(
-                        text = "Starting at",
+                        text = "Starting from",
                         style = JasnifyTheme.typography.labelMedium,
                         color = ContentSecondary
                     )
@@ -300,7 +283,6 @@ fun VendorCardFull(
 }
 
 @SuppressLint("ConfigurationScreenWidthHeight")
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VendorCardCompact(
     vendor: Vendor,
@@ -311,9 +293,7 @@ fun VendorCardCompact(
     onRemoveClick: (() -> Unit)? = null,
     showLikeButton: Boolean = true,
     onOfferClick: () -> Unit = {},
-    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM
 ) {
     if (isLoading) {
         CompactCardLoading(cardSize = compactCardSize)
@@ -360,26 +340,11 @@ fun VendorCardCompact(
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
-            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier
-                        .fillMaxWidth()
-                        .height(cardWidth)
-                        .clip(SquircleShape(20.dp))
-                        .sharedElement(
-                            rememberSharedContentState(key = "vendor_image_${vendor.name}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                }
-            } else {
-                Modifier
+            Box(
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(cardWidth)
                     .clip(SquircleShape(20.dp))
-            }
-
-            Box(
-                modifier = sharedBoundsModifier
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
@@ -510,7 +475,7 @@ fun VendorCardCompact(
                 if (isMedium) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Starting at",
+                        "Starting from",
                         style = JasnifyTheme.typography.labelSmall,
                         color = ContentSecondary
                     )

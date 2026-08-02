@@ -6,10 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionLayout
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -46,7 +42,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
@@ -96,6 +98,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
@@ -109,11 +112,13 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
+import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -139,7 +144,8 @@ enum class VenueScreenState {
     MAIN,
     LOCATION_PICKER,
     ROOM_ACCESS,
-    VENUE_DETAIL
+    VENUE_DETAIL,
+    TIMELINE_DETAIL
 }
 
 private const val PREFS_NAME = "venue_search_prefs"
@@ -165,7 +171,7 @@ private fun clearRecentSearches(context: Context) {
     prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun VenueScreen(
@@ -181,9 +187,14 @@ fun VenueScreen(
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     var currentAddress by remember { mutableStateOf(selectedLocation) }
-    var screenState by remember { mutableStateOf(VenueScreenState.MAIN) }
+    var screenStack by remember { mutableStateOf(listOf(VenueScreenState.MAIN)) }
+    val screenState = screenStack.last()
     var selectedTab by remember { mutableStateOf(initialTab) }
+    var selectedViewType by remember { mutableStateOf("By Timeline") }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
+    var selectedTimelineEvent by remember { mutableStateOf<TimelineEvent?>(null) }
+
+    val mainListState = rememberLazyListState()
 
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
@@ -275,17 +286,15 @@ fun VenueScreen(
     // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    BackHandler(enabled = screenState != VenueScreenState.MAIN) {
+    BackHandler(enabled = screenStack.size > 1) {
         when (screenState) {
-            VenueScreenState.LOCATION_PICKER -> screenState = VenueScreenState.MAIN
-            VenueScreenState.ROOM_ACCESS -> screenState = VenueScreenState.MAIN
             VenueScreenState.VENUE_DETAIL -> {
                 selectedVenueForDetail = null
                 venueViewModel.setSelectedVenueId(null)
-                screenState = VenueScreenState.MAIN
             }
-            VenueScreenState.MAIN -> {}
+            else -> {}
         }
+        screenStack = screenStack.dropLast(1)
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
@@ -322,177 +331,220 @@ fun VenueScreen(
     }
     val isViewer = currentUserRole == UserRole.VIEWER
 
+    val handleFavoriteToggle: (Venue) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
+        if (alreadySaved) {
+            if (activeEvent?.multiDay == true) {
+                activeTargetVenue = venue
+                val currentDestination = venueSavedDestinations[venue.name]
+                isMySavedListChecked = currentDestination == "mysaved"
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+            }
+        } else {
+            venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
+            lastSavedVenue = venue
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
-        SharedTransitionLayout {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = backdropScale
-                        scaleY = backdropScale
-                        clip = isAnySheetVisible || backdropCornerRadius > 0.dp
-                        shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
-                    }
-                    .background(BackgroundPrimary)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = backdropScale
+                    scaleY = backdropScale
+                    clip = isAnySheetVisible || backdropCornerRadius > 0.dp
+                    shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                }
+                .background(BackgroundPrimary)
+        ) {
+            RoomAccessGuardian(
+                hasAccess = hasAccess,
+                roomName = "Venue",
+                onBackClick = onBackClick
             ) {
-                RoomAccessGuardian(
-                    hasAccess = hasAccess,
-                    roomName = "Venue",
-                    onBackClick = onBackClick
-                ) {
-                    AnimatedContent(
-                        targetState = screenState,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
-                        },
-                        label = "venue_screen_transition",
-                        modifier = Modifier.fillMaxSize()
-                    ) { targetState ->
-                        when (targetState) {
-                            VenueScreenState.LOCATION_PICKER -> {
-                                LocationScreen(
-                                    initialSearches = emptyList(),
-                                    currentAddress = currentAddress,
-                                    onAddressSelected = {
-                                        currentAddress = it
-                                        screenState = VenueScreenState.MAIN
+                AnimatedContent(
+                    targetState = screenState,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                    },
+                    label = "venue_screen_transition",
+                    modifier = Modifier.fillMaxSize()
+                ) { targetState ->
+                    when (targetState) {
+                        VenueScreenState.LOCATION_PICKER -> {
+                            LocationScreen(
+                                initialSearches = emptyList(),
+                                currentAddress = currentAddress,
+                                onAddressSelected = {
+                                    currentAddress = it
+                                    screenStack = screenStack.dropLast(1)
+                                },
+                                onBackClick = { screenStack = screenStack.dropLast(1) },
+                            )
+                        }
+                        VenueScreenState.ROOM_ACCESS -> {
+                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                                val self = User(
+                                    uid = currentUserUid,
+                                    name = auth.currentUser?.displayName ?: "Me",
+                                    email = auth.currentUser?.email ?: "",
+                                    role = currentUserRole,
+                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                                )
+                                (listOf(self) + roomUsers).distinctBy { it.uid }
+                            } else {
+                                roomUsers
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(SurfaceSecondary)
+                            ) {
+                                RoomScreen(
+                                    allUsers = displayUsers,
+                                    currentUserRole = currentUserRole,
+                                    isSelf = { it.uid == currentUserUid },
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onMenuClick = {
+                                        focusManager.clearFocus()
+                                        showRoomMenuBottomSheet = true
                                     },
-                                    onBackClick = { screenState = VenueScreenState.MAIN },
+                                    onRoleChange = { targetUser, newRole ->
+                                        activeEvent?.id?.let { eventId ->
+                                            roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
+                                        }
+                                    },
+                                    onRemove = { targetUser ->
+                                        userToRemove = targetUser
+                                    },
+                                    onReport = { targetUser ->
+                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                    },
+                                    onLeave = {
+                                        showLeaveConfirmation = true
+                                    },
+                                    searchResults = searchResults,
+                                    onSearch = { roomViewModel.searchUsers(it) },
+                                    onGrantAccess = { email, role ->
+                                        activeEvent?.id?.let { eventId ->
+                                            roomViewModel.grantAccess(eventId, "Venue", email, role)
+                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
-                            VenueScreenState.ROOM_ACCESS -> {
-                                val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                    val self = User(
-                                        uid = currentUserUid,
-                                        name = auth.currentUser?.displayName ?: "Me",
-                                        email = auth.currentUser?.email ?: "",
-                                        role = currentUserRole,
-                                        username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                                    )
-                                    (listOf(self) + roomUsers).distinctBy { it.uid }
-                                } else {
-                                    roomUsers
-                                }
+                        }
+                        VenueScreenState.VENUE_DETAIL -> {
+                            selectedVenueForDetail?.let { venue ->
+                                val detailData = remember(venue, allVenues, venueReviews) {
+                                    val base = allVenues.find { it.id == venue.id } ?:
+                                    MockData.venueDetailsMap[venue.name] ?:
+                                    MockData.getDetailsForVenue(venue)
 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(SurfaceSecondary)
-                                ) {
-                                    RoomScreen(
-                                        allUsers = displayUsers,
-                                        currentUserRole = currentUserRole,
-                                        isSelf = { it.uid == currentUserUid },
-                                        onBackClick = { screenState = VenueScreenState.MAIN },
-                                        onMenuClick = {
-                                            focusManager.clearFocus()
-                                            showRoomMenuBottomSheet = true
-                                        },
-                                        onRoleChange = { targetUser, newRole ->
-                                            activeEvent?.id?.let { eventId ->
-                                                roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
-                                            }
-                                        },
-                                        onRemove = { targetUser ->
-                                            userToRemove = targetUser
-                                        },
-                                        onReport = { targetUser ->
-                                            toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
-                                        },
-                                        onLeave = {
-                                            showLeaveConfirmation = true
-                                        },
-                                        searchResults = searchResults,
-                                        onSearch = { roomViewModel.searchUsers(it) },
-                                        onGrantAccess = { email, role ->
-                                            activeEvent?.id?.let { eventId ->
-                                                roomViewModel.grantAccess(eventId, "Venue", email, role)
-                                                toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                            }
-                            VenueScreenState.VENUE_DETAIL -> {
-                                selectedVenueForDetail?.let { venue ->
-                                    val detailData = remember(venue, allVenues, venueReviews) {
-                                        val base = allVenues.find { it.id == venue.id } ?:
-                                        MockData.venueDetailsMap[venue.name] ?:
-                                        MockData.getDetailsForVenue(venue)
-
-                                        if (venueReviews.isNotEmpty()) {
-                                            base.copy(
-                                                reviewsData = base.reviewsData?.copy(reviews = venueReviews)
-                                                    ?: VenueReviewsData(reviews = venueReviews)
-                                            )
-                                        } else {
-                                            base
-                                        }
+                                    if (venueReviews.isNotEmpty()) {
+                                        base.copy(
+                                            reviewsData = base.reviewsData?.copy(reviews = venueReviews)
+                                                ?: VenueReviewsData(reviews = venueReviews)
+                                        )
+                                    } else {
+                                        base
                                     }
-                                    VenueDetailScreen(
-                                        venueDetail = detailData,
-                                        onBackClick = {
-                                            selectedVenueForDetail = null
-                                            venueViewModel.setSelectedVenueId(null)
-                                            screenState = VenueScreenState.MAIN
-                                        },
-                                        onChatClick = { venueChat ->
-                                            onChatClick(venueChat)
-                                        },
-                                        sharedTransitionScope = this@SharedTransitionLayout,
-                                        animatedVisibilityScope = this@AnimatedContent,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
                                 }
+                                VenueDetailScreen(
+                                    venueDetail = detailData,
+                                    onBackClick = {
+                                        selectedVenueForDetail = null
+                                        venueViewModel.setSelectedVenueId(null)
+                                        screenStack = screenStack.dropLast(1)
+                                    },
+                                    onChatClick = { venueChat ->
+                                        onChatClick(venueChat)
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
                             }
-                            VenueScreenState.MAIN -> {
-                                VenueMainContent(
-                                    allVenues = allVenues,
-                                    selectedLocation = currentAddress,
+                        }
+                        VenueScreenState.MAIN -> {
+                            VenueMainContent(
+                                allVenues = allVenues,
+                                selectedLocation = currentAddress,
+                                onVenueClick = { venue ->
+                                    selectedVenueForDetail = venue
+                                    venueViewModel.setSelectedVenueId(venue.id)
+                                    screenStack = screenStack + VenueScreenState.VENUE_DETAIL
+                                    onVenueClick(venue)
+                                },
+                                onLocationSelectorClick = {
+                                    screenStack = screenStack + VenueScreenState.LOCATION_PICKER
+                                },
+                                onManageRoomAccessClick = {
+                                    screenStack = screenStack + VenueScreenState.ROOM_ACCESS
+                                },
+                                onBackClick = onBackClick,
+                                isScreenActive = isScreenActive,
+                                toastData = toastData,
+                                onShowToast = { toastData = it },
+                                showFilterDialog = showFilterDialog,
+                                onShowFilterDialogChange = { showFilterDialog = it },
+                                showSaveListBottomSheet = showSaveListBottomSheet,
+                                onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
+                                showMenuSheet = showMenuSheet,
+                                onShowMenuSheetChange = { showMenuSheet = it },
+                                timelineEvents = timelineEvents,
+                                onActiveTargetVenueChange = { activeTargetVenue = it },
+                                isMySavedListChecked = isMySavedListChecked,
+                                onMySavedListCheckedChange = { isMySavedListChecked = it },
+                                selectedSaveEventId = selectedSaveEventId,
+                                onSelectedSaveEventIdChange = { selectedSaveEventId = it },
+                                venueSavedDestinations = venueSavedDestinations,
+                                onToggleSaveVenue = { venue, destination ->
+                                    venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
+                                },
+                                onFavoriteToggle = handleFavoriteToggle,
+                                lastSavedVenue = lastSavedVenue,
+                                onLastSavedVenueChange = { lastSavedVenue = it },
+                                isMultiDay = activeEvent?.multiDay ?: false,
+                                isViewer = isViewer,
+                                isOwner = isOwner,
+                                selectedTab = selectedTab,
+                                onSelectedTabChange = { selectedTab = it },
+                                selectedViewType = selectedViewType,
+                                onSelectedViewTypeChange = { selectedViewType = it },
+                                appliedSortOption = appliedSortOption,
+                                appliedFilterOptions = appliedFilterOptions,
+                                isLoading = isLoading,
+                                onProgress = { sheetMotionProgress = it },
+                                onTimelineSeeAll = { event ->
+                                    selectedTimelineEvent = event
+                                    screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
+                                },
+                                listState = mainListState
+                            )
+                        }
+                        VenueScreenState.TIMELINE_DETAIL -> {
+                            selectedTimelineEvent?.let { event ->
+                                SavedTimelineItemsScreen(
+                                    title = "Saved Venues",
+                                    date = event.date,
+                                    event = event.event,
+                                    venues = event.venues,
                                     onVenueClick = { venue ->
                                         selectedVenueForDetail = venue
                                         venueViewModel.setSelectedVenueId(venue.id)
-                                        screenState = VenueScreenState.VENUE_DETAIL
-                                        onVenueClick(venue)
+                                        screenStack = screenStack + VenueScreenState.VENUE_DETAIL
                                     },
-                                    onLocationSelectorClick = { screenState = VenueScreenState.LOCATION_PICKER },
-                                    onManageRoomAccessClick = { screenState = VenueScreenState.ROOM_ACCESS },
-                                    onBackClick = onBackClick,
-                                    isScreenActive = isScreenActive,
-                                    toastData = toastData,
-                                    onShowToast = { toastData = it },
-                                    showFilterDialog = showFilterDialog,
-                                    onShowFilterDialogChange = { showFilterDialog = it },
-                                    showSaveListBottomSheet = showSaveListBottomSheet,
-                                    onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
-                                    showMenuSheet = showMenuSheet,
-                                    onShowMenuSheetChange = { showMenuSheet = it },
-                                    timelineEvents = timelineEvents,
-                                    onActiveTargetVenueChange = { activeTargetVenue = it },
-                                    isMySavedListChecked = isMySavedListChecked,
-                                    onMySavedListCheckedChange = { isMySavedListChecked = it },
-                                    selectedSaveEventId = selectedSaveEventId,
-                                    onSelectedSaveEventIdChange = { selectedSaveEventId = it },
-                                    venueSavedDestinations = venueSavedDestinations,
-                                    onToggleSaveVenue = { venue, destination ->
-                                        venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
-                                    },
-                                    lastSavedVenue = lastSavedVenue,
-                                    onLastSavedVenueChange = { lastSavedVenue = it },
-                                    isMultiDay = activeEvent?.multiDay ?: false,
-                                    isViewer = isViewer,
-                                    isOwner = isOwner,
-                                    selectedTab = selectedTab,
-                                    onSelectedTabChange = { selectedTab = it },
-                                    appliedSortOption = appliedSortOption,
-                                    appliedFilterOptions = appliedFilterOptions,
-                                    isLoading = isLoading,
-                                    sharedTransitionScope = this@SharedTransitionLayout,
-                                    animatedVisibilityScope = this@AnimatedContent,
-                                    onProgress = { sheetMotionProgress = it }
+                                    onVenueFavoriteToggle = handleFavoriteToggle,
+                                    onBackClick = { screenStack = screenStack.dropLast(1) }
                                 )
                             }
                         }
@@ -584,7 +636,7 @@ fun VenueScreen(
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showMenuSheet = false
-                                screenState = VenueScreenState.LOCATION_PICKER
+                                screenStack = screenStack + VenueScreenState.LOCATION_PICKER
                             }
                         )
                     ),
@@ -595,7 +647,7 @@ fun VenueScreen(
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showMenuSheet = false
-                                screenState = VenueScreenState.ROOM_ACCESS
+                                screenStack = screenStack + VenueScreenState.ROOM_ACCESS
                             }
                         )
                     ),
@@ -725,7 +777,7 @@ fun VenueScreen(
                     roomViewModel.removeAccess(eventId, "Venue", currentUserUid)
                 }
                 toastData = ToastData("You left the room", ToastType.DEFAULT)
-                screenState = VenueScreenState.MAIN
+                screenStack = listOf(VenueScreenState.MAIN)
                 showLeaveConfirmation = false
             },
             onProgress = { sheetMotionProgress = it }
@@ -734,7 +786,7 @@ fun VenueScreen(
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VenueMainContent(
     allVenues: List<Venue>,
@@ -767,18 +819,20 @@ fun VenueMainContent(
     isOwner: Boolean,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
+    selectedViewType: String,
+    onSelectedViewTypeChange: (String) -> Unit,
     appliedSortOption: String,
     appliedFilterOptions: Set<String>,
+    onFavoriteToggle: (Venue) -> Unit,
     isLoading: Boolean = false,
-    sharedTransitionScope: SharedTransitionScope,
-    animatedVisibilityScope: AnimatedVisibilityScope,
-    onProgress: (Float) -> Unit = {}
+    onProgress: (Float) -> Unit = {},
+    onTimelineSeeAll: (TimelineEvent) -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     val viewOptions = listOf("By Timeline", "All Saved")
-    var selectedViewType by remember { mutableStateOf(viewOptions[0]) }
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -809,26 +863,6 @@ fun VenueMainContent(
         onVenueClick(venue)
     }
 
-    val handleFavoriteToggle: (Venue) -> Unit = { venue ->
-        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
-        if (alreadySaved) {
-            if (isMultiDay) {
-                onActiveTargetVenueChange(venue)
-                val currentDestination = venueSavedDestinations[venue.name]
-                onMySavedListCheckedChange(currentDestination == "mysaved")
-                onSelectedSaveEventIdChange(if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null)
-                onShowSaveListBottomSheetChange(true)
-            } else {
-                onToggleSaveVenue(venue, null)
-                onShowToast(ToastData("Removed from Saved List", ToastType.DEFAULT))
-            }
-        } else {
-            onToggleSaveVenue(venue, "mysaved")
-            onLastSavedVenueChange(venue)
-            onShowToast(ToastData("Added to Saved List!", ToastType.DEFAULT))
-        }
-    }
-
     val savedVenuesList = remember<List<Venue>>(venueSavedDestinations, exploreVenues) {
         exploreVenues.filter { venue ->
             venueSavedDestinations.containsKey(venue.name)
@@ -843,8 +877,8 @@ fun VenueMainContent(
         }
 
         if (text.isNotEmpty()) {
-            result = result.filter { 
-                it.name.contains(text, ignoreCase = true) || 
+            result = result.filter {
+                it.name.contains(text, ignoreCase = true) ||
                 it.location.contains(text, ignoreCase = true) ||
                 it.locality.contains(text, ignoreCase = true) ||
                 it.city.contains(text, ignoreCase = true) ||
@@ -1001,6 +1035,7 @@ fun VenueMainContent(
                         modifier = Modifier
                             .fillMaxSize()
                             .background(Color.Transparent),
+                        state = listState,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         item {
@@ -1085,13 +1120,11 @@ fun VenueMainContent(
                             ) { venueItem ->
                                 VenueCardFull(
                                     venue = venueItem,
-                                    onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                    onFavoriteToggle = { onFavoriteToggle(venueItem) },
                                     onCardClick = { handleVenueClick(venueItem) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 12.dp),
-                                    sharedTransitionScope = sharedTransitionScope,
-                                    animatedVisibilityScope = animatedVisibilityScope
+                                        .padding(horizontal = 12.dp)
                                 )
                             }
                         } else if (!isSearchActive) {
@@ -1115,13 +1148,11 @@ fun VenueMainContent(
                                 ) { venueItem ->
                                     VenueCardFull(
                                         venue = venueItem,
-                                        onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                        onFavoriteToggle = { onFavoriteToggle(venueItem) },
                                         onCardClick = { handleVenueClick(venueItem) },
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 12.dp),
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                            .padding(horizontal = 12.dp)
                                     )
                                 }
                             }
@@ -1150,7 +1181,7 @@ fun VenueMainContent(
                                                 )
                                             }
                                             recentSearches = getRecentSearches(context)
-                                        },
+                                        }
                                     )
                                 }
                             }
@@ -1158,18 +1189,20 @@ fun VenueMainContent(
                         item { Spacer(Modifier.height(6.dp)) }
                     }
                 } else {
-                    LazyColumn(
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(2),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 12.dp)
                             .background(Color.Transparent),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        item {
+                        item(span = { GridItemSpan(2) }) {
                             IosSegmentedControl(
                                 options = viewOptions,
                                 selectedOption = selectedViewType,
-                                onOptionSelected = { selectedViewType = it },
+                                onOptionSelected = onSelectedViewTypeChange,
                                 modifier = Modifier
                                     .padding(top = 12.dp)
                                     .height(44.dp)
@@ -1178,60 +1211,59 @@ fun VenueMainContent(
 
                         if (selectedViewType == "By Timeline") {
                             if (isLoading) {
-                                items(3) {
+                                items(3, span = { GridItemSpan(2) }) {
                                     TimelineSection(
                                         date = "Loading...",
                                         event = "Fetching your plans",
-                                        isLoading = true,
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                        isLoading = true
                                     )
                                 }
                             } else if (savedTimelineEvents.isEmpty()) {
-                                item {
-                                    EmptySavedState()
+                                item(span = { GridItemSpan(2) }) {
+                                    StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                 }
                             } else {
-                                items(savedTimelineEvents) { timelineItem ->
+                                items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
                                     TimelineSection(
                                         date = timelineItem.date,
                                         event = timelineItem.event,
                                         venues = timelineItem.venues,
                                         onVenueClick = handleVenueClick,
-                                        onVenueFavoriteToggle = { venue -> handleFavoriteToggle(venue) },
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                        onVenueFavoriteToggle = { venue -> onFavoriteToggle(venue) },
+                                        onSeeAllClick = {
+                                            onTimelineSeeAll(timelineItem)
+                                        }
                                     )
                                 }
                             }
                         } else {
                             if (isLoading) {
-                                items(5) {
-                                    VenueCardFull(
+                                items(6) {
+                                    VenueCardCompact(
                                         venue = Venue(),
                                         isLoading = true,
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             } else if (savedVenuesList.isEmpty()) {
-                                item {
-                                    EmptySavedState()
+                                item(span = { GridItemSpan(2) }) {
+                                    StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                 }
                             } else {
                                 items(
                                     items = savedVenuesList,
                                     key = { it.name }
                                 ) { venueItem ->
-                                    VenueCardFull(
+                                    VenueCardCompact(
                                         venue = venueItem,
-                                        onFavoriteToggle = { handleFavoriteToggle(venueItem) },
+                                        onFavoriteToggle = { onFavoriteToggle(venueItem) },
                                         onCardClick = { handleVenueClick(venueItem) },
-                                        sharedTransitionScope = sharedTransitionScope,
-                                        animatedVisibilityScope = animatedVisibilityScope
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
                         }
-                        item { Spacer(Modifier.height(6.dp)) }
+                        item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(6.dp)) }
                     }
                 }
             }

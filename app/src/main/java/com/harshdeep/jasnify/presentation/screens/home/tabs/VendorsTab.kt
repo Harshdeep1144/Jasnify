@@ -6,8 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -35,9 +33,17 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -82,6 +88,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottom
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -105,9 +112,9 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryGrid
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
-import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
+import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
@@ -123,7 +130,7 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorScreenState {
-    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR
+    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR, TIMELINE_DETAIL
 }
 
 private const val PREFS_NAME = "vendor_search_prefs"
@@ -166,13 +173,12 @@ private fun parsePrice(priceString: String): Int {
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VendorsTab(
     mainNavController: NavHostController,
     internalNavController: NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
@@ -187,12 +193,22 @@ fun VendorsTab(
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
+    val mainListState = rememberLazyListState()
+    val categoryListState = rememberLazyListState()
+    val allSavedGridState = rememberLazyGridState()
+    val categorySavedGridState = rememberLazyGridState()
+
     var selectedCategory by remember { mutableStateOf(initialCategory) }
-    var currentScreenState by remember { 
-        mutableStateOf(if (initialCategory != null) VendorScreenState.CATEGORY_DETAIL else VendorScreenState.MAIN) 
+    var screenStack by remember {
+        mutableStateOf(if (initialCategory != null) listOf(VendorScreenState.MAIN, VendorScreenState.CATEGORY_DETAIL) else listOf(VendorScreenState.MAIN))
     }
-    var previousScreenState by remember { mutableStateOf<VendorScreenState?>(null) }
+    val currentScreenState by remember(screenStack) { derivedStateOf { screenStack.last() } }
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
+    var selectedTimelineEvent by remember { mutableStateOf<TimelineEvent?>(null) }
+    var selectedTimelineVendors by remember { mutableStateOf<List<Vendor>>(emptyList()) }
+
+    var selectedCategoryTab by remember { mutableStateOf("explore") }
+    var selectedSavedViewType by remember { mutableStateOf("By Timeline") }
 
     // Handle navigation from Home screen category clicks via NavController if not passed directly
     val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
@@ -205,7 +221,7 @@ fun VendorsTab(
             val cat = vendorCategories.find { it.name == name }
             if (cat != null) {
                 selectedCategory = cat
-                currentScreenState = VendorScreenState.CATEGORY_DETAIL
+                screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
                 // Clear it so it doesn't reopen on every recomposition
                 (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
             }
@@ -309,8 +325,7 @@ fun VendorsTab(
         saveRecentSearch(context, vendor.name)
         recentSearchesNames = getRecentSearches(context)
         selectedVendor = vendor
-        previousScreenState = currentScreenState
-        currentScreenState = VendorScreenState.VENDOR_DETAIL
+        screenStack = screenStack + VendorScreenState.VENDOR_DETAIL
     }
 
     val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
@@ -325,6 +340,12 @@ fun VendorsTab(
             lastSavedVendor = vendor
             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
+    }
+
+    val handleTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { event, vendors ->
+        selectedTimelineEvent = event
+        selectedTimelineVendors = vendors
+        screenStack = screenStack + VendorScreenState.TIMELINE_DETAIL
     }
 
     LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess) {
@@ -342,20 +363,13 @@ fun VendorsTab(
             searchQuery = ""
             focusManager.clearFocus()
         } else {
-            when (currentScreenState) {
-                VendorScreenState.VENDOR_DETAIL -> {
-                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
-                }
-                VendorScreenState.CATEGORY_DETAIL -> {
-                    currentScreenState = VendorScreenState.MAIN
+            if (screenStack.size > 1) {
+                if (currentScreenState == VendorScreenState.CATEGORY_DETAIL) {
                     selectedCategory = null
                 }
-                VendorScreenState.ROOM, VendorScreenState.ALL_SAVED, VendorScreenState.LOCATION_SELECTOR -> {
-                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
-                }
-                VendorScreenState.MAIN -> {
-                    onBackClick()
-                }
+                screenStack = screenStack.dropLast(1)
+            } else {
+                onBackClick()
             }
         }
     }
@@ -387,7 +401,7 @@ fun VendorsTab(
             ) {
                 AnimatedContent(
                     targetState = currentScreenState,
-                    transitionSpec = { fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300)) },
+                    transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) },
                     label = "VendorTabTransition"
                 ) { state ->
                     when (state) {
@@ -400,13 +414,12 @@ fun VendorsTab(
                                 isSearchActive = isSearchActive,
                                 onSearchActiveChange = { isSearchActive = it },
                                 onMenuClick = { showMenuSheet = true },
-                                onLocationClick = { 
-                                    previousScreenState = VendorScreenState.MAIN
-                                    currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                onLocationClick = {
+                                    screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                 },
                                 onCategoryClick = { category ->
                                     selectedCategory = category
-                                    currentScreenState = VendorScreenState.CATEGORY_DETAIL
+                                    screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
                                 },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
@@ -415,7 +428,8 @@ fun VendorsTab(
                                 context = context,
                                 onRecentSearchesUpdate = { recentSearchesNames = it },
                                 allVendors = allVendorsFromRepo,
-                                isLoading = isLoading
+                                isLoading = isLoading,
+                                listState = mainListState
                             )
                         }
                         VendorScreenState.CATEGORY_DETAIL -> {
@@ -423,10 +437,9 @@ fun VendorsTab(
                                 VendorCategoryDetailContent(
                                     category = category,
                                     selectedCity = selectedCity,
-                                    onBackClick = { currentScreenState = VendorScreenState.MAIN },
-                                    onLocationClick = { 
-                                        previousScreenState = VendorScreenState.CATEGORY_DETAIL
-                                        currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onLocationClick = {
+                                        screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                     },
                                     onMenuClick = { showMenuSheet = true },
                                     onVendorClick = handleVendorClick,
@@ -434,8 +447,14 @@ fun VendorsTab(
                                     vendorSavedDestinations = vendorSavedDestinations,
                                     timelineEvents = timelineEvents,
                                     vendorViewModel = vendorViewModel,
+                                    selectedTab = selectedCategoryTab,
+                                    onSelectedTabChange = { selectedCategoryTab = it },
+                                    selectedViewType = selectedSavedViewType,
+                                    onSelectedViewTypeChange = { selectedSavedViewType = it },
                                     isLoading = isLoading,
-                                    sharedTransitionScope = sharedTransitionScope
+                                    onTimelineSeeAll = handleTimelineSeeAll,
+                                    listState = categoryListState,
+                                    gridState = categorySavedGridState
                                 )
                             }
                         }
@@ -443,30 +462,45 @@ fun VendorsTab(
                             selectedVendor?.let { vendor ->
                                 VendorDetailScreen(
                                     vendorDetail = vendor,
-                                    onBackClick = { currentScreenState = previousScreenState ?: VendorScreenState.MAIN },
-                                    onFavoriteToggle = { handleFavoriteToggle(it) },
-                                    sharedTransitionScope = sharedTransitionScope
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onFavoriteToggle = { handleFavoriteToggle(it) }
                                 )
                             }
                         }
                         VendorScreenState.ALL_SAVED -> {
                             AllSavedVendorsContent(
-                                onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                onBackClick = { screenStack = screenStack.dropLast(1) },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
                                 vendorSavedDestinations = vendorSavedDestinations,
                                 timelineEvents = timelineEvents,
                                 allVendors = allVendorsFromRepo,
+                                selectedViewType = selectedSavedViewType,
+                                onSelectedViewTypeChange = { selectedSavedViewType = it },
                                 isLoading = isLoading,
-                                sharedTransitionScope = sharedTransitionScope
+                                onTimelineSeeAll = handleTimelineSeeAll,
+                                gridState = allSavedGridState
                             )
+                        }
+                        VendorScreenState.TIMELINE_DETAIL -> {
+                            selectedTimelineEvent?.let { event ->
+                                com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen(
+                                    title = "Saved Vendors",
+                                    date = event.date,
+                                    event = event.event,
+                                    vendors = selectedTimelineVendors,
+                                    onVendorClick = handleVendorClick,
+                                    onVendorFavoriteToggle = handleFavoriteToggle,
+                                    onBackClick = { screenStack = screenStack.dropLast(1) }
+                                )
+                            }
                         }
                         VendorScreenState.ROOM -> {
                             activeEvent?.let { event ->
                                 VendorRoomContent(
                                     eventId = event.id,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
                                     onMenuClick = { showRoomMenuBottomSheet = true },
                                     onRemove = { userToRemove = it },
                                     onLeave = { showLeaveConfirmation = true },
@@ -480,10 +514,10 @@ fun VendorsTab(
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
-                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                    screenStack = screenStack.dropLast(1)
                                 },
                                 onBackClick = {
-                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                    screenStack = screenStack.dropLast(1)
                                 },
                                 backIcon = TopIcon.Predefined.DOWN
                             )
@@ -527,7 +561,7 @@ fun VendorsTab(
             CustomToast(
                 message = toastData.message ?: "",
                 type = toastData.type,
-                leadingIcon = painterResource(id = R.drawable.ic_top_bar_heart),
+                leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
                 buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                 onButtonClick = if (activeEvent?.multiDay == true) {
                     {
@@ -561,7 +595,7 @@ fun VendorsTab(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            currentScreenState = VendorScreenState.ROOM
+                            screenStack = screenStack + VendorScreenState.ROOM
                         }
                     )
                 ),
@@ -583,7 +617,7 @@ fun VendorsTab(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            currentScreenState = VendorScreenState.ALL_SAVED
+                            screenStack = screenStack + VendorScreenState.ALL_SAVED
                         }
                     )
                 )
@@ -707,7 +741,7 @@ fun VendorsTab(
                         roomViewModel.removeAccess(eventId, "Vendors", FirebaseAuth.getInstance().currentUser?.uid ?: "")
                     }
                     toastData = ToastData("You left the room", ToastType.DEFAULT)
-                    currentScreenState = VendorScreenState.MAIN
+                    screenStack = listOf(VendorScreenState.MAIN)
                     showLeaveConfirmation = false
                 },
                 onProgress = { sheetMotionProgress = it }
@@ -735,12 +769,13 @@ fun VendorMainContent(
     context: Context,
     onRecentSearchesUpdate: (List<String>) -> Unit,
     allVendors: List<Vendor>,
-    isLoading: Boolean
+    isLoading: Boolean,
+    listState: LazyListState = rememberLazyListState()
 ) {
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
-        baseList.filter { 
-            it.name.contains(searchQuery, ignoreCase = true) || 
+        baseList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
             it.category.contains(searchQuery, ignoreCase = true) ||
             it.locality.contains(searchQuery, ignoreCase = true) ||
             it.city.contains(searchQuery, ignoreCase = true) ||
@@ -782,6 +817,7 @@ fun VendorMainContent(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding()),
+            state = listState,
             contentPadding = PaddingValues(bottom = 0.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -834,7 +870,11 @@ fun VendorMainContent(
                             title = "Top Makeup Artists in $selectedCity",
                             vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
                             isLoading = isLoading,
-                            onVendorClick = onVendorClick,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
                             onFavoriteToggle = onFavoriteToggle,
                             cardSize = CompactCardSize.MEDIUM
                         )
@@ -844,7 +884,11 @@ fun VendorMainContent(
                             title = "Best Photographers in $selectedCity",
                             vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
                             isLoading = isLoading,
-                            onVendorClick = onVendorClick,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
                             onFavoriteToggle = onFavoriteToggle,
                             cardSize = CompactCardSize.MEDIUM
                         )
@@ -854,7 +898,11 @@ fun VendorMainContent(
                             title = "Expert Mehendi Artists in $selectedCity",
                             vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
                             isLoading = isLoading,
-                            onVendorClick = onVendorClick,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
                             onFavoriteToggle = onFavoriteToggle,
                             cardSize = CompactCardSize.MEDIUM
                         )
@@ -881,7 +929,7 @@ fun VendorMainContent(
                                 current.remove(vendor.name)
                                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit { putString(KEY_RECENT_SEARCHES, current.joinToString("|||")) }
                                 onRecentSearchesUpdate(getRecentSearches(context))
-                            },
+                            }
                         )
                     }
                 }
@@ -892,7 +940,7 @@ fun VendorMainContent(
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VendorCategoryDetailContent(
     category: VendorCategoryItem,
@@ -905,14 +953,18 @@ fun VendorCategoryDetailContent(
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
     vendorViewModel: VendorViewModel,
+    selectedTab: String,
+    onSelectedTabChange: (String) -> Unit,
+    selectedViewType: String,
+    onSelectedViewTypeChange: (String) -> Unit,
     isLoading: Boolean = false,
-    sharedTransitionScope: SharedTransitionScope? = null
+    onTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { _, _ -> },
+    listState: LazyListState = rememberLazyListState(),
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var selectedTab by remember { mutableStateOf("explore") }
 
-    var selectedViewType by remember { mutableStateOf("By Timeline") }
     val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -948,7 +1000,7 @@ fun VendorCategoryDetailContent(
 
     val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
-        var result = baseList.filter { 
+        var result = baseList.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
             it.locality.contains(searchQuery, ignoreCase = true) ||
             it.city.contains(searchQuery, ignoreCase = true)
@@ -996,7 +1048,7 @@ fun VendorCategoryDetailContent(
                 BottomTab(
                     items = bottomTabs,
                     selectedValue = selectedTab,
-                    onItemSelected = { selectedTab = it }
+                    onItemSelected = onSelectedTabChange
                 )
             }
         },
@@ -1023,6 +1075,7 @@ fun VendorCategoryDetailContent(
             if (currentTab == "explore") {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
+                    state = listState,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
@@ -1070,8 +1123,7 @@ fun VendorCategoryDetailContent(
                                     onVendorClick(vendor)
                                 },
                                 onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                sharedTransitionScope = sharedTransitionScope
+                                modifier = Modifier.padding(horizontal = 12.dp)
                             )
                         }
                     } else if (!isSearchActive) {
@@ -1132,8 +1184,7 @@ fun VendorCategoryDetailContent(
                                         onVendorClick(vendor)
                                     },
                                     onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                    modifier = Modifier.padding(horizontal = 12.dp),
-                                    sharedTransitionScope = sharedTransitionScope
+                                    modifier = Modifier.padding(horizontal = 12.dp)
                                 )
                             }
                         }
@@ -1161,7 +1212,7 @@ fun VendorCategoryDetailContent(
                                         current.remove(vendor.name)
                                         prefs.edit { putString("${KEY_RECENT_SEARCHES}_${category.name}", current.joinToString("|||")) }
                                         recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                    },
+                                    }
                                 )
                             }
                         }
@@ -1191,43 +1242,49 @@ fun VendorCategoryDetailContent(
                     list
                 }
 
-                LazyColumn(
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
                     modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    state = gridState,
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    item {
+                    item(span = { GridItemSpan(2) }) {
                         IosSegmentedControl(
                             options = viewOptions,
                             selectedOption = selectedViewType,
-                            onOptionSelected = { selectedViewType = it },
+                            onOptionSelected = onSelectedViewTypeChange,
                             modifier = Modifier.padding(top = 12.dp).height(44.dp)
                         )
                     }
 
                     if (selectedViewType == "All Saved") {
                         if (isLoading) {
-                            items(5) {
-                                VendorCardFull(
+                            items(6) {
+                                VendorCardCompact(
                                     vendor = Vendor(),
                                     isLoading = true,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         } else if (savedVendorsList.isEmpty()) {
-                            item { EmptySavedState() }
+                            item(span = { GridItemSpan(2) }) {
+                                StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                            }
                         } else {
                             items(savedVendorsList) { vendor ->
-                                VendorCardFull(
+                                VendorCardCompact(
                                     vendor = vendor,
                                     onCardClick = { onVendorClick(vendor) },
                                     onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                    sharedTransitionScope = sharedTransitionScope
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
                     } else {
                         // TIMELINE VIEW
                         if (isLoading) {
-                            items(3) {
+                            items(3, span = { GridItemSpan(2) }) {
                                 TimelineSection(
                                     date = "Loading...",
                                     event = "Fetching your plans",
@@ -1235,9 +1292,11 @@ fun VendorCategoryDetailContent(
                                 )
                             }
                         } else if (savedTimelineEvents.isEmpty()) {
-                            item { EmptySavedState() }
+                            item(span = { GridItemSpan(2) }) {
+                                StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                            }
                         } else {
-                            items(savedTimelineEvents) { timelineItem ->
+                            items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
                                 val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
                                 TimelineSection(
                                     date = timelineItem.date,
@@ -1245,19 +1304,18 @@ fun VendorCategoryDetailContent(
                                     vendors = vendorsForEvent,
                                     onVendorClick = onVendorClick,
                                     onVendorFavoriteToggle = onFavoriteToggle,
-                                    sharedTransitionScope = sharedTransitionScope
+                                    onSeeAllClick = { onTimelineSeeAll(timelineItem, vendorsForEvent) }
                                 )
                             }
                         }
                     }
-                    item { Spacer(Modifier.height(24.dp)) }
+                    item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AllSavedVendorsContent(
     onBackClick: () -> Unit,
@@ -1266,10 +1324,12 @@ fun AllSavedVendorsContent(
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
     allVendors: List<Vendor>,
+    selectedViewType: String,
+    onSelectedViewTypeChange: (String) -> Unit,
     isLoading: Boolean = false,
-    sharedTransitionScope: SharedTransitionScope? = null
+    onTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { _, _ -> },
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
-    var selectedViewType by remember { mutableStateOf("By Timeline") }
     val viewOptions = listOf("By Timeline", "All Saved")
 
     val savedVendorsList = remember(vendorSavedDestinations, allVendors) {
@@ -1309,60 +1369,67 @@ fun AllSavedVendorsContent(
         },
         containerColor = BackgroundPrimary
     ) { paddingValues ->
-        LazyColumn(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(top = paddingValues.calculateTopPadding())
+                .padding(horizontal = 12.dp),
+            state = gridState,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
+            item(span = { GridItemSpan(2) }) {
                 IosSegmentedControl(
                     options = viewOptions,
                     selectedOption = selectedViewType,
-                    onOptionSelected = { selectedViewType = it },
+                    onOptionSelected = onSelectedViewTypeChange,
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
+                        .padding(top = 12.dp)
                         .height(44.dp)
                 )
             }
 
             if (selectedViewType == "All Saved") {
                 if (isLoading) {
-                    items(5) {
-                        VendorCardFull(
+                    items(6) {
+                        VendorCardCompact(
                             vendor = Vendor(),
                             isLoading = true,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 } else if (savedVendorsList.isEmpty()) {
-                    item {EmptySavedState()}
+                    item(span = { GridItemSpan(2) }) {
+                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                    }
                 } else {
                     items(savedVendorsList) { vendor ->
-                        VendorCardFull(
+                        VendorCardCompact(
                             vendor = vendor,
                             onCardClick = { onVendorClick(vendor) },
                             onFavoriteToggle = { onFavoriteToggle(vendor) },
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            sharedTransitionScope = sharedTransitionScope
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             } else {
                 // Timeline implementation
                 if (isLoading) {
-                    items(3) {
+                    items(3, span = { GridItemSpan(2) }) {
                         TimelineSection(
                             date = "Loading...",
                             event = "Fetching your plans",
                             isLoading = true,
-                            modifier = Modifier.padding(horizontal = 12.dp)
+                            modifier = Modifier.padding(horizontal = 0.dp)
                         )
                     }
                 } else if (savedTimelineEvents.isEmpty()) {
-                    item { EmptySavedState() }
+                    item(span = { GridItemSpan(2) }) {
+                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                    }
                 } else {
-                    items(savedTimelineEvents) { timelineItem ->
+                    items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
                         val vendorsForEvent = allVendors.filter { v ->
                             vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
                         }.map { it.copy(favorite = true) }
@@ -1373,13 +1440,13 @@ fun AllSavedVendorsContent(
                             vendors = vendorsForEvent,
                             onVendorClick = onVendorClick,
                             onVendorFavoriteToggle = onFavoriteToggle,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            sharedTransitionScope = sharedTransitionScope
+                            onSeeAllClick = { onTimelineSeeAll(timelineItem, vendorsForEvent) },
+                            modifier = Modifier.padding(horizontal = 0.dp)
                         )
                     }
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
         }
     }
 }

@@ -639,7 +639,7 @@ fun CateringMenuScreen(
                                                     onClick = {
                                                         focusManager.clearFocus()
                                                     },
-                                                    text = "AI Suggestions",
+                                                    text = "Ask AI",
                                                     type = ButtonType.Secondary,
                                                     shapeStyle = ButtonShapeStyle.Round,
                                                     leadingIcon = painterResource(id = R.drawable.ic_ai),

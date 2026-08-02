@@ -1,12 +1,10 @@
 package com.harshdeep.jasnify.presentation.screens.venues
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -152,6 +150,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 // ============================================================================================================================================
 // ENUMS
@@ -204,16 +203,14 @@ fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
     mediaItems = mediaItems.map { it.toUiModel() }
 )
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VenueDetailScreen(
     venueDetail: Venue,
     onBackClick: () -> Unit = {},
     onFavoriteToggle: (Boolean) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    modifier: Modifier = Modifier
 ) {
     // Dynamic stack to keep track of screens locally
     var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
@@ -229,7 +226,7 @@ fun VenueDetailScreen(
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
         },
         label = "VenueNavigationTransition"
     ) { screen ->
@@ -246,9 +243,7 @@ fun VenueDetailScreen(
                         selectedReviewForPost = review
                         screenStack = screenStack + VenueActiveScreen.POST
                     },
-                    modifier = modifier,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
+                    modifier = modifier
                 )
             }
             VenueActiveScreen.REVIEWS -> {
@@ -293,7 +288,7 @@ fun VenueDetailScreen(
 
 
 @SuppressLint("UseKtx", "FrequentlyChangingValue")
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VenueDetailContent(
     venueDetail: Venue,
@@ -303,9 +298,7 @@ private fun VenueDetailContent(
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -462,8 +455,6 @@ private fun VenueDetailContent(
             onMuteToggle = { isMuted = !isMuted },
             venue = venue,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(340.dp)
@@ -824,7 +815,7 @@ private fun VenueDetailContent(
 
 
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VenueMediaSlider(
     mediaItems: List<VenueMediaItem>,
@@ -832,8 +823,6 @@ fun VenueMediaSlider(
     onMuteToggle: () -> Unit,
     venue: Venue,
     onSeeAllGalleryClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(pageCount = { mediaItems.size })
@@ -841,7 +830,7 @@ fun VenueMediaSlider(
     if (mediaItems.size > 1) {
         LaunchedEffect(Unit) {
             while (true) {
-                delay(3000)
+                delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
                     val nextPage = (pagerState.currentPage + 1) % mediaItems.size
                     pagerState.animateScrollToPage(nextPage)
@@ -858,36 +847,20 @@ fun VenueMediaSlider(
             val mediaItem = mediaItems[page]
 
             Box(modifier = Modifier.fillMaxSize()) {
-                val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && page == 0) {
-                    with(sharedTransitionScope) {
-                        Modifier
-                            .fillMaxSize()
-                            .sharedElement(
-                                rememberSharedContentState(key = "image_${venue.name}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                renderInOverlayDuringTransition = false
-                            )
-                    }
+                if (mediaItem.video) {
+                    VideoPlayer(
+                        videoUrl = mediaItem.url,
+                        isMuted = isMuted,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
-                    Modifier.fillMaxSize()
-                }
-
-                Box(modifier = sharedBoundsModifier) {
-                    if (mediaItem.video) {
-                        VideoPlayer(
-                            videoUrl = mediaItem.url,
-                            isMuted = isMuted,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        AsyncImage(
-                            model = mediaItem.url,
-                            contentDescription = "Venue Media Slide ${page + 1}",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(R.drawable.ic_gallery)
-                        )
-                    }
+                    AsyncImage(
+                        model = mediaItem.url,
+                        contentDescription = "Venue Media Slide ${page + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.ic_gallery)
+                    )
                 }
             }
         }

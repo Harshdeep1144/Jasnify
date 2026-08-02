@@ -1,7 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.sections
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*

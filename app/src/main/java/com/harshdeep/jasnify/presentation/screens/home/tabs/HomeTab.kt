@@ -216,6 +216,17 @@ fun HomeTabContent(
         currentScreen = "home"
     }
 
+    val homeScrollState = rememberScrollState()
+    val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
+
+    val topBarAlpha by remember {
+        derivedStateOf {
+            if (fadeDistancePx > 0f) {
+                (homeScrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+            } else 0f
+        }
+    }
+
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
@@ -227,17 +238,6 @@ fun HomeTabContent(
     ) { screen ->
 
         if (screen == "home") {
-            val scrollState = rememberScrollState()
-            val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
-
-            val topBarAlpha by remember {
-                derivedStateOf {
-                    if (fadeDistancePx > 0f) {
-                        (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
-                    } else 0f
-                }
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -252,7 +252,7 @@ fun HomeTabContent(
                         .height(headerHeight)
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
-                            val scrollOffset = scrollState.value
+                            val scrollOffset = homeScrollState.value
                             translationY = -scrollOffset * PARALLAX_RATE
                             alpha = if (fadeDistancePx > 0f) {
                                 (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
@@ -277,7 +277,7 @@ fun HomeTabContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(paddingValues)
-                            .verticalScroll(scrollState)
+                            .verticalScroll(homeScrollState)
                     ) {
                         // The spacing spacer height is bound directly to the dynamic visible offset
                         Spacer(modifier = Modifier.height(visibleBackgroundOffset))
