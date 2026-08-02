@@ -325,7 +325,6 @@ private fun VenueDetailContent(
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
     var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
-    var isFavoriteState by remember { mutableStateOf(venue.favorite) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail) {
@@ -605,7 +604,7 @@ private fun VenueDetailContent(
             }
         }
 
-        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
+        val secondaryIcon = if(venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
 
         val scrollRange = maxOffsetPx - minOffsetPx
         val currentScrollOffset = maxOffsetPx - sheetOffsetPx
@@ -632,8 +631,7 @@ private fun VenueDetailContent(
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
-                    isFavoriteState = !isFavoriteState
-                    onFavoriteToggle(isFavoriteState)
+                    onFavoriteToggle(!venueDetail.favorite)
                 },
                 onMenuClick = { },
                 buttonStyle = dynamicButtonStyle,

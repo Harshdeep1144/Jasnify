@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.components.cards
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,7 +67,6 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
@@ -293,32 +291,6 @@ fun VenueCardCompact(
 
     // Dynamic width calculation: 0.43 of screen width ensures 2 full cards
     val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
-
-    val actualPageCount = venue.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
-        if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
-
-    // Only set up Pager state when card size is MEDIUM
-    val pagerState = if (isMedium) {
-        rememberPagerState(
-            initialPage = initialPage,
-            pageCount = { virtualCount }
-        )
-    } else null
-
-    // Run carousel animation only for MEDIUM size
-    if (isMedium && actualPageCount > 1 && pagerState != null) {
-        LaunchedEffect(pagerState) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }
-        }
-    }
-
     val containerColor = Color.Transparent
 
     Card(
@@ -342,25 +314,13 @@ fun VenueCardCompact(
                         shape = SquircleShape(20.dp)
                     ),
             ) {
-                if (isMedium && pagerState != null) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = false
-                    ) { page ->
-                        val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                        VenueImage(
-                            url = venue.images.getOrNull(actualIndex) ?: "",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                } else {
-                    VenueImage(
-                        url = venue.images.firstOrNull() ?: "",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                // Display single image directly without horizontal pager
+                VenueImage(
+                    url = venue.images.firstOrNull() ?: "",
+                    modifier = Modifier.fillMaxSize()
+                )
 
+                // Rating Badge
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -382,6 +342,7 @@ fun VenueCardCompact(
                     }
                 }
 
+                // Favorite / Remove Button
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
@@ -417,21 +378,14 @@ fun VenueCardCompact(
                     }
                 }
 
-                if (isMedium && pagerState != null) {
-                    Row(
+                // Offer Badge for Medium size cards
+                if (isMedium) {
+                    OfferBadge(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
+                            .align(Alignment.BottomStart)
                             .padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        OfferBadge(onClick = onOfferClick)
-                        CarouselDots(
-                            pageCount = actualPageCount,
-                            currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0
-                        )
-                    }
+                        onClick = onOfferClick
+                    )
                 }
             }
 
@@ -624,8 +578,6 @@ private fun BannerRow(
         }
     }
 }
-
-
 
 @Composable
 private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {

@@ -119,6 +119,7 @@ import com.harshdeep.jasnify.presentation.components.states.EmptySavedState
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -137,9 +138,6 @@ import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Represents the primary navigation screens within the Venue module.
- */
 enum class VenueScreenState {
     MAIN,
     LOCATION_PICKER,
@@ -192,7 +190,7 @@ fun VenueScreen(
     var selectedTab by remember { mutableStateOf(initialTab) }
     var selectedViewType by remember { mutableStateOf("By Timeline") }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
-    var selectedTimelineEvent by remember { mutableStateOf<TimelineEvent?>(null) }
+    var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
 
     val mainListState = rememberLazyListState()
 
@@ -223,7 +221,6 @@ fun VenueScreen(
             roomViewModel.loadRoomUsers(activeEvent!!.id, "Venue")
             venueViewModel.setEventId(activeEvent!!.id)
         } else {
-            // No active event, allow browsing by setting access to true
             roomViewModel.setAccessState(true)
         }
     }
@@ -258,6 +255,60 @@ fun VenueScreen(
         }
     }
 
+    val exploreVenues = remember(allVenues) {
+        allVenues.ifEmpty { MockData.sampleVenues1 + MockData.sampleVenues2 }
+    }
+
+    val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents, exploreVenues) {
+        val list = mutableListOf<TimelineEvent>()
+
+        val defaultSavedVenues = exploreVenues.filter { venue ->
+            venueSavedDestinations[venue.name] == "mysaved"
+        }.map { venue ->
+            venue.copy(favorite = true)
+        }
+
+        if (defaultSavedVenues.isNotEmpty()) {
+            list.add(
+                TimelineEvent(
+                    id = "mysaved",
+                    date = "Default List",
+                    event = "My Saved List",
+                    venues = defaultSavedVenues
+                )
+            )
+        }
+
+        val eventSections = timelineEvents.map { event ->
+            val eventVenues = exploreVenues.filter { venue ->
+                venueSavedDestinations[venue.name] == event.id
+            }.map { venue ->
+                venue.copy(favorite = true)
+            }
+            event.copy(venues = eventVenues)
+        }.filter { it.venues.isNotEmpty() }
+
+        list.addAll(eventSections)
+        list
+    }
+
+    val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents, venueSavedDestinations, exploreVenues) {
+        val baseEvent = if (selectedTimelineEventId == "mysaved") {
+            TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
+        } else {
+            timelineEvents.find { it.id == selectedTimelineEventId }
+        }
+
+        baseEvent?.let { event ->
+            val eventVenues = exploreVenues.filter { venue ->
+                venueSavedDestinations[venue.name] == event.id
+            }.map { venue ->
+                venue.copy(favorite = true)
+            }
+            event.copy(venues = eventVenues)
+        }
+    }
+
     var toastData by remember { mutableStateOf<ToastData?>(null) }
 
     val sortOptions = listOf(
@@ -282,8 +333,6 @@ fun VenueScreen(
     }
 
     val focusManager = LocalFocusManager.current
-
-    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     BackHandler(enabled = screenStack.size > 1) {
@@ -291,6 +340,9 @@ fun VenueScreen(
             VenueScreenState.VENUE_DETAIL -> {
                 selectedVenueForDetail = null
                 venueViewModel.setSelectedVenueId(null)
+            }
+            VenueScreenState.TIMELINE_DETAIL -> {
+                selectedTimelineEventId = null
             }
             else -> {}
         }
@@ -300,11 +352,7 @@ fun VenueScreen(
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
             showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation
 
-    val targetScale = if (isAnySheetVisible) {
-        0.92f + (0.08f * sheetMotionProgress)
-    } else {
-        1.0f
-    }
+    val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
     val backdropScale by animateFloatAsState(
         targetValue = targetScale,
@@ -373,7 +421,13 @@ fun VenueScreen(
                 AnimatedContent(
                     targetState = screenState,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                        when {
+                            // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
+                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopMovingFastTransition
+                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomMovingFastTransition
+
+                            else -> ScreenTransitions.FadeInOutDefaultTransition
+                        }
                     },
                     label = "venue_screen_transition",
                     modifier = Modifier.fillMaxSize()
@@ -446,18 +500,20 @@ fun VenueScreen(
                         }
                         VenueScreenState.VENUE_DETAIL -> {
                             selectedVenueForDetail?.let { venue ->
-                                val detailData = remember(venue, allVenues, venueReviews) {
+                                val detailData = remember(venue, allVenues, venueReviews, venueSavedDestinations) {
                                     val base = allVenues.find { it.id == venue.id } ?:
                                     MockData.venueDetailsMap[venue.name] ?:
                                     MockData.getDetailsForVenue(venue)
 
+                                    val reactiveBase = base.copy(favorite = venueSavedDestinations.containsKey(base.name))
+
                                     if (venueReviews.isNotEmpty()) {
-                                        base.copy(
-                                            reviewsData = base.reviewsData?.copy(reviews = venueReviews)
+                                        reactiveBase.copy(
+                                            reviewsData = reactiveBase.reviewsData?.copy(reviews = venueReviews)
                                                 ?: VenueReviewsData(reviews = venueReviews)
                                         )
                                     } else {
-                                        base
+                                        reactiveBase
                                     }
                                 }
                                 VenueDetailScreen(
@@ -466,6 +522,9 @@ fun VenueScreen(
                                         selectedVenueForDetail = null
                                         venueViewModel.setSelectedVenueId(null)
                                         screenStack = screenStack.dropLast(1)
+                                    },
+                                    onFavoriteToggle = {
+                                        handleFavoriteToggle(detailData)
                                     },
                                     onChatClick = { venueChat ->
                                         onChatClick(venueChat)
@@ -476,7 +535,8 @@ fun VenueScreen(
                         }
                         VenueScreenState.MAIN -> {
                             VenueMainContent(
-                                allVenues = allVenues,
+                                exploreVenues = exploreVenues,
+                                savedTimelineEvents = savedTimelineEvents,
                                 selectedLocation = currentAddress,
                                 onVenueClick = { venue ->
                                     selectedVenueForDetail = venue
@@ -500,7 +560,6 @@ fun VenueScreen(
                                 onShowSaveListBottomSheetChange = { showSaveListBottomSheet = it },
                                 showMenuSheet = showMenuSheet,
                                 onShowMenuSheetChange = { showMenuSheet = it },
-                                timelineEvents = timelineEvents,
                                 onActiveTargetVenueChange = { activeTargetVenue = it },
                                 isMySavedListChecked = isMySavedListChecked,
                                 onMySavedListCheckedChange = { isMySavedListChecked = it },
@@ -525,14 +584,14 @@ fun VenueScreen(
                                 isLoading = isLoading,
                                 onProgress = { sheetMotionProgress = it },
                                 onTimelineSeeAll = { event ->
-                                    selectedTimelineEvent = event
+                                    selectedTimelineEventId = event.id
                                     screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
                                 },
                                 listState = mainListState
                             )
                         }
                         VenueScreenState.TIMELINE_DETAIL -> {
-                            selectedTimelineEvent?.let { event ->
+                            currentSelectedTimelineEvent?.let { event ->
                                 SavedTimelineItemsScreen(
                                     title = "Saved Venues",
                                     date = event.date,
@@ -789,7 +848,8 @@ fun VenueScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VenueMainContent(
-    allVenues: List<Venue>,
+    exploreVenues: List<Venue>,
+    savedTimelineEvents: List<TimelineEvent>,
     selectedLocation: String,
     onVenueClick: (Venue) -> Unit,
     onLocationSelectorClick: () -> Unit,
@@ -804,7 +864,6 @@ fun VenueMainContent(
     onShowSaveListBottomSheetChange: (Boolean) -> Unit,
     showMenuSheet: Boolean,
     onShowMenuSheetChange: (Boolean) -> Unit,
-    timelineEvents: List<TimelineEvent>,
     onActiveTargetVenueChange: (Venue?) -> Unit,
     isMySavedListChecked: Boolean,
     onMySavedListCheckedChange: (Boolean) -> Unit,
@@ -847,10 +906,6 @@ fun VenueMainContent(
         focusManager.clearFocus()
     }
 
-    val exploreVenues = remember(allVenues) {
-        allVenues.ifEmpty { MockData.sampleVenues1 + MockData.sampleVenues2 }
-    }
-
     val recentVenuesList = remember<List<Venue>>(recentSearches, exploreVenues) {
         recentSearches.mapNotNull { name ->
             exploreVenues.find { it.name == name }
@@ -879,10 +934,10 @@ fun VenueMainContent(
         if (text.isNotEmpty()) {
             result = result.filter {
                 it.name.contains(text, ignoreCase = true) ||
-                it.location.contains(text, ignoreCase = true) ||
-                it.locality.contains(text, ignoreCase = true) ||
-                it.city.contains(text, ignoreCase = true) ||
-                it.type?.contains(text, ignoreCase = true) == true
+                        it.location.contains(text, ignoreCase = true) ||
+                        it.locality.contains(text, ignoreCase = true) ||
+                        it.city.contains(text, ignoreCase = true) ||
+                        it.type?.contains(text, ignoreCase = true) == true
             }
         }
 
@@ -918,39 +973,6 @@ fun VenueMainContent(
             TabItem("Explore", "explore", badgeCount = filteredAndSortedExploreVenues.size),
             TabItem("Saved", "saved", badgeCount = savedVenuesList.size)
         )
-    }
-
-    val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents, exploreVenues) {
-        val list = mutableListOf<TimelineEvent>()
-
-        val defaultSavedVenues = exploreVenues.filter { venue ->
-            venueSavedDestinations[venue.name] == "mysaved"
-        }.map { venue ->
-            venue.copy(favorite = true)
-        }
-
-        if (defaultSavedVenues.isNotEmpty()) {
-            list.add(
-                TimelineEvent(
-                    id = "mysaved",
-                    date = "Default List",
-                    event = "My Saved List",
-                    venues = defaultSavedVenues
-                )
-            )
-        }
-
-        val eventSections = timelineEvents.map { event ->
-            val eventVenues = exploreVenues.filter { venue ->
-                venueSavedDestinations[venue.name] == event.id
-            }.map { venue ->
-                venue.copy(favorite = true)
-            }
-            event.copy(venues = eventVenues)
-        }.filter { it.venues.isNotEmpty() }
-
-        list.addAll(eventSections)
-        list
     }
 
     Box(
@@ -1091,7 +1113,6 @@ fun VenueMainContent(
                         }
 
                         if (isSearchActive && text.isNotEmpty()) {
-                            // SUGGESTIONS MODE
                             if (filteredAndSortedExploreVenues.isEmpty()) {
                                 item {
                                     EmptyState(
@@ -1112,8 +1133,6 @@ fun VenueMainContent(
                                 }
                             }
                         } else if (!isSearchActive && text.isNotEmpty()) {
-                            // RESULTS MODE (Optional: if we want to show full cards after user confirms search)
-                            // For now, let's stick to suggestions only while active, or maybe this state isn't reachable easily
                             items(
                                 items = filteredAndSortedExploreVenues,
                                 key = { it.id.ifEmpty { it.name } }
@@ -1128,7 +1147,6 @@ fun VenueMainContent(
                                 )
                             }
                         } else if (!isSearchActive) {
-                            // DISCOVERY MODE: Regular UI
                             if (isLoading && filteredAndSortedExploreVenues.isEmpty()) {
                                 items(5) {
                                     VenueCardFull(

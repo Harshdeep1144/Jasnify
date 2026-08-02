@@ -225,7 +225,7 @@ fun VendorDetailScreen(
                     onBackClick = onBackClick,
                     onChatClick = onChatClick,
                     onMenuClick = onMenuClick,
-                    onFavoriteToggle = { onFavoriteToggle(vendorDetail) },
+                    onFavoriteToggle = onFavoriteToggle,
                     onSeeAllReviewsClick = { screenStack = screenStack + VendorActiveScreen.REVIEWS },
                     onSeeAllGalleryClick = { screenStack = screenStack + VendorActiveScreen.GALLERY },
                     onOpenReviewPost = { review ->
@@ -281,7 +281,7 @@ private fun VendorDetailContent(
     onBackClick: () -> Unit,
     onChatClick: (Vendor) -> Unit,
     onMenuClick: () -> Unit,
-    onFavoriteToggle: () -> Unit,
+    onFavoriteToggle: (Vendor) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
@@ -309,7 +309,6 @@ private fun VendorDetailContent(
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
     var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
-    var isFavoriteState by remember { mutableStateOf(vendor.favorite) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(vendorDetail) {
@@ -592,7 +591,7 @@ private fun VendorDetailContent(
             }
         }
 
-        val secondaryIcon = if (isFavoriteState) {
+        val secondaryIcon = if (vendorDetail.favorite) {
             painterResource(R.drawable.ic_heart_filled)
         } else {
             painterResource(R.drawable.ic_top_bar_heart)
@@ -612,8 +611,7 @@ private fun VendorDetailContent(
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
-                    isFavoriteState = !isFavoriteState
-                    onFavoriteToggle()
+                    onFavoriteToggle(vendorDetail)
                 },
                 onMenuClick = onMenuClick,
                 buttonStyle = dynamicButtonStyle,

@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.components.cards
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -68,7 +67,6 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
@@ -77,7 +75,6 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 private data class VendorShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
-
 
 @Composable
 fun VendorCardFull(
@@ -304,30 +301,6 @@ fun VendorCardCompact(
     val isMedium = compactCardSize == CompactCardSize.MEDIUM
 
     val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
-
-    val actualPageCount = vendor.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
-        if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
-
-    val pagerState = if (isMedium) {
-        rememberPagerState(
-            initialPage = initialPage,
-            pageCount = { virtualCount }
-        )
-    } else null
-
-    if (isMedium && actualPageCount > 1 && pagerState != null) {
-        LaunchedEffect(pagerState) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }
-        }
-    }
-
     val containerColor = Color.Transparent
 
     Card(
@@ -351,24 +324,11 @@ fun VendorCardCompact(
                         shape = SquircleShape(20.dp)
                     ),
             ) {
-                if (isMedium && pagerState != null) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = false
-                    ) { page ->
-                        val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                        VendorImage(
-                            url = vendor.images.getOrNull(actualIndex) ?: "",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                } else {
-                    VendorImage(
-                        url = vendor.images.firstOrNull() ?: "",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                // Display single image directly without horizontal pager
+                VendorImage(
+                    url = vendor.images.firstOrNull() ?: "",
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
@@ -426,21 +386,13 @@ fun VendorCardCompact(
                     }
                 }
 
-                if (isMedium && pagerState != null) {
-                    Row(
+                if (isMedium) {
+                    OfferBadge(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
+                            .align(Alignment.BottomStart)
                             .padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        OfferBadge(onClick = onOfferClick)
-                        CarouselDots(
-                            pageCount = actualPageCount,
-                            currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0
-                        )
-                    }
+                        onClick = onOfferClick
+                    )
                 }
             }
 
@@ -651,7 +603,6 @@ private fun VendorBannerRow(
     }
 }
 
-
 @Composable
 private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -716,7 +667,6 @@ fun getIconResId(iconName: String?): Int {
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

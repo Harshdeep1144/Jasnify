@@ -106,6 +106,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
@@ -116,6 +117,7 @@ import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -148,7 +150,7 @@ private fun saveRecentSearch(context: Context, name: String) {
     current.remove(name)
     current.add(0, name)
     val limited = current.take(8)
-    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))}
+    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")) }
 }
 
 private fun getCategoryRecentSearches(context: Context, category: String): List<String> {
@@ -163,7 +165,7 @@ private fun saveCategoryRecentSearch(context: Context, category: String, name: S
     current.remove(name)
     current.add(0, name)
     val limited = current.take(8)
-    prefs.edit { putString("${KEY_RECENT_SEARCHES}_$category", limited.joinToString("|||"))}
+    prefs.edit { putString("${KEY_RECENT_SEARCHES}_$category", limited.joinToString("|||")) }
 }
 
 private fun parsePrice(priceString: String): Int {
@@ -204,13 +206,11 @@ fun VendorsTab(
     }
     val currentScreenState by remember(screenStack) { derivedStateOf { screenStack.last() } }
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
-    var selectedTimelineEvent by remember { mutableStateOf<TimelineEvent?>(null) }
-    var selectedTimelineVendors by remember { mutableStateOf<List<Vendor>>(emptyList()) }
+    var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
 
     var selectedCategoryTab by remember { mutableStateOf("explore") }
     var selectedSavedViewType by remember { mutableStateOf("By Timeline") }
 
-    // Handle navigation from Home screen category clicks via NavController if not passed directly
     val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
         ?.savedStateHandle
         ?.getStateFlow<String?>("selected_category_name", null)
@@ -222,12 +222,10 @@ fun VendorsTab(
             if (cat != null) {
                 selectedCategory = cat
                 screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
-                // Clear it so it doesn't reopen on every recomposition
                 (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
             }
         }
     }
-
 
     var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
 
@@ -267,7 +265,6 @@ fun VendorsTab(
             roomViewModel.loadRoomUsers(activeEventId!!, "Vendors")
             vendorViewModel.setEventId(activeEventId!!)
         } else {
-            // If no active event, we allow browsing by setting hasAccess to true
             roomViewModel.setAccessState(true)
         }
     }
@@ -281,7 +278,6 @@ fun VendorsTab(
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
     val categories = vendorCategories
-
     val allSampleVendors = MockData.sampleVendors
 
     val recentVendorsList = remember(recentSearchesNames, allSampleVendors) {
@@ -305,7 +301,7 @@ fun VendorsTab(
                     id = subEvent.id,
                     date = formattedDate,
                     event = subEvent.name,
-                    venues = emptyList() // Not used here
+                    venues = emptyList()
                 )
             } ?: emptyList()
         }
@@ -321,6 +317,33 @@ fun VendorsTab(
     }
     val isViewer = currentUserRole == UserRole.VIEWER
 
+    val exploreVendors = remember(allVendorsFromRepo) {
+        allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
+    }
+
+    val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
+        val baseEvent = if (selectedTimelineEventId == "mysaved") {
+            TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
+        } else {
+            timelineEvents.find { it.id == selectedTimelineEventId }
+        }
+        baseEvent
+    }
+
+    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, selectedCategory, vendorSavedDestinations, exploreVendors) {
+        if (selectedTimelineEventId == null) return@remember emptyList<Vendor>()
+
+        val categoryFiltered = if (selectedCategory != null) {
+            exploreVendors.filter { it.category == selectedCategory!!.name }
+        } else {
+            exploreVendors
+        }
+
+        categoryFiltered.filter { v ->
+            vendorSavedDestinations["${v.name}-${v.category}"] == selectedTimelineEventId
+        }.map { it.copy(favorite = true) }
+    }
+
     val handleVendorClick: (Vendor) -> Unit = { vendor ->
         saveRecentSearch(context, vendor.name)
         recentSearchesNames = getRecentSearches(context)
@@ -331,20 +354,17 @@ fun VendorsTab(
     val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
         val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
         if (alreadySaved) {
-            // When user clicks heart on an already saved vendor (wants to dislike/manage), open bottom sheet directly
             activeTargetVendor = vendor
             showSaveListBottomSheet = true
         } else {
-            // First time like: add to default list and show bottom toast with "Change" button
             vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
             lastSavedVendor = vendor
             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
 
-    val handleTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { event, vendors ->
-        selectedTimelineEvent = event
-        selectedTimelineVendors = vendors
+    val handleTimelineSeeAll: (TimelineEvent) -> Unit = { event ->
+        selectedTimelineEventId = event.id
         screenStack = screenStack + VendorScreenState.TIMELINE_DETAIL
     }
 
@@ -379,9 +399,11 @@ fun VendorsTab(
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         RoomAccessGuardian(
             hasAccess = hasAccess,
             roomName = "Vendors",
@@ -401,7 +423,19 @@ fun VendorsTab(
             ) {
                 AnimatedContent(
                     targetState = currentScreenState,
-                    transitionSpec = { fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500)) },
+                    transitionSpec = {
+                        when {
+                            // Location Selector Screen (Fast bottom-to-top & top-to-bottom static background)
+                            targetState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideBottomToTopStaticFastTransition
+                            initialState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideTopToBottomStaticFastTransition
+
+                            // Vendor Detail Screen (Fast bottom-to-top & top-to-bottom moving background)
+                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopMovingFastTransition
+                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomMovingFastTransition
+
+                            else -> ScreenTransitions.FadeInOutDefaultTransition
+                        }
+                    },
                     label = "VendorTabTransition"
                 ) { state ->
                     when (state) {
@@ -434,8 +468,17 @@ fun VendorsTab(
                         }
                         VendorScreenState.CATEGORY_DETAIL -> {
                             selectedCategory?.let { category ->
+                                val categoryVendors = remember(allVendorsFromRepo, category.name) {
+                                    allVendorsFromRepo.filter { it.category == category.name }
+                                }
+                                val categorySavedVendors = remember(savedVendorsFromCloud, category.name) {
+                                    savedVendorsFromCloud.filter { it.category == category.name }
+                                }
+
                                 VendorCategoryDetailContent(
                                     category = category,
+                                    allVendors = categoryVendors,
+                                    savedVendorsForCategory = categorySavedVendors,
                                     selectedCity = selectedCity,
                                     onBackClick = { screenStack = screenStack.dropLast(1) },
                                     onLocationClick = {
@@ -446,7 +489,6 @@ fun VendorsTab(
                                     onFavoriteToggle = handleFavoriteToggle,
                                     vendorSavedDestinations = vendorSavedDestinations,
                                     timelineEvents = timelineEvents,
-                                    vendorViewModel = vendorViewModel,
                                     selectedTab = selectedCategoryTab,
                                     onSelectedTabChange = { selectedCategoryTab = it },
                                     selectedViewType = selectedSavedViewType,
@@ -460,8 +502,12 @@ fun VendorsTab(
                         }
                         VendorScreenState.VENDOR_DETAIL -> {
                             selectedVendor?.let { vendor ->
+                                val detailData = remember(vendor, exploreVendors, vendorSavedDestinations) {
+                                    val base = exploreVendors.find { it.name == vendor.name && it.category == vendor.category } ?: vendor
+                                    base.copy(favorite = vendorSavedDestinations.containsKey("${base.name}-${base.category}"))
+                                }
                                 VendorDetailScreen(
-                                    vendorDetail = vendor,
+                                    vendorDetail = detailData,
                                     onBackClick = { screenStack = screenStack.dropLast(1) },
                                     onFavoriteToggle = { handleFavoriteToggle(it) }
                                 )
@@ -483,12 +529,12 @@ fun VendorsTab(
                             )
                         }
                         VendorScreenState.TIMELINE_DETAIL -> {
-                            selectedTimelineEvent?.let { event ->
-                                com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen(
+                            currentSelectedTimelineEvent?.let { event ->
+                                SavedTimelineItemsScreen(
                                     title = "Saved Vendors",
                                     date = event.date,
                                     event = event.event,
-                                    vendors = selectedTimelineVendors,
+                                    vendors = currentSelectedTimelineVendors,
                                     onVendorClick = handleVendorClick,
                                     onVendorFavoriteToggle = handleFavoriteToggle,
                                     onBackClick = { screenStack = screenStack.dropLast(1) }
@@ -527,7 +573,6 @@ fun VendorsTab(
             }
         }
 
-        // Standard Top Toast
         AnimatedVisibility(
             visible = toastData.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
@@ -545,7 +590,6 @@ fun VendorsTab(
             )
         }
 
-        // Bottom Saved List Toast with "Change" Action Button
         AnimatedVisibility(
             visible = toastData.message != null && isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { it + 500 }),
@@ -776,10 +820,10 @@ fun VendorMainContent(
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         baseList.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
-            it.category.contains(searchQuery, ignoreCase = true) ||
-            it.locality.contains(searchQuery, ignoreCase = true) ||
-            it.city.contains(searchQuery, ignoreCase = true) ||
-            it.location.contains(searchQuery, ignoreCase = true)
+                    it.category.contains(searchQuery, ignoreCase = true) ||
+                    it.locality.contains(searchQuery, ignoreCase = true) ||
+                    it.city.contains(searchQuery, ignoreCase = true) ||
+                    it.location.contains(searchQuery, ignoreCase = true)
         }
     }
 
@@ -842,7 +886,7 @@ fun VendorMainContent(
                         SearchSuggestionItem(
                             title = vendor.name,
                             subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
-                        onClick = {
+                            onClick = {
                                 onVendorClick(vendor)
                                 focusManager.clearFocus()
                             }
@@ -862,56 +906,56 @@ fun VendorMainContent(
                 item {
                     VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                    item {
-                        OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-                    }
-                    item {
-                        VendorCarousel(
-                            title = "Top Makeup Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
-                            isLoading = isLoading,
-                            onVendorClick = { vendor ->
-                                saveRecentSearch(context, vendor.name)
-                                onRecentSearchesUpdate(getRecentSearches(context))
-                                onVendorClick(vendor)
-                            },
-                            onFavoriteToggle = onFavoriteToggle,
-                            cardSize = CompactCardSize.MEDIUM
-                        )
-                    }
-                    item {
-                        VendorCarousel(
-                            title = "Best Photographers in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
-                            isLoading = isLoading,
-                            onVendorClick = { vendor ->
-                                saveRecentSearch(context, vendor.name)
-                                onRecentSearchesUpdate(getRecentSearches(context))
-                                onVendorClick(vendor)
-                            },
-                            onFavoriteToggle = onFavoriteToggle,
-                            cardSize = CompactCardSize.MEDIUM
-                        )
-                    }
-                    item {
-                        VendorCarousel(
-                            title = "Expert Mehendi Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
-                            isLoading = isLoading,
-                            onVendorClick = { vendor ->
-                                saveRecentSearch(context, vendor.name)
-                                onRecentSearchesUpdate(getRecentSearches(context))
-                                onVendorClick(vendor)
-                            },
-                            onFavoriteToggle = onFavoriteToggle,
-                            cardSize = CompactCardSize.MEDIUM
-                        )
-                    }
-                    item {
-                        DashedDivider()
-                        ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
-                    }
-                    item { FooterJansify() }
+                item {
+                    OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                }
+                item {
+                    VendorCarousel(
+                        title = "Top Makeup Artists in $selectedCity",
+                        vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
+                    )
+                }
+                item {
+                    VendorCarousel(
+                        title = "Best Photographers in $selectedCity",
+                        vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
+                    )
+                }
+                item {
+                    VendorCarousel(
+                        title = "Expert Mehendi Artists in $selectedCity",
+                        vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
+                        onFavoriteToggle = onFavoriteToggle,
+                        cardSize = CompactCardSize.MEDIUM
+                    )
+                }
+                item {
+                    DashedDivider()
+                    ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
+                }
+                item { FooterJansify() }
             } else {
                 item {
                     TrendingAiSearchesSection(onTrendingClick = { query ->
@@ -944,6 +988,8 @@ fun VendorMainContent(
 @Composable
 fun VendorCategoryDetailContent(
     category: VendorCategoryItem,
+    allVendors: List<Vendor>,
+    savedVendorsForCategory: List<com.harshdeep.jasnify.domain.model.SavedVendor>,
     selectedCity: String,
     onBackClick: () -> Unit,
     onLocationClick: () -> Unit,
@@ -952,13 +998,12 @@ fun VendorCategoryDetailContent(
     onFavoriteToggle: (Vendor) -> Unit,
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
-    vendorViewModel: VendorViewModel,
     selectedTab: String,
     onSelectedTabChange: (String) -> Unit,
     selectedViewType: String,
     onSelectedViewTypeChange: (String) -> Unit,
     isLoading: Boolean = false,
-    onTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { _, _ -> },
+    onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState()
 ) {
@@ -973,11 +1018,7 @@ fun VendorCategoryDetailContent(
 
     val filters = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
-
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
-
-    val allVendors by vendorViewModel.getVendorsByCategory(category.name).collectAsStateWithLifecycle(initialValue = emptyList())
-    val savedVendorsForCategory by vendorViewModel.getSavedVendorsByCategory(category.name).collectAsStateWithLifecycle(initialValue = emptyList())
 
     val bottomTabs = remember(allVendors.size, savedVendorsForCategory.size) {
         listOf(
@@ -1002,19 +1043,17 @@ fun VendorCategoryDetailContent(
         val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
         var result = baseList.filter {
             it.name.contains(searchQuery, ignoreCase = true) ||
-            it.locality.contains(searchQuery, ignoreCase = true) ||
-            it.city.contains(searchQuery, ignoreCase = true)
+                    it.locality.contains(searchQuery, ignoreCase = true) ||
+                    it.city.contains(searchQuery, ignoreCase = true)
         }
 
-        // Apply Sorting/Filtering based on selectedFilterIndex
         result = when (selectedFilterIndex) {
             1 -> result.sortedByDescending { it.rating }
             2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
             3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
-            else -> result // "Most Relevant" - default order
+            else -> result
         }
 
-        // Apply Filters
         if (appliedFilterOptions.contains("Top Rated")) {
             result = result.filter { it.rating >= 4.5 }
         }
@@ -1025,7 +1064,7 @@ fun VendorCategoryDetailContent(
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
-                if(!isSearchActive){
+                if (!isSearchActive) {
                     CustomTopBar(
                         title = category.name,
                         subtitle = selectedCity,
@@ -1034,7 +1073,7 @@ fun VendorCategoryDetailContent(
                         onMenuClick = onMenuClick,
                         onDropdownClick = onLocationClick,
                     )
-                }else{
+                } else {
                     CustomTopBar(
                         title = "Search ${category.name}",
                         onBackClick = onBackClick,
@@ -1127,7 +1166,6 @@ fun VendorCategoryDetailContent(
                             )
                         }
                     } else if (!isSearchActive) {
-                        // DISCOVERY MODE: Regular UI
                         item {
                             VendorCarousel(
                                 title = "Top-Rated ${category.name}",
@@ -1167,7 +1205,7 @@ fun VendorCategoryDetailContent(
                         if (isLoading && filteredVendors.isEmpty()) {
                             items(5) {
                                 VendorCardFull(
-                                    vendor = Vendor(), // Mock empty vendor
+                                    vendor = Vendor(),
                                     isLoading = true,
                                     modifier = Modifier.padding(horizontal = 12.dp)
                                 )
@@ -1220,7 +1258,6 @@ fun VendorCategoryDetailContent(
                     }
                 }
             } else {
-                // SAVED TAB
                 val savedVendorsList = remember(savedVendorsForCategory, allVendors) {
                     allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name } }.map { it.copy(favorite = true) }
                 }
@@ -1236,7 +1273,7 @@ fun VendorCategoryDetailContent(
                     timelineEvents.forEach { event ->
                         val eventVendors = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == event.id } }.map { it.copy(favorite = true) }
                         if (eventVendors.isNotEmpty()) {
-                            list.add(event.copy(venues = emptyList())) // We'll handle vendor list separately
+                            list.add(event.copy(venues = emptyList()))
                         }
                     }
                     list
@@ -1282,7 +1319,6 @@ fun VendorCategoryDetailContent(
                             }
                         }
                     } else {
-                        // TIMELINE VIEW
                         if (isLoading) {
                             items(3, span = { GridItemSpan(2) }) {
                                 TimelineSection(
@@ -1304,7 +1340,7 @@ fun VendorCategoryDetailContent(
                                     vendors = vendorsForEvent,
                                     onVendorClick = onVendorClick,
                                     onVendorFavoriteToggle = onFavoriteToggle,
-                                    onSeeAllClick = { onTimelineSeeAll(timelineItem, vendorsForEvent) }
+                                    onSeeAllClick = { onTimelineSeeAll(timelineItem) }
                                 )
                             }
                         }
@@ -1327,7 +1363,7 @@ fun AllSavedVendorsContent(
     selectedViewType: String,
     onSelectedViewTypeChange: (String) -> Unit,
     isLoading: Boolean = false,
-    onTimelineSeeAll: (TimelineEvent, List<Vendor>) -> Unit = { _, _ -> },
+    onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
     gridState: LazyGridState = rememberLazyGridState()
 ) {
     val viewOptions = listOf("By Timeline", "All Saved")
@@ -1414,7 +1450,6 @@ fun AllSavedVendorsContent(
                     }
                 }
             } else {
-                // Timeline implementation
                 if (isLoading) {
                     items(3, span = { GridItemSpan(2) }) {
                         TimelineSection(
@@ -1440,7 +1475,7 @@ fun AllSavedVendorsContent(
                             vendors = vendorsForEvent,
                             onVendorClick = onVendorClick,
                             onVendorFavoriteToggle = onFavoriteToggle,
-                            onSeeAllClick = { onTimelineSeeAll(timelineItem, vendorsForEvent) },
+                            onSeeAllClick = { onTimelineSeeAll(timelineItem) },
                             modifier = Modifier.padding(horizontal = 0.dp)
                         )
                     }
@@ -1465,10 +1500,8 @@ fun VendorRoomContent(
     val searchResults by roomViewModel.searchResults.collectAsState()
     val currentUser = FirebaseAuth.getInstance().currentUser
 
-    // Determine current user's role in this specific room
     val currentUserRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
 
-    // Ensure current user is in the list shown with correct info
     val displayUsers = remember(roomUsers, currentUser) {
         if (currentUser == null) return@remember roomUsers
 
@@ -1480,7 +1513,6 @@ fun VendorRoomContent(
             username = currentUser.email?.substringBefore("@") ?: "me"
         )
 
-        // If current user is already in list but missing info, replace with 'self'
         val baseList = if (roomUsers.any { it.uid == currentUser.uid }) {
             roomUsers.map { if (it.uid == currentUser.uid) self.copy(role = it.role) else it }
         } else {
