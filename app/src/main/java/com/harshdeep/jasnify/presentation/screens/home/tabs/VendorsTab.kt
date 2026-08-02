@@ -197,21 +197,22 @@ fun VendorsTab(
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    val mainListState = rememberLazyListState()
-    val categoryListState = rememberLazyListState()
-    val allSavedGridState = rememberLazyGridState()
-    val categorySavedGridState = rememberLazyGridState()
-
     var selectedCategory by remember { mutableStateOf(initialCategory) }
     var screenStack by remember {
         mutableStateOf(if (initialCategory != null) listOf(VendorScreenState.MAIN, VendorScreenState.CATEGORY_DETAIL) else listOf(VendorScreenState.MAIN))
     }
     val currentScreenState by remember(screenStack) { derivedStateOf { screenStack.last() } }
+
+    val mainListState = rememberLazyListState()
+    val categoryListState = remember(selectedCategory) { LazyListState() }
+    val allSavedGridState = rememberLazyGridState()
+    val categorySavedGridState = remember(selectedCategory) { LazyGridState() }
+
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
     var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
 
-    var selectedCategoryTab by remember { mutableStateOf("explore") }
-    var selectedSavedViewType by remember { mutableStateOf("By Timeline") }
+    var selectedCategoryTab by remember(selectedCategory) { mutableStateOf("explore") }
+    var selectedSavedViewType by remember(selectedCategory) { mutableStateOf("By Timeline") }
 
     val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
         ?.savedStateHandle
@@ -223,7 +224,7 @@ fun VendorsTab(
             val cat = vendorCategories.find { it.name == name }
             if (cat != null) {
                 selectedCategory = cat
-                screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
+                screenStack += VendorScreenState.CATEGORY_DETAIL
                 (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
             }
         }
@@ -427,13 +428,15 @@ fun VendorsTab(
                     targetState = currentScreenState,
                     transitionSpec = {
                         when {
-                            // Location Selector Screen (Fast bottom-to-top & top-to-bottom static background)
-                            targetState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideBottomToTopFastTransition
-                            initialState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideTopToBottomSlowTransition
-
-                            // Vendor Detail Screen (Fast bottom-to-top & top-to-bottom moving background)
-                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
-                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
+                            targetState == VendorScreenState.VENDOR_DETAIL || 
+                            targetState == VendorScreenState.LOCATION_SELECTOR || 
+                            targetState == VendorScreenState.TIMELINE_DETAIL -> 
+                                ScreenTransitions.SlideBottomToTopFastTransition
+                            
+                            initialState == VendorScreenState.VENDOR_DETAIL || 
+                            initialState == VendorScreenState.LOCATION_SELECTOR || 
+                            initialState == VendorScreenState.TIMELINE_DETAIL -> 
+                                ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }
@@ -818,6 +821,11 @@ fun VendorMainContent(
     isLoading: Boolean,
     listState: LazyListState = rememberLazyListState()
 ) {
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
+
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         baseList.filter {
@@ -835,33 +843,28 @@ fun VendorMainContent(
                 AnimatedContent(
                     targetState = isSearchActive,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
                     },
                     label = "TopBarSearchTransition"
                 ) { active ->
-                    if (active) {
-                        CustomTopBar(
-                            title = "Search Vendors",
-                            onBackClick = {
+                    CustomTopBar(
+                        title = if (active) "Search Vendors" else "Vendors",
+                        subtitle = if (active) null else selectedCity,
+                        onBackClick = {
+                            if (active) {
                                 onSearchActiveChange(false)
                                 onSearchQueryChange("")
                                 focusManager.clearFocus()
-                            },
-                            backIcon = TopIcon.Predefined.DOWN,
-                            buttonStyle = ButtonBackground.OPAQUE,
-                            isLargeTitle = true
-                        )
-                    } else {
-                        CustomTopBar(
-                            title = "Vendors",
-                            subtitle = selectedCity,
-                            onMenuClick = onMenuClick,
-                            onDropdownClick = onLocationClick,
-                            titleIcon = painterResource(R.drawable.ic_vendor),
-                            isLargeTitle = true,
-                            isLeftAligned = true
-                        )
-                    }
+                            }
+                        },
+                        onMenuClick = if (active) null else onMenuClick,
+                        onDropdownClick = if (active) null else onLocationClick,
+                        titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
+                        backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                        isLargeTitle = true,
+                        isLeftAligned = !active,
+                        buttonStyle = ButtonBackground.OPAQUE
+                    )
                 }
             }
         },
@@ -876,7 +879,7 @@ fun VendorMainContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(searchBarTopPadding))
                 CustomSearchBar(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
@@ -1030,6 +1033,11 @@ fun VendorCategoryDetailContent(
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
+
     val bottomTabs = remember(allVendors.size, savedVendorsForCategory.size) {
         listOf(
             TabItem("Explore", "explore", badgeCount = allVendors.size),
@@ -1077,26 +1085,27 @@ fun VendorCategoryDetailContent(
                 AnimatedContent(
                     targetState = isSearchActive,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
                     },
                     label = "CategoryTopBarSearchTransition"
                 ) { active ->
-                    if (!active) {
-                        CustomTopBar(
-                            title = category.name,
-                            subtitle = selectedCity,
-                            onBackClick = onBackClick,
-                            backIcon = TopIcon.Predefined.BACK,
-                            onMenuClick = onMenuClick,
-                            onDropdownClick = onLocationClick,
-                        )
-                    } else {
-                        CustomTopBar(
-                            title = "Search ${category.name}",
-                            onBackClick = onBackClick,
-                            backIcon = TopIcon.Predefined.BACK,
-                        )
-                    }
+                    CustomTopBar(
+                        title = if (active) "Search ${category.name}" else category.name,
+                        subtitle = if (active) null else selectedCity,
+                        onBackClick = {
+                            if (active) {
+                                isSearchActive = false
+                                searchQuery = ""
+                                focusManager.clearFocus()
+                            } else {
+                                onBackClick()
+                            }
+                        },
+                        backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                        onMenuClick = if (active) null else onMenuClick,
+                        onDropdownClick = if (active) null else onLocationClick,
+                        buttonStyle = ButtonBackground.OPAQUE
+                    )
                 }
             }
         },
@@ -1115,14 +1124,11 @@ fun VendorCategoryDetailContent(
             targetState = selectedTab,
             transitionSpec = {
                 val isSaved = targetState == "saved"
-                slideInHorizontally(
-                    animationSpec = tween(300),
-                    initialOffsetX = { fullWidth -> if (isSaved) fullWidth else -fullWidth }
-                ) + fadeIn(animationSpec = tween(300)) togetherWith
-                        slideOutHorizontally(
-                            animationSpec = tween(300),
-                            targetOffsetX = { fullWidth -> if (isSaved) -fullWidth else fullWidth }
-                        ) + fadeOut(animationSpec = tween(300))
+                if (isSaved) {
+                    ScreenTransitions.SlideInFromRightTransition togetherWith ScreenTransitions.SlideOutToLeftTransition
+                } else {
+                    ScreenTransitions.SlideInFromLeftTransition togetherWith ScreenTransitions.SlideOutToRightTransition
+                }
             },
             modifier = Modifier
                 .fillMaxSize()
@@ -1139,7 +1145,12 @@ fun VendorCategoryDetailContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(12.dp),
+                                .padding(
+                                    start = 12.dp,
+                                    end = 12.dp,
+                                    top = searchBarTopPadding,
+                                    bottom = 12.dp
+                                ),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             CustomSearchBar(

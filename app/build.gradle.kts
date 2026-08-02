@@ -56,6 +56,10 @@ android {
     }
 }
 
+composeCompiler {
+    enableStrongSkippingMode = true
+}
+
 kapt {
     correctErrorTypes = true
 }

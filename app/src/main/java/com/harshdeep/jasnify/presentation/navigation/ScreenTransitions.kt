@@ -14,9 +14,9 @@ import androidx.compose.animation.togetherWith
  * Standardized duration constants (in milliseconds) across the application.
  */
 object MotionConstants {
-    const val DURATION_FAST = 250
-    const val DURATION_DEFAULT = 300
-    const val DURATION_SLOW = 500
+    const val DURATION_FAST = 150
+    const val DURATION_DEFAULT = 200
+    const val DURATION_SLOW = 300
 }
 
 /**

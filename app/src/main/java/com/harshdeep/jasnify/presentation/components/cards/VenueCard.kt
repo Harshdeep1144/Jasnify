@@ -604,23 +604,22 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
     }
 }
 
+private val cachedShadowPaint = Paint().asFrameworkPaint()
+private val shadowLayers = listOf(
+    VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
+    VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
+    VenueShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
+    VenueShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
+)
+
 fun Modifier.venueShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
 ) = this.drawBehind {
     drawIntoCanvas { canvas ->
-        val paint = Paint().asFrameworkPaint()
-
-        val layers = listOf(
-            VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
-            VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
-            VenueShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
-            VenueShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
-        )
-
-        layers.forEach { layer ->
-            paint.color = color.copy(alpha = layer.alpha).toArgb()
-            paint.setShadowLayer(
+        shadowLayers.forEach { layer ->
+            cachedShadowPaint.color = color.copy(alpha = layer.alpha).toArgb()
+            cachedShadowPaint.setShadowLayer(
                 layer.blur.toPx(),
                 0f,
                 layer.offsetY.toPx(),
@@ -634,7 +633,7 @@ fun Modifier.venueShadow(
                 size.height,
                 borderRadius.toPx(),
                 borderRadius.toPx(),
-                paint
+                cachedShadowPaint
             )
         }
     }

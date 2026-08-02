@@ -101,7 +101,8 @@ fun VenueSavedContent(
             } else {
                 items(
                     items = savedVenuesList,
-                    key = { it.id.ifEmpty { it.name } }
+                    key = { it.id.ifEmpty { it.name } },
+                    contentType = { "venue" }
                 ) { venueItem ->
                     VenueCardCompact(
                         venue = venueItem,

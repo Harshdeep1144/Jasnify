@@ -333,13 +333,13 @@ fun VenueScreen(
 
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
-    val backdropScale by animateFloatAsState(
+    val backdropScaleState = animateFloatAsState(
         targetValue = targetScale,
         animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
         label = "backdropScale"
     )
 
-    val backdropCornerRadius by animateDpAsState(
+    val backdropCornerRadiusState = animateDpAsState(
         targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp,
         animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "backdropCornerRadius"
@@ -385,10 +385,11 @@ fun VenueScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    scaleX = backdropScale
-                    scaleY = backdropScale
-                    clip = isAnySheetVisible || backdropCornerRadius > 0.dp
-                    shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                    scaleX = backdropScaleState.value
+                    scaleY = backdropScaleState.value
+                    val radius = backdropCornerRadiusState.value
+                    clip = isAnySheetVisible || radius > 0.dp
+                    shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
                 }
                 .background(BackgroundPrimary)
         ) {
@@ -401,7 +402,7 @@ fun VenueScreen(
                     targetState = screenState,
                     transitionSpec = {
                         when {
-                            // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
+                           // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
                             targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
                             initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
 
@@ -886,34 +887,31 @@ fun VenueMainContent(
     ) {
         Scaffold(
             topBar = {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
-                        .statusBarsPadding()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            focusManager.clearFocus()
-                        }
-                ) {
-                    CustomTopBar(
-                        title = if (isSearchActive) "Search Venues" else "Venue",
-                        onBackClick = {
-                            if (isSearchActive) {
-                                isSearchActive = false
-                                text = ""
-                                focusManager.clearFocus()
-                            } else {
-                                onBackClick()
-                            }
+                Column(modifier = Modifier.statusBarsPadding()) {
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
                         },
-                        onMenuClick = if (isSearchActive) null else { { onShowMenuSheetChange(true) } },
-                        backIcon = if (isSearchActive) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
-                        buttonStyle = if (isSearchActive) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT,
-                        isLargeTitle = true,
-                    )
+                        label = "VenueTopBarSearchTransition"
+                    ) { active ->
+                        CustomTopBar(
+                            title = if (active) "Search Venues" else "Venue",
+                            onBackClick = {
+                                if (active) {
+                                    isSearchActive = false
+                                    text = ""
+                                    focusManager.clearFocus()
+                                } else {
+                                    onBackClick()
+                                }
+                            },
+                            onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
+                            backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                            buttonStyle = ButtonBackground.OPAQUE,
+                            isLargeTitle = true,
+                        )
+                    }
                 }
             },
             bottomBar = {
@@ -958,7 +956,9 @@ fun VenueMainContent(
                         isLoading = isLoading,
                         listState = listState,
                         text = text,
-                        onTextChange = { text = it }
+                        onTextChange = { text = it },
+                        isSearchActive = isSearchActive,
+                        onSearchActiveChange = { isSearchActive = it }
                     )
                 } else {
                     VenueSavedContent(

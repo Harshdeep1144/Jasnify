@@ -71,7 +71,7 @@ fun CustomTopBar(
 
             if (isLeftAligned) {
                 // Leftmost Element: Back button (if present)
-                if (onBackClick != null) {
+                if (onBackClick != null && titleIcon == null) {
                     TopBarIconButton(
                         icon = backIcon,
                         onClick = onBackClick,
@@ -241,7 +241,7 @@ fun CustomTopBar(
                 // Standard Center-Aligned Layout
                 // Back Button Box (Width locked for centered alignment calculations)
                 Box(modifier = Modifier.width(40.dp)) {
-                    if (onBackClick != null) {
+                    if (onBackClick != null && titleIcon == null) {
                         TopBarIconButton(
                             icon = backIcon,
                             onClick = onBackClick,

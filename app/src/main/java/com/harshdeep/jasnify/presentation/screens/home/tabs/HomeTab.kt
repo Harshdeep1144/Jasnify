@@ -125,12 +125,14 @@ fun HomeTab(
     val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
 
     // Budget formatting logic (100, 1k, 45L, 23Cr) - No decimal points
-    fun formatBudgetShorthand(amount: Double): String {
-        return when {
-            amount >= 10_000_000 -> "${(amount / 10_000_000).toLong()}Cr"
-            amount >= 100_000 -> "${(amount / 100_000).toLong()}L"
-            amount >= 1000 -> "${(amount / 1000).toLong()}k"
-            else -> "${amount.toLong()}"
+    val formatBudgetShorthand: (Double) -> String = remember {
+        { amount ->
+            when {
+                amount >= 10_000_000 -> "${(amount / 10_000_000).toLong()}Cr"
+                amount >= 100_000 -> "${(amount / 100_000).toLong()}L"
+                amount >= 1000 -> "${(amount / 1000).toLong()}k"
+                else -> "${amount.toLong()}"
+            }
         }
     }
 
@@ -296,7 +298,7 @@ fun HomeTabContent(
     val homeScrollState = rememberScrollState()
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
-    val topBarAlpha by remember {
+    val topBarAlphaState = remember {
         derivedStateOf {
             if (fadeDistancePx > 0f) {
                 (homeScrollState.value / fadeDistancePx).coerceIn(0f, 1f)
@@ -342,7 +344,7 @@ fun HomeTabContent(
                         HomeTopBar(
                             title = eventName,
                             dateString = eventDateString,
-                            alpha = topBarAlpha,
+                            alpha = topBarAlphaState.value,
                             onMenuClick = onMenuClick
                         )
                     },

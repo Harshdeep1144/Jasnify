@@ -200,8 +200,8 @@ fun BudgetScreen(
         }
     }
 
-    val indianLocale = Locale("en", "IN")
-    val formatter = NumberFormat.getNumberInstance(indianLocale)
+    val indianLocale = remember { Locale("en", "IN") }
+    val formatter = remember(indianLocale) { NumberFormat.getNumberInstance(indianLocale) }
     val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.ENGLISH) }
 
     val allExpenses = remember(expensesEntities) {
@@ -319,13 +319,13 @@ fun BudgetScreen(
         }
     }
 
-    val backdropScale by animateFloatAsState(
+    val backdropScaleState = animateFloatAsState(
         targetValue = targetScale,
         animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
         label = "backdropScale"
     )
 
-    val backdropCornerRadius by animateDpAsState(
+    val backdropCornerRadiusState = animateDpAsState(
         targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
         animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "backdropCornerRadius"
@@ -516,10 +516,11 @@ fun BudgetScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        scaleX = backdropScale
-                        scaleY = backdropScale
-                        clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
-                        shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                        scaleX = backdropScaleState.value
+                        scaleY = backdropScaleState.value
+                        val radius = backdropCornerRadiusState.value
+                        clip = isAnyBottomSheetOpen || radius > 0.dp
+                        shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
                     }
             ) {
                 Scaffold(
@@ -611,17 +612,15 @@ fun BudgetScreen(
                                         ) {
                                             // Budget Summary Card Section
                                             item {
+                                                val summaryGradient = remember {
+                                                    Brush.verticalGradient(
+                                                        listOf(SurfacePrimary, SurfaceSecondary)
+                                                    )
+                                                }
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .background(
-                                                            brush = Brush.verticalGradient(
-                                                                colors = listOf(
-                                                                    SurfacePrimary,
-                                                                    SurfaceSecondary
-                                                                )
-                                                            )
-                                                        )
+                                                        .background(brush = summaryGradient)
                                                         .padding(12.dp)
                                                 ) {
                                                     BudgetSummaryCard(
@@ -728,38 +727,44 @@ fun BudgetScreen(
                                                     }
                                                 }
                                             } else {
-                                                items(filteredExpenses, key = { it.id }) { item ->
+                                                items(
+                                                    items = filteredExpenses,
+                                                    key = { it.id },
+                                                    contentType = { "expense" }
+                                                ) { item ->
                                                     val isFirst =
                                                         filteredExpenses.firstOrNull()?.id == item.id
                                                     val isLast =
                                                         filteredExpenses.lastOrNull()?.id == item.id
 
-                                                    val itemShape = when {
-                                                        isFirst && isLast -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                    val itemShape = remember(isFirst, isLast) {
+                                                        when {
+                                                            isFirst && isLast -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isFirst -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isFirst -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isLast -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isLast -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        else -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            else -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
+                                                        }
                                                     }
 
                                                     ExpenseCard(
@@ -1195,8 +1200,10 @@ fun BudgetScreen(
                                                     verticalArrangement = Arrangement.spacedBy(5.dp)
                                                 ) {
                                                     items(
-                                                        filteredCategorySummary,
-                                                        key = { it.name }) { categoryItem ->
+                                                        items = filteredCategorySummary,
+                                                        key = { it.name },
+                                                        contentType = { "category" }
+                                                    ) { categoryItem ->
                                                         Box(
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
@@ -1544,39 +1551,43 @@ fun BudgetScreen(
                                                 }
                                             } else {
                                                 items(
-                                                    sortedCategoryExpenses,
-                                                    key = { it.id }) { item ->
+                                                    items = sortedCategoryExpenses,
+                                                    key = { it.id },
+                                                    contentType = { "expense" }
+                                                ) { item ->
                                                     val isFirst =
                                                         sortedCategoryExpenses.firstOrNull()?.id == item.id
                                                     val isLast =
                                                         sortedCategoryExpenses.lastOrNull()?.id == item.id
 
-                                                    val itemShape = when {
-                                                        isFirst && isLast -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                    val itemShape = remember(isFirst, isLast) {
+                                                        when {
+                                                            isFirst && isLast -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isFirst -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isFirst -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isLast -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isLast -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        else -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            else -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
+                                                        }
                                                     }
 
                                                     ExpenseCard(
@@ -1715,13 +1726,12 @@ fun BudgetScreen(
                     }
 
                     // --- Screen-level CustomToast Display (Shown ONLY when no Bottom Sheets are visible) ---
-                    val isAnySheetVisible =
-                        showBottomSheet || showAddExpenseSheet || showAddCustomCategorySheet ||
-                                showEditBudgetSheet || showMenuBottomSheet || showCategoryMenuBottomSheet ||
-                                showRoomMenuBottomSheet || expenseToDelete != null || categoryToDeleteConfirm != null || userToRemove != null
+                    val isAnySheetShown = isAnyBottomSheetOpen
+                    val toastMessage = toastData.message
+                    val toastType = toastData.type
 
                     AnimatedVisibility(
-                        visible = toastData.message != null && !isAnySheetVisible,
+                        visible = toastMessage != null && !isAnySheetShown,
                         enter = slideInVertically(initialOffsetY = { -it - 500 }),
                         exit = slideOutVertically(targetOffsetY = { -it - 500 }),
                         modifier = Modifier
@@ -1732,8 +1742,8 @@ fun BudgetScreen(
                             .padding(horizontal = 12.dp, vertical = 16.dp)
                     ) {
                         CustomToast(
-                            message = toastData.message ?: "",
-                            type = toastData.type
+                            message = toastMessage ?: "",
+                            type = toastType
                         )
                     }
                 }
@@ -1741,11 +1751,13 @@ fun BudgetScreen(
         }
 
         if (showBottomSheet) {
+            val sortOption = selectedSortOption
+            val filterOptionsSet = selectedFilterOptions
             SortFilterBottomSheet(
                 sortOptions = sortOptions,
-                initialSortOption = selectedSortOption,
+                initialSortOption = sortOption,
                 filterByOptions = filterOptions,
-                initialFilterOptions = selectedFilterOptions,
+                initialFilterOptions = filterOptionsSet,
                 onDismiss = { showBottomSheet = false },
                 onApply = { sort, filters ->
                     selectedSortOption = sort

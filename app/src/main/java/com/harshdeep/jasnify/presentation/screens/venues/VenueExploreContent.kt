@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.venues
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -57,17 +58,23 @@ fun VenueExploreContent(
     listState: LazyListState,
     text: String,
     onTextChange: (String) -> Unit,
+    isSearchActive: Boolean,
+    onSearchActiveChange: (Boolean) -> Unit,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var isSearchActive by remember { mutableStateOf(false) }
+
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
 
     var recentSearches by remember {
         mutableStateOf(getRecentSearches(context))
     }
 
     BackHandler(enabled = isSearchActive) {
-        isSearchActive = false
+        onSearchActiveChange(false)
         onTextChange("")
         focusManager.clearFocus()
     }
@@ -92,49 +99,51 @@ fun VenueExploreContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            AnimatedVisibility(
-                visible = !isSearchActive,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    LocationSelectorPill(
-                        location = selectedLocation,
-                        onLocationSelectorClick = onLocationSelectorClick
-                    )
-                }
-            }
-        }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomSearchBar(
-                    value = text,
-                    onValueChange = onTextChange,
-                    onActiveChange = { active -> isSearchActive = active },
-                    modifier = Modifier.weight(1f),
-                    isAiSearch = true,
-                    placeholder = "Type your choices"
-                )
-
+            Column {
                 AnimatedVisibility(
                     visible = !isSearchActive,
-                    enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
-                    exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(8.dp))
-                        FilterButton(onClick = { onShowFilterDialogChange(true) })
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Spacer(Modifier.height(12.dp))
+                        LocationSelectorPill(
+                            location = selectedLocation,
+                            onLocationSelectorClick = onLocationSelectorClick
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+
+                Spacer(Modifier.height(searchBarTopPadding))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CustomSearchBar(
+                        value = text,
+                        onValueChange = onTextChange,
+                        onActiveChange = onSearchActiveChange,
+                        modifier = Modifier.weight(1f),
+                        isAiSearch = true,
+                        placeholder = "Type your choices"
+                    )
+
+                    AnimatedVisibility(
+                        visible = !isSearchActive,
+                        enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                        exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.width(8.dp))
+                            FilterButton(onClick = { onShowFilterDialogChange(true) })
+                        }
                     }
                 }
             }
@@ -163,7 +172,8 @@ fun VenueExploreContent(
         } else if (!isSearchActive && text.isNotEmpty()) {
             items(
                 items = filteredAndSortedExploreVenues,
-                key = { it.id.ifEmpty { it.name } }
+                key = { it.id.ifEmpty { it.name } },
+                contentType = { "venue" }
             ) { venueItem ->
                 VenueCardFull(
                     venue = venueItem,
@@ -190,7 +200,8 @@ fun VenueExploreContent(
             } else {
                 items(
                     items = filteredAndSortedExploreVenues,
-                    key = { it.id.ifEmpty { it.name } }
+                    key = { it.id.ifEmpty { it.name } },
+                    contentType = { "venue" }
                 ) { venueItem ->
                     VenueCardFull(
                         venue = venueItem,
