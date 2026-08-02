@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -306,7 +307,7 @@ fun VenueCardCompact(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(cardWidth)
+                    .aspectRatio(1f)
                     .clip(SquircleShape(20.dp))
                     .border(
                         width = 1.dp,

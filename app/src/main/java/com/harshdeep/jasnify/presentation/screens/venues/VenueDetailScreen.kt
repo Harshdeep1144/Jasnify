@@ -324,7 +324,7 @@ private fun VenueDetailContent(
     val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
-    var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
+    var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail) {

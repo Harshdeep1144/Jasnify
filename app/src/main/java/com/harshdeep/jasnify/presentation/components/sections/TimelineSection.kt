@@ -316,7 +316,7 @@ fun SavedTimelineItemsScreen(
                         venue = venue,
                         onCardClick = { onVenueClick(venue) },
                         onFavoriteToggle = { onVenueFavoriteToggle(venue) },
-                        compactCardSize = CompactCardSize.MEDIUM // Larger size for grid
+                        compactCardSize = CompactCardSize.SMALL
                     )
                 }
             }
@@ -327,7 +327,7 @@ fun SavedTimelineItemsScreen(
                         vendor = vendor,
                         onCardClick = { onVendorClick(vendor) },
                         onFavoriteToggle = { onVendorFavoriteToggle(vendor) },
-                        compactCardSize = CompactCardSize.MEDIUM // Larger size for grid
+                        compactCardSize = CompactCardSize.SMALL
                     )
                 }
             }

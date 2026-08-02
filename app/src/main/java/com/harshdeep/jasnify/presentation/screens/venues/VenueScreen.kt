@@ -98,6 +98,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
@@ -423,8 +424,8 @@ fun VenueScreen(
                     transitionSpec = {
                         when {
                             // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
-                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopMovingFastTransition
-                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomMovingFastTransition
+                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopStaticFastTransition
+                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomStaticFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }
@@ -1260,7 +1261,8 @@ fun VenueMainContent(
                                     VenueCardCompact(
                                         venue = Venue(),
                                         isLoading = true,
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        compactCardSize = CompactCardSize.SMALL
                                     )
                                 }
                             } else if (savedVenuesList.isEmpty()) {
@@ -1276,7 +1278,8 @@ fun VenueMainContent(
                                         venue = venueItem,
                                         onFavoriteToggle = { onFavoriteToggle(venueItem) },
                                         onCardClick = { handleVenueClick(venueItem) },
-                                        modifier = Modifier.fillMaxWidth()
+                                        modifier = Modifier.fillMaxWidth(),
+                                        compactCardSize = CompactCardSize.SMALL
                                     )
                                 }
                             }

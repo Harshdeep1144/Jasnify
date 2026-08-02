@@ -18,6 +18,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -430,8 +432,8 @@ fun VendorsTab(
                             initialState == VendorScreenState.LOCATION_SELECTOR -> ScreenTransitions.SlideTopToBottomStaticFastTransition
 
                             // Vendor Detail Screen (Fast bottom-to-top & top-to-bottom moving background)
-                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopMovingFastTransition
-                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomMovingFastTransition
+                            targetState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideBottomToTopStaticFastTransition
+                            initialState == VendorScreenState.VENDOR_DETAIL -> ScreenTransitions.SlideTopToBottomStaticFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }
@@ -830,28 +832,36 @@ fun VendorMainContent(
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
-                if (isSearchActive) {
-                    CustomTopBar(
-                        title = "Search Vendors",
-                        onBackClick = {
-                            onSearchActiveChange(false)
-                            onSearchQueryChange("")
-                            focusManager.clearFocus()
-                        },
-                        backIcon = TopIcon.Predefined.DOWN,
-                        buttonStyle = ButtonBackground.OPAQUE,
-                        isLargeTitle = true
-                    )
-                } else {
-                    CustomTopBar(
-                        title = "Vendors",
-                        subtitle = selectedCity,
-                        onMenuClick = onMenuClick,
-                        onDropdownClick = onLocationClick,
-                        titleIcon = painterResource(R.drawable.ic_vendor),
-                        isLargeTitle = true,
-                        isLeftAligned = true
-                    )
+                AnimatedContent(
+                    targetState = isSearchActive,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                    },
+                    label = "TopBarSearchTransition"
+                ) { active ->
+                    if (active) {
+                        CustomTopBar(
+                            title = "Search Vendors",
+                            onBackClick = {
+                                onSearchActiveChange(false)
+                                onSearchQueryChange("")
+                                focusManager.clearFocus()
+                            },
+                            backIcon = TopIcon.Predefined.DOWN,
+                            buttonStyle = ButtonBackground.OPAQUE,
+                            isLargeTitle = true
+                        )
+                    } else {
+                        CustomTopBar(
+                            title = "Vendors",
+                            subtitle = selectedCity,
+                            onMenuClick = onMenuClick,
+                            onDropdownClick = onLocationClick,
+                            titleIcon = painterResource(R.drawable.ic_vendor),
+                            isLargeTitle = true,
+                            isLeftAligned = true
+                        )
+                    }
                 }
             }
         },
@@ -1064,21 +1074,29 @@ fun VendorCategoryDetailContent(
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
-                if (!isSearchActive) {
-                    CustomTopBar(
-                        title = category.name,
-                        subtitle = selectedCity,
-                        onBackClick = onBackClick,
-                        backIcon = TopIcon.Predefined.BACK,
-                        onMenuClick = onMenuClick,
-                        onDropdownClick = onLocationClick,
-                    )
-                } else {
-                    CustomTopBar(
-                        title = "Search ${category.name}",
-                        onBackClick = onBackClick,
-                        backIcon = TopIcon.Predefined.BACK,
-                    )
+                AnimatedContent(
+                    targetState = isSearchActive,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(200)) togetherWith fadeOut(animationSpec = tween(200))
+                    },
+                    label = "CategoryTopBarSearchTransition"
+                ) { active ->
+                    if (!active) {
+                        CustomTopBar(
+                            title = category.name,
+                            subtitle = selectedCity,
+                            onBackClick = onBackClick,
+                            backIcon = TopIcon.Predefined.BACK,
+                            onMenuClick = onMenuClick,
+                            onDropdownClick = onLocationClick,
+                        )
+                    } else {
+                        CustomTopBar(
+                            title = "Search ${category.name}",
+                            onBackClick = onBackClick,
+                            backIcon = TopIcon.Predefined.BACK,
+                        )
+                    }
                 }
             }
         },
@@ -1184,20 +1202,26 @@ fun VendorCategoryDetailContent(
                             OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                         }
 
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        @OptIn(ExperimentalFoundationApi::class)
+                        stickyHeader {
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = BackgroundPrimary
                             ) {
-                                itemsIndexed(filters) { index, filter ->
-                                    val isSelected = selectedFilterIndex == index
-                                    FilterChip(
-                                        label = filter,
-                                        isSelected = isSelected,
-                                        hasStroke = true,
-                                        shapeStyle = ChipShapeStyle.Round,
-                                        onClick = { selectedFilterIndex = index }
-                                    )
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    itemsIndexed(filters) { index, filter ->
+                                        val isSelected = selectedFilterIndex == index
+                                        FilterChip(
+                                            label = filter,
+                                            isSelected = isSelected,
+                                            hasStroke = true,
+                                            shapeStyle = ChipShapeStyle.Round,
+                                            onClick = { selectedFilterIndex = index }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1301,7 +1325,8 @@ fun VendorCategoryDetailContent(
                                 VendorCardCompact(
                                     vendor = Vendor(),
                                     isLoading = true,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    compactCardSize = CompactCardSize.SMALL
                                 )
                             }
                         } else if (savedVendorsList.isEmpty()) {
@@ -1314,7 +1339,8 @@ fun VendorCategoryDetailContent(
                                     vendor = vendor,
                                     onCardClick = { onVendorClick(vendor) },
                                     onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth(),
+                                    compactCardSize = CompactCardSize.SMALL
                                 )
                             }
                         }
@@ -1432,7 +1458,8 @@ fun AllSavedVendorsContent(
                         VendorCardCompact(
                             vendor = Vendor(),
                             isLoading = true,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            compactCardSize = CompactCardSize.SMALL
                         )
                     }
                 } else if (savedVendorsList.isEmpty()) {
@@ -1445,7 +1472,8 @@ fun AllSavedVendorsContent(
                             vendor = vendor,
                             onCardClick = { onVendorClick(vendor) },
                             onFavoriteToggle = { onFavoriteToggle(vendor) },
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            compactCardSize = CompactCardSize.SMALL
                         )
                     }
                 }

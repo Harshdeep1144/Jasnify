@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -50,6 +51,7 @@ import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
@@ -90,6 +92,11 @@ fun HomeTab(
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
+    val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+
+    val venueSavedDestinations = remember(savedVenuesFromCloud) {
+        savedVenuesFromCloud.associate { it.venueName to it.destination }
+    }
 
     // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
@@ -165,7 +172,10 @@ fun HomeTab(
         onMenuClick = onMenuClick,
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
         eventViewModel = eventViewModel,
-        isVenuesLoading = isVenuesLoading
+        venueViewModel = venueViewModel,
+        isVenuesLoading = isVenuesLoading,
+        venueSavedDestinations = venueSavedDestinations,
+        activeEvent = activeEvent
     )
 }
 
@@ -182,11 +192,78 @@ fun HomeTabContent(
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel? = null,
-    isVenuesLoading: Boolean = false
+    venueViewModel: VenueViewModel? = null,
+    isVenuesLoading: Boolean = false,
+    venueSavedDestinations: Map<String, String> = emptyMap(),
+    activeEvent: com.harshdeep.jasnify.domain.model.Event? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
+
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+    var toastData by remember { mutableStateOf<com.harshdeep.jasnify.presentation.components.others.ToastData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    val isViewer = remember(activeEvent) {
+        // Simple logic for viewer check if needed, though on Home we might assume full access or use role
+        false // Default for now, can be refined if role is available here
+    }
+
+    val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
+        if (alreadySaved) {
+            if (activeEvent?.multiDay == true) {
+                activeTargetVenue = venue
+                val currentDestination = venueSavedDestinations[venue.name]
+                isMySavedListChecked = currentDestination == "mysaved"
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+            }
+        } else {
+            venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
+            lastSavedVenue = venue
+            toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+        }
+    }
+
+    val trendingVenues = remember(venueSavedDestinations) {
+        MockData.sampleVenues1.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    }
+
+    val exploreVenues = remember(venueSavedDestinations) {
+        MockData.sampleVenues2.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    }
+
+    val timelineEvents = remember(activeEvent) {
+        activeEvent?.subEvents?.map { subEvent ->
+            val formattedDate = subEvent.date?.let { timestamp ->
+                val sdf = java.text.SimpleDateFormat("dd MMM, yyyy", java.util.Locale.getDefault())
+                sdf.format(java.util.Date(timestamp))
+            } ?: "Date TBD"
+
+            com.harshdeep.jasnify.domain.model.TimelineEvent(
+                id = subEvent.id,
+                date = formattedDate,
+                event = subEvent.name,
+                venues = emptyList()
+            )
+        } ?: emptyList()
+    }
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
 
     // Determine proportions based on device screen height dynamically
     val configuration = LocalConfiguration.current
@@ -367,19 +444,23 @@ fun HomeTabContent(
                             ) {
                                 VenueCarousel(
                                     title = "Trending Venues in Patna",
-                                    venues = MockData.sampleVenues1,
+                                    venues = trendingVenues,
                                     isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
-                                    onFavoriteToggle = { },
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onFavoriteToggle = handleFavoriteToggle,
+                                    onSeeAllClick = { },
                                     onOfferClick = { }
                                 )
 
                                 VenueCarousel(
                                     title = "More Venues to Explore",
-                                    venues = MockData.sampleVenues2,
+                                    venues = exploreVenues,
                                     isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
-                                    onFavoriteToggle = { },
+                                    onFavoriteToggle = handleFavoriteToggle,
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onSeeAllClick = { },
                                     onOfferClick = { }
                                 )
                             }
@@ -396,6 +477,80 @@ fun HomeTabContent(
 
                             FooterJansify()
                         }
+                    }
+                }
+
+                if (showSaveListBottomSheet) {
+                    com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet(
+                        timelineEvents = timelineEvents,
+                        isMySavedListChecked = isMySavedListChecked,
+                        onMySavedListToggled = { checked ->
+                            isMySavedListChecked = checked
+                            if (checked) {
+                                selectedSaveEventId = null
+                            }
+                        },
+                        selectedEventId = selectedSaveEventId,
+                        onEventSelected = { eventId ->
+                            selectedSaveEventId = eventId
+                            if (eventId != null) {
+                                isMySavedListChecked = false
+                            }
+                        },
+                        onAddNewEvent = { subEventItem ->
+                            activeEvent?.let { event ->
+                                val newSubEvent = com.harshdeep.jasnify.domain.model.SubEvent(
+                                    id = subEventItem.id,
+                                    name = subEventItem.name,
+                                    date = subEventItem.date,
+                                    completed = subEventItem.isCompleted
+                                )
+                                val updatedEvent = event.copy(subEvents = event.subEvents + newSubEvent)
+                                eventViewModel?.updateEvent(updatedEvent)
+
+                                activeTargetVenue?.let { venue ->
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
+                                }
+
+                                selectedSaveEventId = subEventItem.id
+                                isMySavedListChecked = false
+                            }
+                        },
+                        isViewer = isViewer,
+                        onDismiss = { showSaveListBottomSheet = false },
+                        onDone = {
+                            activeTargetVenue?.let { venue ->
+                                val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
+                                if (destination != null) {
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
+                                    lastSavedVenue = venue
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                } else {
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                }
+                            }
+                            showSaveListBottomSheet = false
+                            activeTargetVenue = null
+                        },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = toastData?.message != null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp)
+                        .padding(horizontal = 12.dp)
+                ) {
+                    toastData?.let { data ->
+                        com.harshdeep.jasnify.presentation.components.others.CustomToast(
+                            message = data.message ?: "",
+                            type = data.type
+                        )
                     }
                 }
             }

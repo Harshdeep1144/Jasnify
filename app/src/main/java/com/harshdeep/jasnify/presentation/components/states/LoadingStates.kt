@@ -78,7 +78,7 @@ fun CompactCardLoading(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(cardWidth)
+                .aspectRatio(1f)
                 .clip(SquircleShape(20.dp))
                 .background(shimmerBrush)
         )
