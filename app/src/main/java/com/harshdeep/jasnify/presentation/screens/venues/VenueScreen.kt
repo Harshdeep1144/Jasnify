@@ -22,15 +22,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -58,10 +56,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -87,7 +88,9 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -828,6 +831,21 @@ fun VenueMainContent(
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+    
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    val nestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -1) {
+                    isBottomBarVisible = false
+                }
+                if (available.y > 1) {
+                    isBottomBarVisible = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     val savedVenuesList = remember(venueSavedDestinations, exploreVenues) {
         exploreVenues.filter { venue ->
@@ -878,14 +896,24 @@ fun VenueMainContent(
         )
     }
 
+    val showStickyHeader by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 && (isBottomBarVisible || isSearchActive)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(BackgroundPrimary)
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { focusManager.clearFocus() })
             }
+            .nestedScroll(nestedScrollConnection)
     ) {
         Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
                 Column(modifier = Modifier.statusBarsPadding()) {
                     AnimatedContent(
@@ -897,80 +925,126 @@ fun VenueMainContent(
                     ) { active ->
                         CustomTopBar(
                             title = if (active) "Search Venues" else "Venue",
-                            onBackClick = {
-                                if (active) {
+                            onBackClick = if (active) {
+                                {
                                     isSearchActive = false
                                     text = ""
                                     focusManager.clearFocus()
-                                } else {
-                                    onBackClick()
                                 }
+                            } else {
+                                { onBackClick() }
                             },
                             onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
-                            backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                            backIcon = if(active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
                             buttonStyle = ButtonBackground.OPAQUE,
                             isLargeTitle = true,
                         )
                     }
                 }
             },
-            bottomBar = {
-                if (!isSearchActive) {
-                    BottomTab(
-                        items = bottomTabs,
-                        selectedValue = selectedTab,
-                        onItemSelected = { onSelectedTabChange(it) }
-                    )
-                }
-            },
         ) { paddingValues ->
+            val topPadding = paddingValues.calculateTopPadding()
 
-            AnimatedContent(
-                targetState = selectedTab,
-                transitionSpec = {
-                    val isSaved = targetState == "saved"
-                    slideInHorizontally(
-                        animationSpec = tween(300),
-                        initialOffsetX = { fullWidth -> if (isSaved) fullWidth else -fullWidth }
-                    ) + fadeIn(animationSpec = tween(300)) togetherWith
-                            slideOutHorizontally(
-                                animationSpec = tween(300),
-                                targetOffsetX = { fullWidth -> if (isSaved) -fullWidth else fullWidth }
-                            ) + fadeOut(animationSpec = tween(300))
-                },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(BackgroundPrimary)
-                    .padding(paddingValues),
-                label = "explore_saved_slide_transition"
-            ) { currentTab ->
-                if (currentTab == "explore") {
-                    VenueExploreContent(
-                        exploreVenues = exploreVenues,
-                        filteredAndSortedExploreVenues = filteredAndSortedExploreVenues,
-                        selectedLocation = selectedLocation,
-                        onVenueClick = onVenueClick,
-                        onLocationSelectorClick = onLocationSelectorClick,
-                        onFavoriteToggle = onFavoriteToggle,
-                        onShowFilterDialogChange = onShowFilterDialogChange,
-                        isLoading = isLoading,
-                        listState = listState,
-                        text = text,
-                        onTextChange = { text = it },
-                        isSearchActive = isSearchActive,
-                        onSearchActiveChange = { isSearchActive = it }
-                    )
-                } else {
-                    VenueSavedContent(
-                        savedTimelineEvents = savedTimelineEvents,
-                        savedVenuesList = savedVenuesList,
-                        selectedViewType = selectedViewType,
-                        onSelectedViewTypeChange = onSelectedViewTypeChange,
-                        onVenueClick = onVenueClick,
-                        onFavoriteToggle = onFavoriteToggle,
-                        onTimelineSeeAll = onTimelineSeeAll,
-                        isLoading = isLoading
-                    )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        val isSaved = targetState == "saved"
+                        slideInHorizontally(
+                            animationSpec = tween(300),
+                            initialOffsetX = { fullWidth -> if (isSaved) fullWidth else -fullWidth }
+                        ) + fadeIn(animationSpec = tween(300)) togetherWith
+                                slideOutHorizontally(
+                                    animationSpec = tween(300),
+                                    targetOffsetX = { fullWidth -> if (isSaved) -fullWidth else fullWidth }
+                                ) + fadeOut(animationSpec = tween(300))
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topPadding),
+                    label = "explore_saved_slide_transition"
+                ) { currentTab ->
+                    if (currentTab == "explore") {
+                        VenueExploreContent(
+                            exploreVenues = exploreVenues,
+                            filteredAndSortedExploreVenues = filteredAndSortedExploreVenues,
+                            selectedLocation = selectedLocation,
+                            onVenueClick = onVenueClick,
+                            onLocationSelectorClick = onLocationSelectorClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            onShowFilterDialogChange = onShowFilterDialogChange,
+                            isLoading = isLoading,
+                            listState = listState,
+                            text = text,
+                            onTextChange = { text = it },
+                            isSearchActive = isSearchActive,
+                            onSearchActiveChange = { isSearchActive = it }
+                        )
+                    } else {
+                        VenueSavedContent(
+                            savedTimelineEvents = savedTimelineEvents,
+                            savedVenuesList = savedVenuesList,
+                            selectedViewType = selectedViewType,
+                            onSelectedViewTypeChange = onSelectedViewTypeChange,
+                            onVenueClick = onVenueClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            onTimelineSeeAll = onTimelineSeeAll,
+                            isLoading = isLoading
+                        )
+                    }
+                }
+
+                if (selectedTab == "explore") {
+                    Box(modifier = Modifier.padding(top = topPadding)) {
+                        AnimatedVisibility(
+                            visible = showStickyHeader,
+                            enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+                            exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                            label = "VenueStickyHeaderVisibility"
+                        ) {
+                            Surface(
+                                color = BackgroundPrimary,
+                                shadowElevation = 2.dp
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CustomSearchBar(
+                                        value = text,
+                                        onValueChange = { text = it },
+                                        onActiveChange = { isSearchActive = it },
+                                        modifier = Modifier.weight(1f),
+                                        isAiSearch = true,
+                                        placeholder = "Type your choices"
+                                    )
+                                    if (!isSearchActive) {
+                                        Spacer(Modifier.width(8.dp))
+                                        FilterButton(onClick = { onShowFilterDialogChange(true) })
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!isSearchActive) {
+                    Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                        AnimatedVisibility(
+                            visible = isBottomBarVisible,
+                            enter = slideInVertically(initialOffsetY = { it }),
+                            exit = slideOutVertically(targetOffsetY = { it }),
+                            label = "BottomTabVisibility"
+                        ) {
+                            BottomTab(
+                                items = bottomTabs,
+                                selectedValue = selectedTab,
+                                onItemSelected = { onSelectedTabChange(it) }
+                            )
+                        }
+                    }
                 }
             }
         }

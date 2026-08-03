@@ -40,6 +40,7 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
@@ -115,7 +116,6 @@ fun VenueExploreContent(
                             location = selectedLocation,
                             onLocationSelectorClick = onLocationSelectorClick
                         )
-                        Spacer(Modifier.height(12.dp))
                     }
                 }
 
@@ -243,6 +243,8 @@ fun VenueExploreContent(
                 }
             }
         }
-        item { Spacer(Modifier.height(6.dp)) }
+        item {
+            FooterJansify()
+        }
     }
 }
