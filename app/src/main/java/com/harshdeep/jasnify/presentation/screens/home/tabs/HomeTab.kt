@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -37,15 +36,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
- import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,8 +69,8 @@ import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
@@ -129,7 +128,6 @@ fun HomeTab(
     val remainingFunds = (totalBudget - totalSpent).coerceAtLeast(0.0)
     val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
 
-    // Budget formatting logic (100, 1k, 45L, 23Cr) - No decimal points
     val formatBudgetShorthand: (Double) -> String = remember {
         { amount ->
             when {
@@ -143,7 +141,6 @@ fun HomeTab(
 
     val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
 
-    // Date formatting for the top bar - Using java.time for better consistency with HomeTopBar
     val eventDateString = remember(activeEvent) {
         val now = System.currentTimeMillis()
         val effectiveDate = if (activeEvent?.multiDay == true) {
@@ -217,8 +214,7 @@ fun HomeTabContent(
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     val isViewer = remember(activeEvent) {
-        // Simple logic for viewer check if needed, though on Home we might assume full access or use role
-        false // Default for now, can be refined if role is available here
+        false
     }
 
     val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
@@ -272,16 +268,13 @@ fun HomeTabContent(
         }
     }
 
-    // Determine proportions based on device screen height dynamically
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenHeight = configuration.screenHeightDp.dp
 
-    // Calculate dynamic heights relative to overall screen height
     val headerHeight = remember(screenHeight) { screenHeight * 0.42f }
     val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.24f }
 
-    // Professional touch response: A tiny delay of 80ms allows the ripple animation to render
     val navigateTo: (String) -> Unit = remember {
         { target ->
             coroutineScope.launch {
@@ -291,46 +284,7 @@ fun HomeTabContent(
         }
     }
 
-    LaunchedEffect(currentScreen) {
-        onBottomBarVisibilityChange(currentScreen == "home")
-    }
-
     val homeScrollState = rememberScrollState()
-
-    var isBottomBarVisible by remember { mutableStateOf(true) }
-    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
-    val homeTabNestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
-                if (currentScreen != "home") return Offset.Zero
-
-                // Only hide if content is actually scrollable
-                val canScroll = homeScrollState.canScrollForward || homeScrollState.canScrollBackward
-                if (!canScroll) return Offset.Zero
-
-                if (delta > 0) {
-                    if (scrollAccumulator < 0) scrollAccumulator = 0f
-                    scrollAccumulator += delta
-                } else if (delta < 0) {
-                    if (scrollAccumulator > 0) scrollAccumulator = 0f
-                    scrollAccumulator += delta
-                }
-
-                if (scrollAccumulator > 150f && !isBottomBarVisible) {
-                    isBottomBarVisible = true
-                    onBottomBarVisibilityChange(true)
-                    scrollAccumulator = 0f
-                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
-                    isBottomBarVisible = false
-                    onBottomBarVisibilityChange(false)
-                    scrollAccumulator = 0f
-                }
-
-                return Offset.Zero
-            }
-        }
-    }
 
     BackHandler(enabled = currentScreen != "home") {
         selectedCategory = null
@@ -338,6 +292,80 @@ fun HomeTabContent(
     }
 
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
+
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+
+    val homeTabNestedScrollConnection = remember(fadeDistancePx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (currentScreen != "home") return Offset.Zero
+
+                val delta = available.y
+                val currentScroll = homeScrollState.value.toFloat()
+                val halfSliderPx = fadeDistancePx / 2f
+
+                // Accumulate gesture movement direction
+                if (delta > 0) { // Scrolling UP
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling DOWN
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                // Bottom bar is ALWAYS visible when inside top half of slider
+                if (currentScroll < halfSliderPx) {
+                    if (!isBottomBarVisible) {
+                        isBottomBarVisible = true
+                        onBottomBarVisibilityChange(true)
+                    }
+                    scrollAccumulator = 0f
+                } else {
+                    // Hide when scrolling DOWN past -150f accumulator
+                    if (scrollAccumulator < -150f && isBottomBarVisible) {
+                        isBottomBarVisible = false
+                        onBottomBarVisibilityChange(false)
+                        scrollAccumulator = 0f
+                    }
+                    // Show when scrolling UP past +150f accumulator
+                    else if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                        isBottomBarVisible = true
+                        onBottomBarVisibilityChange(true)
+                        scrollAccumulator = 0f
+                    }
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == "home") {
+            onBottomBarVisibilityChange(isBottomBarVisible)
+        }
+    }
+
+    // Automatically snap to top or to the content position when user stops scrolling in the top gap region
+    LaunchedEffect(homeScrollState.isScrollInProgress) {
+        if (!homeScrollState.isScrollInProgress) {
+            val currentScroll = homeScrollState.value.toFloat()
+            val targetOffset = fadeDistancePx
+            val halfThreshold = targetOffset / 2f
+
+            // Check if current scroll position is strictly inside the snapping region
+            if (currentScroll > 1f && currentScroll < targetOffset - 1f) {
+                if (currentScroll >= halfThreshold) {
+                    // Scrolled more than half: Snap to collapse top background space
+                    homeScrollState.animateScrollTo(targetOffset.toInt())
+                } else {
+                    // Scrolled less than half: Snap back to the very top
+                    homeScrollState.animateScrollTo(0)
+                }
+            }
+        }
+    }
 
     val topBarAlphaState = remember {
         derivedStateOf {
@@ -404,7 +432,6 @@ fun HomeTabContent(
                             .padding(paddingValues)
                             .verticalScroll(homeScrollState)
                     ) {
-                        // The spacing spacer height is bound directly to the dynamic visible offset
                         Spacer(modifier = Modifier.height(visibleBackgroundOffset))
 
                         Column(
