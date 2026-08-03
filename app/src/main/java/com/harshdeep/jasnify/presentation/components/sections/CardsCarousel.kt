@@ -46,7 +46,7 @@ fun VenueCarousel(
     onOfferClick: (Venue) -> Unit = {},
     cardSize: CompactCardSize = CompactCardSize.SMALL
 ) {
-    val shimmerBrush = shimmerBrush()
+    val shimmerBrush = if (isLoading) shimmerBrush() else null
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -67,7 +67,7 @@ fun VenueCarousel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isLoading) {
+            if (isLoading && shimmerBrush != null) {
                 // Shimmering Heading
                 Box(
                     modifier = Modifier
@@ -103,12 +103,15 @@ fun VenueCarousel(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             userScrollEnabled = !isLoading
         ) {
-            if (isLoading) {
+            if (isLoading && shimmerBrush != null) {
                 items(5) {
                     CompactCardLoading(cardSize = cardSize, shimmerBrush = shimmerBrush)
                 }
             } else {
-                items(venues) { venue ->
+                items(
+                    items = venues,
+                    key = { "${it.name}_${it.location}" }
+                ) { venue ->
                     VenueCardCompact(
                         venue = venue,
                         onCardClick = { onVenueClick(venue) },
@@ -134,7 +137,7 @@ fun VendorCarousel(
     onOfferClick: (Vendor) -> Unit = {},
     cardSize: CompactCardSize = CompactCardSize.SMALL
 ) {
-    val shimmerBrush = shimmerBrush()
+    val shimmerBrush = if (isLoading) shimmerBrush() else null
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -155,7 +158,7 @@ fun VendorCarousel(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (isLoading) {
+            if (isLoading && shimmerBrush != null) {
                 // Shimmering Heading
                 Box(
                     modifier = Modifier
@@ -191,12 +194,15 @@ fun VendorCarousel(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             userScrollEnabled = !isLoading
         ) {
-            if (isLoading) {
+            if (isLoading && shimmerBrush != null) {
                 items(5) {
                     CompactCardLoading(cardSize = cardSize, shimmerBrush = shimmerBrush)
                 }
             } else {
-                items(vendors) { vendor ->
+                items(
+                    items = vendors,
+                    key = { "${it.name}_${it.category}" }
+                ) { vendor ->
                     VendorCardCompact(
                         vendor = vendor,
                         onCardClick = { onVendorClick(vendor) },

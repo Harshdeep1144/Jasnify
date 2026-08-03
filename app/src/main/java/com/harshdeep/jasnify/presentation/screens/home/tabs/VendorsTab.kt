@@ -936,11 +936,14 @@ fun VendorMainContent(
 
             if (isSearchActive && searchQuery.isNotEmpty()) {
                 if (filteredAllVendors.isEmpty()) {
-                    item {
+                    item(key = "empty_search") {
                         EmptyState(message = "No matches for \"$searchQuery\"")
                     }
                 } else {
-                    items(filteredAllVendors.take(8)) { vendor ->
+                    items(
+                        items = filteredAllVendors.take(8),
+                        key = { "search_${it.name}_${it.category}" }
+                    ) { vendor ->
                         SearchSuggestionItem(
                             title = vendor.name,
                             subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
@@ -952,7 +955,10 @@ fun VendorMainContent(
                     }
                 }
             } else if (!isSearchActive && searchQuery.isNotEmpty()) {
-                items(filteredAllVendors) { vendor ->
+                items(
+                    items = filteredAllVendors,
+                    key = { "filtered_${it.name}_${it.category}" }
+                ) { vendor ->
                     VendorCardFull(
                         vendor = vendor,
                         onCardClick = { onVendorClick(vendor) },
@@ -961,13 +967,13 @@ fun VendorMainContent(
                     )
                 }
             } else if (!isSearchActive) {
-                item {
+                item(key = "categories_grid") {
                     VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                item {
+                item(key = "explore_divider") {
                     OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                 }
-                item {
+                item(key = "carousel_makeup") {
                     VendorCarousel(
                         title = "Top Makeup Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
@@ -981,7 +987,7 @@ fun VendorMainContent(
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "carousel_photography") {
                     VendorCarousel(
                         title = "Best Photographers in $selectedCity",
                         vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
@@ -995,7 +1001,7 @@ fun VendorMainContent(
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "carousel_mehendi") {
                     VendorCarousel(
                         title = "Expert Mehendi Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
@@ -1009,20 +1015,20 @@ fun VendorMainContent(
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "explore_horizontal") {
                     DashedDivider()
                     ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                item { FooterJansify() }
+                item(key = "footer") { FooterJansify() }
             } else {
-                item {
+                item(key = "trending_searches") {
                     TrendingAiSearchesSection(onTrendingClick = { query ->
                         onSearchQueryChange(query)
                         focusManager.clearFocus()
                     })
                 }
                 if (recentVendorsList.isNotEmpty()) {
-                    item {
+                    item(key = "recent_searches_section") {
                         RecentSearchesSection(
                             recentVendors = recentVendorsList,
                             onVendorClick = onVendorClick,
@@ -1035,7 +1041,7 @@ fun VendorMainContent(
                         )
                     }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                item(key = "spacer_bottom") { Spacer(Modifier.height(24.dp)) }
             }
         }
     }
@@ -1252,11 +1258,14 @@ fun VendorCategoryDetailContent(
 
                             if (isSearchActive && searchQuery.isNotEmpty()) {
                                 if (filteredVendors.isEmpty()) {
-                                    item {
+                                    item(key = "empty_category_search") {
                                         EmptyState(message = "No matches for \"$searchQuery\"")
                                     }
                                 } else {
-                                    items(filteredVendors.take(8)) { vendor ->
+                                    items(
+                                        items = filteredVendors.take(8),
+                                        key = { "cat_search_${it.name}" }
+                                    ) { vendor ->
                                         SearchSuggestionItem(
                                             title = vendor.name,
                                             subtitle = "${vendor.locality}, ${vendor.city}",
@@ -1268,7 +1277,10 @@ fun VendorCategoryDetailContent(
                                     }
                                 }
                             } else if (!isSearchActive && searchQuery.isNotEmpty()) {
-                                items(filteredVendors) { vendor ->
+                                items(
+                                    items = filteredVendors,
+                                    key = { "cat_filtered_${it.name}" }
+                                ) { vendor ->
                                     VendorCardFull(
                                         vendor = vendor,
                                         onCardClick = {
@@ -1281,7 +1293,7 @@ fun VendorCategoryDetailContent(
                                     )
                                 }
                             } else if (!isSearchActive) {
-                                item {
+                                item(key = "top_rated_carousel") {
                                     VendorCarousel(
                                         title = "Top-Rated ${category.name}",
                                         vendors = filteredVendors.filter { it.rating >= 4.5 },
@@ -1295,12 +1307,12 @@ fun VendorCategoryDetailContent(
                                     )
                                 }
 
-                                item {
+                                item(key = "cat_explore_divider") {
                                     OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                                 }
 
                                 @OptIn(ExperimentalFoundationApi::class)
-                                stickyHeader {
+                                stickyHeader(key = "filters_header") {
                                     Surface(
                                         modifier = Modifier.fillMaxWidth(),
                                         color = BackgroundPrimary
@@ -1309,7 +1321,10 @@ fun VendorCategoryDetailContent(
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
-                                            itemsIndexed(filters) { index, filter ->
+                                            itemsIndexed(
+                                                items = filters,
+                                                key = { _, filter -> "filter_$filter" }
+                                            ) { index, filter ->
                                                 val isSelected = selectedFilterIndex == index
                                                 FilterChip(
                                                     label = filter,
@@ -1324,7 +1339,7 @@ fun VendorCategoryDetailContent(
                                 }
 
                                 if (isLoading && filteredVendors.isEmpty()) {
-                                    items(5) {
+                                    items(5, key = { "loading_$it" }) {
                                         VendorCardFull(
                                             vendor = Vendor(),
                                             isLoading = true,
@@ -1332,9 +1347,12 @@ fun VendorCategoryDetailContent(
                                         )
                                     }
                                 } else if (filteredVendors.isEmpty()) {
-                                    item { EmptyState(message = "No vendors found in this category") }
+                                    item(key = "no_vendors_found") { EmptyState(message = "No vendors found in this category") }
                                 } else {
-                                    items(filteredVendors) { vendor ->
+                                    items(
+                                        items = filteredVendors,
+                                        key = { "vendor_${it.name}_${it.category}" }
+                                    ) { vendor ->
                                         VendorCardFull(
                                             vendor = vendor,
                                             onCardClick = {
@@ -1348,16 +1366,16 @@ fun VendorCategoryDetailContent(
                                     }
                                 }
 
-                                item { FooterJansify() }
+                                item(key = "cat_footer") { FooterJansify() }
                             } else {
-                                item {
+                                item(key = "cat_trending") {
                                     TrendingAiSearchesSection(onTrendingClick = { query ->
                                         searchQuery = query
                                         focusManager.clearFocus()
                                     })
                                 }
                                 if (recentVendorsList.isNotEmpty()) {
-                                    item {
+                                    item(key = "cat_recent_searches") {
                                         RecentSearchesSection(
                                             recentVendors = recentVendorsList,
                                             onVendorClick = { vendor ->
@@ -1375,8 +1393,8 @@ fun VendorCategoryDetailContent(
                                         )
                                     }
                                 }
-                                item { Spacer(Modifier.height(24.dp)) }
-                                item { Spacer(Modifier.height(100.dp)) }
+                                item(key = "cat_bottom_spacer") { Spacer(Modifier.height(24.dp)) }
+                                item(key = "cat_extra_spacer") { Spacer(Modifier.height(100.dp)) }
                             }
                         }
                     } else {

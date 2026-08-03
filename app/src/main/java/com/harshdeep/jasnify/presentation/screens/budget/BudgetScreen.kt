@@ -402,20 +402,22 @@ fun BudgetScreen(
         }
     }
 
-    val filteredExpenses = allExpenses.filter { item ->
-        val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) ||
-                item.category.contains(searchQuery, ignoreCase = true)
+    val filteredExpenses = remember(allExpenses, searchQuery, selectedFilterOptions, selectedSortOption) {
+        allExpenses.filter { item ->
+            val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) ||
+                    item.category.contains(searchQuery, ignoreCase = true)
 
-        val matchesCategory =
-            selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
+            val matchesCategory =
+                selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
 
-        matchesSearch && matchesCategory
-    }.let { list ->
-        when (selectedSortOption) {
-            "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
-            "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
-            "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
-            else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+            matchesSearch && matchesCategory
+        }.let { list ->
+            when (selectedSortOption) {
+                "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
+                "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
+                "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
+                else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+            }
         }
     }
 
@@ -437,8 +439,10 @@ fun BudgetScreen(
         }.sortedByDescending { it.amountRaw }
     }
 
-    val filteredCategorySummary = computedCategories.filter {
-        it.name.contains(categorySearchQuery, ignoreCase = true)
+    val filteredCategorySummary = remember(computedCategories, categorySearchQuery) {
+        computedCategories.filter {
+            it.name.contains(categorySearchQuery, ignoreCase = true)
+        }
     }
 
     val colorPalette = remember {

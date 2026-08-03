@@ -1084,7 +1084,10 @@ fun VendorAskAISection() {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(horizontal = 12.dp)
         ) {
-            items(suggestions) { suggestion ->
+            items(
+                items = suggestions,
+                key = { "suggestion_$it" }
+            ) { suggestion ->
                 FilterChip(
                     label = suggestion,
                     trailingIcon = Icons.Rounded.ArrowOutward,
@@ -1109,7 +1112,10 @@ fun SuggestionChipsSection(onClickSuggestion: (String) -> Unit = {}) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(vertical = 8.dp)
     ) {
-        items(suggestions) { suggestion ->
+        items(
+            items = suggestions,
+            key = { "quick_suggest_$it" }
+        ) { suggestion ->
             FilterChip(
                 label = suggestion,
                 isSelected = false,

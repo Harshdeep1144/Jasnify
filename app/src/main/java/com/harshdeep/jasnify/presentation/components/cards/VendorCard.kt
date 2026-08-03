@@ -91,9 +91,10 @@ fun VendorCardFull(
         return
     }
     val actualPageCount = vendor.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
+    val virtualCount = remember(actualPageCount) { if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount }
+    val initialPage = remember(actualPageCount) {
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
+    }
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
@@ -101,12 +102,10 @@ fun VendorCardFull(
     )
 
     if (actualPageCount > 1) {
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
+        LaunchedEffect(pagerState.currentPage) {
+            delay(4000.milliseconds)
+            if (!pagerState.isScrollInProgress) {
+                pagerState.animateScrollToPage(pagerState.currentPage + 1)
             }
         }
     }
@@ -116,6 +115,9 @@ fun VendorCardFull(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
+            .graphicsLayer {
+                // Applying shadow here or via custom modifier with caching
+            }
             .vendorShadow(borderRadius = CornerLargeIncrease),
         shape = SquircleShape(CornerLargeIncrease),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
@@ -298,10 +300,12 @@ fun VendorCardCompact(
         return
     }
     val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
+    val screenWidth = remember(configuration.screenWidthDp) { configuration.screenWidthDp.dp }
     val isMedium = compactCardSize == CompactCardSize.MEDIUM
 
-    val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
+    val cardWidth = remember(isMedium, screenWidth) {
+        if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
+    }
     val containerColor = Color.Transparent
 
     Card(
@@ -623,15 +627,18 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
 fun Modifier.vendorShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
-) = this.drawBehind {
+) = this.graphicsLayer {
+    // This helps in caching the layer and reducing redraw overhead
+    clip = false
+}.drawBehind {
     drawIntoCanvas { canvas ->
         val paint = Paint().asFrameworkPaint()
 
+        // Use a single shadow layer for performance if it's lagging
+        // Or keep multiple but ensured it's behind a graphicsLayer
         val layers = listOf(
             VendorShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
             VendorShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
-            VendorShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
-            VendorShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
         )
 
         layers.forEach { layer ->
