@@ -202,7 +202,7 @@ fun VendorsTab(
 
     var selectedCategory by remember { mutableStateOf(initialCategory) }
     var screenStack by remember {
-        mutableStateOf(if (initialCategory != null) listOf(VendorScreenState.MAIN, VendorScreenState.CATEGORY_DETAIL) else listOf(VendorScreenState.MAIN))
+        mutableStateOf(if (initialCategory != null) listOf(VendorScreenState.CATEGORY_DETAIL) else listOf(VendorScreenState.MAIN))
     }
     val currentScreenState by remember(screenStack) { derivedStateOf { screenStack.last() } }
 
@@ -522,7 +522,13 @@ fun VendorsTab(
                                     allVendors = categoryVendors,
                                     savedVendorsForCategory = categorySavedVendors,
                                     selectedCity = selectedCity,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
                                     onLocationClick = {
                                         screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                     },
@@ -551,14 +557,26 @@ fun VendorsTab(
                                 }
                                 VendorDetailScreen(
                                     vendorDetail = detailData,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
                                     onFavoriteToggle = { handleFavoriteToggle(it) }
                                 )
                             }
                         }
                         VendorScreenState.ALL_SAVED -> {
                             AllSavedVendorsContent(
-                                onBackClick = { screenStack = screenStack.dropLast(1) },
+                                onBackClick = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
                                 vendorSavedDestinations = vendorSavedDestinations,
@@ -580,7 +598,13 @@ fun VendorsTab(
                                     vendors = currentSelectedTimelineVendors,
                                     onVendorClick = handleVendorClick,
                                     onVendorFavoriteToggle = handleFavoriteToggle,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) }
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    }
                                 )
                             }
                         }
@@ -589,7 +613,13 @@ fun VendorsTab(
                                 VendorRoomContent(
                                     eventId = event.id,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
                                     onMenuClick = { showRoomMenuBottomSheet = true },
                                     onRemove = { userToRemove = it },
                                     onLeave = { showLeaveConfirmation = true },
@@ -603,10 +633,18 @@ fun VendorsTab(
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
-                                    screenStack = screenStack.dropLast(1)
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
                                 },
                                 onBackClick = {
-                                    screenStack = screenStack.dropLast(1)
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
                                 },
                                 backIcon = TopIcon.Predefined.DOWN
                             )

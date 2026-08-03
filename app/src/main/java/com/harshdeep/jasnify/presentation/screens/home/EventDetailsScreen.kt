@@ -101,6 +101,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -139,13 +140,15 @@ fun EventDetailsScreen(
     onReviewVenues: () -> Unit = {},
     onReviewVendors: () -> Unit = {},
     eventViewModel: EventViewModel = hiltViewModel(),
-    venueViewModel: VenueViewModel = hiltViewModel()
+    venueViewModel: VenueViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
     val activeEvent by eventViewModel.activeEvent.collectAsState()
     val savedVenues by venueViewModel.savedVenues.collectAsState()
+    val savedVendors by vendorViewModel.savedVendors.collectAsState()
 
     val isAdmin by remember(activeEvent) {
         derivedStateOf { activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid }
@@ -158,6 +161,7 @@ fun EventDetailsScreen(
     LaunchedEffect(activeEvent) {
         activeEvent?.id?.let { id ->
             venueViewModel.setEventId(id)
+            vendorViewModel.setEventId(id)
         }
     }
 
@@ -741,7 +745,7 @@ fun EventDetailsScreen(
                                             },
                                             onDelete = { itemToDelete ->
                                                 val venueCount = savedVenues.count { it.destination == itemToDelete.id }
-                                                val vendorCount = 0
+                                                val vendorCount = savedVendors.count { it.destination == itemToDelete.id }
 
                                                 if (venueCount > 0 || vendorCount > 0) {
                                                     venueCountForDelete = venueCount
