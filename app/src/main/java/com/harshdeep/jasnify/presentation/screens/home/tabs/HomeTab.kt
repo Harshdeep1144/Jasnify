@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.screens.home.tabs
 
 import android.annotation.SuppressLint
 import android.os.Build
-import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -13,7 +12,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -55,8 +53,6 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -69,6 +65,7 @@ import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
@@ -220,11 +217,14 @@ fun HomeTabContent(
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    // Header media items featuring local drawables, remote Image URLs, and remote Video URLs
     val headerMediaItems = remember {
         listOf(
             HeaderMedia.ImageResource(R.drawable.bg_home),
-            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800"),
-            HeaderMedia.VideoUrl("https://www.w3schools.com/html/mov_bbb.mp4"),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.VideoUrl("https://www.w3schools.com/html/mov_bbb.mp4")
         )
     }
 
@@ -690,8 +690,6 @@ fun HomeTabContent(
     }
 }
 
-
-@SuppressLint("UseKtx")
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HeaderMediaSlider(
@@ -701,17 +699,25 @@ fun HeaderMediaSlider(
 ) {
     if (mediaList.isEmpty()) return
 
-    val pagerState = rememberPagerState(pageCount = { mediaList.size })
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
 
-    // Auto-slide loop
+    // Infinite page loop configuration (starts centered at a multiple of mediaList.size)
+    val virtualPageCount = if (mediaList.size > 1) Int.MAX_VALUE else mediaList.size
+    val initialPage = if (mediaList.size > 1) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % mediaList.size) else 0
+
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { virtualPageCount }
+    )
+
+    // Continuous auto-slide forward loop (always moving left-to-right)
     LaunchedEffect(pagerState, mediaList.size) {
         if (!isPreview && mediaList.size > 1) {
             while (true) {
                 delay(autoSlideIntervalMs.milliseconds)
                 if (!pagerState.isScrollInProgress) {
-                    val nextPage = (pagerState.currentPage + 1) % mediaList.size
+                    val nextPage = pagerState.currentPage + 1
                     pagerState.animateScrollToPage(
                         page = nextPage,
                         animationSpec = tween(durationMillis = 800)
@@ -725,12 +731,14 @@ fun HeaderMediaSlider(
         state = pagerState,
         modifier = modifier
     ) { page ->
+        val actualIndex = page % mediaList.size
+
         Box(modifier = Modifier.fillMaxSize()) {
-            when (val media = mediaList[page]) {
+            when (val media = mediaList[actualIndex]) {
                 is HeaderMedia.ImageResource -> {
                     Image(
                         painter = painterResource(id = media.resId),
-                        contentDescription = "Header Slide Image ${page + 1}",
+                        contentDescription = "Header Slide Image ${actualIndex + 1}",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
@@ -751,7 +759,7 @@ fun HeaderMediaSlider(
                                 .placeholder(R.drawable.bg_home)
                                 .error(R.drawable.bg_home)
                                 .build(),
-                            contentDescription = "Header Slide Remote Image ${page + 1}",
+                            contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -766,21 +774,12 @@ fun HeaderMediaSlider(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        AndroidView(
-                            factory = { ctx ->
-                                VideoView(ctx).apply {
-                                    setMediaController(null)
-                                    val uri =
-                                        ("android.resource://" + ctx.packageName + "/" + media.resId).toUri()
-                                    setVideoURI(uri)
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        mp.setVolume(0f, 0f)
-                                        start()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
+                        VideoPlayer(
+                            videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
+                            modifier = Modifier.fillMaxSize(),
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
                         )
                     }
                 }
@@ -793,25 +792,18 @@ fun HeaderMediaSlider(
                             modifier = Modifier.fillMaxSize()
                         )
                     } else {
-                        AndroidView(
-                            factory = { ctx ->
-                                VideoView(ctx).apply {
-                                    setMediaController(null)
-                                    setVideoURI(media.url.toUri())
-                                    setOnPreparedListener { mp ->
-                                        mp.isLooping = true
-                                        mp.setVolume(0f, 0f)
-                                        start()
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize()
+                        VideoPlayer(
+                            videoUrl = media.url,
+                            modifier = Modifier.fillMaxSize(),
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
                         )
                     }
                 }
             }
 
-            // Overlay box to pass touch events to HorizontalPager
+            // Overlay box to allow swipe gesture pass-through to HorizontalPager
             Box(
                 modifier = Modifier
                     .fillMaxSize()
