@@ -6,22 +6,17 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -30,24 +25,30 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -60,14 +61,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
@@ -90,39 +93,43 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottom
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.chip.VendorTypeChip
-import com.harshdeep.jasnify.presentation.components.filter.FilterButton
-import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
-import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
+import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
+import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
+import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
 import com.harshdeep.jasnify.presentation.components.sections.VendorCarousel
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryGrid
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.components.states.EmptyState
+import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
+import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.JasnifyTheme
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -130,10 +137,8 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorScreenState {
-    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR
+    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR, TIMELINE_DETAIL
 }
-
-data class VendorCategoryItem(val name: String, val icon: Int)
 
 private const val PREFS_NAME = "vendor_search_prefs"
 private const val KEY_RECENT_SEARCHES = "recent_searches"
@@ -150,7 +155,7 @@ private fun saveRecentSearch(context: Context, name: String) {
     current.remove(name)
     current.add(0, name)
     val limited = current.take(8)
-    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||"))}
+    prefs.edit { putString(KEY_RECENT_SEARCHES, limited.joinToString("|||")) }
 }
 
 private fun getCategoryRecentSearches(context: Context, category: String): List<String> {
@@ -165,7 +170,7 @@ private fun saveCategoryRecentSearch(context: Context, category: String, name: S
     current.remove(name)
     current.add(0, name)
     val limited = current.take(8)
-    prefs.edit { putString("${KEY_RECENT_SEARCHES}_$category", limited.joinToString("|||"))}
+    prefs.edit { putString("${KEY_RECENT_SEARCHES}_$category", limited.joinToString("|||")) }
 }
 
 private fun parsePrice(priceString: String): Int {
@@ -175,15 +180,16 @@ private fun parsePrice(priceString: String): Int {
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VendorsTab(
     mainNavController: NavHostController,
+    internalNavController: NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
+    initialCategory: VendorCategoryItem? = null,
     onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -191,12 +197,41 @@ fun VendorsTab(
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    var currentScreenState by remember { mutableStateOf(VendorScreenState.MAIN) }
-    var previousScreenState by remember { mutableStateOf<VendorScreenState?>(null) }
-    var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
+    var selectedCategory by remember { mutableStateOf(initialCategory) }
+    var screenStack by remember {
+        mutableStateOf(if (initialCategory != null) listOf(VendorScreenState.MAIN, VendorScreenState.CATEGORY_DETAIL) else listOf(VendorScreenState.MAIN))
+    }
+    val currentScreenState by remember(screenStack) { derivedStateOf { screenStack.last() } }
+
+    val mainListState = rememberLazyListState()
+    val categoryListState = remember(selectedCategory) { LazyListState() }
+    val allSavedGridState = rememberLazyGridState()
+    val categorySavedGridState = remember(selectedCategory) { LazyGridState() }
+
     var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
+    var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
+
+    var selectedCategoryTab by remember(selectedCategory) { mutableStateOf("explore") }
+    var selectedSavedViewType by remember(selectedCategory) { mutableStateOf("By Timeline") }
+
+    val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow<String?>("selected_category_name", null)
+        ?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(selectedCategoryNameFromHome) {
+        selectedCategoryNameFromHome?.let { name ->
+            val cat = vendorCategories.find { it.name == name }
+            if (cat != null) {
+                selectedCategory = cat
+                screenStack += VendorScreenState.CATEGORY_DETAIL
+                (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
+            }
+        }
+    }
 
     var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
 
@@ -205,6 +240,7 @@ fun VendorsTab(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
     val allVendorsFromRepo by vendorViewModel.allVendors.collectAsStateWithLifecycle()
+    val isLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
 
     val vendorSavedDestinations = remember(savedVendorsFromCloud) {
         savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
@@ -235,7 +271,6 @@ fun VendorsTab(
             roomViewModel.loadRoomUsers(activeEventId!!, "Vendors")
             vendorViewModel.setEventId(activeEventId!!)
         } else {
-            // If no active event, we allow browsing by setting hasAccess to true
             roomViewModel.setAccessState(true)
         }
     }
@@ -248,18 +283,7 @@ fun VendorsTab(
         ?.getStateFlow("selected_location", "City, State")
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
-    val categories = listOf(
-        VendorCategoryItem("Grooming", R.drawable.ill_vendor_grooming),
-        VendorCategoryItem("Makeup", R.drawable.ill_vendor_makeup),
-        VendorCategoryItem("Photography", R.drawable.ill_vendor_photographers),
-        VendorCategoryItem("Mehendi", R.drawable.ill_vendor_mehendi),
-        VendorCategoryItem("Jewellery", R.drawable.ill_vendor_jewellery),
-        VendorCategoryItem("Outfits", R.drawable.ill_bride_and_groom),
-        VendorCategoryItem("Entertainment", R.drawable.ill_vendor_entertainment),
-        VendorCategoryItem("Food", R.drawable.ill_vendor_food),
-        VendorCategoryItem("Gifts", R.drawable.ill_vendor_gifts)
-    )
-
+    val categories = vendorCategories
     val allSampleVendors = MockData.sampleVendors
 
     val recentVendorsList = remember(recentSearchesNames, allSampleVendors) {
@@ -283,7 +307,7 @@ fun VendorsTab(
                     id = subEvent.id,
                     date = formattedDate,
                     event = subEvent.name,
-                    venues = emptyList() // Not used here
+                    venues = emptyList()
                 )
             } ?: emptyList()
         }
@@ -299,67 +323,126 @@ fun VendorsTab(
     }
     val isViewer = currentUserRole == UserRole.VIEWER
 
+    val exploreVendors = remember(allVendorsFromRepo) {
+        allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
+    }
+
+    val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
+        val baseEvent = if (selectedTimelineEventId == "mysaved") {
+            TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
+        } else {
+            timelineEvents.find { it.id == selectedTimelineEventId }
+        }
+        baseEvent
+    }
+
+    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, selectedCategory, vendorSavedDestinations, exploreVendors) {
+        if (selectedTimelineEventId == null) return@remember emptyList<Vendor>()
+
+        val categoryFiltered = if (selectedCategory != null) {
+            exploreVendors.filter { it.category == selectedCategory!!.name }
+        } else {
+            exploreVendors
+        }
+
+        categoryFiltered.filter { v ->
+            vendorSavedDestinations["${v.name}-${v.category}"] == selectedTimelineEventId
+        }.map { it.copy(favorite = true) }
+    }
+
     val handleVendorClick: (Vendor) -> Unit = { vendor ->
         saveRecentSearch(context, vendor.name)
         recentSearchesNames = getRecentSearches(context)
         selectedVendor = vendor
-        previousScreenState = currentScreenState
-        currentScreenState = VendorScreenState.VENDOR_DETAIL
+        screenStack = screenStack + VendorScreenState.VENDOR_DETAIL
     }
 
     val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
         val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
         if (alreadySaved) {
-            // When user clicks heart on an already saved vendor (wants to dislike/manage), open bottom sheet directly
             activeTargetVendor = vendor
             showSaveListBottomSheet = true
         } else {
-            // First time like: add to default list and show bottom toast with "Change" button
             vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
             lastSavedVendor = vendor
             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
 
-    LaunchedEffect(showMenuSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess) {
-        val isBottomBarVisible = hasAccess == true && !showMenuSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
-        onBottomBarVisibilityChange(isBottomBarVisible)
+    val handleTimelineSeeAll: (TimelineEvent) -> Unit = { event ->
+        selectedTimelineEventId = event.id
+        screenStack = screenStack + VendorScreenState.TIMELINE_DETAIL
+    }
+
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val vendorsTabNestedScrollConnection = remember(currentScreenState, mainListState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+
+                // Only react if we are in MAIN screen and it's scrollable
+                if (currentScreenState != VendorScreenState.MAIN) return Offset.Zero
+                val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) { // Scrolling up (showing)
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling down (hiding)
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    isBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
+
+    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible) {
+        val isBottomBarVisibleEffective = isBottomBarVisible && hasAccess == true && !showMenuSheet && !showRoomMenuBottomSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
+        onBottomBarVisibilityChange(isBottomBarVisibleEffective)
     }
 
     BackHandler {
         if (showSaveListBottomSheet) {
             showSaveListBottomSheet = false
+        } else if (showRoomMenuBottomSheet) {
+            showRoomMenuBottomSheet = false
         } else if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
             focusManager.clearFocus()
         } else {
-            when (currentScreenState) {
-                VendorScreenState.VENDOR_DETAIL -> {
-                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
-                }
-                VendorScreenState.CATEGORY_DETAIL -> {
-                    currentScreenState = VendorScreenState.MAIN
+            if (screenStack.size > 1) {
+                if (currentScreenState == VendorScreenState.CATEGORY_DETAIL) {
                     selectedCategory = null
                 }
-                VendorScreenState.ROOM, VendorScreenState.ALL_SAVED, VendorScreenState.LOCATION_SELECTOR -> {
-                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
-                }
-                VendorScreenState.MAIN -> {
-                    onBackClick()
-                }
+                screenStack = screenStack.dropLast(1)
+            } else {
+                onBackClick()
             }
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
 
-    Box(modifier = Modifier
-        .fillMaxSize()
-        .background(Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         RoomAccessGuardian(
             hasAccess = hasAccess,
             roomName = "Vendors",
@@ -374,11 +457,27 @@ fun VendorsTab(
                         clip = isAnySheetVisible || backdropCornerRadius > 0.dp
                         shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                     }
+                    .background(BackgroundPrimary)
                     .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
+                    .nestedScroll(vendorsTabNestedScrollConnection)
             ) {
                 AnimatedContent(
                     targetState = currentScreenState,
-                    transitionSpec = { fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300)) },
+                    transitionSpec = {
+                        when {
+                            targetState == VendorScreenState.VENDOR_DETAIL || 
+                            targetState == VendorScreenState.LOCATION_SELECTOR || 
+                            targetState == VendorScreenState.TIMELINE_DETAIL -> 
+                                ScreenTransitions.SlideBottomToTopFastTransition
+                            
+                            initialState == VendorScreenState.VENDOR_DETAIL || 
+                            initialState == VendorScreenState.LOCATION_SELECTOR || 
+                            initialState == VendorScreenState.TIMELINE_DETAIL -> 
+                                ScreenTransitions.SlideTopToBottomFastTransition
+
+                            else -> ScreenTransitions.FadeInOutDefaultTransition
+                        }
+                    },
                     label = "VendorTabTransition"
                 ) { state ->
                     when (state) {
@@ -391,13 +490,12 @@ fun VendorsTab(
                                 isSearchActive = isSearchActive,
                                 onSearchActiveChange = { isSearchActive = it },
                                 onMenuClick = { showMenuSheet = true },
-                                onLocationClick = { 
-                                    previousScreenState = VendorScreenState.MAIN
-                                    currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                onLocationClick = {
+                                    screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                 },
                                 onCategoryClick = { category ->
                                     selectedCategory = category
-                                    currentScreenState = VendorScreenState.CATEGORY_DETAIL
+                                    screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
                                 },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
@@ -405,56 +503,94 @@ fun VendorsTab(
                                 focusManager = focusManager,
                                 context = context,
                                 onRecentSearchesUpdate = { recentSearchesNames = it },
-                                allVendors = allVendorsFromRepo
+                                allVendors = allVendorsFromRepo,
+                                isLoading = isLoading,
+                                listState = mainListState
                             )
                         }
                         VendorScreenState.CATEGORY_DETAIL -> {
                             selectedCategory?.let { category ->
+                                val categoryVendors = remember(allVendorsFromRepo, category.name) {
+                                    allVendorsFromRepo.filter { it.category == category.name }
+                                }
+                                val categorySavedVendors = remember(savedVendorsFromCloud, category.name) {
+                                    savedVendorsFromCloud.filter { it.category == category.name }
+                                }
+
                                 VendorCategoryDetailContent(
                                     category = category,
+                                    allVendors = categoryVendors,
+                                    savedVendorsForCategory = categorySavedVendors,
                                     selectedCity = selectedCity,
-                                    onBackClick = { currentScreenState = VendorScreenState.MAIN },
-                                    onLocationClick = { 
-                                        previousScreenState = VendorScreenState.CATEGORY_DETAIL
-                                        currentScreenState = VendorScreenState.LOCATION_SELECTOR 
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onLocationClick = {
+                                        screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                     },
                                     onMenuClick = { showMenuSheet = true },
                                     onVendorClick = handleVendorClick,
                                     onFavoriteToggle = handleFavoriteToggle,
                                     vendorSavedDestinations = vendorSavedDestinations,
                                     timelineEvents = timelineEvents,
-                                    vendorViewModel = vendorViewModel,
-                                    sharedTransitionScope = sharedTransitionScope
+                                    selectedTab = selectedCategoryTab,
+                                    onSelectedTabChange = { selectedCategoryTab = it },
+                                    selectedViewType = selectedSavedViewType,
+                                    onSelectedViewTypeChange = { selectedSavedViewType = it },
+                                    isLoading = isLoading,
+                                    onTimelineSeeAll = handleTimelineSeeAll,
+                                    listState = categoryListState,
+                                    gridState = categorySavedGridState,
+                                    isBottomBarVisible = isBottomBarVisible
                                 )
                             }
                         }
                         VendorScreenState.VENDOR_DETAIL -> {
                             selectedVendor?.let { vendor ->
+                                val detailData = remember(vendor, exploreVendors, vendorSavedDestinations) {
+                                    val base = exploreVendors.find { it.name == vendor.name && it.category == vendor.category } ?: vendor
+                                    base.copy(favorite = vendorSavedDestinations.containsKey("${base.name}-${base.category}"))
+                                }
                                 VendorDetailScreen(
-                                    vendorDetail = vendor,
-                                    onBackClick = { currentScreenState = previousScreenState ?: VendorScreenState.MAIN },
-                                    onFavoriteToggle = { handleFavoriteToggle(it) },
-                                    sharedTransitionScope = sharedTransitionScope
+                                    vendorDetail = detailData,
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onFavoriteToggle = { handleFavoriteToggle(it) }
                                 )
                             }
                         }
                         VendorScreenState.ALL_SAVED -> {
                             AllSavedVendorsContent(
-                                onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                onBackClick = { screenStack = screenStack.dropLast(1) },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
                                 vendorSavedDestinations = vendorSavedDestinations,
                                 timelineEvents = timelineEvents,
                                 allVendors = allVendorsFromRepo,
-                                sharedTransitionScope = sharedTransitionScope
+                                selectedViewType = selectedSavedViewType,
+                                onSelectedViewTypeChange = { selectedSavedViewType = it },
+                                isLoading = isLoading,
+                                onTimelineSeeAll = handleTimelineSeeAll,
+                                gridState = allSavedGridState
                             )
+                        }
+                        VendorScreenState.TIMELINE_DETAIL -> {
+                            currentSelectedTimelineEvent?.let { event ->
+                                SavedTimelineItemsScreen(
+                                    title = "Saved Vendors",
+                                    date = event.date,
+                                    event = event.event,
+                                    vendors = currentSelectedTimelineVendors,
+                                    onVendorClick = handleVendorClick,
+                                    onVendorFavoriteToggle = handleFavoriteToggle,
+                                    onBackClick = { screenStack = screenStack.dropLast(1) }
+                                )
+                            }
                         }
                         VendorScreenState.ROOM -> {
                             activeEvent?.let { event ->
                                 VendorRoomContent(
                                     eventId = event.id,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentScreenState = VendorScreenState.MAIN },
+                                    onBackClick = { screenStack = screenStack.dropLast(1) },
+                                    onMenuClick = { showRoomMenuBottomSheet = true },
                                     onRemove = { userToRemove = it },
                                     onLeave = { showLeaveConfirmation = true },
                                     onShowToast = { toastData = it }
@@ -467,10 +603,10 @@ fun VendorsTab(
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
-                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                    screenStack = screenStack.dropLast(1)
                                 },
                                 onBackClick = {
-                                    currentScreenState = previousScreenState ?: VendorScreenState.MAIN
+                                    screenStack = screenStack.dropLast(1)
                                 },
                                 backIcon = TopIcon.Predefined.DOWN
                             )
@@ -480,7 +616,6 @@ fun VendorsTab(
             }
         }
 
-        // Standard Top Toast
         AnimatedVisibility(
             visible = toastData.message != null && !isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
@@ -498,7 +633,6 @@ fun VendorsTab(
             )
         }
 
-        // Bottom Saved List Toast with "Change" Action Button
         AnimatedVisibility(
             visible = toastData.message != null && isSavedListToast && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { it + 500 }),
@@ -548,7 +682,7 @@ fun VendorsTab(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            currentScreenState = VendorScreenState.ROOM
+                            screenStack = screenStack + VendorScreenState.ROOM
                         }
                     )
                 ),
@@ -566,11 +700,11 @@ fun VendorsTab(
                 val savedVendorsItem = listOf(
                     MenuSheetActionItem(
                         text = "Saved Vendors",
-                        icon = painterResource(R.drawable.ic_heart),
+                        icon = painterResource(R.drawable.ic_top_bar_heart),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            currentScreenState = VendorScreenState.ALL_SAVED
+                            screenStack = screenStack + VendorScreenState.ALL_SAVED
                         }
                     )
                 )
@@ -580,6 +714,29 @@ fun VendorsTab(
             MenuBottomSheet(
                 items = menuItems,
                 onCancelClick = { showMenuSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showRoomMenuBottomSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Room",
+                            icon = painterResource(R.drawable.ic_logout),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                showLeaveConfirmation = true
+                            }
+                        )
+                    )
+                ),
+                onCancelClick = {
+                    showRoomMenuBottomSheet = false
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
@@ -671,7 +828,7 @@ fun VendorsTab(
                         roomViewModel.removeAccess(eventId, "Vendors", FirebaseAuth.getInstance().currentUser?.uid ?: "")
                     }
                     toastData = ToastData("You left the room", ToastType.DEFAULT)
-                    currentScreenState = VendorScreenState.MAIN
+                    screenStack = listOf(VendorScreenState.MAIN)
                     showLeaveConfirmation = false
                 },
                 onProgress = { sheetMotionProgress = it }
@@ -698,104 +855,180 @@ fun VendorMainContent(
     focusManager: androidx.compose.ui.focus.FocusManager,
     context: Context,
     onRecentSearchesUpdate: (List<String>) -> Unit,
-    allVendors: List<Vendor>
+    allVendors: List<Vendor>,
+    isLoading: Boolean,
+    listState: LazyListState = rememberLazyListState()
 ) {
+    val filteredAllVendors = remember(allVendors, searchQuery) {
+        val baseList = allVendors.ifEmpty { MockData.sampleVendors }
+        baseList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.category.contains(searchQuery, ignoreCase = true) ||
+                    it.locality.contains(searchQuery, ignoreCase = true) ||
+                    it.city.contains(searchQuery, ignoreCase = true) ||
+                    it.location.contains(searchQuery, ignoreCase = true)
+        }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (!isSearchActive && searchQuery.isNotEmpty() && filteredAllVendors.isEmpty()) {
+            onSearchQueryChange("")
+        }
+    }
+
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
+
     Scaffold(
+        containerColor = BackgroundPrimary,
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
-                if (isSearchActive) {
+                AnimatedContent(
+                    targetState = isSearchActive,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
+                    },
+                    label = "TopBarSearchTransition"
+                ) { active ->
                     CustomTopBar(
-                        title = "Search Vendors",
-                        onBackClick = {
-                            onSearchActiveChange(false)
-                            onSearchQueryChange("")
-                            focusManager.clearFocus()
-                        },
+                        title = if (active) "Search Vendors" else "Vendors",
+                        subtitle = if (active) null else selectedCity,
+                        onBackClick = if (active) {
+                            {
+                                onSearchActiveChange(false)
+                                onSearchQueryChange("")
+                                focusManager.clearFocus()
+                            }
+                        } else null,
+                        onMenuClick = if (active) null else onMenuClick,
+                        onDropdownClick = if (active) null else onLocationClick,
+                        titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
                         backIcon = TopIcon.Predefined.DOWN,
-                        buttonStyle = ButtonBackground.OPAQUE,
-                        isLargeTitle = true
-                    )
-                } else {
-                    CustomTopBar(
-                        title = "Vendors",
-                        subtitle = selectedCity,
-                        onMenuClick = onMenuClick,
-                        onDropdownClick = onLocationClick,
-                        titleIcon = painterResource(R.drawable.ic_vendor),
                         isLargeTitle = true,
-                        isLeftAligned = true
+                        isLeftAligned = !active,
+                        buttonStyle = ButtonBackground.OPAQUE
                     )
                 }
             }
         },
-        containerColor = BackgroundPrimary
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = paddingValues.calculateTopPadding()),
+            state = listState,
             contentPadding = PaddingValues(bottom = 0.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item {
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(searchBarTopPadding))
                 CustomSearchBar(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
                     onActiveChange = onSearchActiveChange,
                     placeholder = "Search Vendors",
+                    isAiSearch = true,
                     modifier = Modifier.padding(horizontal = 12.dp)
                 )
             }
 
-            if (!isSearchActive) {
-                item {
+            if (isSearchActive && searchQuery.isNotEmpty()) {
+                if (filteredAllVendors.isEmpty()) {
+                    item(key = "empty_search") {
+                        EmptyState(message = "No matches for \"$searchQuery\"")
+                    }
+                } else {
+                    items(
+                        items = filteredAllVendors.take(8),
+                        key = { "search_${it.name}_${it.category}" }
+                    ) { vendor ->
+                        SearchSuggestionItem(
+                            title = vendor.name,
+                            subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
+                            onClick = {
+                                onVendorClick(vendor)
+                                focusManager.clearFocus()
+                            }
+                        )
+                    }
+                }
+            } else if (!isSearchActive && searchQuery.isNotEmpty()) {
+                items(
+                    items = filteredAllVendors,
+                    key = { "filtered_${it.name}_${it.category}" }
+                ) { vendor ->
+                    VendorCardFull(
+                        vendor = vendor,
+                        onCardClick = { onVendorClick(vendor) },
+                        onFavoriteToggle = { onFavoriteToggle(vendor) },
+                        modifier = Modifier.padding(horizontal = 12.dp)
+                    )
+                }
+            } else if (!isSearchActive) {
+                item(key = "categories_grid") {
                     VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                item {
+                item(key = "explore_divider") {
                     OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                 }
-                item {
+                item(key = "carousel_makeup") {
                     VendorCarousel(
                         title = "Top Makeup Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
-                        onVendorClick = onVendorClick,
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "carousel_photography") {
                     VendorCarousel(
                         title = "Best Photographers in $selectedCity",
                         vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
-                        onVendorClick = onVendorClick,
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "carousel_mehendi") {
                     VendorCarousel(
                         title = "Expert Mehendi Artists in $selectedCity",
                         vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
-                        onVendorClick = onVendorClick,
+                        isLoading = isLoading,
+                        onVendorClick = { vendor ->
+                            saveRecentSearch(context, vendor.name)
+                            onRecentSearchesUpdate(getRecentSearches(context))
+                            onVendorClick(vendor)
+                        },
                         onFavoriteToggle = onFavoriteToggle,
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
-                item {
+                item(key = "explore_horizontal") {
                     DashedDivider()
                     ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
                 }
-                item { FooterJansify() }
+                item(key = "footer") { FooterJansify() }
             } else {
-                item {
+                item(key = "trending_searches") {
                     TrendingAiSearchesSection(onTrendingClick = { query ->
                         onSearchQueryChange(query)
                         focusManager.clearFocus()
                     })
                 }
                 if (recentVendorsList.isNotEmpty()) {
-                    item {
+                    item(key = "recent_searches_section") {
                         RecentSearchesSection(
                             recentVendors = recentVendorsList,
                             onVendorClick = onVendorClick,
@@ -804,20 +1037,23 @@ fun VendorMainContent(
                                 current.remove(vendor.name)
                                 context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit { putString(KEY_RECENT_SEARCHES, current.joinToString("|||")) }
                                 onRecentSearchesUpdate(getRecentSearches(context))
-                            },
+                            }
                         )
                     }
                 }
-                item { Spacer(Modifier.height(24.dp)) }
+                item(key = "spacer_bottom") { Spacer(Modifier.height(24.dp)) }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VendorCategoryDetailContent(
     category: VendorCategoryItem,
+    allVendors: List<Vendor>,
+    savedVendorsForCategory: List<com.harshdeep.jasnify.domain.model.SavedVendor>,
     selectedCity: String,
     onBackClick: () -> Unit,
     onLocationClick: () -> Unit,
@@ -826,14 +1062,19 @@ fun VendorCategoryDetailContent(
     onFavoriteToggle: (Vendor) -> Unit,
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
-    vendorViewModel: VendorViewModel,
-    sharedTransitionScope: SharedTransitionScope? = null
+    selectedTab: String,
+    onSelectedTabChange: (String) -> Unit,
+    selectedViewType: String,
+    onSelectedViewTypeChange: (String) -> Unit,
+    isLoading: Boolean = false,
+    onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
+    listState: LazyListState = rememberLazyListState(),
+    gridState: LazyGridState = rememberLazyGridState(),
+    isBottomBarVisible: Boolean = true
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
-    var selectedTab by remember { mutableStateOf("explore") }
 
-    var selectedViewType by remember { mutableStateOf("By Timeline") }
     val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -842,11 +1083,75 @@ fun VendorCategoryDetailContent(
 
     val filters = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
-
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
-    val allVendors by vendorViewModel.getVendorsByCategory(category.name).collectAsStateWithLifecycle(initialValue = emptyList())
-    val savedVendorsForCategory by vendorViewModel.getSavedVendorsByCategory(category.name).collectAsStateWithLifecycle(initialValue = emptyList())
+    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
+        val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
+        var result = baseList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.locality.contains(searchQuery, ignoreCase = true) ||
+                    it.city.contains(searchQuery, ignoreCase = true)
+        }
+
+        result = when (selectedFilterIndex) {
+            1 -> result.sortedByDescending { it.rating }
+            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
+            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
+            else -> result
+        }
+
+        if (appliedFilterOptions.contains("Top Rated")) {
+            result = result.filter { it.rating >= 4.5 }
+        }
+
+        result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (!isSearchActive && searchQuery.isNotEmpty() && filteredVendors.isEmpty()) {
+            searchQuery = ""
+        }
+    }
+
+    var internalBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val categoryDetailNestedScrollConnection = remember(selectedTab, listState, gridState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+
+                // Determine scrollability based on active tab
+                val canScroll = if (selectedTab == "explore") {
+                    listState.canScrollForward || listState.canScrollBackward
+                } else {
+                    gridState.canScrollForward || gridState.canScrollBackward
+                }
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !internalBottomBarVisible) {
+                    internalBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && internalBottomBarVisible) {
+                    internalBottomBarVisible = false
+                    scrollAccumulator = 0f
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
 
     val bottomTabs = remember(allVendors.size, savedVendorsForCategory.size) {
         listOf(
@@ -867,280 +1172,348 @@ fun VendorCategoryDetailContent(
         focusManager.clearFocus()
     }
 
-    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
-        var result = allVendors.filter { it.name.contains(searchQuery, ignoreCase = true) }
-
-        // Apply Sorting/Filtering based on selectedFilterIndex
-        result = when (selectedFilterIndex) {
-            1 -> result.sortedByDescending { it.rating }
-            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
-            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
-            else -> result // "Most Relevant" - default order
-        }
-
-        // Apply Filters
-        if (appliedFilterOptions.contains("Top Rated")) {
-            result = result.filter { it.rating >= 4.5 }
-        }
-
-        result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
-    }
-
-    Scaffold(
-        topBar = {
-            Column(modifier = Modifier.statusBarsPadding()) {
-                if(!isSearchActive){
-                    CustomTopBar(
-                        title = category.name,
-                        subtitle = selectedCity,
-                        onBackClick = onBackClick,
-                        backIcon = TopIcon.Predefined.BACK,
-                        onMenuClick = onMenuClick,
-                        onDropdownClick = onLocationClick,
-                    )
-                }else{
-                    CustomTopBar(
-                        title = "Search ${category.name}",
-                        onBackClick = onBackClick,
-                        backIcon = TopIcon.Predefined.BACK,
-                    )
-                }
-            }
-        },
-        bottomBar = {
-            if (!isSearchActive) {
-                BottomTab(
-                    items = bottomTabs,
-                    selectedValue = selectedTab,
-                    onItemSelected = { selectedTab = it }
-                )
-            }
-        },
-        containerColor = BackgroundPrimary
-    ) { paddingValues ->
-        AnimatedContent(
-            targetState = selectedTab,
-            transitionSpec = {
-                val isSaved = targetState == "saved"
-                slideInHorizontally(
-                    animationSpec = tween(300),
-                    initialOffsetX = { fullWidth -> if (isSaved) fullWidth else -fullWidth }
-                ) + fadeIn(animationSpec = tween(300)) togetherWith
-                        slideOutHorizontally(
-                            animationSpec = tween(300),
-                            targetOffsetX = { fullWidth -> if (isSaved) -fullWidth else fullWidth }
-                        ) + fadeOut(animationSpec = tween(300))
-            },
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues),
-            label = "CategoryTabTransition"
-        ) { currentTab ->
-            if (currentTab == "explore") {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CustomSearchBar(
-                                value = searchQuery,
-                                onValueChange = { searchQuery = it },
-                                onActiveChange = { isSearchActive = it },
-                                modifier = Modifier.weight(1f),
-                                isAiSearch = true,
-                                placeholder = "Search ${category.name}"
-                            )
-                        }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(BackgroundPrimary)
+            .nestedScroll(categoryDetailNestedScrollConnection)
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            topBar = {
+                Column(modifier = Modifier.statusBarsPadding()) {
+                    AnimatedContent(
+                        targetState = isSearchActive,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
+                        },
+                        label = "CategoryTopBarSearchTransition"
+                    ) { active ->
+                        CustomTopBar(
+                            title = if (active) "Search ${category.name}" else category.name,
+                            subtitle = if (active) null else selectedCity,
+                            onBackClick = if (active) {
+                                {
+                                    isSearchActive = false
+                                    searchQuery = ""
+                                    focusManager.clearFocus()
+                                }
+                            } else onBackClick,
+                            backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                            onMenuClick = if (active) null else onMenuClick,
+                            onDropdownClick = if (active) null else onLocationClick,
+                            buttonStyle = ButtonBackground.OPAQUE
+                        )
                     }
+                }
+            },
+        ) { paddingValues ->
+            val topPadding = paddingValues.calculateTopPadding()
 
-                    if (!isSearchActive) {
-                        item {
-                            VendorCarousel(
-                                title = "Top-Rated ${category.name}",
-                                vendors = filteredVendors.filter { it.rating >= 4.5 },
-                                onVendorClick = { vendor ->
-                                    saveCategoryRecentSearch(context, category.name, vendor.name)
-                                    recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                    onVendorClick(vendor)
-                                },
-                                onFavoriteToggle = onFavoriteToggle
-                            )
+            Box(modifier = Modifier.fillMaxSize()) {
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        val isSaved = targetState == "saved"
+                        if (isSaved) {
+                            ScreenTransitions.SlideInFromRightTransition togetherWith ScreenTransitions.SlideOutToLeftTransition
+                        } else {
+                            ScreenTransitions.SlideInFromLeftTransition togetherWith ScreenTransitions.SlideOutToRightTransition
                         }
-
-                        item {
-                            OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-                        }
-
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                itemsIndexed(filters) { index, filter ->
-                                    val isSelected = selectedFilterIndex == index
-                                    FilterChip(
-                                        label = filter,
-                                        isSelected = isSelected,
-                                        hasStroke = true,
-                                        shapeStyle = ChipShapeStyle.Round,
-                                        onClick = { selectedFilterIndex = index }
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = topPadding),
+                    label = "CategoryTabTransition"
+                ) { currentTab ->
+                    if (currentTab == "explore") {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            state = listState,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            item {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            start = 12.dp,
+                                            end = 12.dp,
+                                            top = 12.dp,
+                                            bottom = 12.dp
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CustomSearchBar(
+                                        value = searchQuery,
+                                        onValueChange = { searchQuery = it },
+                                        onActiveChange = { isSearchActive = it },
+                                        modifier = Modifier.weight(1f),
+                                        isAiSearch = true,
+                                        placeholder = "Search ${category.name}"
                                     )
                                 }
                             }
+
+                            if (isSearchActive && searchQuery.isNotEmpty()) {
+                                if (filteredVendors.isEmpty()) {
+                                    item(key = "empty_category_search") {
+                                        EmptyState(message = "No matches for \"$searchQuery\"")
+                                    }
+                                } else {
+                                    items(
+                                        items = filteredVendors.take(8),
+                                        key = { "cat_search_${it.name}" }
+                                    ) { vendor ->
+                                        SearchSuggestionItem(
+                                            title = vendor.name,
+                                            subtitle = "${vendor.locality}, ${vendor.city}",
+                                            onClick = {
+                                                onVendorClick(vendor)
+                                                focusManager.clearFocus()
+                                            }
+                                        )
+                                    }
+                                }
+                            } else if (!isSearchActive && searchQuery.isNotEmpty()) {
+                                items(
+                                    items = filteredVendors,
+                                    key = { "cat_filtered_${it.name}" }
+                                ) { vendor ->
+                                    VendorCardFull(
+                                        vendor = vendor,
+                                        onCardClick = {
+                                            saveCategoryRecentSearch(context, category.name, vendor.name)
+                                            recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                            onVendorClick(vendor)
+                                        },
+                                        onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                }
+                            } else if (!isSearchActive) {
+                                item(key = "top_rated_carousel") {
+                                    VendorCarousel(
+                                        title = "Top-Rated ${category.name}",
+                                        vendors = filteredVendors.filter { it.rating >= 4.5 },
+                                        isLoading = isLoading,
+                                        onVendorClick = { vendor ->
+                                            saveCategoryRecentSearch(context, category.name, vendor.name)
+                                            recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                            onVendorClick(vendor)
+                                        },
+                                        onFavoriteToggle = onFavoriteToggle
+                                    )
+                                }
+
+                                item(key = "cat_explore_divider") {
+                                    OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                                }
+
+                                @OptIn(ExperimentalFoundationApi::class)
+                                stickyHeader(key = "filters_header") {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = BackgroundPrimary
+                                    ) {
+                                        LazyRow(
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            itemsIndexed(
+                                                items = filters,
+                                                key = { _, filter -> "filter_$filter" }
+                                            ) { index, filter ->
+                                                val isSelected = selectedFilterIndex == index
+                                                FilterChip(
+                                                    label = filter,
+                                                    isSelected = isSelected,
+                                                    hasStroke = true,
+                                                    shapeStyle = ChipShapeStyle.Round,
+                                                    onClick = { selectedFilterIndex = index }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (isLoading && filteredVendors.isEmpty()) {
+                                    items(5, key = { "loading_$it" }) {
+                                        VendorCardFull(
+                                            vendor = Vendor(),
+                                            isLoading = true,
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                } else if (filteredVendors.isEmpty()) {
+                                    item(key = "no_vendors_found") { EmptyState(message = "No vendors found in this category") }
+                                } else {
+                                    items(
+                                        items = filteredVendors,
+                                        key = { "vendor_${it.name}_${it.category}" }
+                                    ) { vendor ->
+                                        VendorCardFull(
+                                            vendor = vendor,
+                                            onCardClick = {
+                                                saveCategoryRecentSearch(context, category.name, vendor.name)
+                                                recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                                onVendorClick(vendor)
+                                            },
+                                            onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                            modifier = Modifier.padding(horizontal = 12.dp)
+                                        )
+                                    }
+                                }
+
+                                item(key = "cat_footer") { FooterJansify() }
+                            } else {
+                                item(key = "cat_trending") {
+                                    TrendingAiSearchesSection(onTrendingClick = { query ->
+                                        searchQuery = query
+                                        focusManager.clearFocus()
+                                    })
+                                }
+                                if (recentVendorsList.isNotEmpty()) {
+                                    item(key = "cat_recent_searches") {
+                                        RecentSearchesSection(
+                                            recentVendors = recentVendorsList,
+                                            onVendorClick = { vendor ->
+                                                saveCategoryRecentSearch(context, category.name, vendor.name)
+                                                recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                                onVendorClick(vendor)
+                                            },
+                                            onRemoveVendor = { vendor ->
+                                                val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                                                val current = getCategoryRecentSearches(context, category.name).toMutableList()
+                                                current.remove(vendor.name)
+                                                prefs.edit { putString("${KEY_RECENT_SEARCHES}_${category.name}", current.joinToString("|||")) }
+                                                recentSearchesNames = getCategoryRecentSearches(context, category.name)
+                                            }
+                                        )
+                                    }
+                                }
+                                item(key = "cat_bottom_spacer") { Spacer(Modifier.height(24.dp)) }
+                                item(key = "cat_extra_spacer") { Spacer(Modifier.height(100.dp)) }
+                            }
+                        }
+                    } else {
+                        val savedVendorsList = remember(savedVendorsForCategory, allVendors) {
+                            allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name } }.map { it.copy(favorite = true) }
                         }
 
-                        items(filteredVendors) { vendor ->
-                            VendorCardFull(
-                                vendor = vendor,
-                                onCardClick = {
-                                    saveCategoryRecentSearch(context, category.name, vendor.name)
-                                    recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                    onVendorClick(vendor)
-                                },
-                                onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                modifier = Modifier.padding(horizontal = 12.dp),
-                                sharedTransitionScope = sharedTransitionScope
+                        val savedTimelineEvents = remember(savedVendorsForCategory, timelineEvents, allVendors) {
+                            val list = mutableListOf<TimelineEvent>()
+                            val defaultSaved = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == "mysaved" } }.map { it.copy(favorite = true) }
+
+                            if (defaultSaved.isNotEmpty()) {
+                                list.add(TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List", venues = emptyList()))
+                            }
+
+                            timelineEvents.forEach { event ->
+                                val eventVendors = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == event.id } }.map { it.copy(favorite = true) }
+                                if (eventVendors.isNotEmpty()) {
+                                    list.add(event.copy(venues = emptyList()))
+                                }
+                            }
+                            list
+                        }
+
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                            state = gridState,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            item(span = { GridItemSpan(2) }) {
+                                IosSegmentedControl(
+                                    options = viewOptions,
+                                    selectedOption = selectedViewType,
+                                    onOptionSelected = onSelectedViewTypeChange,
+                                    modifier = Modifier.padding(top = 12.dp).height(44.dp)
+                                )
+                            }
+
+                            if (selectedViewType == "All Saved") {
+                                if (isLoading) {
+                                    items(6) {
+                                        VendorCardCompact(
+                                            vendor = Vendor(),
+                                            isLoading = true,
+                                            modifier = Modifier.fillMaxWidth(),
+                                            compactCardSize = CompactCardSize.SMALL
+                                        )
+                                    }
+                                } else if (savedVendorsList.isEmpty()) {
+                                    item(span = { GridItemSpan(2) }) {
+                                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                                    }
+                                } else {
+                                    items(savedVendorsList) { vendor ->
+                                        VendorCardCompact(
+                                            vendor = vendor,
+                                            onCardClick = { onVendorClick(vendor) },
+                                            onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            compactCardSize = CompactCardSize.SMALL
+                                        )
+                                    }
+                                }
+                            } else {
+                                if (isLoading) {
+                                    items(3, span = { GridItemSpan(2) }) {
+                                        TimelineSection(
+                                            date = "Loading...",
+                                            event = "Fetching your plans",
+                                            isLoading = true
+                                        )
+                                    }
+                                } else if (savedTimelineEvents.isEmpty()) {
+                                    item(span = { GridItemSpan(2) }) {
+                                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                                    }
+                                } else {
+                                    items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
+                                        val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
+                                        TimelineSection(
+                                            date = timelineItem.date,
+                                            event = timelineItem.event,
+                                            vendors = vendorsForEvent,
+                                            onVendorClick = onVendorClick,
+                                            onVendorFavoriteToggle = onFavoriteToggle,
+                                            onSeeAllClick = { onTimelineSeeAll(timelineItem) }
+                                        )
+                                    }
+                                }
+                            }
+                            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
+                            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(100.dp)) }
+                        }
+                    }
+                }
+
+                if (!isSearchActive) {
+                    Box(modifier = Modifier.align(Alignment.BottomCenter)) {
+                        AnimatedVisibility(
+                            visible = internalBottomBarVisible,
+                            enter = slideInVertically(initialOffsetY = { it }),
+                            exit = slideOutVertically(targetOffsetY = { it }),
+                            label = "CategoryBottomTabVisibility"
+                        ) {
+                            BottomTab(
+                                items = bottomTabs,
+                                selectedValue = selectedTab,
+                                onItemSelected = onSelectedTabChange
                             )
                         }
-
-                        item { FooterJansify() }
-                    } else {
-                        item {
-                            TrendingAiSearchesSection(onTrendingClick = { query ->
-                                searchQuery = query
-                                focusManager.clearFocus()
-                            })
-                        }
-                        if (recentVendorsList.isNotEmpty()) {
-                            item {
-                                RecentSearchesSection(
-                                    recentVendors = recentVendorsList,
-                                    onVendorClick = { vendor ->
-                                        saveCategoryRecentSearch(context, category.name, vendor.name)
-                                        recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                        onVendorClick(vendor)
-                                    },
-                                    onRemoveVendor = { vendor ->
-                                        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                                        val current = getCategoryRecentSearches(context, category.name).toMutableList()
-                                        current.remove(vendor.name)
-                                        prefs.edit { putString("${KEY_RECENT_SEARCHES}_${category.name}", current.joinToString("|||")) }
-                                        recentSearchesNames = getCategoryRecentSearches(context, category.name)
-                                    },
-                                )
-                            }
-                        }
-                        item { Spacer(Modifier.height(24.dp)) }
                     }
-                }
-            } else {
-                // SAVED TAB
-                val savedVendorsList = remember(savedVendorsForCategory, allVendors) {
-                    allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name } }.map { it.copy(favorite = true) }
-                }
-
-                val savedTimelineEvents = remember(savedVendorsForCategory, timelineEvents, allVendors) {
-                    val list = mutableListOf<TimelineEvent>()
-                    val defaultSaved = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == "mysaved" } }.map { it.copy(favorite = true) }
-
-                    if (defaultSaved.isNotEmpty()) {
-                        list.add(TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List", venues = emptyList()))
-                    }
-
-                    timelineEvents.forEach { event ->
-                        val eventVendors = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == event.id } }.map { it.copy(favorite = true) }
-                        if (eventVendors.isNotEmpty()) {
-                            list.add(event.copy(venues = emptyList())) // We'll handle vendor list separately
-                        }
-                    }
-                    list
-                }
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    item {
-                        IosSegmentedControl(
-                            options = viewOptions,
-                            selectedOption = selectedViewType,
-                            onOptionSelected = { selectedViewType = it },
-                            modifier = Modifier.padding(top = 12.dp).height(44.dp)
-                        )
-                    }
-
-                    if (selectedViewType == "All Saved") {
-                        if (savedVendorsList.isEmpty()) {
-                            item { EmptySavedState() }
-                        } else {
-                            items(savedVendorsList) { vendor ->
-                                VendorCardFull(
-                                    vendor = vendor,
-                                    onCardClick = { onVendorClick(vendor) },
-                                    onFavoriteToggle = { onFavoriteToggle(vendor) },
-                                    sharedTransitionScope = sharedTransitionScope
-                                )
-                            }
-                        }
-                    } else {
-                        // TIMELINE VIEW
-                        if (savedTimelineEvents.isEmpty()) {
-                            item { EmptySavedState() }
-                        } else {
-                            items(savedTimelineEvents) { timelineItem ->
-                                val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
-                                TimelineSection(
-                                    date = timelineItem.date,
-                                    event = timelineItem.event,
-                                    vendors = vendorsForEvent,
-                                    onVendorClick = onVendorClick,
-                                    onVendorFavoriteToggle = onFavoriteToggle,
-                                    sharedTransitionScope = sharedTransitionScope
-                                )
-                            }
-                        }
-                    }
-                    item { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }
     }
 }
 
-@Composable
-fun LazyItemScope.EmptySavedState() {
-    Box(
-        modifier = Modifier.fillParentMaxHeight(0.7f).fillMaxWidth(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_receipt),
-                contentDescription = "No plans here yet",
-                tint = ContentTertiary,
-                modifier = Modifier.size(84.dp)
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = "No plans here yet",
-                style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
-                color = ContentTertiary,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun AllSavedVendorsContent(
     onBackClick: () -> Unit,
@@ -1149,9 +1522,12 @@ fun AllSavedVendorsContent(
     vendorSavedDestinations: Map<String, String>,
     timelineEvents: List<TimelineEvent>,
     allVendors: List<Vendor>,
-    sharedTransitionScope: SharedTransitionScope? = null
+    selectedViewType: String,
+    onSelectedViewTypeChange: (String) -> Unit,
+    isLoading: Boolean = false,
+    onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
-    var selectedViewType by remember { mutableStateOf("By Timeline") }
     val viewOptions = listOf("By Timeline", "All Saved")
 
     val savedVendorsList = remember(vendorSavedDestinations, allVendors) {
@@ -1179,6 +1555,7 @@ fun AllSavedVendorsContent(
     }
 
     Scaffold(
+        containerColor = BackgroundPrimary,
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
                 CustomTopBar(
@@ -1189,45 +1566,69 @@ fun AllSavedVendorsContent(
                 )
             }
         },
-        containerColor = BackgroundPrimary
     ) { paddingValues ->
-        LazyColumn(
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(top = paddingValues.calculateTopPadding())
+                .padding(horizontal = 12.dp),
+            state = gridState,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item {
+            item(span = { GridItemSpan(2) }) {
                 IosSegmentedControl(
                     options = viewOptions,
                     selectedOption = selectedViewType,
-                    onOptionSelected = { selectedViewType = it },
+                    onOptionSelected = onSelectedViewTypeChange,
                     modifier = Modifier
-                        .padding(horizontal = 12.dp)
+                        .padding(top = 12.dp)
                         .height(44.dp)
                 )
             }
 
             if (selectedViewType == "All Saved") {
-                if (savedVendorsList.isEmpty()) {
-                    item {EmptySavedState()}
+                if (isLoading) {
+                    items(6) {
+                        VendorCardCompact(
+                            vendor = Vendor(),
+                            isLoading = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            compactCardSize = CompactCardSize.SMALL
+                        )
+                    }
+                } else if (savedVendorsList.isEmpty()) {
+                    item(span = { GridItemSpan(2) }) {
+                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                    }
                 } else {
                     items(savedVendorsList) { vendor ->
-                        VendorCardFull(
+                        VendorCardCompact(
                             vendor = vendor,
                             onCardClick = { onVendorClick(vendor) },
                             onFavoriteToggle = { onFavoriteToggle(vendor) },
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            sharedTransitionScope = sharedTransitionScope
+                            modifier = Modifier.fillMaxWidth(),
+                            compactCardSize = CompactCardSize.SMALL
                         )
                     }
                 }
             } else {
-                // Timeline implementation
-                if (savedTimelineEvents.isEmpty()) {
-                    item { EmptySavedState() }
+                if (isLoading) {
+                    items(3, span = { GridItemSpan(2) }) {
+                        TimelineSection(
+                            date = "Loading...",
+                            event = "Fetching your plans",
+                            isLoading = true,
+                            modifier = Modifier.padding(horizontal = 0.dp)
+                        )
+                    }
+                } else if (savedTimelineEvents.isEmpty()) {
+                    item(span = { GridItemSpan(2) }) {
+                        StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
+                    }
                 } else {
-                    items(savedTimelineEvents) { timelineItem ->
+                    items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
                         val vendorsForEvent = allVendors.filter { v ->
                             vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
                         }.map { it.copy(favorite = true) }
@@ -1238,13 +1639,13 @@ fun AllSavedVendorsContent(
                             vendors = vendorsForEvent,
                             onVendorClick = onVendorClick,
                             onVendorFavoriteToggle = onFavoriteToggle,
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            sharedTransitionScope = sharedTransitionScope
+                            onSeeAllClick = { onTimelineSeeAll(timelineItem) },
+                            modifier = Modifier.padding(horizontal = 0.dp)
                         )
                     }
                 }
             }
-            item { Spacer(Modifier.height(24.dp)) }
+            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
         }
     }
 }
@@ -1254,6 +1655,7 @@ fun VendorRoomContent(
     eventId: String,
     roomViewModel: RoomViewModel,
     onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onRemove: (User) -> Unit,
     onLeave: () -> Unit,
     onShowToast: (ToastData) -> Unit
@@ -1262,10 +1664,8 @@ fun VendorRoomContent(
     val searchResults by roomViewModel.searchResults.collectAsState()
     val currentUser = FirebaseAuth.getInstance().currentUser
 
-    // Determine current user's role in this specific room
     val currentUserRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
 
-    // Ensure current user is in the list shown with correct info
     val displayUsers = remember(roomUsers, currentUser) {
         if (currentUser == null) return@remember roomUsers
 
@@ -1277,7 +1677,6 @@ fun VendorRoomContent(
             username = currentUser.email?.substringBefore("@") ?: "me"
         )
 
-        // If current user is already in list but missing info, replace with 'self'
         val baseList = if (roomUsers.any { it.uid == currentUser.uid }) {
             roomUsers.map { if (it.uid == currentUser.uid) self.copy(role = it.role) else it }
         } else {
@@ -1291,7 +1690,7 @@ fun VendorRoomContent(
         currentUserRole = currentUserRole,
         isSelf = { it.uid == currentUser?.uid },
         onBackClick = onBackClick,
-        onMenuClick = {}, // Handled internally in RoomScreen for non-admins
+        onMenuClick = onMenuClick,
         onRoleChange = { user, newRole ->
             roomViewModel.updateRole(eventId, "Vendors", user, newRole)
         },
@@ -1305,61 +1704,4 @@ fun VendorRoomContent(
             onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
         }
     )
-}
-
-@Composable
-fun VendorCategoryGrid(categories: List<VendorCategoryItem>, onCategoryClick: (VendorCategoryItem) -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(horizontal = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        val rows = categories.chunked(3)
-        rows.forEach { rowItems ->
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowItems.forEach { item ->
-                    VendorTypeChip(
-                        label = item.name,
-                        icon = item.icon,
-                        isLarge = true,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            onCategoryClick(item)
-                        }
-                    )
-                }
-                if (rowItems.size < 3) repeat(3 - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-@Composable
-fun ExploreCategoriesHorizontal(categories: List<VendorCategoryItem>, onCategoryClick: (VendorCategoryItem) -> Unit) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 12.dp))
-    {
-        Text(text = "Explore Categories",
-            style = JasnifyTheme.typography.headingLarge,
-            fontWeight = FontWeight.Medium,
-            color = ContentPrimary,
-            modifier = Modifier.padding(horizontal = 12.dp)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(categories) { item ->
-                VendorTypeChip(
-                    label = item.name,
-                    icon = item.icon,
-                    subLabel = "Explore Now",
-                    isLarge = false,
-                    onClick = {
-                        onCategoryClick(item)
-                    }
-                )
-            }
-        }
-    }
 }

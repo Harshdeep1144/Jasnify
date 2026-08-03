@@ -200,8 +200,8 @@ fun BudgetScreen(
         }
     }
 
-    val indianLocale = Locale("en", "IN")
-    val formatter = NumberFormat.getNumberInstance(indianLocale)
+    val indianLocale = remember { Locale("en", "IN") }
+    val formatter = remember(indianLocale) { NumberFormat.getNumberInstance(indianLocale) }
     val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.ENGLISH) }
 
     val allExpenses = remember(expensesEntities) {
@@ -254,14 +254,20 @@ fun BudgetScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showBottomSheet by remember { mutableStateOf(false) }
-
     var showAddExpenseSheet by remember { mutableStateOf(false) }
+    var showAddCustomCategorySheet by remember { mutableStateOf(false) }
+    var showEditBudgetSheet by remember { mutableStateOf(false) }
+    var showMenuBottomSheet by remember { mutableStateOf(false) }
+    var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
     var expenseToEdit by remember { mutableStateOf<ExpenseItem?>(null) }
-
     var expenseToDelete by remember { mutableStateOf<ExpenseItem?>(null) }
+    var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
+    var categoryToRename by remember { mutableStateOf<String?>(null) }
 
     // Dynamic Edit Budget Sheet state integrations
-    var showEditBudgetSheet by remember { mutableStateOf(false) }
     val budgetValue = remember(budgetEntity, activeEvent) {
         val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget
         if (rawValue == null) "INR" else {
@@ -273,25 +279,12 @@ fun BudgetScreen(
         }
     }
 
-    var showMenuBottomSheet by remember { mutableStateOf(false) }
-
-    var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
     var selectedCategoryForMenu by remember { mutableStateOf<String?>(null) }
-
     var selectedCategoryForDetails by remember { mutableStateOf<String?>(null) }
     var selectedCategoryChips by remember { mutableStateOf(setOf("Recent First")) }
 
-    var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
-
-    var showAddCustomCategorySheet by remember { mutableStateOf(false) }
-    var categoryToRename by remember { mutableStateOf<String?>(null) }
-
-    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
-    var showLeaveConfirmation by remember { mutableStateOf(false) }
-    var userToRemove by remember { mutableStateOf<User?>(null) }
-
     // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
-    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
@@ -309,19 +302,23 @@ fun BudgetScreen(
         }
     }
 
-    val targetScale = if (isAnyBottomSheetOpen) {
-        0.92f + (0.08f * sheetMotionProgress)
-    } else {
-        1.0f
+    val targetScale by remember {
+        derivedStateOf {
+            if (isAnyBottomSheetOpen) {
+                0.92f + (0.08f * sheetMotionProgress)
+            } else {
+                1.0f
+            }
+        }
     }
 
-    val backdropScale by animateFloatAsState(
+    val backdropScaleState = animateFloatAsState(
         targetValue = targetScale,
         animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
         label = "backdropScale"
     )
 
-    val backdropCornerRadius by animateDpAsState(
+    val backdropCornerRadiusState = animateDpAsState(
         targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
         animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
         label = "backdropCornerRadius"
@@ -405,20 +402,22 @@ fun BudgetScreen(
         }
     }
 
-    val filteredExpenses = allExpenses.filter { item ->
-        val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) ||
-                item.category.contains(searchQuery, ignoreCase = true)
+    val filteredExpenses = remember(allExpenses, searchQuery, selectedFilterOptions, selectedSortOption) {
+        allExpenses.filter { item ->
+            val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) ||
+                    item.category.contains(searchQuery, ignoreCase = true)
 
-        val matchesCategory =
-            selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
+            val matchesCategory =
+                selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
 
-        matchesSearch && matchesCategory
-    }.let { list ->
-        when (selectedSortOption) {
-            "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
-            "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
-            "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
-            else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+            matchesSearch && matchesCategory
+        }.let { list ->
+            when (selectedSortOption) {
+                "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
+                "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
+                "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
+                else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+            }
         }
     }
 
@@ -440,8 +439,10 @@ fun BudgetScreen(
         }.sortedByDescending { it.amountRaw }
     }
 
-    val filteredCategorySummary = computedCategories.filter {
-        it.name.contains(categorySearchQuery, ignoreCase = true)
+    val filteredCategorySummary = remember(computedCategories, categorySearchQuery) {
+        computedCategories.filter {
+            it.name.contains(categorySearchQuery, ignoreCase = true)
+        }
     }
 
     val colorPalette = remember {
@@ -512,10 +513,11 @@ fun BudgetScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        scaleX = backdropScale
-                        scaleY = backdropScale
-                        clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
-                        shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                        scaleX = backdropScaleState.value
+                        scaleY = backdropScaleState.value
+                        val radius = backdropCornerRadiusState.value
+                        clip = isAnyBottomSheetOpen || radius > 0.dp
+                        shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
                     }
             ) {
                 Scaffold(
@@ -607,17 +609,15 @@ fun BudgetScreen(
                                         ) {
                                             // Budget Summary Card Section
                                             item {
+                                                val summaryGradient = remember {
+                                                    Brush.verticalGradient(
+                                                        listOf(SurfacePrimary, SurfaceSecondary)
+                                                    )
+                                                }
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .background(
-                                                            brush = Brush.verticalGradient(
-                                                                colors = listOf(
-                                                                    SurfacePrimary,
-                                                                    SurfaceSecondary
-                                                                )
-                                                            )
-                                                        )
+                                                        .background(brush = summaryGradient)
                                                         .padding(12.dp)
                                                 ) {
                                                     BudgetSummaryCard(
@@ -724,38 +724,44 @@ fun BudgetScreen(
                                                     }
                                                 }
                                             } else {
-                                                items(filteredExpenses, key = { it.id }) { item ->
+                                                items(
+                                                    items = filteredExpenses,
+                                                    key = { it.id },
+                                                    contentType = { "expense" }
+                                                ) { item ->
                                                     val isFirst =
                                                         filteredExpenses.firstOrNull()?.id == item.id
                                                     val isLast =
                                                         filteredExpenses.lastOrNull()?.id == item.id
 
-                                                    val itemShape = when {
-                                                        isFirst && isLast -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                    val itemShape = remember(isFirst, isLast) {
+                                                        when {
+                                                            isFirst && isLast -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isFirst -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isFirst -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isLast -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isLast -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        else -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            else -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
+                                                        }
                                                     }
 
                                                     ExpenseCard(
@@ -773,6 +779,9 @@ fun BudgetScreen(
                                                                 horizontal = 12.dp,
                                                                 vertical = 1.dp
                                                             )
+                                                            .graphicsLayer {
+                                                                // Use graphicsLayer for potentially better performance with shadows/clipping
+                                                            }
                                                             .clickable(
                                                                 interactionSource = remember { MutableInteractionSource() },
                                                                 indication = null
@@ -1188,8 +1197,10 @@ fun BudgetScreen(
                                                     verticalArrangement = Arrangement.spacedBy(5.dp)
                                                 ) {
                                                     items(
-                                                        filteredCategorySummary,
-                                                        key = { it.name }) { categoryItem ->
+                                                        items = filteredCategorySummary,
+                                                        key = { it.name },
+                                                        contentType = { "category" }
+                                                    ) { categoryItem ->
                                                         Box(
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
@@ -1537,39 +1548,43 @@ fun BudgetScreen(
                                                 }
                                             } else {
                                                 items(
-                                                    sortedCategoryExpenses,
-                                                    key = { it.id }) { item ->
+                                                    items = sortedCategoryExpenses,
+                                                    key = { it.id },
+                                                    contentType = { "expense" }
+                                                ) { item ->
                                                     val isFirst =
                                                         sortedCategoryExpenses.firstOrNull()?.id == item.id
                                                     val isLast =
                                                         sortedCategoryExpenses.lastOrNull()?.id == item.id
 
-                                                    val itemShape = when {
-                                                        isFirst && isLast -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                    val itemShape = remember(isFirst, isLast) {
+                                                        when {
+                                                            isFirst && isLast -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isFirst -> SquircleShape(
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isFirst -> SquircleShape(
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        isLast -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerExtraSmall,
-                                                            CornerLarge,
-                                                            CornerLarge,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            isLast -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerExtraSmall,
+                                                                CornerLarge,
+                                                                CornerLarge,
+                                                                CornerSmoothingDefault
+                                                            )
 
-                                                        else -> SquircleShape(
-                                                            CornerExtraSmall,
-                                                            CornerSmoothingDefault
-                                                        )
+                                                            else -> SquircleShape(
+                                                                CornerExtraSmall,
+                                                                CornerSmoothingDefault
+                                                            )
+                                                        }
                                                     }
 
                                                     ExpenseCard(
@@ -1708,13 +1723,12 @@ fun BudgetScreen(
                     }
 
                     // --- Screen-level CustomToast Display (Shown ONLY when no Bottom Sheets are visible) ---
-                    val isAnySheetVisible =
-                        showBottomSheet || showAddExpenseSheet || showAddCustomCategorySheet ||
-                                showEditBudgetSheet || showMenuBottomSheet || showCategoryMenuBottomSheet ||
-                                showRoomMenuBottomSheet || expenseToDelete != null || categoryToDeleteConfirm != null || userToRemove != null
+                    val isAnySheetShown = isAnyBottomSheetOpen
+                    val toastMessage = toastData.message
+                    val toastType = toastData.type
 
                     AnimatedVisibility(
-                        visible = toastData.message != null && !isAnySheetVisible,
+                        visible = toastMessage != null && !isAnySheetShown,
                         enter = slideInVertically(initialOffsetY = { -it - 500 }),
                         exit = slideOutVertically(targetOffsetY = { -it - 500 }),
                         modifier = Modifier
@@ -1725,114 +1739,122 @@ fun BudgetScreen(
                             .padding(horizontal = 12.dp, vertical = 16.dp)
                     ) {
                         CustomToast(
-                            message = toastData.message ?: "",
-                            type = toastData.type
+                            message = toastMessage ?: "",
+                            type = toastType
                         )
                     }
                 }
             }
         }
 
-        if (showBottomSheet) {
-            SortFilterBottomSheet(
-                sortOptions = sortOptions,
-                initialSortOption = selectedSortOption,
-                filterByOptions = filterOptions,
-                initialFilterOptions = selectedFilterOptions,
-                onDismiss = { showBottomSheet = false },
-                onApply = { sort, filters ->
-                    selectedSortOption = sort
-                    selectedFilterOptions = filters
-                    showBottomSheet = false
-                },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
+        // ============================================================================================================================================
+        // GLOBAL BOTTOM SHEET HOST (Ensures stability and prevents flickering)
+        // ============================================================================================================================================
+        
+        Box(modifier = Modifier.fillMaxSize().zIndex(100f)) {
+            if (showBottomSheet) {
+                val sortOption = selectedSortOption
+                val filterOptionsSet = selectedFilterOptions
+                SortFilterBottomSheet(
+                    sortOptions = sortOptions,
+                    initialSortOption = sortOption,
+                    filterByOptions = filterOptions,
+                    initialFilterOptions = filterOptionsSet,
+                    onDismiss = { showBottomSheet = false },
+                    onApply = { sort, filters ->
+                        selectedSortOption = sort
+                        selectedFilterOptions = filters
+                        showBottomSheet = false
+                    },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
 
-        if (showAddExpenseSheet) {
-            AddExpenseBottomSheet(
-                onDismiss = {
-                    showAddExpenseSheet = false
-                    expenseToEdit = null
-                },
-                onSave = { amount, receiver, category, emoji, phone, notes ->
-                    val editingItem = expenseToEdit
-                    if (editingItem != null) {
-                        viewModel.updateExpense(
-                            id = editingItem.id,
-                            title = receiver.ifBlank { "Unnamed Receiver" },
-                            category = category.ifBlank { "Misc" },
-                            amount = amount.toDouble(),
-                            emoji = emoji.ifBlank { "💸" },
-                            userName = currentUserName,
-                            phoneNumber = phone,
-                            note = notes
-                        )
-                        toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
-                    } else {
-                        viewModel.addExpense(
-                            title = receiver.ifBlank { "Unnamed Receiver" },
-                            category = category.ifBlank { "Misc" },
-                            amount = amount.toDouble(),
-                            emoji = emoji.ifBlank { "💸" },
-                            userName = currentUserName,
-                            phoneNumber = phone,
-                            note = notes
-                        )
-                        toastData = ToastData("Expense Added!", ToastType.SUCCESS)
-                    }
-                    showAddExpenseSheet = false
-                    expenseToEdit = null
-                },
-                categories = defaultCategories,
-                onAddCategory = { newCategory ->
-                    if (!defaultCategories.contains(newCategory)) {
-                        defaultCategories = defaultCategories + newCategory
-                    }
-                },
-                initialAmount = expenseToEdit?.amount?.replace("₹", "")?.replace(",", "") ?: "",
-                initialReceiver = expenseToEdit?.title ?: "",
-                initialCategory = expenseToEdit?.category ?: "",
-                initialEmoji = expenseToEdit?.emoji ?: "",
-                initialPhoneNumber = expenseToEdit?.phoneNumber ?: "",
-                initialNote = expenseToEdit?.note ?: "",
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
+            if (showAddExpenseSheet) {
+                AddExpenseBottomSheet(
+                    onDismiss = {
+                        showAddExpenseSheet = false
+                        expenseToEdit = null
+                    },
+                    onSave = { amount, receiver, category, emoji, phone, notes ->
+                        val editingItem = expenseToEdit
+                        if (editingItem != null) {
+                            viewModel.updateExpense(
+                                id = editingItem.id,
+                                title = receiver.ifBlank { "Unnamed Receiver" },
+                                category = category.ifBlank { "Misc" },
+                                amount = amount.toDouble(),
+                                emoji = emoji.ifBlank { "💸" },
+                                userName = currentUserName,
+                                phoneNumber = phone,
+                                note = notes
+                            )
+                            toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
+                        } else {
+                            viewModel.addExpense(
+                                title = receiver.ifBlank { "Unnamed Receiver" },
+                                category = category.ifBlank { "Misc" },
+                                amount = amount.toDouble(),
+                                emoji = emoji.ifBlank { "💸" },
+                                userName = currentUserName,
+                                phoneNumber = phone,
+                                note = notes
+                            )
+                            toastData = ToastData("Expense Added!", ToastType.SUCCESS)
+                        }
+                        showAddExpenseSheet = false
+                        expenseToEdit = null
+                    },
+                    categories = defaultCategories,
+                    onAddCategory = { newCategory ->
+                        if (!defaultCategories.contains(newCategory)) {
+                            defaultCategories = defaultCategories + newCategory
+                        }
+                    },
+                    initialAmount = expenseToEdit?.amount?.replace("₹", "")?.replace(",", "") ?: "",
+                    initialReceiver = expenseToEdit?.title ?: "",
+                    initialCategory = expenseToEdit?.category ?: "",
+                    initialEmoji = expenseToEdit?.emoji ?: "",
+                    initialPhoneNumber = expenseToEdit?.phoneNumber ?: "",
+                    initialNote = expenseToEdit?.note ?: "",
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
 
-        if (showAddCustomCategorySheet) {
-            AddCustomCategoryBottomSheet(
-                onDismiss = {
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
-                },
-                onAddCategory = { inputName ->
-                    val originalName = categoryToRename
-                    if (originalName != null) {
-                        if (originalName != inputName) {
-                            if (defaultCategories.contains(originalName)) {
-                                defaultCategories =
-                                    defaultCategories.map { if (it == originalName) inputName else it }
-                            } else if (!defaultCategories.contains(inputName)) {
+            if (showAddCustomCategorySheet) {
+                AddCustomCategoryBottomSheet(
+                    onDismiss = {
+                        showAddCustomCategorySheet = false
+                        categoryToRename = null
+                    },
+                    onAddCategory = { inputName ->
+                        val originalName = categoryToRename
+                        if (originalName != null) {
+                            if (originalName != inputName) {
+                                if (defaultCategories.contains(originalName)) {
+                                    defaultCategories =
+                                        defaultCategories.map { if (it == originalName) inputName else it }
+                                } else if (!defaultCategories.contains(inputName)) {
+                                    defaultCategories = defaultCategories + inputName
+                                }
+                                viewModel.renameCategory(originalName, inputName)
+                                if (selectedCategoryForDetails == originalName) {
+                                    selectedCategoryForDetails = inputName
+                                }
+                            }
+                        } else {
+                            if (!defaultCategories.contains(inputName)) {
                                 defaultCategories = defaultCategories + inputName
                             }
-                            viewModel.renameCategory(originalName, inputName)
-                            if (selectedCategoryForDetails == originalName) {
-                                selectedCategoryForDetails = inputName
-                            }
                         }
-                    } else {
-                        if (!defaultCategories.contains(inputName)) {
-                            defaultCategories = defaultCategories + inputName
-                        }
-                    }
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
-                },
-                initialCategoryName = categoryToRename ?: "",
-                heading = if (categoryToRename != null) "Rename category" else "Add custom category",
-                onProgress = { sheetMotionProgress = it }
-            )
+                        showAddCustomCategorySheet = false
+                        categoryToRename = null
+                    },
+                    initialCategoryName = categoryToRename ?: "",
+                    heading = if (categoryToRename != null) "Rename category" else "Add custom category",
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
         }
 
         if (expenseToDelete != null) {

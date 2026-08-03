@@ -1,11 +1,7 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
 import android.annotation.SuppressLint
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -54,6 +51,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -62,18 +60,22 @@ import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
+import com.harshdeep.jasnify.presentation.components.states.FullCardLoading
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceInvSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 
@@ -81,33 +83,40 @@ enum class CompactCardSize {
     SMALL, MEDIUM
 }
 
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueCardFull(
     venue: Venue,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
-    onOfferClick: () -> Unit = {},
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    onOfferClick: () -> Unit = {}
 ) {
+    if (isLoading) {
+        FullCardLoading(modifier = modifier)
+        return
+    }
     val actualPageCount = venue.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
+    val virtualCount = remember(actualPageCount) { if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount }
+    val initialPage = remember(actualPageCount) {
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
+    }
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
         pageCount = { virtualCount }
     )
 
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
     if (actualPageCount > 1) {
-        LaunchedEffect(Unit) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
+        LaunchedEffect(isDragged) {
+            if (!isDragged) {
+                while (true) {
+                    delay(3000.milliseconds)
+                    if (!pagerState.isScrollInProgress) {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
                 }
             }
         }
@@ -118,28 +127,21 @@ fun VenueCardFull(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
+            .graphicsLayer {
+                // Helps cache the layer
+                clip = false
+            }
             .venueShadow(borderRadius = CornerLargeIncrease),
         shape = SquircleShape(CornerLargeIncrease),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
     ) {
         Column {
-            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier
-                        .fillMaxWidth()
-                        .height(230.dp)
-                        .sharedElement(
-                            rememberSharedContentState(key = "image_${venue.name}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                }
-            } else {
-                Modifier
+            Box(
+                modifier = Modifier
                     .fillMaxWidth()
                     .height(230.dp)
-            }
-
-            Box(modifier = sharedBoundsModifier) {
+                    .clip(SquircleShape(CornerLargeIncrease))
+            ) {
                 HorizontalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
@@ -264,7 +266,7 @@ fun VenueCardFull(
 
                 Column {
                     Text(
-                        text = "Starting at",
+                        text = "Starting from",
                         style = JasnifyTheme.typography.labelMedium,
                         color = ContentSecondary
                     )
@@ -280,52 +282,30 @@ fun VenueCardFull(
 }
 
 @SuppressLint("ConfigurationScreenWidthHeight")
-@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun VenueCardCompact(
     venue: Venue,
     modifier: Modifier = Modifier,
+    isLoading: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onRemoveClick: (() -> Unit)? = null,
     showLikeButton: Boolean = true,
     onOfferClick: () -> Unit = {},
-    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM
 ) {
+    if (isLoading) {
+        CompactCardLoading(cardSize = compactCardSize)
+        return
+    }
     val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
+    val screenWidth = remember(configuration.screenWidthDp) { configuration.screenWidthDp.dp }
     val isMedium = compactCardSize == CompactCardSize.MEDIUM
 
     // Dynamic width calculation: 0.43 of screen width ensures 2 full cards
-    val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
-
-    val actualPageCount = venue.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
-        if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
-
-    // Only set up Pager state when card size is MEDIUM
-    val pagerState = if (isMedium) {
-        rememberPagerState(
-            initialPage = initialPage,
-            pageCount = { virtualCount }
-        )
-    } else null
-
-    // Run carousel animation only for MEDIUM size
-    if (isMedium && actualPageCount > 1 && pagerState != null) {
-        LaunchedEffect(pagerState) {
-            while (true) {
-                delay(3000.milliseconds)
-                if (!pagerState.isScrollInProgress) {
-                    pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                }
-            }
-        }
+    val cardWidth = remember(isMedium, screenWidth) {
+        if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
     }
-
     val containerColor = Color.Transparent
 
     Card(
@@ -333,56 +313,34 @@ fun VenueCardCompact(
         modifier = modifier
             .width(cardWidth)
             .wrapContentHeight()
+            .graphicsLayer {
+                // Caches the card content for smoother scrolling
+                clip = true
+                shape = SquircleShape(20.dp)
+            }
             .clip(SquircleShape(20.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column {
-            val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-                with(sharedTransitionScope) {
-                    Modifier
-                        .fillMaxWidth()
-                        .height(cardWidth)
-                        .clip(SquircleShape(20.dp))
-                        .sharedElement(
-                            rememberSharedContentState(key = "image_${venue.name}"),
-                            animatedVisibilityScope = animatedVisibilityScope
-                        )
-                }
-            } else {
-                Modifier
-                    .fillMaxWidth()
-                    .height(cardWidth)
-                    .clip(SquircleShape(20.dp))
-            }
-
             Box(
-                modifier = sharedBoundsModifier
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(SquircleShape(20.dp))
                     .border(
                         width = 1.dp,
                         color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
                         shape = SquircleShape(20.dp)
                     ),
             ) {
-                if (isMedium && pagerState != null) {
-                    HorizontalPager(
-                        state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
-                        userScrollEnabled = false
-                    ) { page ->
-                        val actualIndex = if (actualPageCount > 0) page % actualPageCount else 0
-                        VenueImage(
-                            url = venue.images.getOrNull(actualIndex) ?: "",
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                } else {
-                    VenueImage(
-                        url = venue.images.firstOrNull() ?: "",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                // Display single image directly without horizontal pager
+                VenueImage(
+                    url = venue.images.firstOrNull() ?: "",
+                    modifier = Modifier.fillMaxSize()
+                )
 
+                // Rating Badge
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -404,6 +362,7 @@ fun VenueCardCompact(
                     }
                 }
 
+                // Favorite / Remove Button
                 Box(
                     Modifier
                         .align(Alignment.TopEnd)
@@ -439,21 +398,14 @@ fun VenueCardCompact(
                     }
                 }
 
-                if (isMedium && pagerState != null) {
-                    Row(
+                // Offer Badge for Medium size cards
+                if (isMedium) {
+                    OfferBadge(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
+                            .align(Alignment.BottomStart)
                             .padding(8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Bottom
-                    ) {
-                        OfferBadge(onClick = onOfferClick)
-                        CarouselDots(
-                            pageCount = actualPageCount,
-                            currentPage = if (actualPageCount > 0) pagerState.currentPage % actualPageCount else 0
-                        )
-                    }
+                        onClick = onOfferClick
+                    )
                 }
             }
 
@@ -471,15 +423,24 @@ fun VenueCardCompact(
                 )
                 Spacer(Modifier.height(4.dp))
 
-                LocationAndTypeRow(
-                    venue = venue,
-                    compactCardSize = compactCardSize
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${venue.locality}, ${venue.city}",
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
                 if (isMedium) {
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "Starting at",
+                        "Starting from",
                         style = JasnifyTheme.typography.labelSmall,
                         color = ContentSecondary
                     )
@@ -639,36 +600,6 @@ private fun BannerRow(
 }
 
 @Composable
-private fun LocationAndTypeRow(
-    venue: Venue,
-    compactCardSize: CompactCardSize = CompactCardSize.MEDIUM
-) {
-    val isMedium = compactCardSize == CompactCardSize.MEDIUM
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (isMedium) {
-            Icon(
-                painter = painterResource(R.drawable.ic_location_marker),
-                contentDescription = null,
-                modifier = Modifier.size(14.dp),
-                tint = ContentSecondary
-            )
-            Spacer(Modifier.width(2.dp))
-        }
-
-        Text(
-            text = "${venue.locality}, ${venue.city}",
-            style = JasnifyTheme.typography.labelMedium,
-            color = ContentSecondary,
-            maxLines = 1,
-            modifier = Modifier.basicMarquee()
-        )
-    }
-}
-
-@Composable
 private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = Modifier) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         repeat(pageCount) { index ->
@@ -676,7 +607,7 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
                 modifier = Modifier
                     .size(4.dp)
                     .background(
-                        color = if (index == currentPage) ContentBrandDark else SurfaceInvSecondary,
+                        color = if (index == currentPage) ContentBrandDark else SurfacePrimary,
                         shape = CircleShape
                     )
             )
@@ -684,23 +615,22 @@ private fun CarouselDots(pageCount: Int, currentPage: Int, modifier: Modifier = 
     }
 }
 
+private val cachedShadowPaint = Paint().asFrameworkPaint()
+private val shadowLayers = listOf(
+    VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
+    VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
+)
+
 fun Modifier.venueShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
-) = this.drawBehind {
+) = this.graphicsLayer {
+    clip = false
+}.drawBehind {
     drawIntoCanvas { canvas ->
-        val paint = Paint().asFrameworkPaint()
-
-        val layers = listOf(
-            VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
-            VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
-            VenueShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
-            VenueShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
-        )
-
-        layers.forEach { layer ->
-            paint.color = color.copy(alpha = layer.alpha).toArgb()
-            paint.setShadowLayer(
+        shadowLayers.forEach { layer ->
+            cachedShadowPaint.color = color.copy(alpha = layer.alpha).toArgb()
+            cachedShadowPaint.setShadowLayer(
                 layer.blur.toPx(),
                 0f,
                 layer.offsetY.toPx(),
@@ -714,7 +644,7 @@ fun Modifier.venueShadow(
                 size.height,
                 borderRadius.toPx(),
                 borderRadius.toPx(),
-                paint
+                cachedShadowPaint
             )
         }
     }

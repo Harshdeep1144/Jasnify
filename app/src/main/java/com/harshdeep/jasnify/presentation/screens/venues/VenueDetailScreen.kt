@@ -1,12 +1,10 @@
 package com.harshdeep.jasnify.presentation.screens.venues
+
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibilityScope
-import androidx.compose.animation.ExperimentalSharedTransitionApi
-import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -152,6 +150,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.milliseconds
 
 // ============================================================================================================================================
 // ENUMS
@@ -204,15 +203,14 @@ fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
     mediaItems = mediaItems.map { it.toUiModel() }
 )
 
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VenueDetailScreen(
     venueDetail: Venue,
     onBackClick: () -> Unit = {},
+    onFavoriteToggle: (Boolean) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    modifier: Modifier = Modifier
 ) {
     // Dynamic stack to keep track of screens locally
     var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
@@ -228,7 +226,7 @@ fun VenueDetailScreen(
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+            fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
         },
         label = "VenueNavigationTransition"
     ) { screen ->
@@ -237,6 +235,7 @@ fun VenueDetailScreen(
                 VenueDetailContent(
                     venueDetail = venueDetail,
                     onBackClick = onBackClick,
+                    onFavoriteToggle = onFavoriteToggle,
                     onChatClick = onChatClick,
                     onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
                     onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
@@ -244,9 +243,7 @@ fun VenueDetailScreen(
                         selectedReviewForPost = review
                         screenStack = screenStack + VenueActiveScreen.POST
                     },
-                    modifier = modifier,
-                    sharedTransitionScope = sharedTransitionScope,
-                    animatedVisibilityScope = animatedVisibilityScope
+                    modifier = modifier
                 )
             }
             VenueActiveScreen.REVIEWS -> {
@@ -290,19 +287,18 @@ fun VenueDetailScreen(
 }
 
 
-@SuppressLint("UseKtx")
-@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@SuppressLint("UseKtx", "FrequentlyChangingValue")
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 private fun VenueDetailContent(
     venueDetail: Venue,
     onBackClick: () -> Unit,
+    onFavoriteToggle: (Boolean) -> Unit,
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
-    modifier: Modifier = Modifier,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null
+    modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -328,8 +324,7 @@ private fun VenueDetailContent(
     val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
-    var sheetOffsetPx by remember { mutableStateOf(maxOffsetPx) }
-    var isFavoriteState by remember { mutableStateOf(venue.favorite) }
+    var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
     var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail) {
@@ -459,8 +454,6 @@ private fun VenueDetailContent(
             onMuteToggle = { isMuted = !isMuted },
             venue = venue,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
-            sharedTransitionScope = sharedTransitionScope,
-            animatedVisibilityScope = animatedVisibilityScope,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(340.dp)
@@ -538,7 +531,7 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (!venueDetail.pricingItems.isNullOrEmpty()) {
+                if (venueDetail.pricingItems.isNotEmpty()) {
                     item(key = "pricings") {
                         VenuePricingsSection(venue = venue, pricingItems = venueDetail.pricingItems)
                     }
@@ -547,7 +540,7 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (!venueDetail.highlightItems.isNullOrEmpty()) {
+                if (venueDetail.highlightItems.isNotEmpty()) {
                     item(key = "highlights") {
                         VenueHighlightsSection(highlightItems = venueDetail.highlightItems)
                     }
@@ -560,7 +553,7 @@ private fun VenueDetailContent(
                     item(key = "about") {
                         VenueAboutSection(
                             venue = venue,
-                            aboutText = venueDetail.aboutText!!,
+                            aboutText = venueDetail.aboutText,
                             onReadMoreClick = { showAboutSheet = true }
                         )
                     }
@@ -576,7 +569,7 @@ private fun VenueDetailContent(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                if (!venueDetail.galleryCategories.isNullOrEmpty()) {
+                if (venueDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
@@ -588,12 +581,12 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (venueDetail.reviewsData != null && venueDetail.reviewsData!!.reviews.isNotEmpty()) {
+                if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
                     item(key = "reviews") {
                         ReviewsSection(
                             rating = venue.rating,
                             totalReviews = venue.totalReviews,
-                            reviewsData = venueDetail.reviewsData!!.toUiModel(),
+                            reviewsData = venueDetail.reviewsData.toUiModel(),
                             onSeeAllClick = onSeeAllReviewsClick,
                             onReviewCardClick = { onOpenReviewPost(it) },
                             onWriteReviewClick = { }
@@ -611,7 +604,7 @@ private fun VenueDetailContent(
             }
         }
 
-        val secondaryIcon = if(isFavoriteState) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_heart)
+        val secondaryIcon = if(venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
 
         val scrollRange = maxOffsetPx - minOffsetPx
         val currentScrollOffset = maxOffsetPx - sheetOffsetPx
@@ -637,7 +630,9 @@ private fun VenueDetailContent(
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
-                onSecondaryClick = { isFavoriteState = !isFavoriteState },
+                onSecondaryClick = {
+                    onFavoriteToggle(!venueDetail.favorite)
+                },
                 onMenuClick = { },
                 buttonStyle = dynamicButtonStyle,
                 translucentAlpha = topBarAlpha,
@@ -750,12 +745,12 @@ private fun VenueDetailContent(
                             }
                             try {
                                 context.startActivity(mapIntent)
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
                                 val webIntent = Intent(Intent.ACTION_VIEW, webUri)
                                 try {
                                     context.startActivity(webIntent)
-                                } catch (ignored: Exception) {}
+                                } catch (_: Exception) {}
                             }
                         },
                         text = "Get Directions",
@@ -818,7 +813,7 @@ private fun VenueDetailContent(
 
 
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VenueMediaSlider(
     mediaItems: List<VenueMediaItem>,
@@ -826,8 +821,6 @@ fun VenueMediaSlider(
     onMuteToggle: () -> Unit,
     venue: Venue,
     onSeeAllGalleryClick: () -> Unit,
-    sharedTransitionScope: SharedTransitionScope? = null,
-    animatedVisibilityScope: AnimatedVisibilityScope? = null,
     modifier: Modifier = Modifier
 ) {
     val pagerState = rememberPagerState(pageCount = { mediaItems.size })
@@ -835,7 +828,7 @@ fun VenueMediaSlider(
     if (mediaItems.size > 1) {
         LaunchedEffect(Unit) {
             while (true) {
-                delay(3000)
+                delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
                     val nextPage = (pagerState.currentPage + 1) % mediaItems.size
                     pagerState.animateScrollToPage(nextPage)
@@ -852,36 +845,20 @@ fun VenueMediaSlider(
             val mediaItem = mediaItems[page]
 
             Box(modifier = Modifier.fillMaxSize()) {
-                val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null && page == 0) {
-                    with(sharedTransitionScope) {
-                        Modifier
-                            .fillMaxSize()
-                            .sharedElement(
-                                rememberSharedContentState(key = "image_${venue.name}"),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                renderInOverlayDuringTransition = false
-                            )
-                    }
+                if (mediaItem.video) {
+                    VideoPlayer(
+                        videoUrl = mediaItem.url,
+                        isMuted = isMuted,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 } else {
-                    Modifier.fillMaxSize()
-                }
-
-                Box(modifier = sharedBoundsModifier) {
-                    if (mediaItem.video) {
-                        VideoPlayer(
-                            videoUrl = mediaItem.url,
-                            isMuted = isMuted,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        AsyncImage(
-                            model = mediaItem.url,
-                            contentDescription = "Venue Media Slide ${page + 1}",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            placeholder = painterResource(R.drawable.ic_gallery)
-                        )
-                    }
+                    AsyncImage(
+                        model = mediaItem.url,
+                        contentDescription = "Venue Media Slide ${page + 1}",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        placeholder = painterResource(R.drawable.img_placeholder_venue_vendor)
+                    )
                 }
             }
         }

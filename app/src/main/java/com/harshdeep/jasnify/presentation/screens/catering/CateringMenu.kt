@@ -102,6 +102,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
+import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
+import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -533,9 +535,7 @@ fun CateringMenuScreen(
                                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
                                                 items(3) {
-                                                    SkeletonMenuCategoryCard(
-                                                        modifier = Modifier.padding(horizontal = 12.dp)
-                                                    )
+                                                    SkeletonMenuCategoryCard(brush = shimmerBrush())
                                                 }
                                             }
                                         } else if (categorizedItems.isEmpty()) {
@@ -639,7 +639,7 @@ fun CateringMenuScreen(
                                                     onClick = {
                                                         focusManager.clearFocus()
                                                     },
-                                                    text = "AI Suggestions",
+                                                    text = "Ask AI",
                                                     type = ButtonType.Secondary,
                                                     shapeStyle = ButtonShapeStyle.Round,
                                                     leadingIcon = painterResource(id = R.drawable.ic_ai),
@@ -1089,9 +1089,9 @@ fun CateringMenuScreen(
         )
     }
 
-    userToRemove?.let {
+    userToRemove?.let { user ->
         ConfirmationBottomSheet(
-            heading = "Remove ${it.name} from Catering Menu?",
+            heading = "Remove ${user.name} from Catering Menu?",
             subHeading = "They will not be able to access this room anymore.",
             confirmButtonText = "Remove",
             onProgress = { sheetMotionProgress = it },
@@ -1130,79 +1130,6 @@ fun CateringMenuScreen(
     }
 }
 
-@Composable
-fun SkeletonMenuCategoryCard(
-    modifier: Modifier = Modifier
-) {
-    val transition = rememberInfiniteTransition(label = "shimmer")
-    val translateAnim by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1000f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "shimmer_anim"
-    )
-
-    val shimmerColors = listOf(
-        Color.LightGray.copy(alpha = 0.6f),
-        Color.LightGray.copy(alpha = 0.2f),
-        Color.LightGray.copy(alpha = 0.6f),
-    )
-
-    val brush = Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset(translateAnim - 300f, translateAnim - 300f),
-        end = Offset(translateAnim, translateAnim),
-        tileMode = TileMode.Clamp
-    )
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = SquircleShape(CornerExtraLarge),
-        colors = CardDefaults.cardColors(
-            containerColor = ContentTertiary.copy(alpha = 0.1f)
-        ),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth(0.5f)
-                    .height(28.dp)
-                    .padding(vertical = 4.dp)
-                    .clip(RoundedCornerShape(CornerLarge))
-                    .background(brush)
-            )
-            DashedDivider(
-                color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                dashLength = 20f,
-                gapLength = 6f
-            )
-
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                repeat(4) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(20.dp)
-                            .clip(RoundedCornerShape(CornerSmall))
-                            .background(brush)
-                    )
-                }
-            }
-        }
-    }
-}
 
 @Composable
 fun MenuCategoryCard(

@@ -13,11 +13,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -38,87 +41,113 @@ fun <T> BottomTab(
     modifier: Modifier = Modifier,
     activeColor: Color = ContentBrandDark
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = Color.Transparent,
+    Box(
+        modifier = modifier.fillMaxWidth()
     ) {
-        Column {
-            // BoxWithConstraints allows us to measure the exact width of the parent
-            // container and distribute the sliding indicator cleanly.
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-            ) {
-                val totalWidth = maxWidth
-                val tabCount = items.size
-
-                if (tabCount > 0) {
-                    val tabWidth = totalWidth / tabCount
-                    val selectedIndex = items.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
-
-                    // Snappy spring-based physics animation matching modern gesture aesthetics
-                    val animatedIndex by animateFloatAsState(
-                        targetValue = selectedIndex.toFloat(),
-                        animationSpec = spring(
-                            dampingRatio = 0.82f, // snappy bouncy return
-                            stiffness = 380f      // highly responsive speed
-                        ),
-                        label = "IndicatorSlidingAnimation"
+        // Top shadow casting upwards, using graphicsLayer to avoid adding layout height
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(12.dp)
+                .align(Alignment.TopCenter)
+                .graphicsLayer { translationY = -12.dp.toPx() }
+                .background(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.05f)
+                        )
                     )
+                )
+        )
 
-                    // Sliding active indicator line
-                    Box(
-                        modifier = Modifier
-                            .width(tabWidth)
-                            .height(4.dp)
-                            .offset(x = tabWidth * animatedIndex)
-                            .padding(horizontal = 4.dp)
-                            .background(
-                                color = activeColor,
-                                shape = RoundedCornerShape(bottomStart = 8.dp, bottomEnd = 8.dp)
-                            )
-                    )
-                }
-
-                // Row holding the clickable bottom navigation tabs
-                Row(
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = BackgroundPrimary,
+            shadowElevation = 8.dp,
+            tonalElevation = 2.dp
+        ) {
+            Column {
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(64.dp),
-                    verticalAlignment = Alignment.Top
+                        .padding(horizontal = 12.dp)
                 ) {
-                    items.forEach { item ->
-                        val isSelected = item.value == selectedValue
+                    val totalWidth = maxWidth
+                    val tabCount = items.size
 
-                        Column(
+                    if (tabCount > 0) {
+                        val tabWidth = totalWidth / tabCount
+                        val selectedIndex =
+                            items.indexOfFirst { it.value == selectedValue }
+                                .coerceAtLeast(0)
+
+                        val animatedIndex by animateFloatAsState(
+                            targetValue = selectedIndex.toFloat(),
+                            animationSpec = spring(
+                                dampingRatio = 0.82f,
+                                stiffness = 380f
+                            ),
+                            label = "IndicatorSlidingAnimation"
+                        )
+
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null, // Disable the native raw ripple for a cleaner fluid feel
-                                    onClick = { onItemSelected(item.value) }
-                                ),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            // Empty space matching the height of the indicator line
-                            Spacer(modifier = Modifier.height(4.dp))
-
-                            Box(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                BottomNavItemContent(
-                                    item = item,
-                                    isSelected = isSelected,
-                                    activeColor = activeColor
+                                .width(tabWidth)
+                                .height(4.dp)
+                                .offset(x = tabWidth * animatedIndex)
+                                .padding(horizontal = 4.dp)
+                                .background(
+                                    color = activeColor,
+                                    shape = RoundedCornerShape(
+                                        bottomStart = 8.dp,
+                                        bottomEnd = 8.dp
+                                    )
                                 )
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp),
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        items.forEach { item ->
+                            val isSelected = item.value == selectedValue
+
+                            Column(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(
+                                        interactionSource = remember {
+                                            MutableInteractionSource()
+                                        },
+                                        indication = null
+                                    ) {
+                                        onItemSelected(item.value)
+                                    },
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Box(
+                                    modifier = Modifier.padding(vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    BottomNavItemContent(
+                                        item = item,
+                                        isSelected = isSelected,
+                                        activeColor = activeColor
+                                    )
+                                }
                             }
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.navigationBarsPadding())
             }
-            Spacer(modifier = Modifier.navigationBarsPadding())
         }
     }
 }

@@ -7,14 +7,27 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.repository.VenueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class VenueViewModel @Inject constructor(
     private val repository: VenueRepository
 ) : ViewModel() {
+
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            // Simulate check or real check
+            delay(2000.milliseconds) // Small delay for shimmer effect visibility
+            _isLoading.value = false
+        }
+    }
 
     val allVenues: StateFlow<List<Venue>> = repository.getAllVenues()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

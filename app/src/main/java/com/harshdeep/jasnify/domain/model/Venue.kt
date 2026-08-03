@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
 import com.google.firebase.firestore.PropertyName
 import java.util.UUID
 
@@ -11,6 +12,7 @@ enum class VenueStatus {
     HIDDEN
 }
 
+@Immutable
 data class Venue(
     val id: String = UUID.randomUUID().toString(),
     val merchantId: String = "",
@@ -35,12 +37,14 @@ data class Venue(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Immutable
 data class VenueMediaItem(
     val url: String = "",
     val video: Boolean = false,
     val videoDuration: String? = null
 )
 
+@Immutable
 data class VenuePricingItem(
     val id: String = java.util.UUID.randomUUID().toString(),
     val title: String = "",
@@ -50,6 +54,7 @@ data class VenuePricingItem(
     val labelText: String = "Price Point Offer"
 )
 
+@Immutable
 data class VenueHighlightItem(
     val id: String = java.util.UUID.randomUUID().toString(),
     val label: String = "",
@@ -57,11 +62,13 @@ data class VenueHighlightItem(
     val iconRes: String? = null
 )
 
+@Immutable
 data class VenueGalleryCategory(
     val categoryName: String = "",
     val mediaItems: List<VenueMediaItem> = emptyList()
 )
 
+@Immutable
 data class VenueReviewsData(
     val ratingBreakdown: List<VenueRatingBreakdown> = emptyList(),
     val reviews: List<VenueReview> = emptyList(),
@@ -70,12 +77,13 @@ data class VenueReviewsData(
     val subMetrics: List<VenueRatingBreakdown> = emptyList()
 )
 
+@Immutable
 data class VenueRatingBreakdown(
     val score: String = "0.0",
     val label: String = ""
 )
 
-
+@Immutable
 data class VenueReview(
     val id: String = "",
     val userName: String = "",
@@ -89,6 +97,7 @@ data class VenueReview(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+@Immutable
 data class VenueMerchantReply(
     val merchantName: String = "",
     val merchantAvatarUrl: String? = null,

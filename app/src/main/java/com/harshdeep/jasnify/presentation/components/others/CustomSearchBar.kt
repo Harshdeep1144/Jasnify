@@ -94,7 +94,10 @@ fun CustomSearchBar(
     var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT) }
     val duration = 300
 
-    // Sync the external 'active' state and collapse COMPACT search bar when it loses focus
+    // AI active status only applies when the text field is actively focused
+    val effectiveIsAiSearch = isAiSearch && isFocused
+
+    // Sync external active state and collapse COMPACT mode on focus loss
     LaunchedEffect(isFocused) {
         onActiveChange(isFocused)
         if (!isFocused && type == SearchBarType.COMPACT) {
@@ -104,7 +107,7 @@ fun CustomSearchBar(
 
     // Dynamic rotation angle and alpha/fade state animations
     val rotationAnimatable = remember { Animatable(0f) }
-    val borderAlphaAnimatable = remember { Animatable(1f) } // 1f = Full AI Gradient, 0f = ContentSecondary
+    val borderAlphaAnimatable = remember { Animatable(1f) }
 
     LaunchedEffect(isFocused) {
         if (isFocused) {
@@ -133,7 +136,7 @@ fun CustomSearchBar(
                 )
             }
 
-            // After 2.5 seconds, start fading out gradient (fading in ContentSecondary outline over 500ms)
+            // After 2.5 seconds, start fading out gradient
             delay(2500.milliseconds)
             borderAlphaAnimatable.animateTo(
                 targetValue = 0f,
@@ -144,7 +147,7 @@ fun CustomSearchBar(
         }
     }
 
-    // High performance sweep gradient brush with seamless colors and localized matrix rotation
+    // Sweep gradient brush for AI search focus state
     val aiGradientBrush = remember(rotationAnimatable.value, borderAlphaAnimatable.value) {
         object : ShaderBrush() {
             override fun createShader(size: Size): android.graphics.Shader {
@@ -192,9 +195,8 @@ fun CustomSearchBar(
                         shape = RoundedCornerShape(100)
                     )
                     .then(
-                        if (isAiSearch) {
+                        if (effectiveIsAiSearch) {
                             Modifier
-                                // AI border
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
@@ -237,7 +239,7 @@ fun CustomSearchBar(
                                 modifier = Modifier.padding(end = 4.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (isFocused && !isAiSearch) {
+                                if (isFocused && !effectiveIsAiSearch) {
                                     IconButton(
                                         onClick = {
                                             if (type == SearchBarType.COMPACT) {
@@ -245,10 +247,9 @@ fun CustomSearchBar(
                                             }
                                             onValueChange("")
                                             focusManager.clearFocus()
-                                            // Manually trigger false just in case focus clear takes a frame
                                             onActiveChange(false)
                                         },
-                                        modifier = Modifier.size(40.dp) // Keeps tap-target optimized
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
                                             painter = painterResource(R.drawable.ic_left),
@@ -258,19 +259,19 @@ fun CustomSearchBar(
                                         )
                                     }
                                 } else {
-                                    val iconPainter = if (isAiSearch) {
+                                    val iconPainter = if (effectiveIsAiSearch) {
                                         painterResource(id = R.drawable.ic_ai)
                                     } else {
                                         rememberVectorPainter(image = Icons.Rounded.Search)
                                     }
                                     Box(
-                                        modifier = Modifier.size(40.dp), // Matched box size to align exactly like IconButton
+                                        modifier = Modifier.size(40.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
                                             painter = iconPainter,
-                                            contentDescription = if (isAiSearch) "AI Search" else "Search",
-                                            tint = if (isAiSearch) Color.Unspecified else if (isFocused) ContentBrandDark else ContentSecondary,
+                                            contentDescription = if (effectiveIsAiSearch) "AI Search" else "Search",
+                                            tint = if (effectiveIsAiSearch) Color.Unspecified else if (isFocused) ContentBrandDark else ContentSecondary,
                                             modifier = Modifier.size(24.dp)
                                         )
                                     }
@@ -295,7 +296,7 @@ fun CustomSearchBar(
                             // Trailing Icon Wrapper
                             if (value.isNotEmpty()) {
                                 Box(
-                                    modifier = Modifier.padding(start = 4.dp), // Reduced left-padding for a sleek close action
+                                    modifier = Modifier.padding(start = 4.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     IconButton(
@@ -329,9 +330,8 @@ fun CustomSearchBar(
                 modifier = modifier
                     .size(56.dp)
                     .then(
-                        if (isAiSearch) {
+                        if (effectiveIsAiSearch) {
                             Modifier
-                                // AI border
                                 .border(
                                     width = 1.dp,
                                     color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
@@ -364,93 +364,18 @@ fun CustomSearchBar(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                val iconPainter = if (isAiSearch) {
+                val iconPainter = if (effectiveIsAiSearch) {
                     painterResource(id = R.drawable.ic_ai)
                 } else {
                     rememberVectorPainter(image = Icons.Rounded.Search)
                 }
                 Icon(
                     painter = iconPainter,
-                    contentDescription = if (isAiSearch) "AI Search" else "Search",
-                    tint = if (isAiSearch) Color.Unspecified else ContentPrimary,
+                    contentDescription = if (effectiveIsAiSearch) "AI Search" else "Search",
+                    tint = if (effectiveIsAiSearch) Color.Unspecified else ContentPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
-        }
-    }
-}
-
-
-
-// ------------------------------------------------------------- Preview ---------------------------------------------------------------
-
-
-
-@Preview(showBackground = true)
-@Composable
-fun CustomSearchBarPreview() {
-    var text by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    val focusManager = LocalFocusManager.current
-
-    JasnifyTheme {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                // Capture taps on the background container to clear active focus
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { focusManager.clearFocus() }
-                    )
-                }
-                .padding(16.dp)
-        ) {
-            Text(
-                text = "Is Search Active: $isSearchActive",
-                color = if (isSearchActive) ContentBrand else ContentSecondary
-            )
-
-            Spacer(Modifier.height(10.dp))
-
-            // 1. Default Standard Search
-            CustomSearchBar(
-                value = text,
-                placeholder = "Standard Search",
-                onValueChange = { text = it },
-                onActiveChange = { isSearchActive = it }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // 2. Default AI Search (isAiSearch = true)
-            CustomSearchBar(
-                value = text,
-                placeholder = "AI Sparkle Search",
-                onValueChange = { text = it },
-                isAiSearch = true,
-                onActiveChange = { isSearchActive = it }
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            // 3. Compact Standard Search
-            CustomSearchBar(
-                value = text,
-                onValueChange = { text = it },
-                type = SearchBarType.COMPACT,
-                onActiveChange = { isSearchActive = it }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // 4. Compact AI Search (isAiSearch = true)
-            CustomSearchBar(
-                value = text,
-                onValueChange = { text = it },
-                type = SearchBarType.COMPACT,
-                isAiSearch = true,
-                onActiveChange = { isSearchActive = it }
-            )
         }
     }
 }

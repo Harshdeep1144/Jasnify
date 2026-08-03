@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -29,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -37,6 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
  import androidx.compose.ui.platform.LocalContext
@@ -50,15 +56,21 @@ import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
+import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -71,17 +83,25 @@ import kotlin.time.Duration.Companion.milliseconds
 
 private const val PARALLAX_RATE = 0.5f
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @SuppressLint("FrequentlyChangingValue")
 @Composable
 fun HomeTab(
     mainNavController: NavHostController,
+    internalNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel = hiltViewModel(),
-    budgetViewModel: BudgetViewModel = hiltViewModel()
+    budgetViewModel: BudgetViewModel = hiltViewModel(),
+    venueViewModel: VenueViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
+    val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+
+    val venueSavedDestinations = remember(savedVenuesFromCloud) {
+        savedVenuesFromCloud.associate { it.venueName to it.destination }
+    }
 
     // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
@@ -110,12 +130,14 @@ fun HomeTab(
     val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
 
     // Budget formatting logic (100, 1k, 45L, 23Cr) - No decimal points
-    fun formatBudgetShorthand(amount: Double): String {
-        return when {
-            amount >= 10_000_000 -> "${(amount / 10_000_000).toLong()}Cr"
-            amount >= 100_000 -> "${(amount / 100_000).toLong()}L"
-            amount >= 1000 -> "${(amount / 1000).toLong()}k"
-            else -> "${amount.toLong()}"
+    val formatBudgetShorthand: (Double) -> String = remember {
+        { amount ->
+            when {
+                amount >= 10_000_000 -> "${(amount / 10_000_000).toLong()}Cr"
+                amount >= 100_000 -> "${(amount / 100_000).toLong()}L"
+                amount >= 1000 -> "${(amount / 1000).toLong()}k"
+                else -> "${amount.toLong()}"
+            }
         }
     }
 
@@ -153,9 +175,14 @@ fun HomeTab(
         remainingPercentage = remainingPercentage,
         amountText = amountText,
         mainNavController = mainNavController,
+        internalNavController = internalNavController,
         onMenuClick = onMenuClick,
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-        eventViewModel = eventViewModel
+        eventViewModel = eventViewModel,
+        venueViewModel = venueViewModel,
+        isVenuesLoading = isVenuesLoading,
+        venueSavedDestinations = venueSavedDestinations,
+        activeEvent = activeEvent
     )
 }
 
@@ -168,12 +195,82 @@ fun HomeTabContent(
     remainingPercentage: Float,
     amountText: String,
     mainNavController: NavHostController,
+    internalNavController: NavHostController,
     onMenuClick: () -> Unit,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
-    eventViewModel: EventViewModel? = null
+    eventViewModel: EventViewModel? = null,
+    venueViewModel: VenueViewModel? = null,
+    isVenuesLoading: Boolean = false,
+    venueSavedDestinations: Map<String, String> = emptyMap(),
+    activeEvent: com.harshdeep.jasnify.domain.model.Event? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
+    var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
+
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+    var toastData by remember { mutableStateOf<com.harshdeep.jasnify.presentation.components.others.ToastData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    val isViewer = remember(activeEvent) {
+        // Simple logic for viewer check if needed, though on Home we might assume full access or use role
+        false // Default for now, can be refined if role is available here
+    }
+
+    val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
+        if (alreadySaved) {
+            if (activeEvent?.multiDay == true) {
+                activeTargetVenue = venue
+                val currentDestination = venueSavedDestinations[venue.name]
+                isMySavedListChecked = currentDestination == "mysaved"
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+            }
+        } else {
+            venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
+            lastSavedVenue = venue
+            toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+        }
+    }
+
+    val trendingVenues = remember(venueSavedDestinations) {
+        MockData.sampleVenues1.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    }
+
+    val exploreVenues = remember(venueSavedDestinations) {
+        MockData.sampleVenues2.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    }
+
+    val timelineEvents = remember(activeEvent) {
+        activeEvent?.subEvents?.map { subEvent ->
+            val formattedDate = subEvent.date?.let { timestamp ->
+                val sdf = java.text.SimpleDateFormat("dd MMM, yyyy", java.util.Locale.getDefault())
+                sdf.format(java.util.Date(timestamp))
+            } ?: "Date TBD"
+
+            com.harshdeep.jasnify.domain.model.TimelineEvent(
+                id = subEvent.id,
+                date = formattedDate,
+                event = subEvent.name,
+                venues = emptyList()
+            )
+        } ?: emptyList()
+    }
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
 
     // Determine proportions based on device screen height dynamically
     val configuration = LocalConfiguration.current
@@ -198,8 +295,56 @@ fun HomeTabContent(
         onBottomBarVisibilityChange(currentScreen == "home")
     }
 
+    val homeScrollState = rememberScrollState()
+
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val homeTabNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (currentScreen != "home") return Offset.Zero
+
+                // Only hide if content is actually scrollable
+                val canScroll = homeScrollState.canScrollForward || homeScrollState.canScrollBackward
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    isBottomBarVisible = true
+                    onBottomBarVisibilityChange(true)
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    onBottomBarVisibilityChange(false)
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
+
     BackHandler(enabled = currentScreen != "home") {
+        selectedCategory = null
         currentScreen = "home"
+    }
+
+    val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
+
+    val topBarAlphaState = remember {
+        derivedStateOf {
+            if (fadeDistancePx > 0f) {
+                (homeScrollState.value / fadeDistancePx).coerceIn(0f, 1f)
+            } else 0f
+        }
     }
 
     AnimatedContent(
@@ -209,21 +354,15 @@ fun HomeTabContent(
                 .togetherWith(fadeOut(animationSpec = tween(220)))
         },
         label = "screen_transition",
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (currentScreen == "home") Modifier.nestedScroll(homeTabNestedScrollConnection)
+                else Modifier
+            )
     ) { screen ->
 
         if (screen == "home") {
-            val scrollState = rememberScrollState()
-            val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
-
-            val topBarAlpha by remember {
-                derivedStateOf {
-                    if (fadeDistancePx > 0f) {
-                        (scrollState.value / fadeDistancePx).coerceIn(0f, 1f)
-                    } else 0f
-                }
-            }
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -238,7 +377,7 @@ fun HomeTabContent(
                         .height(headerHeight)
                         .align(Alignment.TopCenter)
                         .graphicsLayer {
-                            val scrollOffset = scrollState.value
+                            val scrollOffset = homeScrollState.value
                             translationY = -scrollOffset * PARALLAX_RATE
                             alpha = if (fadeDistancePx > 0f) {
                                 (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
@@ -251,7 +390,7 @@ fun HomeTabContent(
                         HomeTopBar(
                             title = eventName,
                             dateString = eventDateString,
-                            alpha = topBarAlpha,
+                            alpha = topBarAlphaState.value,
                             onMenuClick = onMenuClick
                         )
                     },
@@ -263,7 +402,7 @@ fun HomeTabContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(paddingValues)
-                            .verticalScroll(scrollState)
+                            .verticalScroll(homeScrollState)
                     ) {
                         // The spacing spacer height is bound directly to the dynamic visible offset
                         Spacer(modifier = Modifier.height(visibleBackgroundOffset))
@@ -353,22 +492,113 @@ fun HomeTabContent(
                             ) {
                                 VenueCarousel(
                                     title = "Trending Venues in Patna",
-                                    venues = MockData.sampleVenues1,
+                                    venues = trendingVenues,
+                                    isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
-                                    onFavoriteToggle = { },
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onFavoriteToggle = handleFavoriteToggle,
+                                    onSeeAllClick = { },
                                     onOfferClick = { }
                                 )
 
                                 VenueCarousel(
                                     title = "More Venues to Explore",
-                                    venues = MockData.sampleVenues2,
+                                    venues = exploreVenues,
+                                    isLoading = isVenuesLoading,
                                     onVenueClick = { navigateTo("venues") },
-                                    onFavoriteToggle = { },
+                                    onFavoriteToggle = handleFavoriteToggle,
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onSeeAllClick = { },
                                     onOfferClick = { }
                                 )
                             }
+
+                            DashedDivider()
+
+                            ExploreCategoriesHorizontal(
+                                categories = vendorCategories,
+                                onCategoryClick = { category ->
+                                    selectedCategory = category
+                                    navigateTo("vendors")
+                                }
+                            )
+
                             FooterJansify()
                         }
+                    }
+                }
+
+                if (showSaveListBottomSheet) {
+                    com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet(
+                        timelineEvents = timelineEvents,
+                        isMySavedListChecked = isMySavedListChecked,
+                        onMySavedListToggled = { checked ->
+                            isMySavedListChecked = checked
+                            if (checked) {
+                                selectedSaveEventId = null
+                            }
+                        },
+                        selectedEventId = selectedSaveEventId,
+                        onEventSelected = { eventId ->
+                            selectedSaveEventId = eventId
+                            if (eventId != null) {
+                                isMySavedListChecked = false
+                            }
+                        },
+                        onAddNewEvent = { subEventItem ->
+                            activeEvent?.let { event ->
+                                val newSubEvent = com.harshdeep.jasnify.domain.model.SubEvent(
+                                    id = subEventItem.id,
+                                    name = subEventItem.name,
+                                    date = subEventItem.date,
+                                    completed = subEventItem.isCompleted
+                                )
+                                val updatedEvent = event.copy(subEvents = event.subEvents + newSubEvent)
+                                eventViewModel?.updateEvent(updatedEvent)
+
+                                activeTargetVenue?.let { venue ->
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
+                                }
+
+                                selectedSaveEventId = subEventItem.id
+                                isMySavedListChecked = false
+                            }
+                        },
+                        isViewer = isViewer,
+                        onDismiss = { showSaveListBottomSheet = false },
+                        onDone = {
+                            activeTargetVenue?.let { venue ->
+                                val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
+                                if (destination != null) {
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
+                                    lastSavedVenue = venue
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                } else {
+                                    venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                }
+                            }
+                            showSaveListBottomSheet = false
+                            activeTargetVenue = null
+                        },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = toastData?.message != null,
+                    enter = fadeIn(),
+                    exit = fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp)
+                        .padding(horizontal = 12.dp)
+                ) {
+                    toastData?.let { data ->
+                        com.harshdeep.jasnify.presentation.components.others.CustomToast(
+                            message = data.message ?: "",
+                            type = data.type
+                        )
                     }
                 }
             }
@@ -400,6 +630,19 @@ fun HomeTabContent(
                             eventViewModel = vm
                         )
                     }
+                    "vendors" -> {
+                        VendorsTab(
+                            mainNavController = mainNavController,
+                            internalNavController = internalNavController,
+                            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+                            initialCategory = selectedCategory,
+                            onBackClick = {
+                                selectedCategory = null
+                                currentScreen = "home"
+                            },
+                            eventViewModel = eventViewModel ?: hiltViewModel()
+                        )
+                    }
                 }
             }
         }
@@ -417,6 +660,7 @@ fun HomeTabContentPreview() {
         remainingPercentage = 0.65f,
         amountText = "₹46L",
         mainNavController = NavHostController(context),
+        internalNavController = NavHostController(context),
         onMenuClick = {},
         onBottomBarVisibilityChange = {}
     )

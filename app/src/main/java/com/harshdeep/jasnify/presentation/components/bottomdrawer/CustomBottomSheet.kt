@@ -159,6 +159,11 @@ fun CustomBottomSheet(
 
     LaunchedEffect(progress) {
         onProgress?.invoke(progress)
+        // Auto-dismiss if we've reached the bottom, and we are in dismissing state
+        // This is a safety measure in case the animation coroutine was interrupted
+        if (progress >= 1f && isDismissing) {
+            onDismiss()
+        }
     }
 
     // Helper to dismiss with velocity-aware spring dismissal
@@ -166,12 +171,15 @@ fun CustomBottomSheet(
         if (!isDismissing) {
             isDismissing = true
             coroutineScope.launch {
-                sheetOffsetY.animateTo(
-                    targetValue = actualSheetHeightPx,
-                    animationSpec = springSpec,
-                    initialVelocity = velocity
-                )
-                onDismiss()
+                try {
+                    sheetOffsetY.animateTo(
+                        targetValue = actualSheetHeightPx,
+                        animationSpec = springSpec,
+                        initialVelocity = velocity
+                    )
+                } finally {
+                    onDismiss()
+                }
             }
         }
     }
@@ -238,21 +246,23 @@ fun CustomBottomSheet(
         contentAlignment = Alignment.BottomCenter
     ) {
         // Synchronized backdrop scrim overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
-                .then(
-                    if (dismissOnBackdropClick) {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            dismissWithAnimation(0f)
-                        }
-                    } else Modifier
-                )
-        )
+        if (scrimAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .then(
+                        if (dismissOnBackdropClick && !isDismissing) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                dismissWithAnimation(0f)
+                            }
+                        } else Modifier
+                    )
+            )
+        }
 
         Box(
             modifier = Modifier

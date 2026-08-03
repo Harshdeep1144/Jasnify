@@ -29,12 +29,8 @@ fun TrendingAiSearchesSection(
     queries: List<String> = listOf(
         "4.5+ Rated",
         "Hotels for 800 guests",
-        "Vintage Themed Hotels",
         "Expert Photographers",
-        "Low Budget",
         "Luxury Venues",
-        "Beachside Wedding",
-        "Traditional Decor"
     )
 ) {
     val aiIcon = ImageVector.vectorResource(id = R.drawable.ic_ai)
@@ -75,7 +71,7 @@ fun TrendingAiSearchesSection(
                 size = ButtonSize.Small
             )
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(12.dp))
 
         if (queries.size <= 6) {
             // Single LazyRow for 6 or fewer items
