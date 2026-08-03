@@ -9,8 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -33,7 +35,8 @@ fun VenueSavedContent(
     onVenueClick: (Venue) -> Unit,
     onFavoriteToggle: (Venue) -> Unit,
     onTimelineSeeAll: (TimelineEvent) -> Unit,
-    isLoading: Boolean
+    isLoading: Boolean,
+    gridState: LazyGridState = rememberLazyGridState()
 ) {
     val viewOptions = listOf("By Timeline", "All Saved")
 
@@ -43,6 +46,7 @@ fun VenueSavedContent(
             .fillMaxSize()
             .padding(horizontal = 12.dp)
             .background(Color.Transparent),
+        state = gridState,
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {

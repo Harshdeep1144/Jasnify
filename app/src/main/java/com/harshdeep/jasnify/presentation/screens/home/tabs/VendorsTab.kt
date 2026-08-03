@@ -375,15 +375,33 @@ fun VendorsTab(
     }
 
     var isBottomBarVisible by remember { mutableStateOf(true) }
-    val nestedScrollConnection = remember {
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val vendorsTabNestedScrollConnection = remember(currentScreenState, mainListState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < -1) {
-                    isBottomBarVisible = false
+                val delta = available.y
+
+                // Only react if we are in MAIN screen and it's scrollable
+                if (currentScreenState != VendorScreenState.MAIN) return Offset.Zero
+                val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) { // Scrolling up (showing)
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling down (hiding)
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
                 }
-                if (available.y > 1) {
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
                     isBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    scrollAccumulator = 0f
                 }
+
                 return Offset.Zero
             }
         }
@@ -441,7 +459,7 @@ fun VendorsTab(
                     }
                     .background(BackgroundPrimary)
                     .pointerInput(Unit) { detectTapGestures(onTap = { focusManager.clearFocus() }) }
-                    .nestedScroll(nestedScrollConnection)
+                    .nestedScroll(vendorsTabNestedScrollConnection)
             ) {
                 AnimatedContent(
                     targetState = currentScreenState,
@@ -841,11 +859,6 @@ fun VendorMainContent(
     isLoading: Boolean,
     listState: LazyListState = rememberLazyListState()
 ) {
-    val searchBarTopPadding by animateDpAsState(
-        targetValue = if (isSearchActive) 0.dp else 12.dp,
-        label = "searchBarTopPadding"
-    )
-
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         baseList.filter {
@@ -856,6 +869,17 @@ fun VendorMainContent(
                     it.location.contains(searchQuery, ignoreCase = true)
         }
     }
+
+    LaunchedEffect(isSearchActive) {
+        if (!isSearchActive && searchQuery.isNotEmpty() && filteredAllVendors.isEmpty()) {
+            onSearchQueryChange("")
+        }
+    }
+
+    val searchBarTopPadding by animateDpAsState(
+        targetValue = if (isSearchActive) 0.dp else 12.dp,
+        label = "searchBarTopPadding"
+    )
 
     Scaffold(
         containerColor = BackgroundPrimary,
@@ -916,7 +940,7 @@ fun VendorMainContent(
                         EmptyState(message = "No matches for \"$searchQuery\"")
                     }
                 } else {
-                    items(filteredAllVendors) { vendor ->
+                    items(filteredAllVendors.take(8)) { vendor ->
                         SearchSuggestionItem(
                             title = vendor.name,
                             subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
@@ -1045,21 +1069,6 @@ fun VendorCategoryDetailContent(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
-    var internalBottomBarVisible by remember { mutableStateOf(true) }
-    val nestedScrollConnection = remember {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < -1) {
-                    internalBottomBarVisible = false
-                }
-                if (available.y > 1) {
-                    internalBottomBarVisible = true
-                }
-                return Offset.Zero
-            }
-        }
-    }
-
     val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
@@ -1069,6 +1078,69 @@ fun VendorCategoryDetailContent(
     val filters = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
+
+    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
+        val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
+        var result = baseList.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.locality.contains(searchQuery, ignoreCase = true) ||
+                    it.city.contains(searchQuery, ignoreCase = true)
+        }
+
+        result = when (selectedFilterIndex) {
+            1 -> result.sortedByDescending { it.rating }
+            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
+            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
+            else -> result
+        }
+
+        if (appliedFilterOptions.contains("Top Rated")) {
+            result = result.filter { it.rating >= 4.5 }
+        }
+
+        result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
+    }
+
+    LaunchedEffect(isSearchActive) {
+        if (!isSearchActive && searchQuery.isNotEmpty() && filteredVendors.isEmpty()) {
+            searchQuery = ""
+        }
+    }
+
+    var internalBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val categoryDetailNestedScrollConnection = remember(selectedTab, listState, gridState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+
+                // Determine scrollability based on active tab
+                val canScroll = if (selectedTab == "explore") {
+                    listState.canScrollForward || listState.canScrollBackward
+                } else {
+                    gridState.canScrollForward || gridState.canScrollBackward
+                }
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !internalBottomBarVisible) {
+                    internalBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && internalBottomBarVisible) {
+                    internalBottomBarVisible = false
+                    scrollAccumulator = 0f
+                }
+                return Offset.Zero
+            }
+        }
+    }
 
     val searchBarTopPadding by animateDpAsState(
         targetValue = if (isSearchActive) 0.dp else 12.dp,
@@ -1094,33 +1166,11 @@ fun VendorCategoryDetailContent(
         focusManager.clearFocus()
     }
 
-    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
-        val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
-        var result = baseList.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.locality.contains(searchQuery, ignoreCase = true) ||
-                    it.city.contains(searchQuery, ignoreCase = true)
-        }
-
-        result = when (selectedFilterIndex) {
-            1 -> result.sortedByDescending { it.rating }
-            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
-            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
-            else -> result
-        }
-
-        if (appliedFilterOptions.contains("Top Rated")) {
-            result = result.filter { it.rating >= 4.5 }
-        }
-
-        result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundPrimary)
-            .nestedScroll(nestedScrollConnection)
+            .nestedScroll(categoryDetailNestedScrollConnection)
     ) {
         Scaffold(
             containerColor = Color.Transparent,
@@ -1206,7 +1256,7 @@ fun VendorCategoryDetailContent(
                                         EmptyState(message = "No matches for \"$searchQuery\"")
                                     }
                                 } else {
-                                    items(filteredVendors) { vendor ->
+                                    items(filteredVendors.take(8)) { vendor ->
                                         SearchSuggestionItem(
                                             title = vendor.name,
                                             subtitle = "${vendor.locality}, ${vendor.city}",

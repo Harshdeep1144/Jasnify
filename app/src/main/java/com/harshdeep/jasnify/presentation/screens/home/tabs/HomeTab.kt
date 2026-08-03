@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +39,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
  import androidx.compose.ui.platform.LocalContext
@@ -290,12 +295,48 @@ fun HomeTabContent(
         onBottomBarVisibilityChange(currentScreen == "home")
     }
 
+    val homeScrollState = rememberScrollState()
+
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val homeTabNestedScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                if (currentScreen != "home") return Offset.Zero
+
+                // Only hide if content is actually scrollable
+                val canScroll = homeScrollState.canScrollForward || homeScrollState.canScrollBackward
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    isBottomBarVisible = true
+                    onBottomBarVisibilityChange(true)
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    onBottomBarVisibilityChange(false)
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
+
     BackHandler(enabled = currentScreen != "home") {
         selectedCategory = null
         currentScreen = "home"
     }
 
-    val homeScrollState = rememberScrollState()
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
     val topBarAlphaState = remember {
@@ -313,7 +354,12 @@ fun HomeTabContent(
                 .togetherWith(fadeOut(animationSpec = tween(220)))
         },
         label = "screen_transition",
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (currentScreen == "home") Modifier.nestedScroll(homeTabNestedScrollConnection)
+                else Modifier
+            )
     ) { screen ->
 
         if (screen == "home") {

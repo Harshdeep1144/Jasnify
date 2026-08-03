@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -71,8 +73,28 @@ fun HomeScreen(
     }
 
     Scaffold(
-        bottomBar = {
+        containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+    ) { paddingValues ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            NavHost(
+                navController = internalNavController,
+                startDestination = Screen.HomeTabScreen.Home.route,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = paddingValues.calculateTopPadding())
+            ) {
+                // All tab routes are now managed in this extension function
+                homeNavGraph(
+                    mainNavController = mainNavController,
+                    navController = internalNavController,
+                    onBottomBarVisibilityChange = { showBottomBar = it },
+                    eventViewModel = eventViewModel
+                )
+            }
+
             // Animated visibility wraps the bottom bar to provide slide and fade animations
+            // Placed as an overlay to avoid resizing the content area (prevents white flash)
             AnimatedVisibility(
                 visible = showBottomBar,
                 enter = slideInVertically(
@@ -82,35 +104,11 @@ fun HomeScreen(
                 exit = slideOutVertically(
                     targetOffsetY = { fullHeight -> fullHeight },
                     animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
-                ) + fadeOut(animationSpec = tween(durationMillis = 200))
+                ) + fadeOut(animationSpec = tween(200)),
+                modifier = Modifier.align(Alignment.BottomCenter)
             ) {
                 BottomNavBar(navController = internalNavController, style = navBarStyle)
             }
-        },
-        containerColor = Color.Transparent,
-        contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-    ) { paddingValues ->
-        NavHost(
-            navController = internalNavController,
-            startDestination = Screen.HomeTabScreen.Home.route,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(
-                    top = paddingValues.calculateTopPadding(),
-                    bottom = if (showBottomBar && navBarStyle == NavBarStyleOption.BASIC) {
-                        paddingValues.calculateBottomPadding()
-                    } else {
-                        0.dp
-                    }
-                )
-        ) {
-            // All tab routes are now managed in this extension function
-            homeNavGraph(
-                mainNavController = mainNavController,
-                navController = internalNavController,
-                onBottomBarVisibilityChange = { showBottomBar = it },
-                eventViewModel = eventViewModel
-            )
         }
     }
 }

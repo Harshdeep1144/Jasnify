@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -833,15 +834,38 @@ fun VenueMainContent(
     var isSearchActive by remember { mutableStateOf(false) }
     
     var isBottomBarVisible by remember { mutableStateOf(true) }
-    val nestedScrollConnection = remember {
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val savedGridState = rememberLazyGridState()
+
+    val venueMainNestedScrollConnection = remember(selectedTab, listState, savedGridState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y < -1) {
-                    isBottomBarVisible = false
+                val delta = available.y
+
+                // Determine scrollability based on active tab
+                val canScroll = if (selectedTab == "explore") {
+                    listState.canScrollForward || listState.canScrollBackward
+                } else {
+                    savedGridState.canScrollForward || savedGridState.canScrollBackward
                 }
-                if (available.y > 1) {
+                if (!canScroll) return Offset.Zero
+
+                if (delta > 0) { // Scrolling up (showing)
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling down (hiding)
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
                     isBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    scrollAccumulator = 0f
                 }
+
                 return Offset.Zero
             }
         }
@@ -896,9 +920,15 @@ fun VenueMainContent(
         )
     }
 
+    val isScrolled by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 300
+        }
+    }
+
     val showStickyHeader by remember {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0 && (isBottomBarVisible || isSearchActive)
+            listState.firstVisibleItemIndex > 1 && isBottomBarVisible && !isSearchActive
         }
     }
 
@@ -909,36 +939,43 @@ fun VenueMainContent(
             .pointerInput(Unit) {
                 detectTapGestures(onTap = { focusManager.clearFocus() })
             }
-            .nestedScroll(nestedScrollConnection)
+            .nestedScroll(venueMainNestedScrollConnection)
     ) {
         Scaffold(
             containerColor = Color.Transparent,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
             topBar = {
-                Column(modifier = Modifier.statusBarsPadding()) {
-                    AnimatedContent(
-                        targetState = isSearchActive,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
-                        },
-                        label = "VenueTopBarSearchTransition"
-                    ) { active ->
-                        CustomTopBar(
-                            title = if (active) "Search Venues" else "Venue",
-                            onBackClick = if (active) {
-                                {
-                                    isSearchActive = false
-                                    text = ""
-                                    focusManager.clearFocus()
-                                }
-                            } else {
-                                { onBackClick() }
+                Surface(
+                    color = BackgroundPrimary,
+                    modifier = Modifier.zIndex(10f)
+                ) {
+                    Column(modifier = Modifier.statusBarsPadding()) {
+                        AnimatedContent(
+                            targetState = isSearchActive,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
                             },
-                            onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
-                            backIcon = if(active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
-                            buttonStyle = ButtonBackground.OPAQUE,
-                            isLargeTitle = true,
-                        )
+                            label = "VenueTopBarSearchTransition"
+                        ) { active ->
+                            CustomTopBar(
+                                title = if (active) "Search Venues" else "Venue",
+                                subtitle = if (active || !isScrolled) null else selectedLocation,
+                                onBackClick = if (active) {
+                                    {
+                                        isSearchActive = false
+                                        text = ""
+                                        focusManager.clearFocus()
+                                    }
+                                } else {
+                                    { onBackClick() }
+                                },
+                                onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
+                                onDropdownClick = if (!active && isScrolled) onLocationSelectorClick else null,
+                                backIcon = if(active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                                buttonStyle = ButtonBackground.OPAQUE,
+                                isLargeTitle = true,
+                            )
+                        }
                     }
                 }
             },
@@ -989,13 +1026,14 @@ fun VenueMainContent(
                             onVenueClick = onVenueClick,
                             onFavoriteToggle = onFavoriteToggle,
                             onTimelineSeeAll = onTimelineSeeAll,
-                            isLoading = isLoading
+                            isLoading = isLoading,
+                            gridState = savedGridState
                         )
                     }
                 }
 
                 if (selectedTab == "explore") {
-                    Box(modifier = Modifier.padding(top = topPadding)) {
+                    Box(modifier = Modifier.padding(top = topPadding).zIndex(5f)) {
                         AnimatedVisibility(
                             visible = showStickyHeader,
                             enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
@@ -1004,7 +1042,7 @@ fun VenueMainContent(
                         ) {
                             Surface(
                                 color = BackgroundPrimary,
-                                shadowElevation = 2.dp
+                                shadowElevation = 0.dp
                             ) {
                                 Row(
                                     modifier = Modifier

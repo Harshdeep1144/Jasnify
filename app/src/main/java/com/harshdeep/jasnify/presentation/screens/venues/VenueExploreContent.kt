@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +66,12 @@ fun VenueExploreContent(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
+    LaunchedEffect(isSearchActive) {
+        if (!isSearchActive && text.isNotEmpty() && filteredAndSortedExploreVenues.isEmpty()) {
+            onTextChange("")
+        }
+    }
+
     val searchBarTopPadding by animateDpAsState(
         targetValue = if (isSearchActive) 0.dp else 12.dp,
         label = "searchBarTopPadding"
@@ -100,50 +107,50 @@ fun VenueExploreContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Column {
-                AnimatedVisibility(
-                    visible = !isSearchActive,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        Spacer(Modifier.height(12.dp))
-                        LocationSelectorPill(
-                            location = selectedLocation,
-                            onLocationSelectorClick = onLocationSelectorClick
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(searchBarTopPadding))
-                Row(
+            AnimatedVisibility(
+                visible = !isSearchActive,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 12.dp)
                 ) {
-                    CustomSearchBar(
-                        value = text,
-                        onValueChange = onTextChange,
-                        onActiveChange = onSearchActiveChange,
-                        modifier = Modifier.weight(1f),
-                        isAiSearch = true,
-                        placeholder = "Type your choices"
+                    Spacer(Modifier.height(12.dp))
+                    LocationSelectorPill(
+                        location = selectedLocation,
+                        onLocationSelectorClick = onLocationSelectorClick
                     )
+                }
+            }
+        }
 
-                    AnimatedVisibility(
-                        visible = !isSearchActive,
-                        enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
-                        exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Spacer(Modifier.width(8.dp))
-                            FilterButton(onClick = { onShowFilterDialogChange(true) })
-                        }
+        item {
+            Spacer(Modifier.height(searchBarTopPadding))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CustomSearchBar(
+                    value = text,
+                    onValueChange = onTextChange,
+                    onActiveChange = onSearchActiveChange,
+                    modifier = Modifier.weight(1f),
+                    isAiSearch = true,
+                    placeholder = "Type your choices"
+                )
+
+                AnimatedVisibility(
+                    visible = !isSearchActive,
+                    enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                    exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.width(8.dp))
+                        FilterButton(onClick = { onShowFilterDialogChange(true) })
                     }
                 }
             }
@@ -158,7 +165,7 @@ fun VenueExploreContent(
                     )
                 }
             } else {
-                items(filteredAndSortedExploreVenues) { venue ->
+                items(filteredAndSortedExploreVenues.take(8)) { venue ->
                     SearchSuggestionItem(
                         title = venue.name,
                         subtitle = "${venue.locality}, ${venue.city}",
@@ -243,8 +250,11 @@ fun VenueExploreContent(
                 }
             }
         }
-        item {
-            FooterJansify()
+        if (!isSearchActive) {
+            item {
+                FooterJansify()
+            }
         }
+        item { Spacer(Modifier.height(100.dp)) }
     }
 }
