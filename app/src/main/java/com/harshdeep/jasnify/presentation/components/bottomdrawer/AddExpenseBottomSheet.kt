@@ -241,7 +241,7 @@ fun AddExpenseBottomSheet(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp).navigationBarsPadding()) {
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp).navigationBarsPadding()) {
                 AnimatedContent(
                     targetState = showCustomCategoryUI,
                     transitionSpec = {

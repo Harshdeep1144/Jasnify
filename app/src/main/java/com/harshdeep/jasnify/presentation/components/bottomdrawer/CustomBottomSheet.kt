@@ -33,7 +33,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,7 +42,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -151,24 +149,21 @@ fun CustomBottomSheet(
         label = "TopPaddingAnimation"
     )
 
-    // Initial offset must be large enough to ensure the sheet starts off-screen
-    // until the first layout pass calculates the actual height.
-    val initialOffsetGuess = 3000f
-    val sheetOffsetY = remember { Animatable(initialOffsetGuess) }
+    // Offset 0f = Fully Open, actualSheetHeightPx = Hidden off-screen
+    val sheetOffsetY = remember { Animatable(defaultHeightPx) }
     var isDismissing by remember { mutableStateOf(false) }
-    var hasCalculatedHeight by remember { mutableStateOf(false) }
 
     // Calculate normalized progress (0f = fully open, 1f = fully down/hidden)
-    val progress by remember(actualSheetHeightPx, hasCalculatedHeight) {
-        derivedStateOf {
-            if (!hasCalculatedHeight) 1.0f
-            else (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
-        }
-    }
+    val progress = (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
     val scrimAlpha = (0.55f * (1f - progress)).coerceIn(0f, 0.55f)
 
     LaunchedEffect(progress) {
         onProgress?.invoke(progress)
+        // Auto-dismiss if we've reached the bottom, and we are in dismissing state
+        // This is a safety measure in case the animation coroutine was interrupted
+        if (progress >= 1f && isDismissing) {
+            onDismiss()
+        }
     }
 
     // Helper to dismiss with velocity-aware spring dismissal
@@ -176,20 +171,22 @@ fun CustomBottomSheet(
         if (!isDismissing) {
             isDismissing = true
             coroutineScope.launch {
-                sheetOffsetY.animateTo(
-                    targetValue = actualSheetHeightPx,
-                    animationSpec = springSpec,
-                    initialVelocity = velocity
-                )
-                onDismiss()
+                try {
+                    sheetOffsetY.animateTo(
+                        targetValue = actualSheetHeightPx,
+                        animationSpec = springSpec,
+                        initialVelocity = velocity
+                    )
+                } finally {
+                    onDismiss()
+                }
             }
         }
     }
 
     // Entrance animation when sheet becomes visible
     LaunchedEffect(Unit) {
-        // Snap to the actual height if we have it, otherwise use our safe guess
-        sheetOffsetY.snapTo(if (actualSheetHeightPx > defaultHeightPx) actualSheetHeightPx else initialOffsetGuess)
+        sheetOffsetY.snapTo(actualSheetHeightPx)
         sheetOffsetY.animateTo(
             targetValue = 0f,
             animationSpec = springSpec
@@ -249,21 +246,23 @@ fun CustomBottomSheet(
         contentAlignment = Alignment.BottomCenter
     ) {
         // Synchronized backdrop scrim overlay
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = scrimAlpha))
-                .then(
-                    if (dismissOnBackdropClick) {
-                        Modifier.clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            dismissWithAnimation(0f)
-                        }
-                    } else Modifier
-                )
-        )
+        if (scrimAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = scrimAlpha))
+                    .then(
+                        if (dismissOnBackdropClick && !isDismissing) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                dismissWithAnimation(0f)
+                            }
+                        } else Modifier
+                    )
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -291,15 +290,10 @@ fun CustomBottomSheet(
                     .onGloballyPositioned { coordinates ->
                         if (coordinates.size.height > 0) {
                             actualSheetHeightPx = coordinates.size.height.toFloat()
-                            hasCalculatedHeight = true
                         }
                     }
                     .nestedScroll(nestedScrollConnection)
                     .offset { IntOffset(0, sheetOffsetY.value.roundToInt()) }
-                    .graphicsLayer {
-                        // Hide the sheet entirely until we know its real height to avoid "top flash"
-                        alpha = if (hasCalculatedHeight) 1f else 0f
-                    }
                     .then(
                         if (sheetGesturesEnabled && !isDismissing) {
                             Modifier.pointerInput(Unit) {
