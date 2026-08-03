@@ -12,6 +12,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,6 +47,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +63,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
@@ -195,6 +199,7 @@ fun HomeTab(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -227,6 +232,21 @@ fun HomeTabContent(
             HeaderMedia.VideoUrl("https://www.w3schools.com/html/mov_bbb.mp4")
         )
     }
+
+    // Infinite virtual page configuration for seamless forward looping
+    val virtualPageCount = remember(headerMediaItems.size) {
+        if (headerMediaItems.size > 1) Int.MAX_VALUE else headerMediaItems.size
+    }
+    val initialPage = remember(headerMediaItems.size) {
+        if (headerMediaItems.size > 1) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % headerMediaItems.size) else 0
+    }
+
+    val headerPagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { virtualPageCount }
+    )
+
+    var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
@@ -413,6 +433,7 @@ fun HomeTabContent(
                 if (homeScrollState.value < fadeDistancePx) {
                     HeaderMediaSlider(
                         mediaList = headerMediaItems,
+                        pagerState = headerPagerState,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(headerHeight)
@@ -569,8 +590,45 @@ fun HomeTabContent(
                     }
                 }
 
+                if (homeScrollState.value < fadeDistancePx) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight) // Covers the entire header slider region
+                            .align(Alignment.TopCenter)
+                            .pointerInput(headerPagerState) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalHeaderDragX = 0f },
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (totalHeaderDragX < -60f) {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
+                                            } else if (totalHeaderDragX > 60f) {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
+                                            } else {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        totalHeaderDragX += dragAmount
+                                        coroutineScope.launch {
+                                            headerPagerState.dispatchRawDelta(-dragAmount)
+                                        }
+                                    }
+                                )
+                            }
+                    )
+                }
+
                 if (showSaveListBottomSheet) {
-                    com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet(
+                    SaveListBottomSheet(
                         timelineEvents = timelineEvents,
                         isMySavedListChecked = isMySavedListChecked,
                         onMySavedListToggled = { checked ->
@@ -694,6 +752,7 @@ fun HomeTabContent(
 @Composable
 fun HeaderMediaSlider(
     mediaList: List<HeaderMedia>,
+    pagerState: PagerState,
     modifier: Modifier = Modifier,
     autoSlideIntervalMs: Long = 4000L
 ) {
@@ -701,15 +760,6 @@ fun HeaderMediaSlider(
 
     val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
-
-    // Infinite page loop configuration (starts centered at a multiple of mediaList.size)
-    val virtualPageCount = if (mediaList.size > 1) Int.MAX_VALUE else mediaList.size
-    val initialPage = if (mediaList.size > 1) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % mediaList.size) else 0
-
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { virtualPageCount }
-    )
 
     // Continuous auto-slide forward loop (always moving left-to-right)
     LaunchedEffect(pagerState, mediaList.size) {
@@ -802,13 +852,6 @@ fun HeaderMediaSlider(
                     }
                 }
             }
-
-            // Overlay box to allow swipe gesture pass-through to HorizontalPager
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Transparent)
-            )
         }
     }
 }
