@@ -56,9 +56,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.net.toUri
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
@@ -86,12 +89,12 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.core.net.toUri
 
 private const val PARALLAX_RATE = 0.5f
 
 sealed class HeaderMedia {
     data class ImageResource(val resId: Int) : HeaderMedia()
+    data class ImageUrl(val url: String) : HeaderMedia()
     data class VideoResource(val resId: Int) : HeaderMedia()
     data class VideoUrl(val url: String) : HeaderMedia()
 }
@@ -220,9 +223,8 @@ fun HomeTabContent(
     val headerMediaItems = remember {
         listOf(
             HeaderMedia.ImageResource(R.drawable.bg_home),
-            HeaderMedia.VideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"),
-            HeaderMedia.ImageResource(R.drawable.ill_venue_card),
-            HeaderMedia.VideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800"),
+            HeaderMedia.VideoUrl("https://www.w3schools.com/html/mov_bbb.mp4"),
         )
     }
 
@@ -358,6 +360,8 @@ fun HomeTabContent(
     LaunchedEffect(currentScreen) {
         if (currentScreen == "home") {
             onBottomBarVisibilityChange(isBottomBarVisible)
+        } else if (currentScreen != "vendors") {
+            onBottomBarVisibilityChange(false)
         }
     }
 
@@ -699,6 +703,7 @@ fun HeaderMediaSlider(
 
     val pagerState = rememberPagerState(pageCount = { mediaList.size })
     val isPreview = LocalInspectionMode.current
+    val context = LocalContext.current
 
     // Auto-slide loop
     LaunchedEffect(pagerState, mediaList.size) {
@@ -729,6 +734,28 @@ fun HeaderMediaSlider(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
+                }
+                is HeaderMedia.ImageUrl -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Image URL Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(media.url)
+                                .crossfade(true)
+                                .placeholder(R.drawable.bg_home)
+                                .error(R.drawable.bg_home)
+                                .build(),
+                            contentDescription = "Header Slide Remote Image ${page + 1}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
                 is HeaderMedia.VideoResource -> {
                     if (isPreview) {
@@ -793,8 +820,6 @@ fun HeaderMediaSlider(
         }
     }
 }
-
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
