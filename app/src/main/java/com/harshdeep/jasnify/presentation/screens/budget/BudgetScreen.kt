@@ -254,14 +254,20 @@ fun BudgetScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var showBottomSheet by remember { mutableStateOf(false) }
-
     var showAddExpenseSheet by remember { mutableStateOf(false) }
+    var showAddCustomCategorySheet by remember { mutableStateOf(false) }
+    var showEditBudgetSheet by remember { mutableStateOf(false) }
+    var showMenuBottomSheet by remember { mutableStateOf(false) }
+    var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
     var expenseToEdit by remember { mutableStateOf<ExpenseItem?>(null) }
-
     var expenseToDelete by remember { mutableStateOf<ExpenseItem?>(null) }
+    var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
+    var categoryToRename by remember { mutableStateOf<String?>(null) }
 
     // Dynamic Edit Budget Sheet state integrations
-    var showEditBudgetSheet by remember { mutableStateOf(false) }
     val budgetValue = remember(budgetEntity, activeEvent) {
         val rawValue = budgetEntity?.totalBudget ?: activeEvent?.budget
         if (rawValue == null) "INR" else {
@@ -273,25 +279,12 @@ fun BudgetScreen(
         }
     }
 
-    var showMenuBottomSheet by remember { mutableStateOf(false) }
-
-    var showCategoryMenuBottomSheet by remember { mutableStateOf(false) }
     var selectedCategoryForMenu by remember { mutableStateOf<String?>(null) }
-
     var selectedCategoryForDetails by remember { mutableStateOf<String?>(null) }
     var selectedCategoryChips by remember { mutableStateOf(setOf("Recent First")) }
 
-    var categoryToDeleteConfirm by remember { mutableStateOf<String?>(null) }
-
-    var showAddCustomCategorySheet by remember { mutableStateOf(false) }
-    var categoryToRename by remember { mutableStateOf<String?>(null) }
-
-    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
-    var showLeaveConfirmation by remember { mutableStateOf(false) }
-    var userToRemove by remember { mutableStateOf<User?>(null) }
-
     // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
-    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
@@ -1750,108 +1743,114 @@ fun BudgetScreen(
             }
         }
 
-        if (showBottomSheet) {
-            val sortOption = selectedSortOption
-            val filterOptionsSet = selectedFilterOptions
-            SortFilterBottomSheet(
-                sortOptions = sortOptions,
-                initialSortOption = sortOption,
-                filterByOptions = filterOptions,
-                initialFilterOptions = filterOptionsSet,
-                onDismiss = { showBottomSheet = false },
-                onApply = { sort, filters ->
-                    selectedSortOption = sort
-                    selectedFilterOptions = filters
-                    showBottomSheet = false
-                },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
+        // ============================================================================================================================================
+        // GLOBAL BOTTOM SHEET HOST (Ensures stability and prevents flickering)
+        // ============================================================================================================================================
+        
+        Box(modifier = Modifier.fillMaxSize().zIndex(100f)) {
+            if (showBottomSheet) {
+                val sortOption = selectedSortOption
+                val filterOptionsSet = selectedFilterOptions
+                SortFilterBottomSheet(
+                    sortOptions = sortOptions,
+                    initialSortOption = sortOption,
+                    filterByOptions = filterOptions,
+                    initialFilterOptions = filterOptionsSet,
+                    onDismiss = { showBottomSheet = false },
+                    onApply = { sort, filters ->
+                        selectedSortOption = sort
+                        selectedFilterOptions = filters
+                        showBottomSheet = false
+                    },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
 
-        if (showAddExpenseSheet) {
-            AddExpenseBottomSheet(
-                onDismiss = {
-                    showAddExpenseSheet = false
-                    expenseToEdit = null
-                },
-                onSave = { amount, receiver, category, emoji, phone, notes ->
-                    val editingItem = expenseToEdit
-                    if (editingItem != null) {
-                        viewModel.updateExpense(
-                            id = editingItem.id,
-                            title = receiver.ifBlank { "Unnamed Receiver" },
-                            category = category.ifBlank { "Misc" },
-                            amount = amount.toDouble(),
-                            emoji = emoji.ifBlank { "💸" },
-                            userName = currentUserName,
-                            phoneNumber = phone,
-                            note = notes
-                        )
-                        toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
-                    } else {
-                        viewModel.addExpense(
-                            title = receiver.ifBlank { "Unnamed Receiver" },
-                            category = category.ifBlank { "Misc" },
-                            amount = amount.toDouble(),
-                            emoji = emoji.ifBlank { "💸" },
-                            userName = currentUserName,
-                            phoneNumber = phone,
-                            note = notes
-                        )
-                        toastData = ToastData("Expense Added!", ToastType.SUCCESS)
-                    }
-                    showAddExpenseSheet = false
-                    expenseToEdit = null
-                },
-                categories = defaultCategories,
-                onAddCategory = { newCategory ->
-                    if (!defaultCategories.contains(newCategory)) {
-                        defaultCategories = defaultCategories + newCategory
-                    }
-                },
-                initialAmount = expenseToEdit?.amount?.replace("₹", "")?.replace(",", "") ?: "",
-                initialReceiver = expenseToEdit?.title ?: "",
-                initialCategory = expenseToEdit?.category ?: "",
-                initialEmoji = expenseToEdit?.emoji ?: "",
-                initialPhoneNumber = expenseToEdit?.phoneNumber ?: "",
-                initialNote = expenseToEdit?.note ?: "",
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
+            if (showAddExpenseSheet) {
+                AddExpenseBottomSheet(
+                    onDismiss = {
+                        showAddExpenseSheet = false
+                        expenseToEdit = null
+                    },
+                    onSave = { amount, receiver, category, emoji, phone, notes ->
+                        val editingItem = expenseToEdit
+                        if (editingItem != null) {
+                            viewModel.updateExpense(
+                                id = editingItem.id,
+                                title = receiver.ifBlank { "Unnamed Receiver" },
+                                category = category.ifBlank { "Misc" },
+                                amount = amount.toDouble(),
+                                emoji = emoji.ifBlank { "💸" },
+                                userName = currentUserName,
+                                phoneNumber = phone,
+                                note = notes
+                            )
+                            toastData = ToastData("Expense Updated!", ToastType.SUCCESS)
+                        } else {
+                            viewModel.addExpense(
+                                title = receiver.ifBlank { "Unnamed Receiver" },
+                                category = category.ifBlank { "Misc" },
+                                amount = amount.toDouble(),
+                                emoji = emoji.ifBlank { "💸" },
+                                userName = currentUserName,
+                                phoneNumber = phone,
+                                note = notes
+                            )
+                            toastData = ToastData("Expense Added!", ToastType.SUCCESS)
+                        }
+                        showAddExpenseSheet = false
+                        expenseToEdit = null
+                    },
+                    categories = defaultCategories,
+                    onAddCategory = { newCategory ->
+                        if (!defaultCategories.contains(newCategory)) {
+                            defaultCategories = defaultCategories + newCategory
+                        }
+                    },
+                    initialAmount = expenseToEdit?.amount?.replace("₹", "")?.replace(",", "") ?: "",
+                    initialReceiver = expenseToEdit?.title ?: "",
+                    initialCategory = expenseToEdit?.category ?: "",
+                    initialEmoji = expenseToEdit?.emoji ?: "",
+                    initialPhoneNumber = expenseToEdit?.phoneNumber ?: "",
+                    initialNote = expenseToEdit?.note ?: "",
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
 
-        if (showAddCustomCategorySheet) {
-            AddCustomCategoryBottomSheet(
-                onDismiss = {
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
-                },
-                onAddCategory = { inputName ->
-                    val originalName = categoryToRename
-                    if (originalName != null) {
-                        if (originalName != inputName) {
-                            if (defaultCategories.contains(originalName)) {
-                                defaultCategories =
-                                    defaultCategories.map { if (it == originalName) inputName else it }
-                            } else if (!defaultCategories.contains(inputName)) {
+            if (showAddCustomCategorySheet) {
+                AddCustomCategoryBottomSheet(
+                    onDismiss = {
+                        showAddCustomCategorySheet = false
+                        categoryToRename = null
+                    },
+                    onAddCategory = { inputName ->
+                        val originalName = categoryToRename
+                        if (originalName != null) {
+                            if (originalName != inputName) {
+                                if (defaultCategories.contains(originalName)) {
+                                    defaultCategories =
+                                        defaultCategories.map { if (it == originalName) inputName else it }
+                                } else if (!defaultCategories.contains(inputName)) {
+                                    defaultCategories = defaultCategories + inputName
+                                }
+                                viewModel.renameCategory(originalName, inputName)
+                                if (selectedCategoryForDetails == originalName) {
+                                    selectedCategoryForDetails = inputName
+                                }
+                            }
+                        } else {
+                            if (!defaultCategories.contains(inputName)) {
                                 defaultCategories = defaultCategories + inputName
                             }
-                            viewModel.renameCategory(originalName, inputName)
-                            if (selectedCategoryForDetails == originalName) {
-                                selectedCategoryForDetails = inputName
-                            }
                         }
-                    } else {
-                        if (!defaultCategories.contains(inputName)) {
-                            defaultCategories = defaultCategories + inputName
-                        }
-                    }
-                    showAddCustomCategorySheet = false
-                    categoryToRename = null
-                },
-                initialCategoryName = categoryToRename ?: "",
-                heading = if (categoryToRename != null) "Rename category" else "Add custom category",
-                onProgress = { sheetMotionProgress = it }
-            )
+                        showAddCustomCategorySheet = false
+                        categoryToRename = null
+                    },
+                    initialCategoryName = categoryToRename ?: "",
+                    heading = if (categoryToRename != null) "Rename category" else "Add custom category",
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
         }
 
         if (expenseToDelete != null) {

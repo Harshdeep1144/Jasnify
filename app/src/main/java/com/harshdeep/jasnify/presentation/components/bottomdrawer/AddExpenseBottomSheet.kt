@@ -1,9 +1,16 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
-import android.os.Build
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import android.os.Build
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -198,9 +205,9 @@ fun AddExpenseBottomSheet(
 
     var dynamicCategories by remember(categories) { mutableStateOf(categories) }
 
-    var showCustomCategorySheet by remember { mutableStateOf(false) }
+    var showCustomCategoryUI by remember { mutableStateOf(false) }
 
-    val headingTitle = if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
+    val headingTitle = if (showCustomCategoryUI) "Add custom category" else if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
 
     CustomBottomSheet(
         heading = headingTitle,
@@ -234,57 +241,70 @@ fun AddExpenseBottomSheet(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
-                AddExpenseSheetContent(
-                    amountTextFieldValue = amountTextFieldValue,
-                    onAmountChange = { amountTextFieldValue = it },
-                    receiverName = receiverName,
-                    onReceiverChange = { receiverName = it },
-                    selectedCategory = selectedCategory,
-                    onCategorySelect = { selectedCategory = it },
-                    dynamicCategories = dynamicCategories,
-                    selectedEmoji = selectedEmoji,
-                    onEmojiChange = { selectedEmoji = it },
-                    phoneNumber = phoneNumber,
-                    onPhoneNumberChange = { phoneNumber = it },
-                    note = note,
-                    onNoteChange = { note = it },
-                    onCustomCategoryClick = { showCustomCategorySheet = true },
-                    onDismiss = onDismiss,
-                    onSave = { amt, rec, cat ->
-                        if (amountTextFieldValue.text.isBlank()) {
-                            toastData = ToastData("Please enter the expense!", ToastType.ERROR)
-                        }else if (receiverName.isBlank()) {
-                            toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
-                        }else if (selectedCategory.isBlank()) {
-                            toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp).navigationBarsPadding()) {
+                AnimatedContent(
+                    targetState = showCustomCategoryUI,
+                    transitionSpec = {
+                        if (targetState) {
+                            (fadeIn(animationSpec = tween(220, delayMillis = 90)) + 
+                             slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(220, delayMillis = 90)))
+                            .togetherWith(fadeOut(animationSpec = tween(90)))
                         } else {
-                            // Default fallback to 💸 emoji if left blank by user
-                            val finalEmoji = selectedEmoji.ifBlank { "💸" }
-                            onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
+                            (fadeIn(animationSpec = tween(220, delayMillis = 90)) + 
+                             slideInVertically(initialOffsetY = { -40 }, animationSpec = tween(220, delayMillis = 90)))
+                            .togetherWith(fadeOut(animationSpec = tween(90)))
                         }
+                    },
+                    label = "AddExpenseContentTransition"
+                ) { isCustom ->
+                    if (isCustom) {
+                        AddCustomCategorySheetContent(
+                            onDismiss = { showCustomCategoryUI = false },
+                            onAddCategory = { newCategory ->
+                                if (newCategory.isBlank()) {
+                                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
+                                } else {
+                                    onAddCategory(newCategory)
+                                    dynamicCategories = dynamicCategories + newCategory
+                                    selectedCategory = newCategory
+                                    showCustomCategoryUI = false
+                                }
+                            }
+                        )
+                    } else {
+                        AddExpenseSheetContent(
+                            amountTextFieldValue = amountTextFieldValue,
+                            onAmountChange = { amountTextFieldValue = it },
+                            receiverName = receiverName,
+                            onReceiverChange = { receiverName = it },
+                            selectedCategory = selectedCategory,
+                            onCategorySelect = { selectedCategory = it },
+                            dynamicCategories = dynamicCategories,
+                            selectedEmoji = selectedEmoji,
+                            onEmojiChange = { selectedEmoji = it },
+                            phoneNumber = phoneNumber,
+                            onPhoneNumberChange = { phoneNumber = it },
+                            note = note,
+                            onNoteChange = { note = it },
+                            onCustomCategoryClick = { showCustomCategoryUI = true },
+                            onDismiss = onDismiss,
+                            onSave = { amt, rec, cat ->
+                                if (amountTextFieldValue.text.isBlank()) {
+                                    toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                                } else if (receiverName.isBlank()) {
+                                    toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
+                                } else if (selectedCategory.isBlank()) {
+                                    toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                                } else {
+                                    val finalEmoji = selectedEmoji.ifBlank { "💸" }
+                                    onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
+                                }
+                            }
+                        )
                     }
-                )
-            }
-        }
-    }
-
-    if (showCustomCategorySheet) {
-        AddCustomCategoryBottomSheet(
-            onDismiss = {
-                showCustomCategorySheet = false
-            },
-            onAddCategory = { newCategory ->
-                if (newCategory.isBlank()) {
-                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
-                } else {
-                    onAddCategory(newCategory)
-                    dynamicCategories = dynamicCategories + newCategory
-                    selectedCategory = newCategory
-                    showCustomCategorySheet = false
                 }
             }
-        )
+        }
     }
 }
 
@@ -789,7 +809,8 @@ fun AddCustomCategorySheetContent(
             size = ButtonSize.Medium,
             type = ButtonType.Primary,
             shapeStyle = ButtonShapeStyle.Square,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth()
+                .navigationBarsPadding(),
         )
     }
 }

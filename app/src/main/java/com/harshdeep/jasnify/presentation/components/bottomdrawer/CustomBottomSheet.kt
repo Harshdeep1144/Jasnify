@@ -33,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
@@ -149,12 +151,20 @@ fun CustomBottomSheet(
         label = "TopPaddingAnimation"
     )
 
-    // Offset 0f = Fully Open, actualSheetHeightPx = Hidden off-screen
-    val sheetOffsetY = remember { Animatable(defaultHeightPx) }
+    // Initial offset must be large enough to ensure the sheet starts off-screen
+    // until the first layout pass calculates the actual height.
+    val initialOffsetGuess = 3000f
+    val sheetOffsetY = remember { Animatable(initialOffsetGuess) }
     var isDismissing by remember { mutableStateOf(false) }
+    var hasCalculatedHeight by remember { mutableStateOf(false) }
 
     // Calculate normalized progress (0f = fully open, 1f = fully down/hidden)
-    val progress = (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+    val progress by remember(actualSheetHeightPx, hasCalculatedHeight) {
+        derivedStateOf {
+            if (!hasCalculatedHeight) 1.0f
+            else (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+        }
+    }
     val scrimAlpha = (0.55f * (1f - progress)).coerceIn(0f, 0.55f)
 
     LaunchedEffect(progress) {
@@ -178,7 +188,8 @@ fun CustomBottomSheet(
 
     // Entrance animation when sheet becomes visible
     LaunchedEffect(Unit) {
-        sheetOffsetY.snapTo(actualSheetHeightPx)
+        // Snap to the actual height if we have it, otherwise use our safe guess
+        sheetOffsetY.snapTo(if (actualSheetHeightPx > defaultHeightPx) actualSheetHeightPx else initialOffsetGuess)
         sheetOffsetY.animateTo(
             targetValue = 0f,
             animationSpec = springSpec
@@ -280,10 +291,15 @@ fun CustomBottomSheet(
                     .onGloballyPositioned { coordinates ->
                         if (coordinates.size.height > 0) {
                             actualSheetHeightPx = coordinates.size.height.toFloat()
+                            hasCalculatedHeight = true
                         }
                     }
                     .nestedScroll(nestedScrollConnection)
                     .offset { IntOffset(0, sheetOffsetY.value.roundToInt()) }
+                    .graphicsLayer {
+                        // Hide the sheet entirely until we know its real height to avoid "top flash"
+                        alpha = if (hasCalculatedHeight) 1f else 0f
+                    }
                     .then(
                         if (sheetGesturesEnabled && !isDismissing) {
                             Modifier.pointerInput(Unit) {

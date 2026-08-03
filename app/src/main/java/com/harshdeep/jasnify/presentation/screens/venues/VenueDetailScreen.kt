@@ -857,7 +857,7 @@ fun VenueMediaSlider(
                         contentDescription = "Venue Media Slide ${page + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.ic_gallery)
+                        placeholder = painterResource(R.drawable.img_placeholder_venue_vendor)
                     )
                 }
             }
