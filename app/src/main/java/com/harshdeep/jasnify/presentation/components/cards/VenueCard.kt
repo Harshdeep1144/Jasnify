@@ -75,6 +75,7 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 
@@ -96,11 +97,10 @@ fun VenueCardFull(
         return
     }
     val actualPageCount = venue.images.size
-    val virtualCount = if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount
-    val initialPage =
+    val virtualCount = remember(actualPageCount) { if (actualPageCount > 1) VIRTUAL_PAGE_COUNT else actualPageCount }
+    val initialPage = remember(actualPageCount) {
         if (actualPageCount > 1) (VIRTUAL_PAGE_COUNT / 2) - ((VIRTUAL_PAGE_COUNT / 2) % actualPageCount) else 0
-
-
+    }
 
     val pagerState = rememberPagerState(
         initialPage = initialPage,
@@ -127,6 +127,10 @@ fun VenueCardFull(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
+            .graphicsLayer {
+                // Helps cache the layer
+                clip = false
+            }
             .venueShadow(borderRadius = CornerLargeIncrease),
         shape = SquircleShape(CornerLargeIncrease),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
@@ -295,11 +299,13 @@ fun VenueCardCompact(
         return
     }
     val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp.dp
+    val screenWidth = remember(configuration.screenWidthDp) { configuration.screenWidthDp.dp }
     val isMedium = compactCardSize == CompactCardSize.MEDIUM
 
     // Dynamic width calculation: 0.43 of screen width ensures 2 full cards
-    val cardWidth = if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
+    val cardWidth = remember(isMedium, screenWidth) {
+        if (isMedium) screenWidth * 0.43f else screenWidth * 0.38f
+    }
     val containerColor = Color.Transparent
 
     Card(
@@ -307,6 +313,11 @@ fun VenueCardCompact(
         modifier = modifier
             .width(cardWidth)
             .wrapContentHeight()
+            .graphicsLayer {
+                // Caches the card content for smoother scrolling
+                clip = true
+                shape = SquircleShape(20.dp)
+            }
             .clip(SquircleShape(20.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -608,14 +619,14 @@ private val cachedShadowPaint = Paint().asFrameworkPaint()
 private val shadowLayers = listOf(
     VenueShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
     VenueShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),
-    VenueShadowLayer(offsetY = 48.dp, blur = 40.dp, alpha = 0.025f),
-    VenueShadowLayer(offsetY = 80.dp, blur = 48.dp, alpha = 0.01f)
 )
 
 fun Modifier.venueShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
-) = this.drawBehind {
+) = this.graphicsLayer {
+    clip = false
+}.drawBehind {
     drawIntoCanvas { canvas ->
         shadowLayers.forEach { layer ->
             cachedShadowPaint.color = color.copy(alpha = layer.alpha).toArgb()

@@ -313,6 +313,11 @@ fun VendorCardCompact(
         modifier = modifier
             .width(cardWidth)
             .wrapContentHeight()
+            .graphicsLayer {
+                // Caches the card content for smoother scrolling
+                clip = true
+                shape = SquircleShape(20.dp)
+            }
             .clip(SquircleShape(20.dp)),
         colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
