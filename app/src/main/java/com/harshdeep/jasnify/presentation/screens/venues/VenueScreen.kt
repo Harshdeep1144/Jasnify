@@ -406,7 +406,7 @@ fun VenueScreen(
                     targetState = screenState,
                     transitionSpec = {
                         when {
-                           // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
+                            // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
                             targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
                             initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
 
@@ -832,7 +832,7 @@ fun VenueMainContent(
 
     var text by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
-    
+
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
     val savedGridState = rememberLazyGridState()

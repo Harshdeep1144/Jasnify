@@ -9,19 +9,23 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -37,29 +41,35 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
- import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
@@ -70,8 +80,8 @@ import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
@@ -82,6 +92,13 @@ import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val PARALLAX_RATE = 0.5f
+
+sealed class HeaderMedia {
+    data class ImageResource(val resId: Int) : HeaderMedia()
+    data class ImageUrl(val url: String) : HeaderMedia()
+    data class VideoResource(val resId: Int) : HeaderMedia()
+    data class VideoUrl(val url: String) : HeaderMedia()
+}
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @SuppressLint("FrequentlyChangingValue")
@@ -103,12 +120,10 @@ fun HomeTab(
         savedVenuesFromCloud.associate { it.venueName to it.destination }
     }
 
-    // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
     }
 
-    // Sync eventId to BudgetViewModel to get accurate budget summary
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)
@@ -129,7 +144,6 @@ fun HomeTab(
     val remainingFunds = (totalBudget - totalSpent).coerceAtLeast(0.0)
     val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
 
-    // Budget formatting logic (100, 1k, 45L, 23Cr) - No decimal points
     val formatBudgetShorthand: (Double) -> String = remember {
         { amount ->
             when {
@@ -143,7 +157,6 @@ fun HomeTab(
 
     val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
 
-    // Date formatting for the top bar - Using java.time for better consistency with HomeTopBar
     val eventDateString = remember(activeEvent) {
         val now = System.currentTimeMillis()
         val effectiveDate = if (activeEvent?.multiDay == true) {
@@ -163,7 +176,7 @@ fun HomeTab(
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 ""
             }
         } ?: ""
@@ -186,7 +199,8 @@ fun HomeTab(
     )
 }
 
-@SuppressLint("ConfigurationScreenWidthHeight")
+@OptIn(ExperimentalFoundationApi::class)
+@SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeTabContent(
@@ -208,6 +222,32 @@ fun HomeTabContent(
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    // Header media items featuring local drawables, remote Image URLs, and remote Video URLs
+    val headerMediaItems = remember {
+        listOf(
+            HeaderMedia.ImageResource(R.drawable.bg_home),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.VideoUrl("https://www.w3schools.com/html/mov_bbb.mp4")
+        )
+    }
+
+    // Infinite virtual page configuration for seamless forward looping
+    val virtualPageCount = remember(headerMediaItems.size) {
+        if (headerMediaItems.size > 1) Int.MAX_VALUE else headerMediaItems.size
+    }
+    val initialPage = remember(headerMediaItems.size) {
+        if (headerMediaItems.size > 1) (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % headerMediaItems.size) else 0
+    }
+
+    val headerPagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { virtualPageCount }
+    )
+
+    var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
+
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -216,10 +256,7 @@ fun HomeTabContent(
     var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    val isViewer = remember(activeEvent) {
-        // Simple logic for viewer check if needed, though on Home we might assume full access or use role
-        false // Default for now, can be refined if role is available here
-    }
+    val isViewer = remember(activeEvent) { false }
 
     val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
         val alreadySaved = venueSavedDestinations.containsKey(venue.name)
@@ -272,16 +309,13 @@ fun HomeTabContent(
         }
     }
 
-    // Determine proportions based on device screen height dynamically
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenHeight = configuration.screenHeightDp.dp
 
-    // Calculate dynamic heights relative to overall screen height
     val headerHeight = remember(screenHeight) { screenHeight * 0.42f }
     val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.24f }
 
-    // Professional touch response: A tiny delay of 80ms allows the ripple animation to render
     val navigateTo: (String) -> Unit = remember {
         { target ->
             coroutineScope.launch {
@@ -291,23 +325,26 @@ fun HomeTabContent(
         }
     }
 
-    LaunchedEffect(currentScreen) {
-        onBottomBarVisibilityChange(currentScreen == "home")
+    val homeScrollState = rememberScrollState()
+
+    BackHandler(enabled = currentScreen != "home") {
+        selectedCategory = null
+        currentScreen = "home"
     }
 
-    val homeScrollState = rememberScrollState()
+    val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
-    val homeTabNestedScrollConnection = remember {
+
+    val homeTabNestedScrollConnection = remember(fadeDistancePx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                val delta = available.y
                 if (currentScreen != "home") return Offset.Zero
 
-                // Only hide if content is actually scrollable
-                val canScroll = homeScrollState.canScrollForward || homeScrollState.canScrollBackward
-                if (!canScroll) return Offset.Zero
+                val delta = available.y
+                val currentScroll = homeScrollState.value.toFloat()
+                val halfSliderPx = fadeDistancePx / 2f
 
                 if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
@@ -317,14 +354,22 @@ fun HomeTabContent(
                     scrollAccumulator += delta
                 }
 
-                if (scrollAccumulator > 150f && !isBottomBarVisible) {
-                    isBottomBarVisible = true
-                    onBottomBarVisibilityChange(true)
+                if (currentScroll < halfSliderPx) {
+                    if (!isBottomBarVisible) {
+                        isBottomBarVisible = true
+                        onBottomBarVisibilityChange(true)
+                    }
                     scrollAccumulator = 0f
-                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
-                    isBottomBarVisible = false
-                    onBottomBarVisibilityChange(false)
-                    scrollAccumulator = 0f
+                } else {
+                    if (scrollAccumulator < -150f && isBottomBarVisible) {
+                        isBottomBarVisible = false
+                        onBottomBarVisibilityChange(false)
+                        scrollAccumulator = 0f
+                    } else if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                        isBottomBarVisible = true
+                        onBottomBarVisibilityChange(true)
+                        scrollAccumulator = 0f
+                    }
                 }
 
                 return Offset.Zero
@@ -332,12 +377,29 @@ fun HomeTabContent(
         }
     }
 
-    BackHandler(enabled = currentScreen != "home") {
-        selectedCategory = null
-        currentScreen = "home"
+    LaunchedEffect(currentScreen) {
+        if (currentScreen == "home") {
+            onBottomBarVisibilityChange(isBottomBarVisible)
+        } else if (currentScreen != "vendors") {
+            onBottomBarVisibilityChange(false)
+        }
     }
 
-    val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
+    // Snap behavior on release
+    LaunchedEffect(homeScrollState.isScrollInProgress) {
+        if (!homeScrollState.isScrollInProgress) {
+            val currentScroll = homeScrollState.value.toFloat()
+            val halfThreshold = fadeDistancePx / 2f
+
+            if (currentScroll > 1f && currentScroll < fadeDistancePx - 1f) {
+                if (currentScroll >= halfThreshold) {
+                    homeScrollState.animateScrollTo(fadeDistancePx.toInt())
+                } else {
+                    homeScrollState.animateScrollTo(0)
+                }
+            }
+        }
+    }
 
     val topBarAlphaState = remember {
         derivedStateOf {
@@ -368,22 +430,23 @@ fun HomeTabContent(
                     .fillMaxSize()
                     .background(BackgroundPrimary)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.bg_home),
-                    contentDescription = "Background image of a crowd",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(headerHeight)
-                        .align(Alignment.TopCenter)
-                        .graphicsLayer {
-                            val scrollOffset = homeScrollState.value
-                            translationY = -scrollOffset * PARALLAX_RATE
-                            alpha = if (fadeDistancePx > 0f) {
-                                (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
-                            } else 1f
-                        }
-                )
+                if (homeScrollState.value < fadeDistancePx) {
+                    HeaderMediaSlider(
+                        mediaList = headerMediaItems,
+                        pagerState = headerPagerState,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight)
+                            .align(Alignment.TopCenter)
+                            .graphicsLayer {
+                                val scrollOffset = homeScrollState.value
+                                translationY = -scrollOffset * PARALLAX_RATE
+                                alpha = if (fadeDistancePx > 0f) {
+                                    (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                                } else 1f
+                            }
+                    )
+                }
 
                 Scaffold(
                     topBar = {
@@ -404,7 +467,6 @@ fun HomeTabContent(
                             .padding(paddingValues)
                             .verticalScroll(homeScrollState)
                     ) {
-                        // The spacing spacer height is bound directly to the dynamic visible offset
                         Spacer(modifier = Modifier.height(visibleBackgroundOffset))
 
                         Column(
@@ -528,8 +590,45 @@ fun HomeTabContent(
                     }
                 }
 
+                if (homeScrollState.value < fadeDistancePx) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight) // Covers the entire header slider region
+                            .align(Alignment.TopCenter)
+                            .pointerInput(headerPagerState) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalHeaderDragX = 0f },
+                                    onDragEnd = {
+                                        coroutineScope.launch {
+                                            if (totalHeaderDragX < -60f) {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
+                                            } else if (totalHeaderDragX > 60f) {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
+                                            } else {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        coroutineScope.launch {
+                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                        }
+                                    },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        totalHeaderDragX += dragAmount
+                                        coroutineScope.launch {
+                                            headerPagerState.dispatchRawDelta(-dragAmount)
+                                        }
+                                    }
+                                )
+                            }
+                    )
+                }
+
                 if (showSaveListBottomSheet) {
-                    com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet(
+                    SaveListBottomSheet(
                         timelineEvents = timelineEvents,
                         isMySavedListChecked = isMySavedListChecked,
                         onMySavedListToggled = { checked ->
@@ -641,6 +740,116 @@ fun HomeTabContent(
                                 currentScreen = "home"
                             },
                             eventViewModel = eventViewModel ?: hiltViewModel()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HeaderMediaSlider(
+    mediaList: List<HeaderMedia>,
+    pagerState: PagerState,
+    modifier: Modifier = Modifier,
+    autoSlideIntervalMs: Long = 4000L
+) {
+    if (mediaList.isEmpty()) return
+
+    val isPreview = LocalInspectionMode.current
+    val context = LocalContext.current
+
+    // Continuous auto-slide forward loop (always moving left-to-right)
+    LaunchedEffect(pagerState, mediaList.size) {
+        if (!isPreview && mediaList.size > 1) {
+            while (true) {
+                delay(autoSlideIntervalMs.milliseconds)
+                if (!pagerState.isScrollInProgress) {
+                    val nextPage = pagerState.currentPage + 1
+                    pagerState.animateScrollToPage(
+                        page = nextPage,
+                        animationSpec = tween(durationMillis = 800)
+                    )
+                }
+            }
+        }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier
+    ) { page ->
+        val actualIndex = page % mediaList.size
+
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val media = mediaList[actualIndex]) {
+                is HeaderMedia.ImageResource -> {
+                    Image(
+                        painter = painterResource(id = media.resId),
+                        contentDescription = "Header Slide Image ${actualIndex + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                is HeaderMedia.ImageUrl -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Image URL Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(media.url)
+                                .crossfade(true)
+                                .placeholder(R.drawable.bg_home)
+                                .error(R.drawable.bg_home)
+                                .build(),
+                            contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                is HeaderMedia.VideoResource -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Video Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        VideoPlayer(
+                            videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
+                            modifier = Modifier.fillMaxSize(),
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
+                        )
+                    }
+                }
+                is HeaderMedia.VideoUrl -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Web Video Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        VideoPlayer(
+                            videoUrl = media.url,
+                            modifier = Modifier.fillMaxSize(),
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
                         )
                     }
                 }
