@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.home.tabs
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -9,8 +10,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +24,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -46,9 +51,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -79,8 +86,15 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.net.toUri
 
 private const val PARALLAX_RATE = 0.5f
+
+sealed class HeaderMedia {
+    data class ImageResource(val resId: Int) : HeaderMedia()
+    data class VideoResource(val resId: Int) : HeaderMedia()
+    data class VideoUrl(val url: String) : HeaderMedia()
+}
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @SuppressLint("FrequentlyChangingValue")
@@ -102,12 +116,10 @@ fun HomeTab(
         savedVenuesFromCloud.associate { it.venueName to it.destination }
     }
 
-    // Fetch user events on mount to ensure real-time updates are active
     LaunchedEffect(Unit) {
         eventViewModel.fetchUserEvents()
     }
 
-    // Sync eventId to BudgetViewModel to get accurate budget summary
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)
@@ -160,7 +172,7 @@ fun HomeTab(
                     .atZone(ZoneId.systemDefault())
                     .toLocalDate()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 ""
             }
         } ?: ""
@@ -183,7 +195,7 @@ fun HomeTab(
     )
 }
 
-@SuppressLint("ConfigurationScreenWidthHeight")
+@SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun HomeTabContent(
@@ -205,6 +217,15 @@ fun HomeTabContent(
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
+    val headerMediaItems = remember {
+        listOf(
+            HeaderMedia.ImageResource(R.drawable.bg_home),
+            HeaderMedia.VideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4"),
+            HeaderMedia.ImageResource(R.drawable.ill_venue_card),
+            HeaderMedia.VideoUrl("https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4")
+        )
+    }
+
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -213,9 +234,7 @@ fun HomeTabContent(
     var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    val isViewer = remember(activeEvent) {
-        false
-    }
+    val isViewer = remember(activeEvent) { false }
 
     val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
         val alreadySaved = venueSavedDestinations.containsKey(venue.name)
@@ -305,16 +324,14 @@ fun HomeTabContent(
                 val currentScroll = homeScrollState.value.toFloat()
                 val halfSliderPx = fadeDistancePx / 2f
 
-                // Accumulate gesture movement direction
-                if (delta > 0) { // Scrolling UP
+                if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
-                } else if (delta < 0) { // Scrolling DOWN
+                } else if (delta < 0) {
                     if (scrollAccumulator > 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
                 }
 
-                // Bottom bar is ALWAYS visible when inside top half of slider
                 if (currentScroll < halfSliderPx) {
                     if (!isBottomBarVisible) {
                         isBottomBarVisible = true
@@ -322,14 +339,11 @@ fun HomeTabContent(
                     }
                     scrollAccumulator = 0f
                 } else {
-                    // Hide when scrolling DOWN past -150f accumulator
                     if (scrollAccumulator < -150f && isBottomBarVisible) {
                         isBottomBarVisible = false
                         onBottomBarVisibilityChange(false)
                         scrollAccumulator = 0f
-                    }
-                    // Show when scrolling UP past +150f accumulator
-                    else if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    } else if (scrollAccumulator > 150f && !isBottomBarVisible) {
                         isBottomBarVisible = true
                         onBottomBarVisibilityChange(true)
                         scrollAccumulator = 0f
@@ -347,20 +361,16 @@ fun HomeTabContent(
         }
     }
 
-    // Automatically snap to top or to the content position when user stops scrolling in the top gap region
+    // Snap behavior on release
     LaunchedEffect(homeScrollState.isScrollInProgress) {
         if (!homeScrollState.isScrollInProgress) {
             val currentScroll = homeScrollState.value.toFloat()
-            val targetOffset = fadeDistancePx
-            val halfThreshold = targetOffset / 2f
+            val halfThreshold = fadeDistancePx / 2f
 
-            // Check if current scroll position is strictly inside the snapping region
-            if (currentScroll > 1f && currentScroll < targetOffset - 1f) {
+            if (currentScroll > 1f && currentScroll < fadeDistancePx - 1f) {
                 if (currentScroll >= halfThreshold) {
-                    // Scrolled more than half: Snap to collapse top background space
-                    homeScrollState.animateScrollTo(targetOffset.toInt())
+                    homeScrollState.animateScrollTo(fadeDistancePx.toInt())
                 } else {
-                    // Scrolled less than half: Snap back to the very top
                     homeScrollState.animateScrollTo(0)
                 }
             }
@@ -396,22 +406,22 @@ fun HomeTabContent(
                     .fillMaxSize()
                     .background(BackgroundPrimary)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.bg_home),
-                    contentDescription = "Background image of a crowd",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(headerHeight)
-                        .align(Alignment.TopCenter)
-                        .graphicsLayer {
-                            val scrollOffset = homeScrollState.value
-                            translationY = -scrollOffset * PARALLAX_RATE
-                            alpha = if (fadeDistancePx > 0f) {
-                                (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
-                            } else 1f
-                        }
-                )
+                if (homeScrollState.value < fadeDistancePx) {
+                    HeaderMediaSlider(
+                        mediaList = headerMediaItems,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(headerHeight)
+                            .align(Alignment.TopCenter)
+                            .graphicsLayer {
+                                val scrollOffset = homeScrollState.value
+                                translationY = -scrollOffset * PARALLAX_RATE
+                                alpha = if (fadeDistancePx > 0f) {
+                                    (1f - (scrollOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                                } else 1f
+                            }
+                    )
+                }
 
                 Scaffold(
                     topBar = {
@@ -675,6 +685,116 @@ fun HomeTabContent(
         }
     }
 }
+
+
+@SuppressLint("UseKtx")
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun HeaderMediaSlider(
+    mediaList: List<HeaderMedia>,
+    modifier: Modifier = Modifier,
+    autoSlideIntervalMs: Long = 4000L
+) {
+    if (mediaList.isEmpty()) return
+
+    val pagerState = rememberPagerState(pageCount = { mediaList.size })
+    val isPreview = LocalInspectionMode.current
+
+    // Auto-slide loop
+    LaunchedEffect(pagerState, mediaList.size) {
+        if (!isPreview && mediaList.size > 1) {
+            while (true) {
+                delay(autoSlideIntervalMs.milliseconds)
+                if (!pagerState.isScrollInProgress) {
+                    val nextPage = (pagerState.currentPage + 1) % mediaList.size
+                    pagerState.animateScrollToPage(
+                        page = nextPage,
+                        animationSpec = tween(durationMillis = 800)
+                    )
+                }
+            }
+        }
+    }
+
+    HorizontalPager(
+        state = pagerState,
+        modifier = modifier
+    ) { page ->
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (val media = mediaList[page]) {
+                is HeaderMedia.ImageResource -> {
+                    Image(
+                        painter = painterResource(id = media.resId),
+                        contentDescription = "Header Slide Image ${page + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+                is HeaderMedia.VideoResource -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Video Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        AndroidView(
+                            factory = { ctx ->
+                                VideoView(ctx).apply {
+                                    setMediaController(null)
+                                    val uri =
+                                        ("android.resource://" + ctx.packageName + "/" + media.resId).toUri()
+                                    setVideoURI(uri)
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        mp.setVolume(0f, 0f)
+                                        start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                is HeaderMedia.VideoUrl -> {
+                    if (isPreview) {
+                        Image(
+                            painter = painterResource(id = R.drawable.bg_home),
+                            contentDescription = "Header Web Video Preview",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    } else {
+                        AndroidView(
+                            factory = { ctx ->
+                                VideoView(ctx).apply {
+                                    setMediaController(null)
+                                    setVideoURI(media.url.toUri())
+                                    setOnPreparedListener { mp ->
+                                        mp.isLooping = true
+                                        mp.setVolume(0f, 0f)
+                                        start()
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+            }
+
+            // Overlay box to pass touch events to HorizontalPager
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Transparent)
+            )
+        }
+    }
+}
+
+
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
