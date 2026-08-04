@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -90,6 +91,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.VendorGalleryCategory
 import com.harshdeep.jasnify.domain.model.VendorHighlightItem
@@ -106,6 +108,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -347,6 +351,7 @@ private fun VendorDetailContent(
                 add("reviews")
                 add("div_reviews")
             }
+            add("explore_more")
             add("footer")
         }
     }
@@ -409,6 +414,11 @@ private fun VendorDetailContent(
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
     ) {
+        val scrollRange = maxOffsetPx - minOffsetPx
+        val scrollFraction = if (scrollRange > 0f) {
+            ((maxOffsetPx - sheetOffsetPx) / scrollRange).coerceIn(0f, 1f)
+        } else 0f
+
         val parallaxTranslationY = remember(sheetOffsetPx) {
             val displacement = maxOffsetPx - sheetOffsetPx
             -displacement * 0.45f
@@ -423,7 +433,10 @@ private fun VendorDetailContent(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(340.dp)
-                .graphicsLayer { translationY = parallaxTranslationY }
+                .graphicsLayer { 
+                    translationY = parallaxTranslationY
+                    alpha = 1f - (scrollFraction * 0.75f)
+                }
         )
 
         Column(
@@ -584,6 +597,16 @@ private fun VendorDetailContent(
                     }
                 }
 
+                item(key = "explore_more") {
+                    val similarVendors = remember(vendor.id) {
+                        MockData.sampleVendors.filter { it.id != vendor.id }.take(6)
+                    }
+                    VendorExploreMoreSection(
+                        vendor = vendor,
+                        similarVendors = similarVendors
+                    )
+                }
+
                 item(key = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
@@ -597,17 +620,22 @@ private fun VendorDetailContent(
             painterResource(R.drawable.ic_top_bar_heart)
         }
 
-        val scrollRange = maxOffsetPx - minOffsetPx
-        val scrollFraction = if (scrollRange > 0f) {
-            ((maxOffsetPx - sheetOffsetPx) / scrollRange).coerceIn(0f, 1f)
-        } else 0f
-        val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
-        val dynamicButtonStyle = if (topBarAlpha > 0.9f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
+        val dynamicButtonStyle = if (scrollFraction > 0.8f) {
+            ButtonBackground.OPAQUE
+        } else {
+            ButtonBackground.TRANSLUCENT
+        }
 
-        Column(modifier = Modifier.statusBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .background(Color.Transparent)
+                .statusBarsPadding()
+        ) {
             CustomTopBar(
+                title = if (scrollFraction > 0.7f) vendorDetail.name else null,
+                isLeftAligned = true,
                 onBackClick = onBackClick,
-                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
+                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
@@ -615,7 +643,7 @@ private fun VendorDetailContent(
                 },
                 onMenuClick = onMenuClick,
                 buttonStyle = dynamicButtonStyle,
-                translucentAlpha = topBarAlpha,
+                translucentAlpha = if (scrollFraction > 0.8f) 1f else 0.5f,
                 textColor = ContentPrimary,
             )
         }
@@ -1289,6 +1317,87 @@ fun HighlightItemRow(data: VendorHighlightItem) {
                 style = JasnifyTheme.typography.labelXLarge,
                 color = ContentPrimary
             )
+        }
+    }
+}
+
+@Composable
+fun VendorExploreMoreSection(
+    vendor: Vendor,
+    similarVendors: List<Vendor>,
+    modifier: Modifier = Modifier
+) {
+    val filters = remember(vendor) {
+        listOf(
+            "Similar to ${vendor.name}",
+            "In ${vendor.city}",
+            "Top Rated ${vendor.category}",
+            "Available now"
+        )
+    }
+    var selectedFilterIndex by remember { mutableStateOf(0) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+    ) {
+        Text(
+            text = "Explore more vendors",
+            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(filters) { index, filterText ->
+                FilterChip(
+                    label = filterText,
+                    isSelected = selectedFilterIndex == index,
+                    onClick = { selectedFilterIndex = index },
+                    hasStroke = true
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Showing similar vendors",
+                style = JasnifyTheme.typography.labelLarge,
+                color = ContentSecondary,
+            )
+            Spacer(Modifier.width(12.dp))
+            HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(similarVendors) { vendorItem ->
+                VendorCardCompact(
+                    vendor = vendorItem,
+                    compactCardSize = CompactCardSize.MEDIUM
+                )
+            }
         }
     }
 }

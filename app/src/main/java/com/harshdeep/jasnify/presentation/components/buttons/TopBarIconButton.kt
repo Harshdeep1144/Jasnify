@@ -53,9 +53,11 @@ sealed interface TopIcon {
         PLUS,            // Plus icon
         PIN,             // Pushpin/Thumbtack
         PIN_FILLED,
-        CHECKLIST        // Document with Checklist
+        CHECKLIST,       // Document with Checklist
+        HEART,
+        HEART_FILLED
     }
-    data class CustomPainter(val painter: Painter) : TopIcon
+    data class CustomPainter(val painter: Painter, val isTinted: Boolean = true) : TopIcon
 }
 
 
@@ -90,7 +92,15 @@ fun TopBarIconButton(
         TopIcon.Predefined.PIN -> painterResource(R.drawable.ic_pin)
         TopIcon.Predefined.PIN_FILLED -> painterResource(R.drawable.ic_pin_filled)
         TopIcon.Predefined.CHECKLIST -> painterResource(R.drawable.ic_checklists)
+        TopIcon.Predefined.HEART -> painterResource(R.drawable.ic_top_bar_heart)
+        TopIcon.Predefined.HEART_FILLED -> painterResource(R.drawable.ic_heart_filled)
         is TopIcon.CustomPainter -> icon.painter
+    }
+
+    val finalIconTint = when (icon) {
+        TopIcon.Predefined.HEART, TopIcon.Predefined.HEART_FILLED -> Color.Unspecified
+        is TopIcon.CustomPainter -> if (icon.isTinted) iconColor else Color.Unspecified
+        else -> iconColor
     }
 
     Box(
@@ -115,7 +125,7 @@ fun TopBarIconButton(
         Icon(
             painter = painter,
             contentDescription = null,
-            tint = iconColor,
+            tint = finalIconTint,
             modifier = Modifier.size(iconSize)
         )
     }

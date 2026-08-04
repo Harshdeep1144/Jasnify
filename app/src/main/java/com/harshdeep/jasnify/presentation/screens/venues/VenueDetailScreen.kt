@@ -91,6 +91,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
 import com.harshdeep.jasnify.domain.model.VenueHighlightItem
@@ -363,6 +364,7 @@ private fun VenueDetailContent(
                 add("reviews")
                 add("div_reviews")
             }
+            add("explore_more")
             add("footer")
         }
     }
@@ -443,6 +445,14 @@ private fun VenueDetailContent(
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
     ) {
+        val scrollRange = maxOffsetPx - minOffsetPx
+        val currentScrollOffset = maxOffsetPx - sheetOffsetPx
+        val scrollFraction = if (scrollRange > 0f) {
+            (currentScrollOffset / scrollRange).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+
         val parallaxTranslationY = remember(sheetOffsetPx) {
             val displacement = maxOffsetPx - sheetOffsetPx
             -displacement * 0.45f
@@ -459,6 +469,7 @@ private fun VenueDetailContent(
                 .height(340.dp)
                 .graphicsLayer {
                     translationY = parallaxTranslationY
+                    alpha = 1f - (scrollFraction * 0.75f)
                 }
         )
 
@@ -597,6 +608,16 @@ private fun VenueDetailContent(
                     }
                 }
 
+                item(key = "explore_more") {
+                    val similarVenues = remember(venue.id) {
+                        MockData.sampleVenues1.filter { it.id != venue.id }.take(6)
+                    }
+                    VenueExploreMoreSection(
+                        venue = venue,
+                        similarVenues = similarVenues
+                    )
+                }
+
                 item(key = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
@@ -606,16 +627,7 @@ private fun VenueDetailContent(
 
         val secondaryIcon = if(venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
 
-        val scrollRange = maxOffsetPx - minOffsetPx
-        val currentScrollOffset = maxOffsetPx - sheetOffsetPx
-        val scrollFraction = if (scrollRange > 0f) {
-            (currentScrollOffset / scrollRange).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-        val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
-
-        val dynamicButtonStyle = if (topBarAlpha > 0.9f) {
+        val dynamicButtonStyle = if (scrollFraction > 0.8f) {
             ButtonBackground.OPAQUE
         } else {
             ButtonBackground.TRANSLUCENT
@@ -623,11 +635,14 @@ private fun VenueDetailContent(
 
         Column(
             modifier = Modifier
+                .background(Color.Transparent)
                 .statusBarsPadding()
         ) {
             CustomTopBar(
+                title = if (scrollFraction > 0.7f) venue.name else null,
+                isLeftAligned = true,
                 onBackClick = onBackClick,
-                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
+                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
@@ -635,7 +650,7 @@ private fun VenueDetailContent(
                 },
                 onMenuClick = { },
                 buttonStyle = dynamicButtonStyle,
-                translucentAlpha = topBarAlpha,
+                translucentAlpha = if (scrollFraction > 0.8f) 1f else 0.5f,
                 textColor = ContentPrimary,
             )
         }
@@ -1198,126 +1213,79 @@ fun VenueAskAISection() {
 
 @Composable
 fun VenueExploreMoreSection(
+    venue: Venue,
     similarVenues: List<Venue>,
     modifier: Modifier = Modifier
 ) {
-    val filters = remember {
-        listOf("All", "Top Rated", "Great Ambiance", "Budget-Friendly")
+    val filters = remember(venue) {
+        listOf(
+            "Similar to ${venue.name}",
+            "In ${venue.city}",
+            "Capacity 100-150 pax",
+            "Do they serve alcohol?"
+        )
     }
     var selectedFilterIndex by remember { mutableStateOf(0) }
 
-    val filteredVenues = remember(selectedFilterIndex, similarVenues) {
-        when (selectedFilterIndex) {
-            1 -> similarVenues.filter { it.rating >= 4.5 }
-            2 -> similarVenues.filter { it.rating >= 4.2 }
-            else -> similarVenues
-        }
-    }
-
     Column(
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Explore more venues",
-                style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                color = ContentPrimary
-            )
-            Row(
-                modifier = Modifier.clickable { },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    "See all",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
+        Text(
+            text = "Explore more venues",
+            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
 
         Spacer(Modifier.height(12.dp))
 
-        if (filters.size > 6) {
-            val midIndex = (filters.size + 1) / 2
-            val firstRowFilters = filters.take(midIndex)
-            val secondRowFilters = filters.drop(midIndex)
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(filters) { index, filterText ->
+                FilterChip(
+                    label = filterText,
+                    isSelected = selectedFilterIndex == index,
+                    onClick = { selectedFilterIndex = index },
+                    hasStroke = true
+                )
+            }
+        }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // First Row
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(firstRowFilters) { index, filterText ->
-                        FilterChip(
-                            label = filterText,
-                            isSelected = selectedFilterIndex == index,
-                            onClick = { selectedFilterIndex = index },
-                            hasStroke = true
-                        )
-                    }
-                }
-                // Second Row
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    itemsIndexed(secondRowFilters) { index, filterText ->
-                        val originalIndex = index + midIndex
-                        FilterChip(
-                            label = filterText,
-                            isSelected = selectedFilterIndex == originalIndex,
-                            onClick = { selectedFilterIndex = originalIndex },
-                            hasStroke = true
-                        )
-                    }
-                }
-            }
-        } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                itemsIndexed(filters) { index, filterText ->
-                    FilterChip(
-                        label = filterText,
-                        isSelected = selectedFilterIndex == index,
-                        onClick = { selectedFilterIndex = index },
-                        hasStroke = true
-                    )
-                }
-            }
+        Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Showing similar venues",
+                style = JasnifyTheme.typography.labelLarge,
+                color = ContentSecondary,
+            )
+            Spacer(Modifier.width(12.dp))
+            HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            )
         }
 
         Spacer(Modifier.height(16.dp))
 
-        Text(
-            text = "Showing similar venues",
-            style = JasnifyTheme.typography.labelLarge,
-            color = ContentSecondary,
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp)
-        )
-
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(filteredVenues) { venueItem ->
+            items(similarVenues) { venueItem ->
                 VenueCardCompact(
                     venue = venueItem,
-                    compactCardSize = CompactCardSize.SMALL
+                    compactCardSize = CompactCardSize.MEDIUM
                 )
             }
         }
@@ -1419,6 +1387,7 @@ fun VenueTabs(
     }
 }
 
+@SuppressLint("LocalContextResourcesRead", "DiscouragedApi")
 @Composable
 fun getIconResId(iconName: String?): Int {
     val context = LocalContext.current

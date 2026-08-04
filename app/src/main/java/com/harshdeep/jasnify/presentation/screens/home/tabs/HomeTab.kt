@@ -590,41 +590,48 @@ fun HomeTabContent(
                     }
                 }
 
+                // Drag Gesture Overlay placed on top of Scaffold content
                 if (homeScrollState.value < fadeDistancePx) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(headerHeight) // Covers the entire header slider region
-                            .align(Alignment.TopCenter)
-                            .pointerInput(headerPagerState) {
-                                detectHorizontalDragGestures(
-                                    onDragStart = { totalHeaderDragX = 0f },
-                                    onDragEnd = {
-                                        coroutineScope.launch {
-                                            if (totalHeaderDragX < -60f) {
-                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
-                                            } else if (totalHeaderDragX > 60f) {
-                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
-                                            } else {
+                    val topBarInset = 80.dp
+                    val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
+
+                    if (overlayHeight > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = topBarInset)
+                                .height(overlayHeight)
+                                .align(Alignment.TopCenter)
+                                .pointerInput(headerPagerState) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { totalHeaderDragX = 0f },
+                                        onDragEnd = {
+                                            coroutineScope.launch {
+                                                if (totalHeaderDragX < -60f) {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
+                                                } else if (totalHeaderDragX > 60f) {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
+                                                } else {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                                }
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            coroutineScope.launch {
                                                 headerPagerState.animateScrollToPage(headerPagerState.currentPage)
                                             }
+                                        },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            totalHeaderDragX += dragAmount
+                                            coroutineScope.launch {
+                                                headerPagerState.dispatchRawDelta(-dragAmount)
+                                            }
                                         }
-                                    },
-                                    onDragCancel = {
-                                        coroutineScope.launch {
-                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage)
-                                        }
-                                    },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        totalHeaderDragX += dragAmount
-                                        coroutineScope.launch {
-                                            headerPagerState.dispatchRawDelta(-dragAmount)
-                                        }
-                                    }
-                                )
-                            }
-                    )
+                                    )
+                                }
+                        )
+                    }
                 }
 
                 if (showSaveListBottomSheet) {
@@ -747,8 +754,6 @@ fun HomeTabContent(
         }
     }
 }
-
-
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
