@@ -51,6 +51,48 @@ class VendorRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    override fun getVendorReviews(vendorId: String): Flow<List<com.harshdeep.jasnify.domain.model.VendorReview>> = callbackFlow {
+        val subscription = firestore.collection("vendors").document(vendorId)
+            .collection("reviews")
+            .orderBy("createdAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val reviews = snapshot?.documents?.mapNotNull { it.toObject(com.harshdeep.jasnify.domain.model.VendorReview::class.java) } ?: emptyList()
+                trySend(reviews)
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun addVendorReview(vendorId: String, review: com.harshdeep.jasnify.domain.model.VendorReview) {
+        try {
+            // Use userId as the document ID to ensure one review per user
+            val docId = review.userId.ifBlank { review.id.ifBlank { java.util.UUID.randomUUID().toString() } }
+            val reviewToUpload = review.copy(id = docId)
+            firestore.collection("vendors").document(vendorId)
+                .collection("reviews").document(docId)
+                .set(reviewToUpload)
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("VendorRepo", "Error adding review: ${e.message}")
+            throw e
+        }
+    }
+
+    override suspend fun deleteVendorReview(vendorId: String, userId: String) {
+        try {
+            firestore.collection("vendors").document(vendorId)
+                .collection("reviews").document(userId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("VendorRepo", "Error deleting review: ${e.message}")
+            throw e
+        }
+    }
+
     override fun getSavedVendors(eventId: String): Flow<List<SavedVendor>> {
         // Fetch all categories for this event? Might be complex with separate collections.
         // For now, let's assume we fetch from local DB which is synced category by category.

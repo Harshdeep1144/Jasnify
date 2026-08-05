@@ -70,6 +70,33 @@ class VenueRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    override suspend fun addVenueReview(venueId: String, review: VenueReview) {
+        try {
+            // Use userId as the document ID to ensure one review per user
+            val docId = review.userId.ifBlank { review.id.ifBlank { java.util.UUID.randomUUID().toString() } }
+            val reviewToUpload = review.copy(id = docId)
+            firestore.collection("venues").document(venueId)
+                .collection("reviews").document(docId)
+                .set(reviewToUpload)
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("VenueRepo", "Error adding review: ${e.message}")
+            throw e
+        }
+    }
+
+    override suspend fun deleteVenueReview(venueId: String, userId: String) {
+        try {
+            firestore.collection("venues").document(venueId)
+                .collection("reviews").document(userId)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("VenueRepo", "Error deleting review: ${e.message}")
+            throw e
+        }
+    }
+
     override suspend fun seedMockVenues(venues: List<Venue>) {
         venues.forEach { venue ->
             try {

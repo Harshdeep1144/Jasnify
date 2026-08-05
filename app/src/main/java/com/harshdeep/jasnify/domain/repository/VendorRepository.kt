@@ -8,6 +8,9 @@ interface VendorRepository {
     // Catalog
     fun getAllVendors(): Flow<List<Vendor>>
     fun getVendorsByCategory(category: String): Flow<List<Vendor>>
+    fun getVendorReviews(vendorId: String): Flow<List<com.harshdeep.jasnify.domain.model.VendorReview>>
+    suspend fun addVendorReview(vendorId: String, review: com.harshdeep.jasnify.domain.model.VendorReview)
+    suspend fun deleteVendorReview(vendorId: String, userId: String)
     
     // Saved Vendors
     fun getSavedVendors(eventId: String): Flow<List<SavedVendor>>

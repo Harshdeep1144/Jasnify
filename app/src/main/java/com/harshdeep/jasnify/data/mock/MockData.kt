@@ -1245,6 +1245,7 @@ object MockData {
         val premiumPrice = if (parsedBasePrice > 0) "₹" + (parsedBasePrice * 1.6).toInt() else "₹50,000"
 
         return vendor.copy(
+            id = vendor.id.ifBlank { "vendor_${vendor.name.replace(" ", "_").lowercase()}" },
             aboutText = "${vendor.name} is a premier ${vendor.category} professional based in ${vendor.locality}, ${vendor.city}. With years of experience and an unwavering commitment to quality, they specialize in grand celebrations, weddings, and high-profile social events.",
             mediaItems = detailImages.map { url -> VendorMediaItem(url = url, video = false) },
             pricingItems = listOf(

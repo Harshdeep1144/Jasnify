@@ -9,6 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,6 +65,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -90,6 +95,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Venue
@@ -100,6 +108,7 @@ import com.harshdeep.jasnify.domain.model.VenuePricingItem
 import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -131,6 +140,7 @@ import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostScreen
 import com.harshdeep.jasnify.presentation.components.sections.ReviewUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsDataUiModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -167,6 +177,7 @@ enum class VenueActiveScreen {
 
 fun VenueReview.toUiModel() = ReviewUiModel(
     id = id,
+    userId = userId,
     userName = userName,
     userAvatarUrl = userAvatarUrl,
     rating = rating,
@@ -174,6 +185,7 @@ fun VenueReview.toUiModel() = ReviewUiModel(
     reviewText = reviewText,
     isVerified = isVerified,
     attachedImages = attachedImages,
+    likedOptions = likedOptions,
     merchantReply = merchantReply?.let {
         MerchantReplyUiModel(
             merchantName = it.merchantName,
@@ -211,6 +223,7 @@ fun VenueDetailScreen(
     onBackClick: () -> Unit = {},
     onFavoriteToggle: (Boolean) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
+    venueViewModel: VenueViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
     // Dynamic stack to keep track of screens locally
@@ -218,71 +231,198 @@ fun VenueDetailScreen(
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
+    
+    // Shared states for sheets and scroll position
+    val listState = rememberLazyListState()
+    var showReviewSheet by remember { mutableStateOf(false) }
+    var initialRatingForSheet by remember { mutableIntStateOf(0) }
+    var showAddressSheet by remember { mutableStateOf(false) }
+    var showAboutSheet by remember { mutableStateOf(false) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
+
+    val isSubmitting by venueViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
+    val venueReviews by venueViewModel.venueReviews.collectAsStateWithLifecycle()
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val userExistingReview = remember(venueReviews) {
+        venueReviews.find { it.userId == currentUserId }
+    }
+
+    val dynamicReviewsData = remember(venueDetail.reviewsData, venueReviews) {
+        val base = venueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
+        // Combine base reviews with live ones, preferring live ones
+        val combinedReviews = (venueReviews.map { it.toUiModel() } + base.reviews)
+            .distinctBy { it.id.ifBlank { it.userName } }
+        
+        base.copy(reviews = combinedReviews)
+    }
+
+    LaunchedEffect(venueDetail.id) {
+        venueViewModel.setSelectedVenueId(venueDetail.id)
+    }
+
+    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet
+    val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
+    
+    val backdropScaleState = animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadiusState = animateDpAsState(
+        targetValue = if (anySheetVisible) 28.dp else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
 
     // Intercepts the back gesture ONLY when there is a screen to pop locally
-    BackHandler(enabled = screenStack.size > 1) {
+    BackHandler(enabled = screenStack.size > 1 || anySheetVisible) {
+        if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
+        if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
+        if (showAboutSheet) { showAboutSheet = false; return@BackHandler }
+        
         screenStack = screenStack.dropLast(1)
     }
 
-    AnimatedContent(
-        targetState = currentScreen,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
-        },
-        label = "VenueNavigationTransition"
-    ) { screen ->
-        when (screen) {
-            VenueActiveScreen.DETAIL -> {
-                VenueDetailContent(
-                    venueDetail = venueDetail,
-                    onBackClick = onBackClick,
-                    onFavoriteToggle = onFavoriteToggle,
-                    onChatClick = onChatClick,
-                    onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
-                    onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
-                    onOpenReviewPost = { review ->
-                        selectedReviewForPost = review
-                        screenStack = screenStack + VenueActiveScreen.POST
-                    },
-                    modifier = modifier
-                )
-            }
-            VenueActiveScreen.REVIEWS -> {
-                AllReviewsScreen(
-                    title = venueDetail.name,
-                    reviewsData = venueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel(),
-                    ratingValue = venueDetail.rating.toString(),
-                    onBack = { screenStack = screenStack.dropLast(1) },
-                    onOpenReviewPost = { review ->
-                        selectedReviewForPost = review
-                        screenStack = screenStack + VenueActiveScreen.POST
-                    },
-                    onLeaveReview = {
-                        // Navigation to Write Review Screen
+    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = backdropScaleState.value
+                    scaleY = backdropScaleState.value
+                    val radius = backdropCornerRadiusState.value
+                    clip = anySheetVisible || radius > 0.dp
+                    shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                }
+                .background(BackgroundPrimary)
+        ) {
+            AnimatedContent(
+                targetState = currentScreen,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                },
+                label = "VenueNavigationTransition"
+            ) { screen ->
+                when (screen) {
+                    VenueActiveScreen.DETAIL -> {
+                        VenueDetailContent(
+                            venueDetail = venueDetail,
+                            reviewsData = dynamicReviewsData,
+                            listState = listState,
+                            onBackClick = onBackClick,
+                            onFavoriteToggle = onFavoriteToggle,
+                            onChatClick = onChatClick,
+                            onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
+                            onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
+                            onOpenReviewPost = { review ->
+                                selectedReviewForPost = review
+                                screenStack = screenStack + VenueActiveScreen.POST
+                            },
+                            onWriteReviewClick = { rating ->
+                                initialRatingForSheet = rating
+                                showReviewSheet = true
+                            },
+                            onAddressClick = { showAddressSheet = true },
+                            onAboutClick = { showAboutSheet = true },
+                            anySheetVisible = anySheetVisible,
+                            hasUserReviewed = userExistingReview != null,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
-                )
-            }
-            VenueActiveScreen.GALLERY -> {
-                GalleryDetailScreen(
-                    title = venueDetail.name,
-                    galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
-                    onBack = { screenStack = screenStack.dropLast(1) },
-                    onOpenAlbum = { }
-                )
-            }
-            VenueActiveScreen.POST -> {
-                ReviewDetailPostScreen(
-                    review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull()?.toUiModel() ?: ReviewUiModel(
-                        userName = "Anand K.",
-                        rating = 4.4,
-                        relativeTime = "1 week ago",
-                        reviewText = "Discover the charm of Hotel Imperial Inn, located in Sampatchak, Patna."
-                    ),
-                    onBack = {
-                        screenStack = screenStack.dropLast(1)
+
+                    VenueActiveScreen.REVIEWS -> {
+                        AllReviewsScreen(
+                            title = venueDetail.name,
+                            reviewsData = dynamicReviewsData,
+                            ratingValue = venueDetail.rating.toString(),
+                            onBack = { screenStack = screenStack.dropLast(1) },
+                            onOpenReviewPost = { review ->
+                                selectedReviewForPost = review
+                                screenStack = screenStack + VenueActiveScreen.POST
+                            },
+                            onLeaveReview = {
+                                if (userExistingReview != null) {
+                                    initialRatingForSheet = userExistingReview.rating.toInt()
+                                } else {
+                                    initialRatingForSheet = 0
+                                }
+                                showReviewSheet = true
+                            },
+                            leaveReviewButtonText = if (userExistingReview != null) "Edit review" else "Leave a review"
+                        )
                     }
-                )
+
+                    VenueActiveScreen.GALLERY -> {
+                        GalleryDetailScreen(
+                            title = venueDetail.name,
+                            galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
+                            onBack = { screenStack = screenStack.dropLast(1) },
+                            onOpenAlbum = { }
+                        )
+                    }
+
+                    VenueActiveScreen.POST -> {
+                        ReviewDetailPostScreen(
+                            review = selectedReviewForPost ?: venueDetail.reviewsData?.reviews?.firstOrNull()
+                                ?.toUiModel() ?: ReviewUiModel(
+                                userName = "Anand K.",
+                                rating = 4.4,
+                                relativeTime = "1 week ago",
+                                reviewText = "Discover the charm of Hotel Imperial Inn, located in Sampatchak, Patna."
+                            ),
+                            onBack = {
+                                screenStack = screenStack.dropLast(1)
+                            }
+                        )
+                    }
+                }
             }
+        }
+
+        if (showReviewSheet) {
+            ReviewBottomSheet(
+                targetId = venueDetail.id,
+                targetName = venueDetail.name,
+                targetImageUrl = venueDetail.images.firstOrNull(),
+                initialRating = initialRatingForSheet,
+                initialReviewText = userExistingReview?.reviewText ?: "",
+                initialLikedOptions = userExistingReview?.likedOptions?.toSet() ?: emptySet(),
+                initialImages = userExistingReview?.attachedImages?.map { Uri.parse(it) } ?: emptyList(),
+                isEdit = userExistingReview != null,
+                onDismiss = { showReviewSheet = false },
+                onSubmit = { rating, text, images, removedImages, likedOptions ->
+                    venueViewModel.submitReview(
+                        venueId = venueDetail.id,
+                        rating = rating.toDouble(),
+                        text = text,
+                        imageUris = images.map { Uri.parse(it) },
+                        removedImageUrls = removedImages,
+                        likedOptions = likedOptions
+                    )
+                },
+                onDeleteReview = {
+                    venueViewModel.deleteReview(venueDetail.id, userExistingReview?.attachedImages ?: emptyList())
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAddressSheet) {
+            AddressSheet(
+                venue = venueDetail,
+                onDismiss = { showAddressSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAboutSheet) {
+            AboutSheet(
+                venue = venueDetail,
+                onDismiss = { showAboutSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
         }
     }
 }
@@ -293,29 +433,23 @@ fun VenueDetailScreen(
 @Composable
 private fun VenueDetailContent(
     venueDetail: Venue,
+    reviewsData: ReviewsDataUiModel,
+    listState: androidx.compose.foundation.lazy.LazyListState,
     onBackClick: () -> Unit,
     onFavoriteToggle: (Boolean) -> Unit,
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
+    onWriteReviewClick: (Int) -> Unit,
+    onAddressClick: () -> Unit,
+    onAboutClick: () -> Unit,
+    anySheetVisible: Boolean,
+    hasUserReviewed: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val venue = venueDetail
-
-    var showAddressSheet by remember { mutableStateOf(false) }
-
-    var showAboutSheet by remember { mutableStateOf(false) }
-
-    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
-
-    // Intercept back button if any custom bottom sheet is open inside this content block
-    BackHandler(enabled = showAddressSheet || showAboutSheet) {
-        if (showAddressSheet) showAddressSheet = false
-        if (showAboutSheet) showAboutSheet = false
-    }
 
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
@@ -337,10 +471,12 @@ private fun VenueDetailContent(
         }
     }
 
-    val listKeys = remember(venueDetail) {
+    val listKeys = remember(venueDetail, hasUserReviewed, reviewsData) {
         buildList {
             add("info")
-            add("suggestions")
+            if (!hasUserReviewed) {
+                add("suggestions")
+            }
             add("tabs")
             if (venueDetail.pricingItems.isNotEmpty()) {
                 add("pricings")
@@ -360,7 +496,7 @@ private fun VenueDetailContent(
                 add("gallery")
                 add("div_gallery")
             }
-            if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+            if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                 add("reviews")
                 add("div_reviews")
             }
@@ -462,7 +598,7 @@ private fun VenueDetailContent(
             mediaItems = venueDetail.mediaItems,
             isMuted = isMuted,
             onMuteToggle = { isMuted = !isMuted },
-            venue = venue,
+            venue = venueDetail,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -503,18 +639,22 @@ private fun VenueDetailContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item(key = "info") {
-                    VenueInfoSection(venue = venue, onAddressClick = { showAddressSheet = true })
+                    VenueInfoSection(venue = venueDetail, onAddressClick = onAddressClick)
                 }
 
-                item(key = "suggestions") {
-                    SuggestionChipsSection()
+                if (!hasUserReviewed) {
+                    item(key = "suggestions") {
+                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
+                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
+                        })
+                    }
                 }
 
                 stickyHeader(key = "tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
-                        shadowElevation = if (listState.firstVisibleItemIndex >= 2) 4.dp else 0.dp
+                        shadowElevation = if (listState.firstVisibleItemIndex >= (if(hasUserReviewed) 1 else 2)) 4.dp else 0.dp
                     ) {
                         VenueTabs(
                             tabs = activeTabs,
@@ -544,7 +684,7 @@ private fun VenueDetailContent(
 
                 if (venueDetail.pricingItems.isNotEmpty()) {
                     item(key = "pricings") {
-                        VenuePricingsSection(venue = venue, pricingItems = venueDetail.pricingItems)
+                        VenuePricingsSection(venue = venueDetail, pricingItems = venueDetail.pricingItems)
                     }
                     item(key = "div_pricings") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -563,9 +703,9 @@ private fun VenueDetailContent(
                 if (venueDetail.aboutText != null) {
                     item(key = "about") {
                         VenueAboutSection(
-                            venue = venue,
+                            venue = venueDetail,
                             aboutText = venueDetail.aboutText,
-                            onReadMoreClick = { showAboutSheet = true }
+                            onReadMoreClick = onAboutClick
                         )
                     }
                     item(key = "div_about") {
@@ -592,15 +732,16 @@ private fun VenueDetailContent(
                     }
                 }
 
-                if (venueDetail.reviewsData != null && venueDetail.reviewsData.reviews.isNotEmpty()) {
+                if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
                         ReviewsSection(
-                            rating = venue.rating,
-                            totalReviews = venue.totalReviews,
-                            reviewsData = venueDetail.reviewsData.toUiModel(),
+                            rating = venueDetail.rating,
+                            totalReviews = venueDetail.totalReviews,
+                            reviewsData = reviewsData,
                             onSeeAllClick = onSeeAllReviewsClick,
                             onReviewCardClick = { onOpenReviewPost(it) },
-                            onWriteReviewClick = { }
+                            onWriteReviewClick = onWriteReviewClick,
+                            hasUserReviewed = hasUserReviewed
                         )
                     }
                     item(key = "div_reviews") {
@@ -609,11 +750,11 @@ private fun VenueDetailContent(
                 }
 
                 item(key = "explore_more") {
-                    val similarVenues = remember(venue.id) {
-                        MockData.sampleVenues1.filter { it.id != venue.id }.take(6)
+                    val similarVenues = remember(venueDetail.id) {
+                        MockData.sampleVenues1.filter { it.id != venueDetail.id }.take(6)
                     }
                     VenueExploreMoreSection(
-                        venue = venue,
+                        venue = venueDetail,
                         similarVenues = similarVenues
                     )
                 }
@@ -639,7 +780,7 @@ private fun VenueDetailContent(
                 .statusBarsPadding()
         ) {
             CustomTopBar(
-                title = if (scrollFraction > 0.7f) venue.name else null,
+                title = if (scrollFraction > 0.7f) venueDetail.name else null,
                 isLeftAligned = true,
                 onBackClick = onBackClick,
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
@@ -655,166 +796,181 @@ private fun VenueDetailContent(
             )
         }
 
-        Box(
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !anySheetVisible,
+            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(
-                    brush = Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Transparent,
-                            0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                            0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                            0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                            1.00f to BackgroundPrimary
-                        )
-                    )
-                )
-                .navigationBarsPadding()
                 .zIndex(10f)
         ) {
-            FloatingBottomActionBar(
-                onMessageClick = { onChatClick(venue) },
-                onBookCallClick = { },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Transparent,
+                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                1.00f to BackgroundPrimary
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+            ) {
+                FloatingBottomActionBar(
+                    onMessageClick = { onChatClick(venueDetail) },
+                    onBookCallClick = { },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddressSheet(
+    venue: Venue,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "Venue Address",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = 360.dp
+    ) {
+        val context = LocalContext.current
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+        ) {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Surface(
+                    color = SurfaceSecondary,
+                    shape = SquircleShape(CornerLarge),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .background(Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.img_hero_venueaddress),
+                                contentDescription = "Map Pin Logo",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(80.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = venue.name,
+                            style = JasnifyTheme.typography.displayMedium,
+                            color = ContentPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = venue.location,
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentSecondary
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+            CustomTextButton(
+                onClick = {
+                    val mapQuery = "${venue.name}, ${venue.location}"
+                    val encodedQuery = Uri.encode(mapQuery)
+                    val mapUri = "geo:0,0?q=$encodedQuery".toUri()
+                    val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+                        setPackage("com.google.android.apps.maps")
+                    }
+                    try {
+                        context.startActivity(mapIntent)
+                    } catch (_: Exception) {
+                        val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
+                        val webIntent = Intent(Intent.ACTION_VIEW, webUri)
+                        try {
+                            context.startActivity(webIntent)
+                        } catch (_: Exception) {}
+                    }
+                },
+                text = "Get Directions",
+                trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shapeStyle = ButtonShapeStyle.Square
             )
         }
+    }
+}
 
-// ============================================================= Bottom Sheets ===============================================
+@Composable
+private fun AboutSheet(
+    venue: Venue,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "About ${venue.name}",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+        ) {
+            val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
+            val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
 
-        if (showAddressSheet) {
-            CustomBottomSheet(
-                heading = "Venue Address",
-                onDismiss = { showAddressSheet = false },
-                onProgress = { sheetMotionProgress = it },
-                sheetHeight = 360.dp
-            ) {
-                val context = LocalContext.current
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(12.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Surface(
-                            color = SurfaceSecondary,
-                            shape = SquircleShape(CornerLarge),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .background(Color.Transparent),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.img_hero_venueaddress),
-                                        contentDescription = "Map Pin Logo",
-                                        tint = Color.Unspecified,
-                                        modifier = Modifier.size(80.dp)
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Text(
-                                    text = venue.name,
-                                    style = JasnifyTheme.typography.displayMedium,
-                                    color = ContentPrimary
-                                )
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = venue.location,
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentSecondary
-                                )
-                            }
-                        }
-                    }
-                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-                    CustomTextButton(
-                        onClick = {
-                            val mapQuery = "${venue.name}, ${venue.location}"
-                            val encodedQuery = Uri.encode(mapQuery)
-                            val mapUri = "geo:0,0?q=$encodedQuery".toUri()
-                            val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
-                                setPackage("com.google.android.apps.maps")
-                            }
-                            try {
-                                context.startActivity(mapIntent)
-                            } catch (_: Exception) {
-                                val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
-                                val webIntent = Intent(Intent.ACTION_VIEW, webUri)
-                                try {
-                                    context.startActivity(webIntent)
-                                } catch (_: Exception) {}
-                            }
-                        },
-                        text = "Get Directions",
-                        trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        shapeStyle = ButtonShapeStyle.Square
-                    )
-                }
-            }
+            Text(
+                text = formattedAboutText,
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentSecondary
+            )
         }
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
 
-        if (showAboutSheet) {
-            CustomBottomSheet(
-                heading = "About ${venue.name}",
-                onDismiss = { showAboutSheet = false },
-                onProgress = { sheetMotionProgress = it },
-                sheetHeight = null,
-                showDragHandle = true,
-                showCloseButton = true
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                ) {
-                    // Simulating the data coming from database
-                    val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
-                    val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
-
-                    Text(
-                        text = formattedAboutText,
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentSecondary
-                    )
-                }
-                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-                Column{
-                    CustomTextButton(
-                        onClick = { showAboutSheet = false },
-                        text = "Okay",
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(12.dp),
-                        shapeStyle = ButtonShapeStyle.Square
-                    )
-                }
-            }
+        Column{
+            CustomTextButton(
+                onClick = onDismiss,
+                text = "Okay",
+                modifier = Modifier.fillMaxWidth()
+                    .padding(12.dp),
+                shapeStyle = ButtonShapeStyle.Square
+            )
         }
     }
 }

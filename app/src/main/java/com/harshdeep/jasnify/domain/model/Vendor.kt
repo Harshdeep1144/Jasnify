@@ -78,6 +78,7 @@ data class VendorRatingBreakdown(
 
 data class VendorReview(
     val id: String = "",
+    val userId: String = "",
     val userName: String = "",
     val userAvatarUrl: String? = null,
     val rating: Double = 0.0,
@@ -85,6 +86,7 @@ data class VendorReview(
     val reviewText: String = "",
     val isVerified: Boolean = false,
     val attachedImages: List<String> = emptyList(),
+    val likedOptions: List<String> = emptyList(),
     val merchantReply: VendorMerchantReply? = null,
     val createdAt: Long = System.currentTimeMillis()
 )
