@@ -611,8 +611,9 @@ fun ReviewCard(
                     ) {
                         AsyncImage(
                             model = review.userAvatarUrl ?: "",
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
+                            contentDescription = "User Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))

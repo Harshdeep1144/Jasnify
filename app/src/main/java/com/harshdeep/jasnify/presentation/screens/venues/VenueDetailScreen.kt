@@ -5,14 +5,14 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,6 +70,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -94,9 +96,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
-import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
@@ -132,7 +134,6 @@ import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.GalleryCategoryUiModel
 import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.GallerySection
-import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.presentation.components.sections.MediaItemUiModel
 import com.harshdeep.jasnify.presentation.components.sections.MerchantReplyUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingBreakdownUiModel
@@ -140,6 +141,7 @@ import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostScreen
 import com.harshdeep.jasnify.presentation.components.sections.ReviewUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsDataUiModel
+import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -147,7 +149,6 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -231,9 +232,26 @@ fun VenueDetailScreen(
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
-    
+
     // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
+
+    // Persistent state for Hero slider offset and Media Pager across navigation stack switches
+    val density = LocalDensity.current
+    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val topBarHeightPx = with(density) { 56.dp.toPx() }
+    val stickyMarginPx = with(density) { 12.dp.toPx() }
+    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
+    val maxOffsetPx = with(density) { 320.dp.toPx() }
+
+    // Remember sheet offset so returning to DETAIL screen retains collapsed/expanded slider offset
+    var sheetOffsetPx by rememberSaveable { mutableFloatStateOf(Float.NaN) }
+    val currentSheetOffsetPx = if (sheetOffsetPx.isNaN()) maxOffsetPx else sheetOffsetPx.coerceIn(minOffsetPx, maxOffsetPx)
+
+    // Remember media pager state and mute state across navigation screen changes
+    val pagerState = rememberPagerState(pageCount = { venueDetail.mediaItems.size })
+    var isMuted by rememberSaveable { mutableStateOf(true) }
+
     var showReviewSheet by remember { mutableStateOf(false) }
     var initialRatingForSheet by remember { mutableIntStateOf(0) }
     var showAddressSheet by remember { mutableStateOf(false) }
@@ -253,7 +271,7 @@ fun VenueDetailScreen(
         // Combine base reviews with live ones, preferring live ones
         val combinedReviews = (venueReviews.map { it.toUiModel() } + base.reviews)
             .distinctBy { it.id.ifBlank { it.userName } }
-        
+
         base.copy(reviews = combinedReviews)
     }
 
@@ -263,7 +281,7 @@ fun VenueDetailScreen(
 
     val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet
     val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
-    
+
     val backdropScaleState = animateFloatAsState(
         targetValue = targetScale,
         animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
@@ -281,7 +299,7 @@ fun VenueDetailScreen(
         if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
         if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
         if (showAboutSheet) { showAboutSheet = false; return@BackHandler }
-        
+
         screenStack = screenStack.dropLast(1)
     }
 
@@ -311,6 +329,13 @@ fun VenueDetailScreen(
                             venueDetail = venueDetail,
                             reviewsData = dynamicReviewsData,
                             listState = listState,
+                            pagerState = pagerState,
+                            sheetOffsetPx = currentSheetOffsetPx,
+                            minOffsetPx = minOffsetPx,
+                            maxOffsetPx = maxOffsetPx,
+                            onSheetOffsetChange = { sheetOffsetPx = it },
+                            isMuted = isMuted,
+                            onMuteToggle = { isMuted = !isMuted },
                             onBackClick = onBackClick,
                             onFavoriteToggle = onFavoriteToggle,
                             onChatClick = onChatClick,
@@ -427,7 +452,6 @@ fun VenueDetailScreen(
     }
 }
 
-
 @SuppressLint("UseKtx", "FrequentlyChangingValue")
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -435,6 +459,13 @@ private fun VenueDetailContent(
     venueDetail: Venue,
     reviewsData: ReviewsDataUiModel,
     listState: androidx.compose.foundation.lazy.LazyListState,
+    pagerState: PagerState,
+    sheetOffsetPx: Float,
+    minOffsetPx: Float,
+    maxOffsetPx: Float,
+    onSheetOffsetChange: (Float) -> Unit,
+    isMuted: Boolean,
+    onMuteToggle: () -> Unit,
     onBackClick: () -> Unit,
     onFavoriteToggle: (Boolean) -> Unit,
     onChatClick: (Venue) -> Unit,
@@ -449,17 +480,8 @@ private fun VenueDetailContent(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-
     val density = LocalDensity.current
-    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
-    val topBarHeightPx = with(density) { 56.dp.toPx() }
-    val stickyMarginPx = with(density) { 12.dp.toPx() }
-    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
-    val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
-
-    var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
-    var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(venueDetail, reviewsData, hasUserReviewed) {
         buildList {
@@ -547,14 +569,14 @@ private fun VenueDetailContent(
         }
     }
 
-    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx) {
+    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx, sheetOffsetPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 return if (delta < 0 && sheetOffsetPx > minOffsetPx) {
                     val newOffset = (sheetOffsetPx + delta).coerceAtLeast(minOffsetPx)
                     val consumed = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumed)
                 } else {
                     Offset.Zero
@@ -570,7 +592,7 @@ private fun VenueDetailContent(
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumedOffset)
                 } else {
                     Offset.Zero
@@ -599,8 +621,9 @@ private fun VenueDetailContent(
 
         VenueMediaSlider(
             mediaItems = venueDetail.mediaItems,
+            pagerState = pagerState,
             isMuted = isMuted,
-            onMuteToggle = { isMuted = !isMuted },
+            onMuteToggle = onMuteToggle,
             venue = venueDetail,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             modifier = Modifier
@@ -634,20 +657,11 @@ private fun VenueDetailContent(
                     VenueInfoSection(venue = venueDetail, onAddressClick = onAddressClick)
                 }
 
-
-//                if (!hasUserReviewed) {
-//                    item(key = "suggestions") {
-//                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
-//                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
-//                        })
-//                    }
-//                }
-
                 stickyHeader(key = "tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
-                        shadowElevation = if (listState.firstVisibleItemIndex >= (if(hasUserReviewed) 1 else 2)) 4.dp else 0.dp
+                        shadowElevation = if (listState.firstVisibleItemIndex >= (if (hasUserReviewed) 1 else 2)) 4.dp else 0.dp
                     ) {
                         VenueTabs(
                             tabs = activeTabs,
@@ -761,7 +775,7 @@ private fun VenueDetailContent(
             }
         }
 
-        val secondaryIcon = if(venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
+        val secondaryIcon = if (venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
 
         val dynamicButtonStyle = if (scrollFraction > 0.8f) {
             ButtonBackground.OPAQUE
@@ -828,171 +842,19 @@ private fun VenueDetailContent(
     }
 }
 
-@Composable
-private fun AddressSheet(
-    venue: Venue,
-    onDismiss: () -> Unit,
-    onProgress: (Float) -> Unit
-) {
-    CustomBottomSheet(
-        heading = "Venue Address",
-        onDismiss = onDismiss,
-        onProgress = onProgress,
-        sheetHeight = 360.dp
-    ) {
-        val context = LocalContext.current
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-        ) {
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(12.dp)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Surface(
-                    color = SurfaceSecondary,
-                    shape = SquircleShape(CornerLarge),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .background(Color.Transparent),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.img_hero_venueaddress),
-                                contentDescription = "Map Pin Logo",
-                                tint = Color.Unspecified,
-                                modifier = Modifier.size(80.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        Text(
-                            text = venue.name,
-                            style = JasnifyTheme.typography.displayMedium,
-                            color = ContentPrimary
-                        )
-
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = venue.location,
-                            style = JasnifyTheme.typography.labelXLarge,
-                            color = ContentSecondary
-                        )
-                    }
-                }
-            }
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-            CustomTextButton(
-                onClick = {
-                    val mapQuery = "${venue.name}, ${venue.location}"
-                    val encodedQuery = Uri.encode(mapQuery)
-                    val mapUri = "geo:0,0?q=$encodedQuery".toUri()
-                    val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
-                        setPackage("com.google.android.apps.maps")
-                    }
-                    try {
-                        context.startActivity(mapIntent)
-                    } catch (_: Exception) {
-                        val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
-                        val webIntent = Intent(Intent.ACTION_VIEW, webUri)
-                        try {
-                            context.startActivity(webIntent)
-                        } catch (_: Exception) {}
-                    }
-                },
-                text = "Get Directions",
-                trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                shapeStyle = ButtonShapeStyle.Square
-            )
-        }
-    }
-}
-
-@Composable
-private fun AboutSheet(
-    venue: Venue,
-    onDismiss: () -> Unit,
-    onProgress: (Float) -> Unit
-) {
-    CustomBottomSheet(
-        heading = "About ${venue.name}",
-        onDismiss = onDismiss,
-        onProgress = onProgress,
-        sheetHeight = null,
-        showDragHandle = true,
-        showCloseButton = true
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-        ) {
-            val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
-            val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
-
-            Text(
-                text = formattedAboutText,
-                style = JasnifyTheme.typography.labelXLarge,
-                color = ContentSecondary
-            )
-        }
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-
-        Column{
-            CustomTextButton(
-                onClick = onDismiss,
-                text = "Okay",
-                modifier = Modifier.fillMaxWidth()
-                    .padding(12.dp),
-                shapeStyle = ButtonShapeStyle.Square
-            )
-        }
-    }
-}
-
-
-
-
-// ============================================================================================================================================
-// STRUCTURAL CONTENT SECTIONS
-// ============================================================================================================================================
-
-
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VenueMediaSlider(
     mediaItems: List<VenueMediaItem>,
+    pagerState: PagerState,
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
     venue: Venue,
     onSeeAllGalleryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(pageCount = { mediaItems.size })
-
     if (mediaItems.size > 1) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(pagerState) {
             while (true) {
                 delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
@@ -1039,7 +901,7 @@ fun VenueMediaSlider(
         ) {
             val activeItem = mediaItems.getOrNull(pagerState.currentPage)
             if (activeItem?.video == true) {
-                val audioIcon = if(isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
+                val audioIcon = if (isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
 
                 TopBarIconButton(
                     icon = TopIcon.CustomPainter(painter = audioIcon),
@@ -1063,10 +925,6 @@ fun VenueMediaSlider(
     }
 }
 
-
-
-
-
 @Composable
 fun VenueInfoSection(
     venue: Venue,
@@ -1079,8 +937,7 @@ fun VenueInfoSection(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
-            modifier = Modifier
-                .weight(1f)
+            modifier = Modifier.weight(1f)
         ) {
             Text(
                 text = venue.name,
@@ -1109,8 +966,7 @@ fun VenueInfoSection(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Expand",
                     tint = ContentSecondary,
-                    modifier = Modifier
-                        .align(Alignment.Bottom)
+                    modifier = Modifier.align(Alignment.Bottom)
                 )
             }
         }
@@ -1139,7 +995,6 @@ fun VenueInfoSection(
         }
     }
 }
-
 
 @Composable
 fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
@@ -1188,7 +1043,6 @@ fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
         }
     }
 }
-
 
 @Composable
 fun VenueHighlightsSection(highlightItems: List<VenueHighlightItem>) {
@@ -1309,7 +1163,6 @@ fun VenueAskAISection() {
             val secondRowChips = suggestionChips.drop(midIndex)
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // First Row
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
@@ -1324,7 +1177,6 @@ fun VenueAskAISection() {
                     }
                 }
 
-                // Second Row
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(horizontal = 12.dp)
@@ -1356,7 +1208,6 @@ fun VenueAskAISection() {
         }
     }
 }
-
 
 @Composable
 fun VenueExploreMoreSection(
@@ -1439,10 +1290,147 @@ fun VenueExploreMoreSection(
     }
 }
 
-// ============================================================================================================================================
-// HELPER COMPONENTS
-// ============================================================================================================================================
+@Composable
+private fun AddressSheet(
+    venue: Venue,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "Venue Address",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = 360.dp
+    ) {
+        val context = LocalContext.current
 
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+        ) {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Surface(
+                    color = SurfaceSecondary,
+                    shape = SquircleShape(CornerLarge),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Box(
+                            modifier = Modifier.background(Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.img_hero_venueaddress),
+                                contentDescription = "Map Pin Logo",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(80.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = venue.name,
+                            style = JasnifyTheme.typography.displayMedium,
+                            color = ContentPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = venue.location,
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentSecondary
+                        )
+                    }
+                }
+            }
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+            CustomTextButton(
+                onClick = {
+                    val mapQuery = "${venue.name}, ${venue.location}"
+                    val encodedQuery = Uri.encode(mapQuery)
+                    val mapUri = "geo:0,0?q=$encodedQuery".toUri()
+                    val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+                        setPackage("com.google.android.apps.maps")
+                    }
+                    try {
+                        context.startActivity(mapIntent)
+                    } catch (_: Exception) {
+                        val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
+                        val webIntent = Intent(Intent.ACTION_VIEW, webUri)
+                        try {
+                            context.startActivity(webIntent)
+                        } catch (_: Exception) {}
+                    }
+                },
+                text = "Get Directions",
+                trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shapeStyle = ButtonShapeStyle.Square
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutSheet(
+    venue: Venue,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "About ${venue.name}",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+        ) {
+            val aboutVenueFromDb = venue.aboutText ?: "No information available for this venue."
+            val formattedAboutText = aboutVenueFromDb.replace(". ", ".\n\n")
+
+            Text(
+                text = formattedAboutText,
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentSecondary
+            )
+        }
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+
+        Column {
+            CustomTextButton(
+                onClick = onDismiss,
+                text = "Okay",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                shapeStyle = ButtonShapeStyle.Square
+            )
+        }
+    }
+}
 
 @Composable
 fun SuggestionChipsSection(

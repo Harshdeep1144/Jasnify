@@ -141,7 +141,7 @@ fun VenueCardFull(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(230.dp)
-                    .clip(SquircleShape(CornerLargeIncrease))
+                    .clip(SquircleShape(topStart = CornerLargeIncrease, topEnd = CornerLargeIncrease))
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -557,40 +557,42 @@ private fun BannerRow(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .width(101.5.dp)
-                .height(34.dp)
-                .drawBehind {
-                    val bleedY = size.height + 1.5f
+        if(venue.rating > 0){
+            Box(
+                modifier = Modifier
+                    .width(101.5.dp)
+                    .height(34.dp)
+                    .drawBehind {
+                        val bleedY = size.height + 1.5f
 
-                    val path = Path().apply {
-                        moveTo(0f, bleedY)
-                        lineTo(0f, 0f)
+                        val path = Path().apply {
+                            moveTo(0f, bleedY)
+                            lineTo(0f, 0f)
 
-                        val startCurveX = size.width * 0.45f
-                        lineTo(startCurveX, 0f)
+                            val startCurveX = size.width * 0.45f
+                            lineTo(startCurveX, 0f)
 
-                        cubicTo(
-                            x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
-                            x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
-                            x3 = size.width, y3 = size.height
+                            cubicTo(
+                                x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
+                                x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
+                                x3 = size.width, y3 = size.height
+                            )
+
+                            lineTo(0f, bleedY)
+                            close()
+                        }
+                        drawPath(
+                            path = path,
+                            color = SurfacePrimary
                         )
-
-                        lineTo(0f, bleedY)
-                        close()
                     }
-                    drawPath(
-                        path = path,
-                        color = SurfacePrimary
-                    )
-                }
-                .padding(start = 12.dp),
-            contentAlignment = Alignment.BottomStart
-        ) {
-            RatingSurface(
-                rating = "${venue.rating}"
-            )
+                    .padding(start = 12.dp),
+                contentAlignment = Alignment.BottomStart
+            ) {
+                RatingSurface(
+                    rating = "${venue.rating}"
+                )
+            }
         }
     }
 }

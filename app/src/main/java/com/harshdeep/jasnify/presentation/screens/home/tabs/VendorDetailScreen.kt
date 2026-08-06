@@ -41,6 +41,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -69,6 +70,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -223,9 +225,26 @@ fun VendorDetailScreen(
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
-    
+
     // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
+
+    // Persistent state for Hero slider offset and Media Pager across navigation stack switches
+    val density = LocalDensity.current
+    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val topBarHeightPx = with(density) { 56.dp.toPx() }
+    val stickyMarginPx = with(density) { 12.dp.toPx() }
+    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
+    val maxOffsetPx = with(density) { 320.dp.toPx() }
+
+    // Remember sheet offset so returning to DETAIL screen retains collapsed/expanded slider offset
+    var sheetOffsetPx by rememberSaveable { mutableFloatStateOf(Float.NaN) }
+    val currentSheetOffsetPx = if (sheetOffsetPx.isNaN()) maxOffsetPx else sheetOffsetPx.coerceIn(minOffsetPx, maxOffsetPx)
+
+    // Remember media pager state and mute state across navigation screen changes
+    val pagerState = rememberPagerState(pageCount = { vendorDetail.mediaItems.size })
+    var isMuted by rememberSaveable { mutableStateOf(true) }
+
     var showReviewSheet by remember { mutableStateOf(false) }
     var initialRatingForSheet by remember { mutableIntStateOf(0) }
     var showAddressSheet by remember { mutableStateOf(false) }
@@ -245,7 +264,7 @@ fun VendorDetailScreen(
         // Combine base reviews with live ones, preferring live ones if IDs match (or user IDs)
         val combinedReviews = (vendorReviews.map { it.toUiModel() } + base.reviews)
             .distinctBy { it.id.ifBlank { it.userName } } // Simple deduplication
-        
+
         base.copy(reviews = combinedReviews)
     }
 
@@ -272,7 +291,7 @@ fun VendorDetailScreen(
         if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
         if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
         if (showAboutSheet) { showAboutSheet = false; return@BackHandler }
-        
+
         screenStack = screenStack.dropLast(1)
     }
 
@@ -302,6 +321,13 @@ fun VendorDetailScreen(
                             vendorDetail = vendorDetail,
                             reviewsData = dynamicReviewsData,
                             listState = listState,
+                            pagerState = pagerState,
+                            sheetOffsetPx = currentSheetOffsetPx,
+                            minOffsetPx = minOffsetPx,
+                            maxOffsetPx = maxOffsetPx,
+                            onSheetOffsetChange = { sheetOffsetPx = it },
+                            isMuted = isMuted,
+                            onMuteToggle = { isMuted = !isMuted },
                             onBackClick = onBackClick,
                             onChatClick = onChatClick,
                             onMenuClick = onMenuClick,
@@ -427,6 +453,13 @@ private fun VendorDetailContent(
     vendorDetail: Vendor,
     reviewsData: ReviewsDataUiModel,
     listState: androidx.compose.foundation.lazy.LazyListState,
+    pagerState: PagerState,
+    sheetOffsetPx: Float,
+    minOffsetPx: Float,
+    maxOffsetPx: Float,
+    onSheetOffsetChange: (Float) -> Unit,
+    isMuted: Boolean,
+    onMuteToggle: () -> Unit,
     onBackClick: () -> Unit,
     onChatClick: (Vendor) -> Unit,
     onMenuClick: () -> Unit,
@@ -445,15 +478,7 @@ private fun VendorDetailContent(
     val vendor = vendorDetail
 
     val density = LocalDensity.current
-    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
-    val topBarHeightPx = with(density) { 56.dp.toPx() }
-    val stickyMarginPx = with(density) { 12.dp.toPx() }
-    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
-    val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
-
-    var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
-    var isMuted by remember { mutableStateOf(true) }
 
     val activeTabs = remember(vendorDetail, reviewsData, hasUserReviewed) {
         buildList {
@@ -534,14 +559,14 @@ private fun VendorDetailContent(
         }
     }
 
-    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx) {
+    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx, sheetOffsetPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 return if (delta < 0 && sheetOffsetPx > minOffsetPx) {
                     val newOffset = (sheetOffsetPx + delta).coerceAtLeast(minOffsetPx)
                     val consumed = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumed)
                 } else Offset.Zero
             }
@@ -550,7 +575,7 @@ private fun VendorDetailContent(
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumedOffset)
                 } else Offset.Zero
             }
@@ -574,14 +599,15 @@ private fun VendorDetailContent(
 
         VendorMediaSlider(
             mediaItems = vendorDetail.mediaItems,
+            pagerState = pagerState,
             isMuted = isMuted,
-            onMuteToggle = { isMuted = !isMuted },
+            onMuteToggle = onMuteToggle,
             vendor = vendor,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(340.dp)
-                .graphicsLayer { 
+                .graphicsLayer {
                     translationY = parallaxTranslationY
                     alpha = 1f - (scrollFraction * 0.75f)
                 }
@@ -608,14 +634,6 @@ private fun VendorDetailContent(
                         onAddressClick = onAddressClick
                     )
                 }
-
-//                if (!hasUserReviewed) {
-//                    item(key = "suggestions") {
-//                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
-//                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
-//                        })
-//                    }
-//                }
 
                 stickyHeader(key = "tabs") {
                     Surface(
@@ -977,16 +995,15 @@ private fun AboutSheet(
 @Composable
 fun VendorMediaSlider(
     mediaItems: List<VendorMediaItem>,
+    pagerState: PagerState,
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
     vendor: Vendor,
     onSeeAllGalleryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(pageCount = { mediaItems.size })
-
     if (mediaItems.size > 1) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(pagerState) {
             while (true) {
                 delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
