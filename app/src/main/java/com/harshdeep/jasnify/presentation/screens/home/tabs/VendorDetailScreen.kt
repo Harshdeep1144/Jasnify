@@ -359,9 +359,9 @@ fun VendorDetailScreen(
                         ReviewDetailPostScreen(
                             review = selectedReviewForPost ?: vendorDetail.reviewsData?.reviews?.firstOrNull()
                                 ?.toUiModel() ?: ReviewUiModel(
-                                userName = "Anand K.",
+                                userName = "Username",
                                 rating = 4.4,
-                                relativeTime = "1 week ago",
+                                relativeTime = "Just Now",
                                 reviewText = "Amazing service!"
                             ),
                             onBack = {
@@ -455,12 +455,14 @@ private fun VendorDetailContent(
     var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
     var isMuted by remember { mutableStateOf(true) }
 
-    val activeTabs = remember(vendorDetail) {
+    val activeTabs = remember(vendorDetail, reviewsData, hasUserReviewed) {
         buildList {
             if (vendorDetail.pricingItems.isNotEmpty()) add("Pricings")
             if (vendorDetail.highlightItems.isNotEmpty()) add("Highlights")
             if (vendorDetail.aboutText != null) add("About")
             add("Ask AI")
+            if (vendorDetail.galleryCategories.isNotEmpty()) add("Gallery")
+            if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) add("Reviews")
         }
     }
 
@@ -512,12 +514,16 @@ private fun VendorDetailContent(
                     "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
                     "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
+                    "gallery", "div_gallery" -> activeTabs.indexOf("Gallery").coerceAtLeast(0)
+                    "reviews", "div_reviews" -> activeTabs.indexOf("Reviews").coerceAtLeast(0)
                     else -> {
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val askAiIdx = listKeys.indexOf("ask_ai").takeIf { it != -1 } ?: Int.MAX_VALUE
-                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx)
+                        val galleryIdx = listKeys.indexOf("gallery").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
                         if (itemIndex < firstContentIdx) 0 else {
                             val aiIndex = activeTabs.indexOf("Ask AI")
                             if (aiIndex != -1) aiIndex else 0
@@ -589,18 +595,7 @@ private fun VendorDetailContent(
                 .shadow(24.dp, SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .background(BackgroundPrimary, SquircleShape(CornerExtraLarge, CornerExtraLarge))
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, RoundedCornerShape(100))
-                )
-            }
+            Spacer(Modifier.height(12.dp))
 
             LazyColumn(
                 state = listState,
@@ -614,13 +609,13 @@ private fun VendorDetailContent(
                     )
                 }
 
-                if (!hasUserReviewed) {
-                    item(key = "suggestions") {
-                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
-                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
-                        })
-                    }
-                }
+//                if (!hasUserReviewed) {
+//                    item(key = "suggestions") {
+//                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
+//                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
+//                        })
+//                    }
+//                }
 
                 stickyHeader(key = "tabs") {
                     Surface(
@@ -638,6 +633,8 @@ private fun VendorDetailContent(
                                         "Highlights" -> "highlights"
                                         "About" -> "about"
                                         "Ask AI" -> "ask_ai"
+                                        "Gallery" -> "gallery"
+                                        "Reviews" -> "reviews"
                                         else -> "pricings"
                                     }
                                     val itemIndex = listKeys.indexOf(targetKey)
@@ -1058,7 +1055,10 @@ fun VendorMediaSlider(
 }
 
 @Composable
-fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
+fun VendorInfoSection(
+    vendor: Vendor,
+    onAddressClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1081,7 +1081,7 @@ fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAddressClick() },
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
                 Text(
                     text = vendor.location,
@@ -1089,16 +1089,19 @@ fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
                     color = ContentSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 )
+
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Expand",
                     tint = ContentSecondary,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier
+                        .align(Alignment.Bottom)
                 )
             }
         }
+        Spacer(Modifier.width(48.dp))
 
         Column(
             modifier = Modifier
@@ -1190,6 +1193,8 @@ fun VendorHighlightsSection(highlightItems: List<VendorHighlightItem>) {
 
 @Composable
 fun VendorAboutSection(vendor: Vendor, aboutText: String, onReadMoreClick: () -> Unit) {
+    var isOverflowed by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1206,26 +1211,31 @@ fun VendorAboutSection(vendor: Vendor, aboutText: String, onReadMoreClick: () ->
             style = JasnifyTheme.typography.labelLarge,
             overflow = TextOverflow.Ellipsis,
             maxLines = 4,
-            color = ContentSecondary
+            color = ContentSecondary,
+            onTextLayout = { textLayoutResult ->
+                isOverflowed = textLayoutResult.hasVisualOverflow
+            }
         )
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.clickable { onReadMoreClick() },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Read more",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
+        if (isOverflowed) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.clickable { onReadMoreClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Read more",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1338,7 +1348,8 @@ fun VendorTabs(
         indicator = { tabPositions ->
             if (selectedTabIndex in tabPositions.indices) {
                 TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex])
+                        .clip(shape = RoundedCornerShape(100, 100, 0, 0)),
                     color = ContentBrand,
                     height = 4.dp
                 )

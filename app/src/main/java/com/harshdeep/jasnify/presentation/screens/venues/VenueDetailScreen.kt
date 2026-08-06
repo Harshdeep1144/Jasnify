@@ -389,7 +389,7 @@ fun VenueDetailScreen(
                 initialRating = initialRatingForSheet,
                 initialReviewText = userExistingReview?.reviewText ?: "",
                 initialLikedOptions = userExistingReview?.likedOptions?.toSet() ?: emptySet(),
-                initialImages = userExistingReview?.attachedImages?.map { Uri.parse(it) } ?: emptyList(),
+                initialImages = userExistingReview?.attachedImages?.map { it.toUri() } ?: emptyList(),
                 isEdit = userExistingReview != null,
                 onDismiss = { showReviewSheet = false },
                 onSubmit = { rating, text, images, removedImages, likedOptions ->
@@ -397,7 +397,7 @@ fun VenueDetailScreen(
                         venueId = venueDetail.id,
                         rating = rating.toDouble(),
                         text = text,
-                        imageUris = images.map { Uri.parse(it) },
+                        imageUris = images.map { it.toUri() },
                         removedImageUrls = removedImages,
                         likedOptions = likedOptions
                     )
@@ -449,7 +449,6 @@ private fun VenueDetailContent(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val venue = venueDetail
 
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
@@ -462,11 +461,13 @@ private fun VenueDetailContent(
     var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
     var isMuted by remember { mutableStateOf(true) }
 
-    val activeTabs = remember(venueDetail) {
+    val activeTabs = remember(venueDetail, reviewsData, hasUserReviewed) {
         buildList {
             if (venueDetail.pricingItems.isNotEmpty()) add("Pricings")
             if (venueDetail.highlightItems.isNotEmpty()) add("Highlights")
             if (venueDetail.aboutText != null) add("About")
+            if (venueDetail.galleryCategories.isNotEmpty()) add("Gallery")
+            if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) add("Reviews")
             add("Ask AI")
         }
     }
@@ -523,6 +524,8 @@ private fun VenueDetailContent(
                     "pricings", "div_pricings" -> activeTabs.indexOf("Pricings").coerceAtLeast(0)
                     "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
+                    "gallery", "div_gallery" -> activeTabs.indexOf("Gallery").coerceAtLeast(0)
+                    "reviews", "div_reviews" -> activeTabs.indexOf("Reviews").coerceAtLeast(0)
                     "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
                     else -> {
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
@@ -620,18 +623,7 @@ private fun VenueDetailContent(
                     shape = SquircleShape(CornerExtraLarge, CornerExtraLarge)
                 )
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, shape = RoundedCornerShape(100))
-                )
-            }
+            Spacer(Modifier.height(12.dp))
 
             LazyColumn(
                 state = listState,
@@ -642,13 +634,14 @@ private fun VenueDetailContent(
                     VenueInfoSection(venue = venueDetail, onAddressClick = onAddressClick)
                 }
 
-                if (!hasUserReviewed) {
-                    item(key = "suggestions") {
-                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
-                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
-                        })
-                    }
-                }
+
+//                if (!hasUserReviewed) {
+//                    item(key = "suggestions") {
+//                        SuggestionChipsSection(onClickSuggestion = { ratingStr ->
+//                            onWriteReviewClick(ratingStr.take(1).toIntOrNull() ?: 0)
+//                        })
+//                    }
+//                }
 
                 stickyHeader(key = "tabs") {
                     Surface(
@@ -666,6 +659,8 @@ private fun VenueDetailContent(
                                         "Pricings" -> "pricings"
                                         "Highlights" -> "highlights"
                                         "About" -> "about"
+                                        "Gallery" -> "gallery"
+                                        "Reviews" -> "reviews"
                                         "Ask AI" -> "ask_ai"
                                         else -> "pricings"
                                     }
@@ -1077,8 +1072,6 @@ fun VenueInfoSection(
     venue: Venue,
     onAddressClick: () -> Unit
 ) {
-    var hasOverflow by remember { mutableStateOf(false) }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1088,7 +1081,6 @@ fun VenueInfoSection(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(end = 16.dp)
         ) {
             Text(
                 text = venue.name,
@@ -1102,7 +1094,7 @@ fun VenueInfoSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAddressClick() },
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
                 Text(
                     text = venue.location,
@@ -1110,20 +1102,19 @@ fun VenueInfoSection(
                     color = ContentSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    onTextLayout = { textLayoutResult ->
-                        hasOverflow = textLayoutResult.hasVisualOverflow
-                    },
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 )
 
                 Icon(
-                    imageVector =  Icons.Default.KeyboardArrowDown,
-                    contentDescription =  "Expand",
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Expand",
                     tint = ContentSecondary,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier
+                        .align(Alignment.Bottom)
                 )
             }
         }
+        Spacer(Modifier.width(48.dp))
 
         Column(
             modifier = Modifier
@@ -1502,7 +1493,8 @@ fun VenueTabs(
         indicator = { tabPositions ->
             if (selectedTabIndex in tabPositions.indices) {
                 TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex])
+                        .clip(shape = RoundedCornerShape(100, 100, 0, 0)),
                     color = ContentBrand,
                     height = 4.dp
                 )

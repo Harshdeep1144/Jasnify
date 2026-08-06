@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.components.sections
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -581,12 +582,19 @@ fun ReviewCard(
     onCardClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isOverflowed by remember { mutableStateOf(false) }
+
     Surface(
-        color = SurfaceSecondary,
+        color = Color(0x80E2E2E2),
         shape = SquircleShape(CornerExtraLarge),
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f)),
         modifier = modifier
             .width(280.dp)
-            .clickable(onClick = onCardClick)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onCardClick
+            )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -602,7 +610,7 @@ fun ReviewCard(
                             .background(SurfaceSecondary)
                     ) {
                         AsyncImage(
-                            model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
+                            model = review.userAvatarUrl ?: "",
                             contentDescription = null,
                             contentScale = ContentScale.Crop
                         )
@@ -633,24 +641,29 @@ fun ReviewCard(
                 style = JasnifyTheme.typography.labelLarge,
                 color = ContentSecondary,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { textLayoutResult ->
+                    isOverflowed = textLayoutResult.hasVisualOverflow
+                }
             )
 
-            Row(
-                modifier = Modifier.clickable { onCardClick() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "More",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (isOverflowed) {
+                Row(
+                    modifier = Modifier.clickable { onCardClick() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "More",
+                        color = ContentBrandDark,
+                        style = JasnifyTheme.typography.labelLarge,
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = ContentBrandDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -669,13 +682,30 @@ fun ReviewCard(
 fun RatingSurface(
     rating: String,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = Color(0xFF009B0A),
     contentColor: Color = ContentInvPrimary,
     starIconSize: Dp = 12.dp,
     shape: Shape = RoundedCornerShape(100),
     paddingValues: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-    textStyle: TextStyle = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+    textStyle: TextStyle = JasnifyTheme.typography.labelMedium.copy(
+        fontWeight = FontWeight.Medium
+    )
 ) {
+    val ratingValue = rating.toFloatOrNull() ?: 0f
+
+    val backgroundColor = when {
+        ratingValue >= 4.5f -> Color(0xFF009B0A)
+        ratingValue >= 3.5f -> Color(0xFF4CAF50)
+        ratingValue >= 2.5f -> Color(0xFFFFC107)
+        ratingValue >= 1.5f -> Color(0xFFFF9800)
+        else -> Color(0xFFF44336)
+    }
+
+    val displayRating = if (ratingValue % 1.0 == 0.0) {
+        ratingValue.toInt().toString()
+    } else {
+        rating
+    }
+
     Surface(
         color = backgroundColor,
         shape = shape,
@@ -691,9 +721,11 @@ fun RatingSurface(
                 modifier = Modifier.size(starIconSize),
                 tint = contentColor
             )
+
             Spacer(modifier = Modifier.width(4.dp))
+
             Text(
-                text = rating,
+                text = displayRating,
                 color = contentColor,
                 style = textStyle
             )

@@ -76,6 +76,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 
 private const val VIRTUAL_PAGE_COUNT = 10000
 
@@ -340,6 +341,12 @@ fun VenueCardCompact(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                val displayRating = if (venue.rating % 1.0 == 0.0) {
+                    venue.rating.toInt().toString()
+                } else {
+                    venue.rating
+                }
+
                 // Rating Badge
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
@@ -355,7 +362,7 @@ fun VenueCardCompact(
                         Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentPrimary)
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${venue.rating}",
+                            text = "$displayRating",
                             color = ContentPrimary,
                             style = JasnifyTheme.typography.labelSmall
                         )
@@ -581,20 +588,9 @@ private fun BannerRow(
                 .padding(start = 12.dp),
             contentAlignment = Alignment.BottomStart
         ) {
-            Row(
-                modifier = Modifier
-                    .background(Color(0xFF009B0A), shape = RoundedCornerShape(100))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), Color.White)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "${venue.rating}",
-                    color = ContentInvPrimary,
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
-                )
-            }
+            RatingSurface(
+                rating = "${venue.rating}"
+            )
         }
     }
 }
@@ -624,31 +620,33 @@ private val shadowLayers = listOf(
 fun Modifier.venueShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
-) = this.graphicsLayer {
-    clip = false
-}.drawBehind {
-    drawIntoCanvas { canvas ->
-        shadowLayers.forEach { layer ->
-            cachedShadowPaint.color = color.copy(alpha = layer.alpha).toArgb()
-            cachedShadowPaint.setShadowLayer(
-                layer.blur.toPx(),
-                0f,
-                layer.offsetY.toPx(),
-                color.copy(alpha = layer.alpha).toArgb()
-            )
+) = this
+    .graphicsLayer {
+        clip = false
+    }
+    .drawBehind {
+        drawIntoCanvas { canvas ->
+            shadowLayers.forEach { layer ->
+                cachedShadowPaint.color = color.copy(alpha = layer.alpha).toArgb()
+                cachedShadowPaint.setShadowLayer(
+                    layer.blur.toPx(),
+                    0f,
+                    layer.offsetY.toPx(),
+                    color.copy(alpha = layer.alpha).toArgb()
+                )
 
-            canvas.nativeCanvas.drawRoundRect(
-                0f,
-                0f,
-                size.width,
-                size.height,
-                borderRadius.toPx(),
-                borderRadius.toPx(),
-                cachedShadowPaint
-            )
+                canvas.nativeCanvas.drawRoundRect(
+                    0f,
+                    0f,
+                    size.width,
+                    size.height,
+                    borderRadius.toPx(),
+                    borderRadius.toPx(),
+                    cachedShadowPaint
+                )
+            }
         }
     }
-}
 
 private data class VenueShadowLayer(val offsetY: Dp, val blur: Dp, val alpha: Float)
 
@@ -658,7 +656,7 @@ fun PreviewVenueCards() {
     val sample = Venue(
         name = "The Grand Palace",
         location = "Greater Noida, UP",
-        rating = 4.9,
+        rating = 2.0,
         totalReviews = "2.4k",
         priceStartsFrom = "₹75,000",
         images = listOf(

@@ -60,6 +60,7 @@ import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
 import com.harshdeep.jasnify.presentation.components.states.FullCardLoading
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -340,6 +341,12 @@ fun VendorCardCompact(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                val displayRating = if (vendor.rating % 1.0 == 0.0) {
+                    vendor.rating.toInt().toString()
+                } else {
+                    vendor.rating
+                }
+
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -354,7 +361,7 @@ fun VendorCardCompact(
                         Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentPrimary)
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${vendor.rating}",
+                            text = "$displayRating",
                             color = ContentPrimary,
                             style = JasnifyTheme.typography.labelSmall
                         )
@@ -453,22 +460,7 @@ fun VendorCardCompact(
     }
 }
 
-@Composable
-fun VendorCard(
-    vendor: Vendor,
-    modifier: Modifier = Modifier,
-    onCardClick: () -> Unit = {},
-    onFavoriteToggle: () -> Unit = {},
-    onOfferClick: () -> Unit = {}
-) {
-    VendorCardFull(
-        vendor = vendor,
-        modifier = modifier,
-        onCardClick = onCardClick,
-        onFavoriteToggle = onFavoriteToggle,
-        onOfferClick = onOfferClick
-    )
-}
+
 
 @Composable
 private fun VendorImage(url: String, modifier: Modifier = Modifier) {
@@ -595,20 +587,9 @@ private fun VendorBannerRow(
                 .padding(start = 12.dp),
             contentAlignment = Alignment.BottomStart
         ) {
-            Row(
-                modifier = Modifier
-                    .background(Color(0xFF009B0A), shape = RoundedCornerShape(100))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), Color.White)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "${vendor.rating}",
-                    color = ContentInvPrimary,
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
-                )
-            }
+            RatingSurface(
+                rating = "${vendor.rating}"
+            )
         }
     }
 }
@@ -689,7 +670,7 @@ fun PreviewVendorCards() {
         category = "Photographer",
         city = "Noida",
         locality = "Sector 62",
-        rating = 4.8,
+        rating = 2.0,
         totalReviews = "1.8k",
         priceStartsFrom = "₹45,000",
         priceUnit = "day",
