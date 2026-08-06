@@ -60,6 +60,7 @@ data class VendorHighlightItem(
 
 data class VendorGalleryCategory(
     val categoryName: String = "",
+    val lastUpdated: String? = null,
     val mediaItems: List<VendorMediaItem> = emptyList()
 )
 

@@ -149,7 +149,6 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -166,7 +165,7 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorActiveScreen {
-    DETAIL, REVIEWS, GALLERY, POST
+    DETAIL, REVIEWS, GALLERY, POST, MEDIA_VIEWER, ALBUM_DETAIL
 }
 
 fun VendorReview.toUiModel() = ReviewUiModel(
@@ -207,6 +206,7 @@ fun VendorMediaItem.toUiModel() = MediaItemUiModel(
 
 fun VendorGalleryCategory.toUiModel() = GalleryCategoryUiModel(
     categoryName = categoryName,
+    lastUpdated = lastUpdated,
     mediaItems = mediaItems.map { it.toUiModel() }
 )
 
@@ -225,6 +225,10 @@ fun VendorDetailScreen(
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
+    var selectedAlbum by remember { mutableStateOf<GalleryCategoryUiModel?>(null) }
+    var gallerySelectedTab by rememberSaveable { mutableStateOf("Images") }
+    var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
+    var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
     // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
@@ -334,6 +338,11 @@ fun VendorDetailScreen(
                             onFavoriteToggle = onFavoriteToggle,
                             onSeeAllReviewsClick = { screenStack = screenStack + VendorActiveScreen.REVIEWS },
                             onSeeAllGalleryClick = { screenStack = screenStack + VendorActiveScreen.GALLERY },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                            },
                             onOpenReviewPost = { review ->
                                 selectedReviewForPost = review
                                 screenStack = screenStack + VendorActiveScreen.POST
@@ -377,8 +386,32 @@ fun VendorDetailScreen(
                             title = vendorDetail.name,
                             galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
                             onBack = { screenStack = screenStack.dropLast(1) },
-                            onOpenAlbum = { }
+                            onOpenAlbum = { category ->
+                                selectedAlbum = category
+                                screenStack = screenStack + VendorActiveScreen.ALBUM_DETAIL
+                            },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                            },
+                            selectedTab = gallerySelectedTab,
+                            onTabSelected = { gallerySelectedTab = it }
                         )
+                    }
+
+                    VendorActiveScreen.ALBUM_DETAIL -> {
+                        selectedAlbum?.let { album ->
+                            com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen(
+                                category = album,
+                                onBack = { screenStack = screenStack.dropLast(1) },
+                                onMediaClick = { list, index ->
+                                    mediaViewerList = list
+                                    mediaViewerInitialIndex = index
+                                    screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                                }
+                            )
+                        }
                     }
 
                     VendorActiveScreen.POST -> {
@@ -393,6 +426,14 @@ fun VendorDetailScreen(
                             onBack = {
                                 screenStack = screenStack.dropLast(1)
                             }
+                        )
+                    }
+
+                    VendorActiveScreen.MEDIA_VIEWER -> {
+                        com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen(
+                            mediaItems = mediaViewerList,
+                            initialIndex = mediaViewerInitialIndex,
+                            onBack = { screenStack = screenStack.dropLast(1) }
                         )
                     }
                 }
@@ -466,6 +507,7 @@ private fun VendorDetailContent(
     onFavoriteToggle: (Vendor) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
+    onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
     onAddressClick: () -> Unit,
@@ -475,7 +517,6 @@ private fun VendorDetailContent(
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
-    val vendor = vendorDetail
 
     val density = LocalDensity.current
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
@@ -494,9 +535,6 @@ private fun VendorDetailContent(
     val listKeys = remember(vendorDetail, hasUserReviewed, reviewsData) {
         buildList {
             add("info")
-            if (!hasUserReviewed) {
-                add("suggestions")
-            }
             add("tabs")
             if (vendorDetail.pricingItems.isNotEmpty()) {
                 add("pricings")
@@ -550,8 +588,8 @@ private fun VendorDetailContent(
                         val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
                         if (itemIndex < firstContentIdx) 0 else {
-                            val aiIndex = activeTabs.indexOf("Ask AI")
-                            if (aiIndex != -1) aiIndex else 0
+                            // If we are past all content sections (e.g. footer), select the last tab
+                            activeTabs.size - 1
                         }
                     }
                 }
@@ -602,7 +640,7 @@ private fun VendorDetailContent(
             pagerState = pagerState,
             isMuted = isMuted,
             onMuteToggle = onMuteToggle,
-            vendor = vendor,
+            vendor = vendorDetail,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             modifier = Modifier
                 .fillMaxWidth()
@@ -671,7 +709,7 @@ private fun VendorDetailContent(
                 if (vendorDetail.pricingItems.isNotEmpty()) {
                     item(key = "pricings") {
                         VendorPricingsSection(
-                            vendor = vendor,
+                            vendor = vendorDetail,
                             pricingItems = vendorDetail.pricingItems
                         )
                     }
@@ -724,11 +762,11 @@ private fun VendorDetailContent(
                     )
                 }
 
-                if (vendorDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
-                            onSeeAllClick = onSeeAllGalleryClick
+                            onSeeAllClick = onSeeAllGalleryClick,
+                            onMediaClick = onMediaClick
                         )
                     }
                     item(key = "div_gallery") {
@@ -737,7 +775,6 @@ private fun VendorDetailContent(
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
-                }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
@@ -760,11 +797,11 @@ private fun VendorDetailContent(
                 }
 
                 item(key = "explore_more") {
-                    val similarVendors = remember(vendor.id) {
-                        MockData.sampleVendors.filter { it.id != vendor.id }.take(6)
+                    val similarVendors = remember(vendorDetail.id) {
+                        MockData.sampleVendors.filter { it.id != vendorDetail.id }.take(6)
                     }
                     VendorExploreMoreSection(
-                        vendor = vendor,
+                        vendor = vendorDetail,
                         similarVendors = similarVendors
                     )
                 }
@@ -1164,26 +1201,28 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { }
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "See full pricings",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
+        if(pricingItems.size > 3){
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "See full pricings",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.KeyboardArrowRight,
+                    null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }

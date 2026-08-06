@@ -164,17 +164,10 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
-// ============================================================================================================================================
-// ENUMS
-// ============================================================================================================================================
-
 enum class VenueActiveScreen {
-    DETAIL, REVIEWS, GALLERY, POST
+    DETAIL, REVIEWS, GALLERY, POST, MEDIA_VIEWER, ALBUM_DETAIL
 }
 
-// ============================================================================================================================================
-// MAIN SCREEN CONTAINERS
-// ============================================================================================================================================
 
 fun VenueReview.toUiModel() = ReviewUiModel(
     id = id,
@@ -214,6 +207,7 @@ fun VenueMediaItem.toUiModel() = MediaItemUiModel(
 
 fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
     categoryName = categoryName,
+    lastUpdated = lastUpdated,
     mediaItems = mediaItems.map { it.toUiModel() }
 )
 
@@ -232,6 +226,10 @@ fun VenueDetailScreen(
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
+    var selectedAlbum by remember { mutableStateOf<GalleryCategoryUiModel?>(null) }
+    var gallerySelectedTab by rememberSaveable { mutableStateOf("Images") }
+    var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
+    var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
     // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
@@ -341,6 +339,11 @@ fun VenueDetailScreen(
                             onChatClick = onChatClick,
                             onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
                             onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VenueActiveScreen.MEDIA_VIEWER
+                            },
                             onOpenReviewPost = { review ->
                                 selectedReviewForPost = review
                                 screenStack = screenStack + VenueActiveScreen.POST
@@ -384,8 +387,32 @@ fun VenueDetailScreen(
                             title = venueDetail.name,
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
                             onBack = { screenStack = screenStack.dropLast(1) },
-                            onOpenAlbum = { }
+                            onOpenAlbum = { category ->
+                                selectedAlbum = category
+                                screenStack = screenStack + VenueActiveScreen.ALBUM_DETAIL
+                            },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VenueActiveScreen.MEDIA_VIEWER
+                            },
+                            selectedTab = gallerySelectedTab,
+                            onTabSelected = { gallerySelectedTab = it }
                         )
+                    }
+
+                    VenueActiveScreen.ALBUM_DETAIL -> {
+                        selectedAlbum?.let { album ->
+                            com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen(
+                                category = album,
+                                onBack = { screenStack = screenStack.dropLast(1) },
+                                onMediaClick = { list, index ->
+                                    mediaViewerList = list
+                                    mediaViewerInitialIndex = index
+                                    screenStack = screenStack + VenueActiveScreen.MEDIA_VIEWER
+                                }
+                            )
+                        }
                     }
 
                     VenueActiveScreen.POST -> {
@@ -400,6 +427,14 @@ fun VenueDetailScreen(
                             onBack = {
                                 screenStack = screenStack.dropLast(1)
                             }
+                        )
+                    }
+
+                    VenueActiveScreen.MEDIA_VIEWER -> {
+                        com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen(
+                            mediaItems = mediaViewerList,
+                            initialIndex = mediaViewerInitialIndex,
+                            onBack = { screenStack = screenStack.dropLast(1) }
                         )
                     }
                 }
@@ -471,6 +506,7 @@ private fun VenueDetailContent(
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
+    onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
     onAddressClick: () -> Unit,
@@ -488,18 +524,15 @@ private fun VenueDetailContent(
             if (venueDetail.pricingItems.isNotEmpty()) add("Pricings")
             if (venueDetail.highlightItems.isNotEmpty()) add("Highlights")
             if (venueDetail.aboutText != null) add("About")
+            add("Ask AI")
             if (venueDetail.galleryCategories.isNotEmpty()) add("Gallery")
             if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) add("Reviews")
-            add("Ask AI")
         }
     }
 
     val listKeys = remember(venueDetail, hasUserReviewed, reviewsData) {
         buildList {
             add("info")
-            if (!hasUserReviewed) {
-                add("suggestions")
-            }
             add("tabs")
             if (venueDetail.pricingItems.isNotEmpty()) {
                 add("pricings")
@@ -546,22 +579,24 @@ private fun VenueDetailContent(
                     "pricings", "div_pricings" -> activeTabs.indexOf("Pricings").coerceAtLeast(0)
                     "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
+                    "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
                     "gallery", "div_gallery" -> activeTabs.indexOf("Gallery").coerceAtLeast(0)
                     "reviews", "div_reviews" -> activeTabs.indexOf("Reviews").coerceAtLeast(0)
-                    "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
                     else -> {
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val askAiIdx = listKeys.indexOf("ask_ai").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val galleryIdx = listKeys.indexOf("gallery").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
 
-                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx)
+                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
 
                         if (itemIndex < firstContentIdx) {
                             0
                         } else {
-                            val aiIndex = activeTabs.indexOf("Ask AI")
-                            if (aiIndex != -1) aiIndex else 0
+                            // If we are past all content sections (e.g. footer), select the last tab
+                            activeTabs.size - 1
                         }
                     }
                 }
@@ -729,17 +764,16 @@ private fun VenueDetailContent(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
-                if (venueDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
-                            onSeeAllClick = onSeeAllGalleryClick
+                            onSeeAllClick = onSeeAllGalleryClick,
+                            onMediaClick = onMediaClick
                         )
                     }
                     item(key = "div_gallery") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
-                }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
@@ -1020,26 +1054,28 @@ fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { }
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "See full pricings",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                Icons.Default.KeyboardArrowRight,
-                null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
+        if(pricingItems.size > 3){
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "See full pricings",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.KeyboardArrowRight,
+                    null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1329,7 +1365,8 @@ private fun AddressSheet(
                         horizontalAlignment = Alignment.Start
                     ) {
                         Box(
-                            modifier = Modifier.background(Color.Transparent),
+                            modifier = Modifier
+                                .background(Color.Transparent),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

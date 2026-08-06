@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -269,7 +270,7 @@ fun AllReviewsScreen(
     leaveReviewButtonText: String = "Leave a review",
     modifier: Modifier = Modifier
 ) {
-    var selectedFilterIndex by remember { mutableStateOf(0) }
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
     val filters = remember {
         listOf("Relevance", "Recent First", "Negative First", "With Photos", "Highest Rated", "Lowest Rated")
     }
@@ -291,11 +292,10 @@ fun AllReviewsScreen(
                     isLeftAligned = true,
                     buttonStyle = ButtonBackground.TRANSPARENT
                 )
-                Spacer(Modifier.height(24.dp))
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp, top = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
@@ -310,19 +310,20 @@ fun AllReviewsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 8.dp),
+                                .padding(horizontal = 24.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            reviewsData.subMetrics.forEachIndexed { index, item ->
-                                if (index > 0) {
+                            reviewsData.ratingBreakdown.forEachIndexed { index, item ->
+                                RatingBreakdownItem(item.score, item.label)
+
+                                if (index != reviewsData.ratingBreakdown.lastIndex) {
                                     VerticalDivider(
-                                        modifier = Modifier.height(32.dp),
+                                        modifier = Modifier.height(24.dp),
                                         thickness = 1.dp,
                                         color = ContentTertiary
                                     )
                                 }
-                                RatingBreakdownItem(item.score, item.label)
                             }
                         }
                     }
@@ -438,7 +439,7 @@ fun ReviewDetailPostScreen(
                                     .background(SurfaceBrandSecondary)
                             ) {
                                 AsyncImage(
-                                    model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
+                                    model = review.userAvatarUrl ?: "",
                                     contentDescription = "User Avatar",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -745,69 +746,80 @@ fun RatingDistributionSummaryBlock(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Left
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(0.5f),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            RatingSurface(
-                rating = ratingValue,
-                textStyle = JasnifyTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    color = ContentInvPrimary
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = ratingValue,
+                    style = JasnifyTheme.typography.displayLarge,
+                    color = ContentPrimary,
+                    fontWeight = FontWeight.Medium
                 )
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(Modifier.width(4.dp))
+
+                Icon(
+                    painter = painterResource(R.drawable.ic_star),
+                    contentDescription = null,
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             Text(
                 text = "Based on\n$totalRatings ratings",
+                textAlign = TextAlign.Center,
                 style = JasnifyTheme.typography.labelMedium,
-                color = ContentSecondary,
-                textAlign = TextAlign.Center
+                color = ContentSecondary
             )
         }
+        Spacer(Modifier.width(24.dp))
 
+        // Right
         Column(
-            modifier = Modifier
-                .weight(1.3f)
-                .padding(horizontal = 12.dp),
+            modifier = Modifier.weight(0.5f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val starLevels = listOf("5", "4", "3", "2", "1")
-            starLevels.forEachIndexed { idx, label ->
-                val progress = distribution.getOrNull(idx) ?: 0.0f
+            val stars = listOf("5", "4", "3", "2", "1")
+
+            stars.forEachIndexed { index, star ->
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.width(32.dp),
-                        horizontalArrangement = Arrangement.End
+                        modifier = Modifier.width(28.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = label,
-                            style = JasnifyTheme.typography.labelMedium,
-                            color = ContentBrand
+                            text = star,
+                            style = JasnifyTheme.typography.labelMedium
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(Modifier.width(2.dp))
+
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_star),
+                            painter = painterResource(R.drawable.ic_star),
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = ContentBrand
+                            modifier = Modifier.size(12.dp)
                         )
                     }
+
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = { distribution[index] },
                         modifier = Modifier
                             .weight(1f)
                             .height(4.dp)
-                            .clip(RoundedCornerShape(100)),
-                        color = ContentBrandDark,
+                            .clip(CircleShape),
+                        color = ContentPrimary,
                         trackColor = SurfaceBrandSecondary
                     )
                 }

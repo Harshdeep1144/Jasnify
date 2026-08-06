@@ -65,6 +65,7 @@ data class VenueHighlightItem(
 @Immutable
 data class VenueGalleryCategory(
     val categoryName: String = "",
+    val lastUpdated: String? = null,
     val mediaItems: List<VenueMediaItem> = emptyList()
 )
 
