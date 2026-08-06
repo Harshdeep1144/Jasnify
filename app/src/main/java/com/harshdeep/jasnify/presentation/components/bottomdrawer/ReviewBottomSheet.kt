@@ -12,28 +12,28 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -41,16 +41,13 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.drawscope.Stroke
-import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
@@ -84,7 +81,7 @@ fun ReviewBottomSheet(
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5),
-        onResult = { uris -> 
+        onResult = { uris ->
             if (uris.isNotEmpty()) {
                 selectedImages = (selectedImages + uris).take(5)
             }
@@ -110,10 +107,17 @@ fun ReviewBottomSheet(
         }
     }
 
+    // Dynamic height corresponding to each step layout requirements
+    val currentSheetHeight = when (currentStep) {
+        ReviewStep.RATING -> 310.dp
+        ReviewStep.DETAILS -> 680.dp
+        ReviewStep.SUCCESS -> 540.dp
+    }
+
     CustomBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = 600.dp,
+        sheetHeight = currentSheetHeight,
         showDragHandle = true,
         showCloseButton = currentStep != ReviewStep.SUCCESS
     ) {
@@ -156,11 +160,11 @@ fun ReviewBottomSheet(
                                 PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                             )
                         },
-                        onRemoveImage = { uri -> 
+                        onRemoveImage = { uri ->
                             if (uri.toString().contains("cloudinary.com")) {
                                 removedImages = removedImages + uri.toString()
                             }
-                            selectedImages = selectedImages - uri 
+                            selectedImages = selectedImages - uri
                         },
                         isSubmitting = isSubmitting,
                         isEditMode = isEdit,
@@ -195,15 +199,16 @@ private fun RatingStep(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .fillMaxSize()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(120.dp)
+                .size(72.dp)
                 .clip(CircleShape)
-                .background(SurfaceSecondary)
+                .background(SurfaceSecondary, CircleShape)
         ) {
             AsyncImage(
                 model = targetImageUrl ?: R.drawable.img_placeholder_venue_vendor,
@@ -213,40 +218,43 @@ private fun RatingStep(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = targetName,
-            style = JasnifyTheme.typography.headingLarge,
+            style = JasnifyTheme.typography.labelLarge,
             color = ContentSecondary
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             text = "How was your experience?",
-            style = JasnifyTheme.typography.displayMedium,
+            style = JasnifyTheme.typography.headingMedium.copy(fontWeight = FontWeight.Medium),
             color = ContentPrimary
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             repeat(5) { index ->
                 Icon(
-                    imageVector = Icons.Rounded.StarBorder,
+                    painter = painterResource(R.drawable.ic_star_review),
                     contentDescription = null,
                     tint = ContentTertiary,
                     modifier = Modifier
-                        .size(48.dp)
-                        .clickable { onRatingSelected(index + 1) }
+                        .size(32.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            onRatingSelected(index + 1)
+                        }
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -267,59 +275,81 @@ private fun ReviewDetailsStep(
     onDeleteClick: () -> Unit = {},
     onSubmit: () -> Unit
 ) {
+    val reviewTitle = when (rating) {
+        1 -> "Oh no! Tell us more"
+        2 -> "Could be better! Tell us more"
+        3 -> "Good! Tell us more"
+        4 -> "Nice! Tell us more"
+        5 -> "Loved it! Tell us more"
+        else -> "Tell us more"
+    }
+
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .fillMaxSize(),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
+                .padding(horizontal = 12.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(28.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     repeat(5) { index ->
                         Icon(
-                            imageVector = if (index < rating) Icons.Rounded.Star else Icons.Rounded.StarBorder,
+                            painter = if (index < rating) painterResource(R.drawable.ic_star_review_filled) else painterResource(R.drawable.ic_star_review),
                             contentDescription = null,
-                            tint = if (index < rating) Color(0xFFFFC107) else ContentTertiary,
+                            tint = Color.Unspecified,
                             modifier = Modifier
                                 .size(24.dp)
-                                .clickable { onRatingChange(index + 1) }
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onRatingChange(index + 1)
+                                }
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Nice! Tell us more",
-                    style = JasnifyTheme.typography.headingLarge,
+                    text = `reviewTitle`,
+                    style = JasnifyTheme.typography.headingMedium,
                     color = ContentPrimary
                 )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Your rating has been saved",
-                    style = JasnifyTheme.typography.labelMedium,
+                    style = JasnifyTheme.typography.labelLarge,
                     color = ContentSecondary
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
-                    .background(SurfaceSecondary, RoundedCornerShape(16.dp))
+                    .background(SurfaceSecondary, SquircleShape(CornerLargeIncrease))
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f), SquircleShape(CornerLargeIncrease))
                     .padding(16.dp)
             ) {
                 Column {
                     BasicTextField(
                         value = reviewText,
                         onValueChange = { if (it.length <= 500) onReviewTextChange(it) },
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         textStyle = JasnifyTheme.typography.bodyLarge.copy(color = ContentPrimary),
                         cursorBrush = SolidColor(ContentPrimary),
                         decorationBox = { innerTextField ->
@@ -369,10 +399,10 @@ private fun ReviewDetailsStep(
                                     drawRoundRect(
                                         color = ContentTertiary,
                                         style = stroke,
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(12.dp.toPx())
+                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(CornerMedium.toPx())
                                     )
                                 }
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(SquircleShape(CornerMedium))
                                 .clickable { onAttachPhotosClick() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -384,7 +414,9 @@ private fun ReviewDetailsStep(
                             AsyncImage(
                                 model = uri,
                                 contentDescription = null,
-                                modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(12.dp)),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(SquircleShape(CornerMedium)),
                                 contentScale = ContentScale.Crop
                             )
                             Surface(
@@ -420,10 +452,11 @@ private fun ReviewDetailsStep(
                             drawRoundRect(
                                 color = ContentTertiary,
                                 style = stroke,
-                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(CornerLarge.toPx())
                             )
                         }
-                        .clip(RoundedCornerShape(16.dp))
+                        .clip(SquircleShape(CornerLarge))
+                        .background(SurfaceSecondary, SquircleShape(CornerLarge))
                         .clickable { onAttachPhotosClick() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -436,34 +469,35 @@ private fun ReviewDetailsStep(
                             modifier = Modifier.size(24.dp),
                             tint = ContentPrimary
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "Attach Photos",
-                            style = JasnifyTheme.typography.labelLarge,
+                            style = JasnifyTheme.typography.labelXLarge,
                             color = ContentPrimary
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f))
-
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+            DashedDivider(thickness = 1f, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
                     text = "What did you liked most?",
-                    style = JasnifyTheme.typography.headingLarge,
+                    style = JasnifyTheme.typography.headingMedium,
                     color = ContentPrimary
                 )
+                Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Choose one or more options",
-                    style = JasnifyTheme.typography.labelMedium,
+                    style = JasnifyTheme.typography.labelLarge,
                     color = ContentSecondary
                 )
             }
@@ -471,12 +505,29 @@ private fun ReviewDetailsStep(
             Spacer(modifier = Modifier.height(16.dp))
 
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                likedOptions.forEach { option ->
+                likedOptions.forEachIndexed { index, option ->
+                    val shape = when (index) {
+                        0 -> SquircleShape(
+                            topStart = CornerLargeIncrease,
+                            topEnd = CornerLargeIncrease,
+                            bottomStart = CornerExtraSmall,
+                            bottomEnd = CornerExtraSmall
+                        )
+                        likedOptions.lastIndex -> SquircleShape(
+                            topStart = CornerExtraSmall,
+                            topEnd = CornerExtraSmall,
+                            bottomStart = CornerLargeIncrease,
+                            bottomEnd = CornerLargeIncrease
+                        )
+                        else -> SquircleShape(CornerExtraSmall)
+                    }
+
                     LikedOptionRow(
                         label = option,
                         isSelected = selectedLikedOptions.contains(option),
+                        shape = shape,
                         onToggle = { onLikedOptionToggle(option) }
                     )
                 }
@@ -486,9 +537,8 @@ private fun ReviewDetailsStep(
                 Spacer(modifier = Modifier.height(24.dp))
                 Text(
                     text = "Delete Review",
-                    style = JasnifyTheme.typography.labelLarge.copy(
-                        color = Color(0xFFE57373),
-                        fontWeight = FontWeight.Medium
+                    style = JasnifyTheme.typography.labelXLarge.copy(
+                        color = MaterialTheme.colorScheme.error
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -498,20 +548,20 @@ private fun ReviewDetailsStep(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
+
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
 
         CustomTextButton(
             onClick = onSubmit,
             text = if (isSubmitting) "Submitting..." else "Submit",
             enabled = !isSubmitting,
-            type = ButtonType.Primary,
-            containerColor = Color(0xFF5D7673),
-            shapeStyle = ButtonShapeStyle.Round,
-            modifier = Modifier.fillMaxWidth()
+            shapeStyle = ButtonShapeStyle.Square,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp, horizontal = 12.dp)
         )
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -519,31 +569,35 @@ private fun ReviewDetailsStep(
 private fun LikedOptionRow(
     label: String,
     isSelected: Boolean,
+    shape: SquircleShape = SquircleShape(CornerExtraSmall),
     onToggle: () -> Unit
 ) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
             .height(48.dp)
-            .clickable(onClick = onToggle),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onToggle
+            ),
         color = SurfaceSecondary,
-        shape = RoundedCornerShape(12.dp)
+        shape = shape
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
                 text = label,
-                style = JasnifyTheme.typography.bodyLarge,
+                style = JasnifyTheme.typography.headingMedium,
                 color = if (isSelected) ContentPrimary else ContentTertiary
             )
-            
+
             CustomChecker(
                 checked = isSelected,
                 onCheckedChange = { onToggle() },
-                activeColor = Color(0xFF5D7673)
             )
         }
     }
@@ -556,50 +610,59 @@ private fun ReviewSuccessStep(
 ) {
     Column(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(24.dp),
+            .fillMaxSize()
+            .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
-        
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            repeat(5) { index ->
-                Icon(
-                    imageVector = if (index < rating) Icons.Rounded.Star else Icons.Rounded.StarBorder,
-                    contentDescription = null,
-                    tint = if (index < rating) Color(0xFFFFC107) else ContentTertiary,
-                    modifier = Modifier.size(32.dp)
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    repeat(5) { index ->
+                        Icon(
+                            painter = if (index < rating) painterResource(R.drawable.ic_star_review_filled) else painterResource(R.drawable.ic_star_review),
+                            contentDescription = null,
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "We got your review!",
+                    style = JasnifyTheme.typography.headingXLarge.copy(fontWeight = FontWeight.Medium),
+                    textAlign = TextAlign.Center,
+                    color = ContentPrimary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = "Thank you for giving your valuable time.",
+                    style = JasnifyTheme.typography.labelLarge,
+                    textAlign = TextAlign.Center,
+                    color = ContentSecondary
                 )
             }
         }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "We got your review!",
-            style = JasnifyTheme.typography.displayMedium,
-            textAlign = TextAlign.Center,
-            color = ContentPrimary
-        )
-        
-        Spacer(modifier = Modifier.height(8.dp))
-        
-        Text(
-            text = "Thank you for giving your valuable time.",
-            style = JasnifyTheme.typography.labelLarge,
-            textAlign = TextAlign.Center,
-            color = ContentSecondary
-        )
-        
-        Spacer(modifier = Modifier.height(64.dp))
 
         CustomTextButton(
             onClick = onDone,
             text = "Okay",
             type = ButtonType.Secondary,
-            shapeStyle = ButtonShapeStyle.Round,
-            modifier = Modifier.fillMaxWidth()
+            shapeStyle = ButtonShapeStyle.Square,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 8.dp)
         )
     }
 }
