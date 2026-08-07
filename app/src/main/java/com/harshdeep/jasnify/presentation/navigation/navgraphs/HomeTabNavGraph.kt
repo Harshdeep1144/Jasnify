@@ -110,6 +110,11 @@ fun NavGraphBuilder.homeNavGraph(
             mainNavController = mainNavController,
             internalNavController = navController,
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            onChatClick = { vendor ->
+                val merchantId = vendor.merchantId.ifBlank { "unknown_merchant" }
+                val itemId = vendor.id.ifBlank { "unknown_vendor" }
+                mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
+            },
             onBackClick = {
                 navController.navigate(Screen.HomeTabScreen.Home.route) {
                     popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }

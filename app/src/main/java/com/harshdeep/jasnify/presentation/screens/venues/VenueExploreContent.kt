@@ -62,6 +62,7 @@ fun VenueExploreContent(
     onTextChange: (String) -> Unit,
     isSearchActive: Boolean,
     onSearchActiveChange: (Boolean) -> Unit,
+    onOfferClick: (Venue) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -107,50 +108,50 @@ fun VenueExploreContent(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            AnimatedVisibility(
-                visible = !isSearchActive,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    LocationSelectorPill(
-                        location = selectedLocation,
-                        onLocationSelectorClick = onLocationSelectorClick
-                    )
-                }
-            }
-        }
-
-        item {
-            Spacer(Modifier.height(searchBarTopPadding))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomSearchBar(
-                    value = text,
-                    onValueChange = onTextChange,
-                    onActiveChange = onSearchActiveChange,
-                    modifier = Modifier.weight(1f),
-                    isAiSearch = true,
-                    placeholder = "Type your choices"
-                )
-
+            Column{
                 AnimatedVisibility(
                     visible = !isSearchActive,
-                    enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
-                    exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(8.dp))
-                        FilterButton(onClick = { onShowFilterDialogChange(true) })
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp)
+                    ) {
+                        Spacer(Modifier.height(12.dp))
+                        LocationSelectorPill(
+                            location = selectedLocation,
+                            onLocationSelectorClick = onLocationSelectorClick
+                        )
+                    }
+                }
+                Spacer(Modifier.height(searchBarTopPadding))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CustomSearchBar(
+                        value = text,
+                        onValueChange = onTextChange,
+                        onActiveChange = onSearchActiveChange,
+                        modifier = Modifier.weight(1f),
+                        isAiSearch = true,
+                        placeholder = "Type your choices"
+                    )
+
+                    AnimatedVisibility(
+                        visible = !isSearchActive,
+                        enter = fadeIn() + expandHorizontally(expandFrom = Alignment.End),
+                        exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.End)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Spacer(Modifier.width(8.dp))
+                            FilterButton(onClick = { onShowFilterDialogChange(true) })
+                        }
                     }
                 }
             }
@@ -186,6 +187,7 @@ fun VenueExploreContent(
                     venue = venueItem,
                     onFavoriteToggle = { onFavoriteToggle(venueItem) },
                     onCardClick = { handleVenueClick(venueItem) },
+                    onOfferClick = { onOfferClick(venueItem) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
@@ -214,6 +216,7 @@ fun VenueExploreContent(
                         venue = venueItem,
                         onFavoriteToggle = { onFavoriteToggle(venueItem) },
                         onCardClick = { handleVenueClick(venueItem) },
+                        onOfferClick = { onOfferClick(venueItem) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)

@@ -20,6 +20,7 @@ data class Vendor(
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
+    val phoneNumber: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",
     val priceStartsFrom: String = "₹0",
@@ -33,6 +34,7 @@ data class Vendor(
     val highlightItems: List<VendorHighlightItem> = emptyList(),
     val galleryCategories: List<VendorGalleryCategory> = emptyList(),
     val reviewsData: VendorReviewsData? = null,
+    val offers: List<Offer> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -60,6 +62,7 @@ data class VendorHighlightItem(
 
 data class VendorGalleryCategory(
     val categoryName: String = "",
+    val lastUpdated: String? = null,
     val mediaItems: List<VendorMediaItem> = emptyList()
 )
 
@@ -78,6 +81,7 @@ data class VendorRatingBreakdown(
 
 data class VendorReview(
     val id: String = "",
+    val userId: String = "",
     val userName: String = "",
     val userAvatarUrl: String? = null,
     val rating: Double = 0.0,
@@ -85,6 +89,7 @@ data class VendorReview(
     val reviewText: String = "",
     val isVerified: Boolean = false,
     val attachedImages: List<String> = emptyList(),
+    val likedOptions: List<String> = emptyList(),
     val merchantReply: VendorMerchantReply? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

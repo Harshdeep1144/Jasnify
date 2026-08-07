@@ -12,6 +12,8 @@ interface VenueRepository {
     fun getAllVenues(): Flow<List<Venue>>
     fun getVenueById(venueId: String): Flow<Venue?>
     fun getVenueReviews(venueId: String): Flow<List<VenueReview>>
+    suspend fun addVenueReview(venueId: String, review: VenueReview)
+    suspend fun deleteVenueReview(venueId: String, userId: String)
     
     // Saved Venues
     fun getSavedVenues(eventId: String): Flow<List<SavedVenue>>

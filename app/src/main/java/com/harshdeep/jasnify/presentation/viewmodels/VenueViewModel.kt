@@ -1,12 +1,15 @@
 package com.harshdeep.jasnify.presentation.viewmodels
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.harshdeep.jasnify.domain.model.SavedVenue
-import com.harshdeep.jasnify.domain.model.Venue
-import com.harshdeep.jasnify.domain.model.VenueReview
+import com.google.firebase.auth.FirebaseAuth
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
+import com.harshdeep.jasnify.domain.model.*
 import com.harshdeep.jasnify.domain.repository.VenueRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -15,11 +18,80 @@ import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class VenueViewModel @Inject constructor(
-    private val repository: VenueRepository
+    private val repository: VenueRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
+    private val auth = FirebaseAuth.getInstance()
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private val _isReviewSubmitting = MutableStateFlow(false)
+    val isReviewSubmitting: StateFlow<Boolean> = _isReviewSubmitting.asStateFlow()
+
+    fun submitReview(
+        venueId: String,
+        rating: Double,
+        text: String,
+        imageUris: List<Uri>,
+        removedImageUrls: List<String>,
+        likedOptions: List<String>
+    ) {
+        viewModelScope.launch {
+            _isReviewSubmitting.value = true
+            try {
+                // 0. Delete removed images from Cloudinary
+                removedImageUrls.forEach { url ->
+                    cloudinaryManager.deleteImageByUrl(url)
+                }
+
+                // 1. Upload images to Cloudinary (only those that are not already uploaded)
+                val uploadedUrls = imageUris.map { uri ->
+                    async {
+                        if (uri.toString().contains("cloudinary.com")) {
+                            uri.toString()
+                        } else {
+                            cloudinaryManager.uploadVenueReviewImage(uri, venueId)
+                        }
+                    }
+                }.awaitAll()
+
+                // 2. Create and Submit review
+                val user = auth.currentUser
+                val review = VenueReview(
+                    userId = user?.uid ?: "",
+                    userName = user?.displayName ?: "Anonymous",
+                    userAvatarUrl = user?.photoUrl?.toString(),
+                    rating = rating,
+                    reviewText = text,
+                    attachedImages = uploadedUrls,
+                    likedOptions = likedOptions,
+                    createdAt = System.currentTimeMillis(),
+                    relativeTime = "Just now"
+                )
+                repository.addVenueReview(venueId, review)
+                
+            } catch (e: Exception) {
+                // Handle error
+            } finally {
+                _isReviewSubmitting.value = false
+            }
+        }
+    }
+
+    fun deleteReview(venueId: String, imageUrls: List<String>) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                imageUrls.forEach { url ->
+                    cloudinaryManager.deleteImageByUrl(url)
+                }
+                repository.deleteVenueReview(venueId, userId)
+            } catch (e: Exception) {
+                // Handle error
+            }
+        }
+    }
 
     init {
         viewModelScope.launch {

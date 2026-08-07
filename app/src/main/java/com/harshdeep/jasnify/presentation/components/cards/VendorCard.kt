@@ -60,6 +60,7 @@ import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
 import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
 import com.harshdeep.jasnify.presentation.components.states.FullCardLoading
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -127,7 +128,7 @@ fun VendorCardFull(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(230.dp)
-                    .clip(SquircleShape(CornerLargeIncrease))
+                    .clip(SquircleShape(topStart = CornerLargeIncrease, topEnd = CornerLargeIncrease))
             ) {
                 HorizontalPager(
                     state = pagerState,
@@ -143,12 +144,14 @@ fun VendorCardFull(
                     )
                 }
 
-                OfferBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp),
-                    onClick = onOfferClick
-                )
+                if (vendor.offers.isNotEmpty()) {
+                    OfferBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
+                        onClick = onOfferClick
+                    )
+                }
 
                 Box(
                     Modifier
@@ -340,6 +343,12 @@ fun VendorCardCompact(
                     modifier = Modifier.fillMaxSize()
                 )
 
+                val displayRating = if (vendor.rating % 1.0 == 0.0) {
+                    vendor.rating.toInt().toString()
+                } else {
+                    vendor.rating
+                }
+
                 Surface(
                     color = SurfacePrimary.copy(alpha = 0.8f),
                     shape = CircleShape,
@@ -354,7 +363,7 @@ fun VendorCardCompact(
                         Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), ContentPrimary)
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "${vendor.rating}",
+                            text = "$displayRating",
                             color = ContentPrimary,
                             style = JasnifyTheme.typography.labelSmall
                         )
@@ -396,7 +405,7 @@ fun VendorCardCompact(
                     }
                 }
 
-                if (isMedium) {
+                if (isMedium && vendor.offers.isNotEmpty()) {
                     OfferBadge(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
@@ -453,22 +462,7 @@ fun VendorCardCompact(
     }
 }
 
-@Composable
-fun VendorCard(
-    vendor: Vendor,
-    modifier: Modifier = Modifier,
-    onCardClick: () -> Unit = {},
-    onFavoriteToggle: () -> Unit = {},
-    onOfferClick: () -> Unit = {}
-) {
-    VendorCardFull(
-        vendor = vendor,
-        modifier = modifier,
-        onCardClick = onCardClick,
-        onFavoriteToggle = onFavoriteToggle,
-        onOfferClick = onOfferClick
-    )
-}
+
 
 @Composable
 private fun VendorImage(url: String, modifier: Modifier = Modifier) {
@@ -564,49 +558,40 @@ private fun VendorBannerRow(
             }
         }
 
-        Box(
-            modifier = Modifier
-                .width(101.5.dp)
-                .height(34.dp)
-                .drawBehind {
-                    val bleedY = size.height + 1.5f
-
-                    val path = Path().apply {
-                        moveTo(0f, bleedY)
-                        lineTo(0f, 0f)
-
-                        val startCurveX = size.width * 0.45f
-                        lineTo(startCurveX, 0f)
-
-                        cubicTo(
-                            x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
-                            x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
-                            x3 = size.width, y3 = size.height
-                        )
-
-                        lineTo(0f, bleedY)
-                        close()
-                    }
-                    drawPath(
-                        path = path,
-                        color = SurfacePrimary
-                    )
-                }
-                .padding(start = 12.dp),
-            contentAlignment = Alignment.BottomStart
-        ) {
-            Row(
+        if(vendor.rating > 0){
+            Box(
                 modifier = Modifier
-                    .background(Color(0xFF009B0A), shape = RoundedCornerShape(100))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .width(101.5.dp)
+                    .height(34.dp)
+                    .drawBehind {
+                        val bleedY = size.height + 1.5f
+
+                        val path = Path().apply {
+                            moveTo(0f, bleedY)
+                            lineTo(0f, 0f)
+
+                            val startCurveX = size.width * 0.45f
+                            lineTo(startCurveX, 0f)
+
+                            cubicTo(
+                                x1 = startCurveX + (size.width * 0.35f), y1 = 0f,
+                                x2 = startCurveX + (size.width * 0.20f), y2 = size.height,
+                                x3 = size.width, y3 = size.height
+                            )
+
+                            lineTo(0f, bleedY)
+                            close()
+                        }
+                        drawPath(
+                            path = path,
+                            color = SurfacePrimary
+                        )
+                    }
+                    .padding(start = 12.dp),
+                contentAlignment = Alignment.BottomStart
             ) {
-                Icon(painterResource(R.drawable.ic_star), null, Modifier.size(12.dp), Color.White)
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = "${vendor.rating}",
-                    color = ContentInvPrimary,
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+                RatingSurface(
+                    rating = "${vendor.rating}"
                 )
             }
         }
@@ -689,7 +674,7 @@ fun PreviewVendorCards() {
         category = "Photographer",
         city = "Noida",
         locality = "Sector 62",
-        rating = 4.8,
+        rating = 2.0,
         totalReviews = "1.8k",
         priceStartsFrom = "₹45,000",
         priceUnit = "day",

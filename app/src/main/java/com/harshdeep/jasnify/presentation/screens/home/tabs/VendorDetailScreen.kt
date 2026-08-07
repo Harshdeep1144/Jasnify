@@ -9,6 +9,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,8 +38,10 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -60,9 +66,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,7 +97,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
 import coil.compose.AsyncImage
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.VendorGalleryCategory
 import com.harshdeep.jasnify.domain.model.VendorHighlightItem
@@ -98,7 +110,11 @@ import com.harshdeep.jasnify.domain.model.VendorPricingItem
 import com.harshdeep.jasnify.domain.model.VendorReview
 import com.harshdeep.jasnify.domain.model.VendorReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.cards.OfferCard
+import com.harshdeep.jasnify.presentation.components.cards.OfferCardType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -106,11 +122,16 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
@@ -127,13 +148,13 @@ import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostSc
 import com.harshdeep.jasnify.presentation.components.sections.ReviewUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsDataUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -150,11 +171,12 @@ import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorActiveScreen {
-    DETAIL, REVIEWS, GALLERY, POST
+    DETAIL, REVIEWS, GALLERY, POST, MEDIA_VIEWER, ALBUM_DETAIL
 }
 
 fun VendorReview.toUiModel() = ReviewUiModel(
     id = id,
+    userId = userId,
     userName = userName,
     userAvatarUrl = userAvatarUrl,
     rating = rating,
@@ -162,6 +184,7 @@ fun VendorReview.toUiModel() = ReviewUiModel(
     reviewText = reviewText,
     isVerified = isVerified,
     attachedImages = attachedImages,
+    likedOptions = likedOptions,
     merchantReply = merchantReply?.let {
         MerchantReplyUiModel(
             merchantName = it.merchantName,
@@ -189,6 +212,7 @@ fun VendorMediaItem.toUiModel() = MediaItemUiModel(
 
 fun VendorGalleryCategory.toUiModel() = GalleryCategoryUiModel(
     categoryName = categoryName,
+    lastUpdated = lastUpdated,
     mediaItems = mediaItems.map { it.toUiModel() }
 )
 
@@ -200,73 +224,325 @@ fun VendorDetailScreen(
     onChatClick: (Vendor) -> Unit = {},
     onMenuClick: () -> Unit = {},
     onFavoriteToggle: (Vendor) -> Unit = {},
+    vendorViewModel: VendorViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
     var screenStack by remember { mutableStateOf(listOf(VendorActiveScreen.DETAIL)) }
     val currentScreen = screenStack.last()
 
     var selectedReviewForPost by remember { mutableStateOf<ReviewUiModel?>(null) }
+    var selectedAlbum by remember { mutableStateOf<GalleryCategoryUiModel?>(null) }
+    var gallerySelectedTab by rememberSaveable { mutableStateOf("Images") }
+    var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
+    var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
-    BackHandler(enabled = screenStack.size > 1) {
-        screenStack = screenStack.dropLast(1)
+    // Shared states for sheets and scroll position
+    val listState = rememberLazyListState()
+
+    // Persistent state for Hero slider offset and Media Pager across navigation stack switches
+    val density = LocalDensity.current
+    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
+    val topBarHeightPx = with(density) { 56.dp.toPx() }
+    val stickyMarginPx = with(density) { 12.dp.toPx() }
+    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
+    val maxOffsetPx = with(density) { 320.dp.toPx() }
+
+    // Remember sheet offset so returning to DETAIL screen retains collapsed/expanded slider offset
+    var sheetOffsetPx by rememberSaveable { mutableFloatStateOf(Float.NaN) }
+    val currentSheetOffsetPx = if (sheetOffsetPx.isNaN()) maxOffsetPx else sheetOffsetPx.coerceIn(minOffsetPx, maxOffsetPx)
+
+    // Remember media pager state and mute state across navigation screen changes
+    val pagerState = rememberPagerState(pageCount = { vendorDetail.mediaItems.size })
+    var isMuted by rememberSaveable { mutableStateOf(true) }
+
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
     }
 
-    AnimatedContent(
-        targetState = currentScreen,
-        transitionSpec = {
-            fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
-        },
-        label = "VendorNavigationTransition"
-    ) { screen ->
-        when (screen) {
-            VendorActiveScreen.DETAIL -> {
-                VendorDetailContent(
-                    vendorDetail = vendorDetail,
-                    onBackClick = onBackClick,
-                    onChatClick = onChatClick,
-                    onMenuClick = onMenuClick,
-                    onFavoriteToggle = onFavoriteToggle,
-                    onSeeAllReviewsClick = { screenStack = screenStack + VendorActiveScreen.REVIEWS },
-                    onSeeAllGalleryClick = { screenStack = screenStack + VendorActiveScreen.GALLERY },
-                    onOpenReviewPost = { review ->
-                        selectedReviewForPost = review
-                        screenStack = screenStack + VendorActiveScreen.POST
-                    },
-                    modifier = modifier
-                )
-            }
-            VendorActiveScreen.REVIEWS -> {
-                AllReviewsScreen(
-                    title = vendorDetail.name,
-                    reviewsData = vendorDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel(),
-                    ratingValue = vendorDetail.rating.toString(),
-                    onBack = { screenStack = screenStack.dropLast(1) },
-                    onOpenReviewPost = { review ->
-                        selectedReviewForPost = review
-                        screenStack = screenStack + VendorActiveScreen.POST
-                    },
-                    onLeaveReview = { }
-                )
-            }
-            VendorActiveScreen.GALLERY -> {
-                GalleryDetailScreen(
-                    title = vendorDetail.name,
-                    galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
-                    onBack = { screenStack = screenStack.dropLast(1) },
-                    onOpenAlbum = { }
-                )
-            }
-            VendorActiveScreen.POST -> {
-                ReviewDetailPostScreen(
-                    review = selectedReviewForPost ?: vendorDetail.reviewsData?.reviews?.firstOrNull()?.toUiModel() ?: ReviewUiModel(
-                        userName = "Anand K.",
-                        rating = 4.4,
-                        relativeTime = "1 week ago",
-                        reviewText = "Amazing service!"
-                    ),
-                    onBack = {
-                        screenStack = screenStack.dropLast(1)
+    var showReviewSheet by remember { mutableStateOf(false) }
+    var initialRatingForSheet by remember { mutableIntStateOf(0) }
+    var showAddressSheet by remember { mutableStateOf(false) }
+    var showAboutSheet by remember { mutableStateOf(false) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var selectedOfferForSheet by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Offer?>(null) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
+
+    val isSubmitting by vendorViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
+    val vendorReviews by vendorViewModel.vendorReviews.collectAsStateWithLifecycle()
+
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    val userExistingReview = remember(vendorReviews) {
+        vendorReviews.find { it.userId == currentUserId }
+    }
+
+    val dynamicReviewsData = remember(vendorDetail.reviewsData, vendorReviews) {
+        val base = vendorDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
+        // Combine base reviews with live ones, preferring live ones if IDs match (or user IDs)
+        val combinedReviews = (vendorReviews.map { it.toUiModel() } + base.reviews)
+            .distinctBy { it.id.ifBlank { it.userName } } // Simple deduplication
+
+        base.copy(reviews = combinedReviews)
+    }
+
+    LaunchedEffect(vendorDetail.id) {
+        vendorViewModel.setSelectedVendorId(vendorDetail.id)
+    }
+
+    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet
+    val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
+
+    val backdropScaleState = animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadiusState = animateDpAsState(
+        targetValue = if (anySheetVisible) 28.dp else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
+
+    BackHandler(enabled = anySheetVisible || screenStack.size > 1) {
+        if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
+        if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
+        if (showAboutSheet) { showAboutSheet = false; return@BackHandler }
+        if (showOfferSheet) { showOfferSheet = false; return@BackHandler }
+
+        if (screenStack.size > 1) {
+            screenStack = screenStack.dropLast(1)
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = backdropScaleState.value
+                    scaleY = backdropScaleState.value
+                    val radius = backdropCornerRadiusState.value
+                    clip = anySheetVisible || radius > 0.dp
+                    shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                }
+                .background(BackgroundPrimary)
+        ) {
+            AnimatedContent(
+                targetState = currentScreen,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(500)) togetherWith fadeOut(animationSpec = tween(500))
+                },
+                label = "VendorNavigationTransition"
+            ) { screen ->
+                when (screen) {
+                    VendorActiveScreen.DETAIL -> {
+                        VendorDetailContent(
+                            vendorDetail = vendorDetail,
+                            reviewsData = dynamicReviewsData,
+                            listState = listState,
+                            pagerState = pagerState,
+                            sheetOffsetPx = currentSheetOffsetPx,
+                            minOffsetPx = minOffsetPx,
+                            maxOffsetPx = maxOffsetPx,
+                            onSheetOffsetChange = { sheetOffsetPx = it },
+                            isMuted = isMuted,
+                            onMuteToggle = { isMuted = !isMuted },
+                            onBackClick = onBackClick,
+                            onChatClick = onChatClick,
+                            onMenuClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    val shareMessage = "Check out ${vendorDetail.name} (${vendorDetail.category}) in ${vendorDetail.location} on Jasnify!\n\nhttps://jasnify.com"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Vendor Share")
+                                    putExtra(Intent.EXTRA_TEXT, shareMessage)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Vendor"))
+                            },
+                            onFavoriteToggle = onFavoriteToggle,
+                            onSeeAllReviewsClick = { screenStack = screenStack + VendorActiveScreen.REVIEWS },
+                            onSeeAllGalleryClick = { screenStack = screenStack + VendorActiveScreen.GALLERY },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                            },
+                            onOpenReviewPost = { review ->
+                                selectedReviewForPost = review
+                                screenStack = screenStack + VendorActiveScreen.POST
+                            },
+                            onWriteReviewClick = { rating ->
+                                initialRatingForSheet = rating
+                                showReviewSheet = true
+                            },
+                            onOfferClick = { offer ->
+                                selectedOfferForSheet = offer
+                                showOfferSheet = true
+                            },
+                            onAddressClick = { showAddressSheet = true },
+                            onAboutClick = { showAboutSheet = true },
+                            onShowToast = { toastData = it },
+                            anySheetVisible = anySheetVisible,
+                            hasUserReviewed = userExistingReview != null,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
+
+                    VendorActiveScreen.REVIEWS -> {
+                        AllReviewsScreen(
+                            title = vendorDetail.name,
+                            reviewsData = dynamicReviewsData,
+                            ratingValue = vendorDetail.rating.toString(),
+                            onBack = { screenStack = screenStack.dropLast(1) },
+                            onOpenReviewPost = { review ->
+                                selectedReviewForPost = review
+                                screenStack = screenStack + VendorActiveScreen.POST
+                            },
+                            onLeaveReview = {
+                                if (userExistingReview != null) {
+                                    initialRatingForSheet = userExistingReview.rating.toInt()
+                                } else {
+                                    initialRatingForSheet = 0
+                                }
+                                showReviewSheet = true
+                            },
+                            leaveReviewButtonText = if (userExistingReview != null) "Edit review" else "Leave a review"
+                        )
+                    }
+
+                    VendorActiveScreen.GALLERY -> {
+                        GalleryDetailScreen(
+                            title = vendorDetail.name,
+                            galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
+                            onBack = { screenStack = screenStack.dropLast(1) },
+                            onOpenAlbum = { category ->
+                                selectedAlbum = category
+                                screenStack = screenStack + VendorActiveScreen.ALBUM_DETAIL
+                            },
+                            onMediaClick = { list, index ->
+                                mediaViewerList = list
+                                mediaViewerInitialIndex = index
+                                screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                            },
+                            selectedTab = gallerySelectedTab,
+                            onTabSelected = { gallerySelectedTab = it }
+                        )
+                    }
+
+                    VendorActiveScreen.ALBUM_DETAIL -> {
+                        selectedAlbum?.let { album ->
+                            com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen(
+                                category = album,
+                                onBack = { screenStack = screenStack.dropLast(1) },
+                                onMediaClick = { list, index ->
+                                    mediaViewerList = list
+                                    mediaViewerInitialIndex = index
+                                    screenStack = screenStack + VendorActiveScreen.MEDIA_VIEWER
+                                }
+                            )
+                        }
+                    }
+
+                    VendorActiveScreen.POST -> {
+                        ReviewDetailPostScreen(
+                            review = selectedReviewForPost ?: vendorDetail.reviewsData?.reviews?.firstOrNull()
+                                ?.toUiModel() ?: ReviewUiModel(
+                                userName = "Username",
+                                rating = 4.4,
+                                relativeTime = "Just Now",
+                                reviewText = "Amazing service!"
+                            ),
+                            onBack = {
+                                screenStack = screenStack.dropLast(1)
+                            }
+                        )
+                    }
+
+                    VendorActiveScreen.MEDIA_VIEWER -> {
+                        com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen(
+                            mediaItems = mediaViewerList,
+                            initialIndex = mediaViewerInitialIndex,
+                            onBack = { screenStack = screenStack.dropLast(1) }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showReviewSheet) {
+            ReviewBottomSheet(
+                targetId = vendorDetail.id,
+                targetName = vendorDetail.name,
+                targetImageUrl = vendorDetail.images.firstOrNull(),
+                targetCategory = vendorDetail.category,
+                initialRating = initialRatingForSheet,
+                initialReviewText = userExistingReview?.reviewText ?: "",
+                initialLikedOptions = userExistingReview?.likedOptions?.toSet() ?: emptySet(),
+                initialImages = userExistingReview?.attachedImages?.map { Uri.parse(it) } ?: emptyList(),
+                isEdit = userExistingReview != null,
+                onDismiss = { showReviewSheet = false },
+                onSubmit = { rating, text, images, removedImages, likedOptions ->
+                    vendorViewModel.submitReview(
+                        vendorId = vendorDetail.id,
+                        rating = rating.toDouble(),
+                        text = text,
+                        imageUris = images.map { Uri.parse(it) },
+                        removedImageUrls = removedImages,
+                        likedOptions = likedOptions
+                    )
+                },
+                onDeleteReview = {
+                    vendorViewModel.deleteReview(vendorDetail.id, userExistingReview?.attachedImages ?: emptyList())
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAddressSheet) {
+            AddressSheet(
+                vendor = vendorDetail,
+                onDismiss = { showAddressSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAboutSheet) {
+            AboutSheet(
+                vendor = vendorDetail,
+                onDismiss = { showAboutSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showOfferSheet) {
+            OfferBottomSheet(
+                offers = vendorDetail.offers,
+                initialOffer = selectedOfferForSheet,
+                onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = toastData?.message != null && !anySheetVisible,
+            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type
                 )
             }
         }
@@ -278,52 +554,53 @@ fun VendorDetailScreen(
 @Composable
 private fun VendorDetailContent(
     vendorDetail: Vendor,
+    reviewsData: ReviewsDataUiModel,
+    listState: androidx.compose.foundation.lazy.LazyListState,
+    pagerState: PagerState,
+    sheetOffsetPx: Float,
+    minOffsetPx: Float,
+    maxOffsetPx: Float,
+    onSheetOffsetChange: (Float) -> Unit,
+    isMuted: Boolean,
+    onMuteToggle: () -> Unit,
     onBackClick: () -> Unit,
     onChatClick: (Vendor) -> Unit,
     onMenuClick: () -> Unit,
     onFavoriteToggle: (Vendor) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
+    onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
+    onWriteReviewClick: (Int) -> Unit,
+    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit,
+    onAddressClick: () -> Unit,
+    onAboutClick: () -> Unit,
+    onShowToast: (ToastData) -> Unit,
+    anySheetVisible: Boolean,
+    hasUserReviewed: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val vendor = vendorDetail
-
-    var showAddressSheet by remember { mutableStateOf(false) }
-    var showAboutSheet by remember { mutableStateOf(false) }
-    var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
-
-    BackHandler(enabled = showAddressSheet || showAboutSheet) {
-        if (showAddressSheet) showAddressSheet = false
-        if (showAboutSheet) showAboutSheet = false
-    }
+    val context = LocalContext.current
 
     val density = LocalDensity.current
-    val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
-    val topBarHeightPx = with(density) { 56.dp.toPx() }
-    val stickyMarginPx = with(density) { 12.dp.toPx() }
-    val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
-    val maxOffsetPx = with(density) { 320.dp.toPx() }
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
-    var sheetOffsetPx by remember { mutableFloatStateOf(maxOffsetPx) }
-    var isMuted by remember { mutableStateOf(true) }
-
-    val activeTabs = remember(vendorDetail) {
+    val activeTabs = remember(vendorDetail, reviewsData, hasUserReviewed) {
         buildList {
             if (vendorDetail.pricingItems.isNotEmpty()) add("Pricings")
             if (vendorDetail.highlightItems.isNotEmpty()) add("Highlights")
+            if (vendorDetail.offers.isNotEmpty()) add("Offers")
             if (vendorDetail.aboutText != null) add("About")
             add("Ask AI")
+            if (vendorDetail.galleryCategories.isNotEmpty()) add("Gallery")
+            if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) add("Reviews")
         }
     }
 
-    val listKeys = remember(vendorDetail) {
+    val listKeys = remember(vendorDetail, hasUserReviewed, reviewsData) {
         buildList {
             add("info")
-            add("suggestions")
             add("tabs")
             if (vendorDetail.pricingItems.isNotEmpty()) {
                 add("pricings")
@@ -332,6 +609,10 @@ private fun VendorDetailContent(
             if (vendorDetail.highlightItems.isNotEmpty()) {
                 add("highlights")
                 add("div_highlights")
+            }
+            if (vendorDetail.offers.isNotEmpty()) {
+                add("offers")
+                add("div_offers")
             }
             if (vendorDetail.aboutText != null) {
                 add("about")
@@ -343,10 +624,11 @@ private fun VendorDetailContent(
                 add("gallery")
                 add("div_gallery")
             }
-            if (vendorDetail.reviewsData != null && vendorDetail.reviewsData.reviews.isNotEmpty()) {
+            if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                 add("reviews")
                 add("div_reviews")
             }
+            add("explore_more")
             add("footer")
         }
     }
@@ -363,17 +645,23 @@ private fun VendorDetailContent(
                 when (itemKey) {
                     "pricings", "div_pricings" -> activeTabs.indexOf("Pricings").coerceAtLeast(0)
                     "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
+                    "offers", "div_offers" -> activeTabs.indexOf("Offers").coerceAtLeast(0)
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
                     "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
+                    "gallery", "div_gallery" -> activeTabs.indexOf("Gallery").coerceAtLeast(0)
+                    "reviews", "div_reviews" -> activeTabs.indexOf("Reviews").coerceAtLeast(0)
                     else -> {
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val offersIdx = listKeys.indexOf("offers").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val askAiIdx = listKeys.indexOf("ask_ai").takeIf { it != -1 } ?: Int.MAX_VALUE
-                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx)
+                        val galleryIdx = listKeys.indexOf("gallery").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, offersIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
                         if (itemIndex < firstContentIdx) 0 else {
-                            val aiIndex = activeTabs.indexOf("Ask AI")
-                            if (aiIndex != -1) aiIndex else 0
+                            // If we are past all content sections (e.g. footer), select the last tab
+                            activeTabs.size - 1
                         }
                     }
                 }
@@ -381,14 +669,14 @@ private fun VendorDetailContent(
         }
     }
 
-    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx) {
+    val nestedScrollConnection = remember(minOffsetPx, maxOffsetPx, sheetOffsetPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
                 return if (delta < 0 && sheetOffsetPx > minOffsetPx) {
                     val newOffset = (sheetOffsetPx + delta).coerceAtLeast(minOffsetPx)
                     val consumed = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumed)
                 } else Offset.Zero
             }
@@ -397,7 +685,7 @@ private fun VendorDetailContent(
                 return if (delta > 0 && !listState.canScrollBackward) {
                     val newOffset = (sheetOffsetPx + delta).coerceIn(minOffsetPx, maxOffsetPx)
                     val consumedOffset = newOffset - sheetOffsetPx
-                    sheetOffsetPx = newOffset
+                    onSheetOffsetChange(newOffset)
                     Offset(0f, consumedOffset)
                 } else Offset.Zero
             }
@@ -409,6 +697,11 @@ private fun VendorDetailContent(
             .fillMaxSize()
             .nestedScroll(nestedScrollConnection)
     ) {
+        val scrollRange = maxOffsetPx - minOffsetPx
+        val scrollFraction = if (scrollRange > 0f) {
+            ((maxOffsetPx - sheetOffsetPx) / scrollRange).coerceIn(0f, 1f)
+        } else 0f
+
         val parallaxTranslationY = remember(sheetOffsetPx) {
             val displacement = maxOffsetPx - sheetOffsetPx
             -displacement * 0.45f
@@ -416,14 +709,18 @@ private fun VendorDetailContent(
 
         VendorMediaSlider(
             mediaItems = vendorDetail.mediaItems,
+            pagerState = pagerState,
             isMuted = isMuted,
-            onMuteToggle = { isMuted = !isMuted },
-            vendor = vendor,
+            onMuteToggle = onMuteToggle,
+            vendor = vendorDetail,
             onSeeAllGalleryClick = onSeeAllGalleryClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(340.dp)
-                .graphicsLayer { translationY = parallaxTranslationY }
+                .graphicsLayer {
+                    translationY = parallaxTranslationY
+                    alpha = 1f - (scrollFraction * 0.75f)
+                }
         )
 
         Column(
@@ -434,18 +731,7 @@ private fun VendorDetailContent(
                 .shadow(24.dp, SquircleShape(CornerExtraLarge, CornerExtraLarge))
                 .background(BackgroundPrimary, SquircleShape(CornerExtraLarge, CornerExtraLarge))
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Box(
-                    modifier = Modifier
-                        .padding(vertical = 8.dp)
-                        .width(56.dp)
-                        .height(4.dp)
-                        .background(ContentTertiary, RoundedCornerShape(100))
-                )
-            }
+            Spacer(Modifier.height(12.dp))
 
             LazyColumn(
                 state = listState,
@@ -454,20 +740,16 @@ private fun VendorDetailContent(
             ) {
                 item(key = "info") {
                     VendorInfoSection(
-                        vendor = vendor,
-                        onAddressClick = { showAddressSheet = true }
+                        vendor = vendorDetail,
+                        onAddressClick = onAddressClick
                     )
-                }
-
-                item(key = "suggestions") {
-                    SuggestionChipsSection()
                 }
 
                 stickyHeader(key = "tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
-                        shadowElevation = if (listState.firstVisibleItemIndex >= 2) 4.dp else 0.dp
+                        shadowElevation = if (listState.firstVisibleItemIndex >= (if(hasUserReviewed) 1 else 2)) 4.dp else 0.dp
                     ) {
                         VendorTabs(
                             tabs = activeTabs,
@@ -477,8 +759,11 @@ private fun VendorDetailContent(
                                     val targetKey = when (activeTabs[index]) {
                                         "Pricings" -> "pricings"
                                         "Highlights" -> "highlights"
+                                        "Offers" -> "offers"
                                         "About" -> "about"
                                         "Ask AI" -> "ask_ai"
+                                        "Gallery" -> "gallery"
+                                        "Reviews" -> "reviews"
                                         else -> "pricings"
                                     }
                                     val itemIndex = listKeys.indexOf(targetKey)
@@ -497,7 +782,7 @@ private fun VendorDetailContent(
                 if (vendorDetail.pricingItems.isNotEmpty()) {
                     item(key = "pricings") {
                         VendorPricingsSection(
-                            vendor = vendor,
+                            vendor = vendorDetail,
                             pricingItems = vendorDetail.pricingItems
                         )
                     }
@@ -523,12 +808,27 @@ private fun VendorDetailContent(
                     }
                 }
 
+                if (vendorDetail.offers.isNotEmpty()) {
+                    item(key = "offers") {
+                        VendorOffersSection(
+                            offers = vendorDetail.offers,
+                            onOfferClick = onOfferClick
+                        )
+                    }
+                    item(key = "div_offers") {
+                        DashedDivider(
+                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
+                }
+
                 if (vendorDetail.aboutText != null) {
                     item(key = "about") {
                         VendorAboutSection(
-                            vendor = vendor,
+                            vendor = vendorDetail,
                             aboutText = vendorDetail.aboutText!!,
-                            onReadMoreClick = { showAboutSheet = true }
+                            onReadMoreClick = onAboutClick
                         )
                     }
                     item(key = "div_about") {
@@ -554,7 +854,8 @@ private fun VendorDetailContent(
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
-                            onSeeAllClick = onSeeAllGalleryClick
+                            onSeeAllClick = onSeeAllGalleryClick,
+                            onMediaClick = onMediaClick
                         )
                     }
                     item(key = "div_gallery") {
@@ -565,15 +866,16 @@ private fun VendorDetailContent(
                     }
                 }
 
-                if (vendorDetail.reviewsData != null && vendorDetail.reviewsData!!.reviews.isNotEmpty()) {
+                if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
                         ReviewsSection(
-                            rating = vendor.rating,
-                            totalReviews = vendor.totalReviews,
-                            reviewsData = vendorDetail.reviewsData!!.toUiModel(),
+                            rating = vendorDetail.rating,
+                            totalReviews = vendorDetail.totalReviews,
+                            reviewsData = reviewsData,
                             onSeeAllClick = onSeeAllReviewsClick,
                             onReviewCardClick = { onOpenReviewPost(it) },
-                            onWriteReviewClick = { }
+                            onWriteReviewClick = { onWriteReviewClick(it) },
+                            hasUserReviewed = hasUserReviewed
                         )
                     }
                     item(key = "div_reviews") {
@@ -582,6 +884,16 @@ private fun VendorDetailContent(
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
+                }
+
+                item(key = "explore_more") {
+                    val similarVendors = remember(vendorDetail.id) {
+                        MockData.sampleVendors.filter { it.id != vendorDetail.id }.take(6)
+                    }
+                    VendorExploreMoreSection(
+                        vendor = vendorDetail,
+                        similarVendors = similarVendors
+                    )
                 }
 
                 item(key = "footer") {
@@ -597,17 +909,22 @@ private fun VendorDetailContent(
             painterResource(R.drawable.ic_top_bar_heart)
         }
 
-        val scrollRange = maxOffsetPx - minOffsetPx
-        val scrollFraction = if (scrollRange > 0f) {
-            ((maxOffsetPx - sheetOffsetPx) / scrollRange).coerceIn(0f, 1f)
-        } else 0f
-        val topBarAlpha = 0.5f + (scrollFraction * 0.5f)
-        val dynamicButtonStyle = if (topBarAlpha > 0.9f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
+        val dynamicButtonStyle = if (scrollFraction > 0.8f) {
+            ButtonBackground.OPAQUE
+        } else {
+            ButtonBackground.TRANSLUCENT
+        }
 
-        Column(modifier = Modifier.statusBarsPadding()) {
+        Column(
+            modifier = Modifier
+                .background(Color.Transparent)
+                .statusBarsPadding()
+        ) {
             CustomTopBar(
+                title = if (scrollFraction > 0.7f) vendorDetail.name else null,
+                isLeftAligned = true,
                 onBackClick = onBackClick,
-                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon),
+                secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
                 menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
@@ -615,170 +932,200 @@ private fun VendorDetailContent(
                 },
                 onMenuClick = onMenuClick,
                 buttonStyle = dynamicButtonStyle,
-                translucentAlpha = topBarAlpha,
+                translucentAlpha = if (scrollFraction > 0.8f) 1f else 0.5f,
                 textColor = ContentPrimary,
             )
         }
 
-        Box(
+        androidx.compose.animation.AnimatedVisibility(
+            visible = !anySheetVisible,
+            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Transparent,
-                            0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                            0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                            0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                            1.00f to BackgroundPrimary
-                        )
-                    )
-                )
-                .navigationBarsPadding()
                 .zIndex(10f)
         ) {
-            FloatingBottomActionBar(
-                onMessageClick = { onChatClick(vendor) },
-                onBookCallClick = { },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.00f to Color.Transparent,
+                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                1.00f to BackgroundPrimary
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+            ) {
+                FloatingBottomActionBar(
+                    onMessageClick = { onChatClick(vendorDetail) },
+                    onBookCallClick = {
+                        val phone = vendorDetail.phoneNumber ?: ""
+                        if (phone.isEmpty()) {
+                            onShowToast(ToastData("No phone number available!", ToastType.DEFAULT))
+                            return@FloatingBottomActionBar
+                        }
+                        try {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("VendorDetail", "Error opening dialer: ${e.message}")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AddressSheet(
+    vendor: Vendor,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "Vendor Address",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = 360.dp
+    ) {
+        val context = LocalContext.current
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+        ) {
+            Spacer(Modifier.height(12.dp))
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(12.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Surface(
+                    color = SurfaceSecondary,
+                    shape = SquircleShape(CornerLarge),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.img_hero_venueaddress),
+                            contentDescription = "Map Pin Logo",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(80.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = vendor.name,
+                            style = JasnifyTheme.typography.displayMedium,
+                            color = ContentPrimary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = vendor.location,
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentSecondary
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            )
+
+            CustomTextButton(
+                onClick = {
+                    val mapQuery = "${vendor.name}, ${vendor.location}"
+                    val encodedQuery = Uri.encode(mapQuery)
+                    val mapUri = "geo:0,0?q=$encodedQuery".toUri()
+                    val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
+                        setPackage("com.google.android.apps.maps")
+                    }
+                    try {
+                        context.startActivity(mapIntent)
+                    } catch (e: Exception) {
+                        val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
+                        val webIntent = Intent(Intent.ACTION_VIEW, webUri)
+                        try {
+                            context.startActivity(webIntent)
+                        } catch (ignored: Exception) {
+                        }
+                    }
+                },
+                text = "Get Directions",
+                trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shapeStyle = ButtonShapeStyle.Square
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutSheet(
+    vendor: Vendor,
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit
+) {
+    CustomBottomSheet(
+        heading = "About ${vendor.name}",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        sheetHeight = null,
+        showDragHandle = true,
+        showCloseButton = true
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            val aboutFromDb = vendor.aboutText ?: "No information available."
+            Text(
+                text = aboutFromDb.replace(". ", ".\n\n"),
+                style = JasnifyTheme.typography.labelXLarge,
+                color = ContentSecondary
             )
         }
 
-        if (showAddressSheet) {
-            CustomBottomSheet(
-                heading = "Vendor Address",
-                onDismiss = { showAddressSheet = false },
-                onProgress = { sheetMotionProgress = it },
-                sheetHeight = 360.dp
-            ) {
-                val context = LocalContext.current
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                ) {
-                    Spacer(Modifier.height(12.dp))
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(0.16f)
-                    )
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outline.copy(0.16f)
+        )
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(12.dp)
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Surface(
-                            color = SurfaceSecondary,
-                            shape = SquircleShape(CornerLarge),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                horizontalAlignment = Alignment.Start
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.img_hero_venueaddress),
-                                    contentDescription = "Map Pin Logo",
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(80.dp)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-
-                                Text(
-                                    text = vendor.name,
-                                    style = JasnifyTheme.typography.displayMedium,
-                                    color = ContentPrimary
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Text(
-                                    text = vendor.location,
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    color = ContentSecondary
-                                )
-                            }
-                        }
-                    }
-
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(0.16f)
-                    )
-
-                    CustomTextButton(
-                        onClick = {
-                            val mapQuery = "${vendor.name}, ${vendor.location}"
-                            val encodedQuery = Uri.encode(mapQuery)
-                            val mapUri = "geo:0,0?q=$encodedQuery".toUri()
-                            val mapIntent = Intent(Intent.ACTION_VIEW, mapUri).apply {
-                                setPackage("com.google.android.apps.maps")
-                            }
-                            try {
-                                context.startActivity(mapIntent)
-                            } catch (e: Exception) {
-                                val webUri = "https://www.google.com/maps/search/?api=1&query=$encodedQuery".toUri()
-                                val webIntent = Intent(Intent.ACTION_VIEW, webUri)
-                                try {
-                                    context.startActivity(webIntent)
-                                } catch (ignored: Exception) {
-                                }
-                            }
-                        },
-                        text = "Get Directions",
-                        trailingIcon = rememberVectorPainter(Icons.Rounded.ArrowOutward),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        shapeStyle = ButtonShapeStyle.Square
-                    )
-                }
-            }
-        }
-
-        if (showAboutSheet) {
-            CustomBottomSheet(
-                heading = "About ${vendor.name}",
-                onDismiss = { showAboutSheet = false },
-                onProgress = { sheetMotionProgress = it },
-                sheetHeight = null,
-                showDragHandle = true,
-                showCloseButton = true
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    val aboutFromDb = vendor.aboutText ?: "No information available."
-                    Text(
-                        text = aboutFromDb.replace(". ", ".\n\n"),
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentSecondary
-                    )
-                }
-
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(0.16f)
-                )
-
-                Column {
-                    CustomTextButton(
-                        onClick = { showAboutSheet = false },
-                        text = "Okay",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        shapeStyle = ButtonShapeStyle.Square
-                    )
-                }
-            }
+        Column {
+            CustomTextButton(
+                onClick = onDismiss,
+                text = "Okay",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                shapeStyle = ButtonShapeStyle.Square
+            )
         }
     }
 }
@@ -787,16 +1134,15 @@ private fun VendorDetailContent(
 @Composable
 fun VendorMediaSlider(
     mediaItems: List<VendorMediaItem>,
+    pagerState: PagerState,
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
     vendor: Vendor,
     onSeeAllGalleryClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pagerState = rememberPagerState(pageCount = { mediaItems.size })
-
     if (mediaItems.size > 1) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(pagerState) {
             while (true) {
                 delay(3000.milliseconds)
                 if (!pagerState.isScrollInProgress) {
@@ -865,7 +1211,10 @@ fun VendorMediaSlider(
 }
 
 @Composable
-fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
+fun VendorInfoSection(
+    vendor: Vendor,
+    onAddressClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -888,7 +1237,7 @@ fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onAddressClick() },
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
                 Text(
                     text = vendor.location,
@@ -896,16 +1245,19 @@ fun VendorInfoSection(vendor: Vendor, onAddressClick: () -> Unit) {
                     color = ContentSecondary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false)
+                    modifier = Modifier.weight(1f)
                 )
+
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Expand",
                     tint = ContentSecondary,
-                    modifier = Modifier.padding(start = 4.dp)
+                    modifier = Modifier
+                        .align(Alignment.Bottom)
                 )
             }
         }
+        Spacer(Modifier.width(48.dp))
 
         Column(
             modifier = Modifier
@@ -951,26 +1303,65 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
             )
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { }
-                .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
+        if(pricingItems.size > 3){
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "See full pricings",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    Icons.Default.KeyboardArrowRight,
+                    null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VendorOffersSection(
+    offers: List<com.harshdeep.jasnify.domain.model.Offer>,
+    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        Text(
+            text = "Available Offers",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Text(
-                text = "See full pricings",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
+            itemsIndexed(offers) { index, offer ->
+                OfferCard(
+                    title = offer.title,
+                    description = offer.description,
+                    type = OfferCardType.COMPACT,
+                    onViewDetailsClick = { onOfferClick(offer) },
+                    modifier = Modifier.width(300.dp),
+                    progress = "${index + 1}/${offers.size}"
+                )
+            }
         }
     }
 }
@@ -997,6 +1388,8 @@ fun VendorHighlightsSection(highlightItems: List<VendorHighlightItem>) {
 
 @Composable
 fun VendorAboutSection(vendor: Vendor, aboutText: String, onReadMoreClick: () -> Unit) {
+    var isOverflowed by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1013,26 +1406,31 @@ fun VendorAboutSection(vendor: Vendor, aboutText: String, onReadMoreClick: () ->
             style = JasnifyTheme.typography.labelLarge,
             overflow = TextOverflow.Ellipsis,
             maxLines = 4,
-            color = ContentSecondary
+            color = ContentSecondary,
+            onTextLayout = { textLayoutResult ->
+                isOverflowed = textLayoutResult.hasVisualOverflow
+            }
         )
-        Spacer(Modifier.height(4.dp))
-        Row(
-            modifier = Modifier.clickable { onReadMoreClick() },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Read more",
-                color = ContentBrandDark,
-                style = JasnifyTheme.typography.labelLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.width(2.dp))
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowRight,
-                contentDescription = null,
-                tint = ContentBrandDark,
-                modifier = Modifier.size(20.dp)
-            )
+        if (isOverflowed) {
+            Spacer(Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.clickable { onReadMoreClick() },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Read more",
+                    color = ContentBrandDark,
+                    style = JasnifyTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.width(2.dp))
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = ContentBrandDark,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1145,7 +1543,8 @@ fun VendorTabs(
         indicator = { tabPositions ->
             if (selectedTabIndex in tabPositions.indices) {
                 TabRowDefaults.SecondaryIndicator(
-                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
+                    Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex])
+                        .clip(shape = RoundedCornerShape(100, 100, 0, 0)),
                     color = ContentBrand,
                     height = 4.dp
                 )
@@ -1289,6 +1688,87 @@ fun HighlightItemRow(data: VendorHighlightItem) {
                 style = JasnifyTheme.typography.labelXLarge,
                 color = ContentPrimary
             )
+        }
+    }
+}
+
+@Composable
+fun VendorExploreMoreSection(
+    vendor: Vendor,
+    similarVendors: List<Vendor>,
+    modifier: Modifier = Modifier
+) {
+    val filters = remember(vendor) {
+        listOf(
+            "Similar to ${vendor.name}",
+            "In ${vendor.city}",
+            "Top Rated ${vendor.category}",
+            "Available now"
+        )
+    }
+    var selectedFilterIndex by remember { mutableStateOf(0) }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp)
+    ) {
+        Text(
+            text = "Explore more vendors",
+            style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            itemsIndexed(filters) { index, filterText ->
+                FilterChip(
+                    label = filterText,
+                    isSelected = selectedFilterIndex == index,
+                    onClick = { selectedFilterIndex = index },
+                    hasStroke = true
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Showing similar vendors",
+                style = JasnifyTheme.typography.labelLarge,
+                color = ContentSecondary,
+            )
+            Spacer(Modifier.width(12.dp))
+            HorizontalDivider(
+                modifier = Modifier.weight(1f),
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(similarVendors) { vendorItem ->
+                VendorCardCompact(
+                    vendor = vendorItem,
+                    compactCardSize = CompactCardSize.MEDIUM
+                )
+            }
         }
     }
 }

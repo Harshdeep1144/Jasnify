@@ -21,6 +21,7 @@ data class Venue(
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
+    val phoneNumber: String? = null,
     val type: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",
@@ -34,6 +35,7 @@ data class Venue(
     val highlightItems: List<VenueHighlightItem> = emptyList(),
     val galleryCategories: List<VenueGalleryCategory> = emptyList(),
     val reviewsData: VenueReviewsData? = null,
+    val offers: List<Offer> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -65,6 +67,7 @@ data class VenueHighlightItem(
 @Immutable
 data class VenueGalleryCategory(
     val categoryName: String = "",
+    val lastUpdated: String? = null,
     val mediaItems: List<VenueMediaItem> = emptyList()
 )
 
@@ -86,6 +89,7 @@ data class VenueRatingBreakdown(
 @Immutable
 data class VenueReview(
     val id: String = "",
+    val userId: String = "",
     val userName: String = "",
     val userAvatarUrl: String? = null,
     val rating: Double = 0.0,
@@ -93,6 +97,7 @@ data class VenueReview(
     val reviewText: String = "",
     val isVerified: Boolean = false,
     val attachedImages: List<String> = emptyList(),
+    val likedOptions: List<String> = emptyList(),
     val merchantReply: VenueMerchantReply? = null,
     val createdAt: Long = System.currentTimeMillis()
 )

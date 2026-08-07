@@ -4,6 +4,30 @@ import com.harshdeep.jasnify.domain.model.*
 
 object MockData {
 
+    val sampleOffers = listOf(
+        Offer(
+            title = "Festive Wedding Discount",
+            description = "Flat 20% off on all top-rated venue bookings for grand celebrations.",
+            code = "JASNIFY20",
+            termsAndConditions = listOf(
+                "Valid on a minimum venue booking value of ₹50,000.",
+                "Applicable for events scheduled during peak wedding season.",
+                "Cannot be merged with other merchant-specific discounts.",
+                "Subject to venue availability at the time of advance confirmation."
+            )
+        ),
+        Offer(
+            title = "Early Bird Photography",
+            description = "Get 15% discount on full-day cinematography when booking 90+ days in advance.",
+            code = "EARLY15",
+            termsAndConditions = listOf(
+                "Event date must be at least 90 days from the booking date.",
+                "Applicable only on complete photo & video package tiers.",
+                "20% advance deposit is mandatory to lock the promotional rate."
+            )
+        ),
+    )
+
     val sampleVenues1 = listOf(
         Venue(
             merchantId = "merchant_123",
@@ -18,7 +42,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_456",
@@ -34,7 +59,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=800"
             ),
-            enquiriesLastMonth = 32
+            enquiriesLastMonth = 32,
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_789",
@@ -49,7 +75,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1527529482837-4698179dc6ce?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_101",
@@ -80,7 +107,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800"
             ),
-            enquiriesLastMonth = 90
+            enquiriesLastMonth = 90,
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_103",
@@ -95,7 +123,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1522158634458-a5dc36a238a8?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_104",
@@ -158,7 +187,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_203",
@@ -173,7 +203,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1519167758481-83f550bb49b3?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_204",
@@ -188,7 +219,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1464366400600-7168b8af9bc3?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_205",
@@ -218,7 +250,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_207",
@@ -233,7 +266,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800",
                 "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=800"
-            )
+            ),
+            offers = sampleOffers
         ),
         Venue(
             merchantId = "merchant_208",
@@ -264,7 +298,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 15
+            enquiriesLastMonth = 15,
+            offers = sampleOffers
         ),
         Vendor(
             name = "The Gentleman's Club",
@@ -303,7 +338,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 24
+            enquiriesLastMonth = 24,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Imperial Grooming Parlour",
@@ -329,7 +365,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 28
+            enquiriesLastMonth = 28,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Urban Grooming Station",
@@ -355,7 +392,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 22
+            enquiriesLastMonth = 22,
+            offers = sampleOffers
         )
     )
 
@@ -371,7 +409,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1487412720507-e7ab37603c6f?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 24
+            enquiriesLastMonth = 24,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Tanya's L'Oreal Studio",
@@ -436,7 +475,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1512496011951-aacf7080f56e?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 31
+            enquiriesLastMonth = 31,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Artistry by Kriti",
@@ -491,7 +531,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1519225421980-715cb0215aed?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 12
+            enquiriesLastMonth = 12,
+            offers = sampleOffers
         ),
         Vendor(
             name = "The Wedding Story",
@@ -504,7 +545,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1520854221256-17451cc331bf?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 55
+            enquiriesLastMonth = 55,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Visual Vibes Media",
@@ -530,7 +572,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 27
+            enquiriesLastMonth = 27,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Lights & Shadows Films",
@@ -556,7 +599,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 36
+            enquiriesLastMonth = 36,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Epic Clicks & Wedding Reels",
@@ -585,7 +629,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 30
+            enquiriesLastMonth = 30,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Sona Mehendi Designs",
@@ -611,7 +656,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 25
+            enquiriesLastMonth = 25,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Rajasthani Mehendi Hub",
@@ -637,7 +683,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1590240974733-4f91d51c72f7?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 18
+            enquiriesLastMonth = 18,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Kundan Mehendi Artist",
@@ -650,7 +697,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 34
+            enquiriesLastMonth = 34,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Royal Marwar Henna",
@@ -676,7 +724,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1590240974880-928929e072b2?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 19
+            enquiriesLastMonth = 19,
+            offers = sampleOffers
         )
     )
 
@@ -692,7 +741,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 26
+            enquiriesLastMonth = 26,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Kundan & Polki Crafts",
@@ -705,7 +755,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 61
+            enquiriesLastMonth = 61,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Emerald & Ruby Fine Jewels",
@@ -731,7 +782,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 38
+            enquiriesLastMonth = 38,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Zaveri Heritage Jewelers",
@@ -757,7 +809,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 51
+            enquiriesLastMonth = 51,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Diamond Sparkle Lounge",
@@ -783,7 +836,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 29
+            enquiriesLastMonth = 29,
+            offers = sampleOffers
         )
     )
 
@@ -799,7 +853,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 41
+            enquiriesLastMonth = 41,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Rajkumari Bridal & Groom Wear",
@@ -825,7 +880,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 22
+            enquiriesLastMonth = 22,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Royal Silks & Sherwanis",
@@ -838,7 +894,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 33
+            enquiriesLastMonth = 33,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Zardozi Bridal & Tuxedos",
@@ -864,7 +921,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 49
+            enquiriesLastMonth = 49,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Heritage Lehengas & Royal Suits",
@@ -890,7 +948,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 26
+            enquiriesLastMonth = 26,
+            offers = sampleOffers
         )
     )
 
@@ -919,7 +978,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 57
+            enquiriesLastMonth = 57,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Royal Brass Band & Dhol",
@@ -932,7 +992,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 33
+            enquiriesLastMonth = 33,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Symphony Acoustic Ensemble",
@@ -958,7 +1019,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 64
+            enquiriesLastMonth = 64,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Sufi & Folk Fusion Ensemble",
@@ -1014,7 +1076,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800"
             ),
             favorite = true,
-            enquiriesLastMonth = 44
+            enquiriesLastMonth = 44,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Gourmet Celebrations",
@@ -1028,7 +1091,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1555244162-803834f70033?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 83
+            enquiriesLastMonth = 83,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Spice & Saffron Catering",
@@ -1056,7 +1120,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 19
+            enquiriesLastMonth = 19,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Culinary Krafts Studio",
@@ -1128,7 +1193,8 @@ object MockData {
                 "https://images.unsplash.com/photo-1513885535751-8b9238bd345a?auto=format&fit=crop&w=800"
             ),
             favorite = false,
-            enquiriesLastMonth = 14
+            enquiriesLastMonth = 14,
+            offers = sampleOffers
         ),
         Vendor(
             name = "Sweet Moments Custom Trays",
@@ -1245,8 +1311,33 @@ object MockData {
         val premiumPrice = if (parsedBasePrice > 0) "₹" + (parsedBasePrice * 1.6).toInt() else "₹50,000"
 
         return vendor.copy(
+            id = vendor.id.ifBlank { "vendor_${vendor.name.replace(" ", "_").lowercase()}" },
+            phoneNumber = "+919876543210",
             aboutText = "${vendor.name} is a premier ${vendor.category} professional based in ${vendor.locality}, ${vendor.city}. With years of experience and an unwavering commitment to quality, they specialize in grand celebrations, weddings, and high-profile social events.",
             mediaItems = detailImages.map { url -> VendorMediaItem(url = url, video = false) },
+            offers = listOf(
+                Offer(
+                    title = "Weekday Celebration",
+                    description = "Flat 20% off on hall rental or per-plate rates.",
+                    code = "WEEKDAY20",
+                    termsAndConditions = listOf(
+                        "Valid for events booked Monday to Thursday.",
+                        "Minimum 100 plates or hall booking needed for availing this discount.",
+                        "Excludes weekdays on major public holidays or auspicious wedding dates.",
+                        "If a weekday booking is postponed or rescheduled to a weekend slot (Fri-Sun), the discount becomes void and standard weekend rates will apply.",
+                        "The offer is only applicable if the full booking deposit (25%) is cleared at the time of reservation."
+                    )
+                ),
+                Offer(
+                    title = "Early Bird Discount",
+                    description = "Get 10% discount when booking 6+ months in advance.",
+                    code = "EARLY10",
+                    termsAndConditions = listOf(
+                        "Applicable on total booking value.",
+                        "Must book at least 180 days before the event date."
+                    )
+                )
+            ),
             pricingItems = listOf(
                 VendorPricingItem(
                     title = "Standard Service Package",
@@ -1318,8 +1409,20 @@ object MockData {
 
         return venue.copy(
             type = if (venue.name.contains("Lawn")) "Lawn / Farmhouse" else "Banquet Hall",
+            phoneNumber = "+919876543210",
             aboutText = "${venue.name} located in ${venue.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams perfectly.",
             enquiriesLastMonth = if (venue.enquiriesLastMonth == 0) (20..150).random() else venue.enquiriesLastMonth,
+            offers = listOf(
+                Offer(
+                    title = "Anniversary Special",
+                    description = "10% off on decorations and event setups.",
+                    code = "ANNIV10",
+                    termsAndConditions = listOf(
+                        "Valid for anniversary events only.",
+                        "Minimum booking of ₹50,000 required."
+                    )
+                )
+            ),
             mediaItems = listOf(
                 VenueMediaItem(url = detailImages[0], video = false),
                 VenueMediaItem(url = "https://www.w3schools.com/html/mov_bbb.mp4", video = true, videoDuration = "0:10"),

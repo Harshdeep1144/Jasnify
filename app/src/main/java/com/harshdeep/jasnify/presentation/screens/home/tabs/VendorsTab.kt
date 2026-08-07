@@ -89,6 +89,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -186,6 +187,7 @@ fun VendorsTab(
     mainNavController: NavHostController,
     internalNavController: NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
+    onChatClick: (Vendor) -> Unit = {},
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
@@ -198,6 +200,8 @@ fun VendorsTab(
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var offersToShow by remember { mutableStateOf<List<com.harshdeep.jasnify.domain.model.Offer>>(emptyList()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     var selectedCategory by remember { mutableStateOf(initialCategory) }
@@ -433,7 +437,7 @@ fun VendorsTab(
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation || showOfferSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
@@ -499,6 +503,10 @@ fun VendorsTab(
                                 },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
+                                onOfferClick = { vendor ->
+                                    offersToShow = vendor.offers
+                                    showOfferSheet = true
+                                },
                                 recentVendorsList = recentVendorsList,
                                 focusManager = focusManager,
                                 context = context,
@@ -543,6 +551,10 @@ fun VendorsTab(
                                     onSelectedViewTypeChange = { selectedSavedViewType = it },
                                     isLoading = isLoading,
                                     onTimelineSeeAll = handleTimelineSeeAll,
+                                    onOfferClick = { vendor ->
+                                        offersToShow = vendor.offers
+                                        showOfferSheet = true
+                                    },
                                     listState = categoryListState,
                                     gridState = categorySavedGridState,
                                     isBottomBarVisible = isBottomBarVisible
@@ -564,7 +576,8 @@ fun VendorsTab(
                                             onBackClick()
                                         }
                                     },
-                                    onFavoriteToggle = { handleFavoriteToggle(it) }
+                                    onFavoriteToggle = { handleFavoriteToggle(it) },
+                                    onChatClick = { onChatClick(it) }
                                 )
                             }
                         }
@@ -697,6 +710,14 @@ fun VendorsTab(
                         }
                     }
                 } else null
+            )
+        }
+
+        if (showOfferSheet) {
+            OfferBottomSheet(
+                offers = offersToShow,
+                onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
             )
         }
 
@@ -889,6 +910,7 @@ fun VendorMainContent(
     onCategoryClick: (VendorCategoryItem) -> Unit,
     onVendorClick: (Vendor) -> Unit,
     onFavoriteToggle: (Vendor) -> Unit,
+    onOfferClick: (Vendor) -> Unit = {},
     recentVendorsList: List<Vendor>,
     focusManager: androidx.compose.ui.focus.FocusManager,
     context: Context,
@@ -1001,6 +1023,7 @@ fun VendorMainContent(
                         vendor = vendor,
                         onCardClick = { onVendorClick(vendor) },
                         onFavoriteToggle = { onFavoriteToggle(vendor) },
+                        onOfferClick = { onOfferClick(vendor) },
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
@@ -1022,6 +1045,7 @@ fun VendorMainContent(
                             onVendorClick(vendor)
                         },
                         onFavoriteToggle = onFavoriteToggle,
+                        onOfferClick = { onOfferClick(it) },
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
@@ -1036,6 +1060,7 @@ fun VendorMainContent(
                             onVendorClick(vendor)
                         },
                         onFavoriteToggle = onFavoriteToggle,
+                        onOfferClick = { onOfferClick(it) },
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
@@ -1050,6 +1075,7 @@ fun VendorMainContent(
                             onVendorClick(vendor)
                         },
                         onFavoriteToggle = onFavoriteToggle,
+                        onOfferClick = { onOfferClick(it) },
                         cardSize = CompactCardSize.MEDIUM
                     )
                 }
@@ -1106,6 +1132,7 @@ fun VendorCategoryDetailContent(
     onSelectedViewTypeChange: (String) -> Unit,
     isLoading: Boolean = false,
     onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
+    onOfferClick: (Vendor) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
     isBottomBarVisible: Boolean = true
@@ -1327,6 +1354,7 @@ fun VendorCategoryDetailContent(
                                             onVendorClick(vendor)
                                         },
                                         onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                        onOfferClick = { onOfferClick(vendor) },
                                         modifier = Modifier.padding(horizontal = 12.dp)
                                     )
                                 }
@@ -1341,7 +1369,8 @@ fun VendorCategoryDetailContent(
                                             recentSearchesNames = getCategoryRecentSearches(context, category.name)
                                             onVendorClick(vendor)
                                         },
-                                        onFavoriteToggle = onFavoriteToggle
+                                        onFavoriteToggle = onFavoriteToggle,
+                                        onOfferClick = { onOfferClick(it) }
                                     )
                                 }
 
@@ -1399,6 +1428,7 @@ fun VendorCategoryDetailContent(
                                                 onVendorClick(vendor)
                                             },
                                             onFavoriteToggle = { onFavoriteToggle(vendor) },
+                                            onOfferClick = { onOfferClick(vendor) },
                                             modifier = Modifier.padding(horizontal = 12.dp)
                                         )
                                     }

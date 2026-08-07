@@ -16,6 +16,8 @@ import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.home.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
+import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
+import com.harshdeep.jasnify.presentation.screens.home.tabs.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -24,6 +26,8 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.navigation.navDeepLink
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -105,6 +109,70 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             )
         }
 
+        // Venue Detail Screen (Deep Link Support)
+        composable(
+            route = Screen.VenueDetail.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("venueId") { type = androidx.navigation.NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://jasnify.com/venue/{venueId}" }
+            ),
+            enterTransition = { NavAnimations.slideInFromRight },
+            exitTransition = { NavAnimations.slideOutToLeft },
+            popEnterTransition = { NavAnimations.slideInFromLeft },
+            popExitTransition = { NavAnimations.slideOutToRight }
+        ) { entry ->
+            val venueId = entry.arguments?.getString("venueId") ?: ""
+            val venue = MockData.sampleVenues1.find { it.id == venueId } 
+                ?: MockData.sampleVenues2.find { it.id == venueId }
+                ?: MockData.venueDetailsMap.values.find { it.id == venueId }
+
+            if (venue != null) {
+                VenueDetailScreen(
+                    venueDetail = venue,
+                    onBackClick = { mainNavController.popBackStack() },
+                    onFavoriteToggle = { /* Optional: Sync with ViewModel if needed */ },
+                    onChatClick = { venueChat ->
+                        val merchantId = venueChat.merchantId.ifBlank { "unknown_merchant" }
+                        val itemId = venueChat.id.ifBlank { "unknown_venue" }
+                        mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
+                    }
+                )
+            }
+        }
+
+        // Vendor Detail Screen (Deep Link Support)
+        composable(
+            route = Screen.VendorDetail.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("vendorId") { type = androidx.navigation.NavType.StringType }
+            ),
+            deepLinks = listOf(
+                navDeepLink { uriPattern = "https://jasnify.com/vendor/{vendorId}" }
+            ),
+            enterTransition = { NavAnimations.slideInFromRight },
+            exitTransition = { NavAnimations.slideOutToLeft },
+            popEnterTransition = { NavAnimations.slideInFromLeft },
+            popExitTransition = { NavAnimations.slideOutToRight }
+        ) { entry ->
+            val vendorId = entry.arguments?.getString("vendorId") ?: ""
+            val vendor = MockData.sampleVendors.find { it.id == vendorId }
+
+            if (vendor != null) {
+                VendorDetailScreen(
+                    vendorDetail = vendor,
+                    onBackClick = { mainNavController.popBackStack() },
+                    onChatClick = { vendorChat ->
+                        val merchantId = vendorChat.merchantId.ifBlank { "unknown_merchant" }
+                        val itemId = vendorChat.id.ifBlank { "unknown_vendor" }
+                        mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
+                    },
+                    onFavoriteToggle = { /* Optional: Sync with ViewModel if needed */ }
+                )
+            }
+        }
+
         // Venue Feature
         composable(
             route = Screen.VenueRoot.route,
@@ -129,8 +197,8 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                 onVenueClick = { /* Handle venue click */ },
                 onChatClick = { venue ->
                     val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
-                    val venueId = venue.id.ifBlank { "unknown_venue" }
-                    mainNavController.navigate("chat_screen/$merchantId/$venueId")
+                    val itemId = venue.id.ifBlank { "unknown_venue" }
+                    mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
                 },
                 onBackClick = {
                     if (mainNavController.previousBackStackEntry != null) {
@@ -146,14 +214,20 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             route = Screen.ChatScreen.route,
             arguments = listOf(
                 androidx.navigation.navArgument("merchantId") { type = androidx.navigation.NavType.StringType },
-                androidx.navigation.navArgument("venueId") { type = androidx.navigation.NavType.StringType }
+                androidx.navigation.navArgument("itemId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("itemType") { 
+                    type = androidx.navigation.NavType.StringType
+                    defaultValue = "Venue"
+                }
             )
         ) { entry ->
             val merchantId = entry.arguments?.getString("merchantId")
-            val venueId = entry.arguments?.getString("venueId")
+            val itemId = entry.arguments?.getString("itemId")
+            val itemType = entry.arguments?.getString("itemType") ?: "Venue"
             ChatScreen(
                 merchantId = merchantId,
-                venueId = venueId,
+                itemId = itemId,
+                itemType = itemType,
                 onBackClick = { mainNavController.popBackStack() }
             )
         }

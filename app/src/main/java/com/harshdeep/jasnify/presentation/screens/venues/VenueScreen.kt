@@ -86,6 +86,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -214,6 +215,8 @@ fun VenueScreen(
     var showFilterDialog by remember { mutableStateOf(false) }
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var offersToShow by remember { mutableStateOf<List<com.harshdeep.jasnify.domain.model.Offer>>(emptyList()) }
 
     var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -333,7 +336,7 @@ fun VenueScreen(
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
-            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation || showOfferSheet
 
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
@@ -547,6 +550,10 @@ fun VenueScreen(
                                     selectedTimelineEventId = event.id
                                     screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
                                 },
+                                onOfferClick = { venue ->
+                                    offersToShow = venue.offers
+                                    showOfferSheet = true
+                                },
                                 listState = mainListState
                             )
                         }
@@ -570,6 +577,14 @@ fun VenueScreen(
                     }
                 }
             }
+        }
+
+        if (showOfferSheet) {
+            OfferBottomSheet(
+                offers = offersToShow,
+                onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
         }
 
         if (showFilterDialog) {
@@ -826,6 +841,7 @@ fun VenueMainContent(
     onShowFilterDialogChange: (Boolean) -> Unit,
     isLoading: Boolean = false,
     onTimelineSeeAll: (TimelineEvent) -> Unit = {},
+    onOfferClick: (Venue) -> Unit = {},
     listState: LazyListState = rememberLazyListState()
 ) {
     val focusManager = LocalFocusManager.current
@@ -1015,7 +1031,8 @@ fun VenueMainContent(
                             text = text,
                             onTextChange = { text = it },
                             isSearchActive = isSearchActive,
-                            onSearchActiveChange = { isSearchActive = it }
+                            onSearchActiveChange = { isSearchActive = it },
+                            onOfferClick = onOfferClick
                         )
                     } else {
                         VenueSavedContent(

@@ -33,6 +33,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.util.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.flow.flowOf
@@ -41,19 +42,31 @@ import sv.lib.squircleshape.SquircleShape
 @Composable
 fun ChatScreen(
     merchantId: String? = null,
-    venueId: String? = null,
+    itemId: String? = null,
+    itemType: String = "Venue",
     modifier: Modifier = Modifier,
     onBackClick: () -> Unit = {},
     venueViewModel: VenueViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
     
     val allVenues by venueViewModel.allVenues.collectAsState()
-    val venue = remember(venueId, allVenues) {
-        allVenues.find { it.id == venueId }
+    val allVendors by vendorViewModel.allVendors.collectAsState()
+
+    val merchantInfo = remember(itemId, itemType, allVenues, allVendors) {
+        if (itemType == "Venue") {
+            val v = allVenues.find { it.id == itemId }
+            Pair(v?.name, v?.phoneNumber)
+        } else {
+            val v = allVendors.find { it.id == itemId }
+            Pair(v?.name, v?.phoneNumber)
+        }
     }
+    val itemName = merchantInfo.first ?: "Merchant"
+    val itemPhoneNumber = merchantInfo.second
 
     val merchantProfile by remember(merchantId) {
         if (merchantId != null) {
@@ -69,9 +82,9 @@ fun ChatScreen(
 
     var messageText by remember { mutableStateOf("") }
     
-    val messages by remember(currentUserUid, merchantId, venueId) {
-        if (merchantId != null && venueId != null) {
-            enquiryViewModel.getChatMessages(currentUserUid, merchantId, venueId)
+    val messages by remember(currentUserUid, merchantId, itemId) {
+        if (merchantId != null && itemId != null) {
+            enquiryViewModel.getChatMessages(currentUserUid, merchantId, itemId)
         } else {
             flowOf(emptyList())
         }
@@ -80,13 +93,13 @@ fun ChatScreen(
     val scrollState = rememberLazyListState()
 
     // Reactive Status Updates: Mark as Seen
-    LaunchedEffect(messages, merchantId, venueId) {
-        if (merchantId != null && venueId != null && messages.isNotEmpty()) {
+    LaunchedEffect(messages, merchantId, itemId) {
+        if (merchantId != null && itemId != null && messages.isNotEmpty()) {
             val hasUnseenIncoming = messages.any { 
                 it.senderId != currentUserUid && it.status != MessageStatus.SEEN 
             }
             if (hasUnseenIncoming) {
-                enquiryViewModel.markMessagesAsSeen(currentUserUid, merchantId, venueId)
+                enquiryViewModel.markMessagesAsSeen(currentUserUid, merchantId, itemId)
             }
         }
     }
@@ -105,7 +118,7 @@ fun ChatScreen(
                 modifier = Modifier.statusBarsPadding()
             ) {
                 CustomTopBar(
-                    title = venue?.name ?: "Merchant",
+                    title = itemName,
                     subtitle = activeStatus,
                     image = painterResource(R.drawable.ic_user_profile),
                     onBackClick = onBackClick,
@@ -125,14 +138,16 @@ fun ChatScreen(
                     value = messageText,
                     onValueChange = { messageText = it },
                     onSendClick = {
-                        if (messageText.isNotBlank() && merchantId != null && venueId != null) {
+                        if (messageText.isNotBlank() && merchantId != null && itemId != null) {
                             enquiryViewModel.sendMessage(
                                 userId = currentUserUid,
                                 merchantId = merchantId,
-                                itemId = venueId,
-                                itemName = venue?.name ?: "Venue",
-                                itemType = "Venue",
-                                text = messageText
+                                itemId = itemId,
+                                itemName = itemName,
+                                itemType = itemType,
+                                text = messageText,
+                                merchantProfileUrl = merchantProfile?.profilePictureUrl,
+                                merchantPhoneNumber = itemPhoneNumber
                             )
                             messageText = ""
                         }

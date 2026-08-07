@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.components.sections
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -82,6 +84,7 @@ import sv.lib.squircleshape.SquircleShape
 // Generic UI models to be used by both Venue and Vendor
 data class ReviewUiModel(
     val id: String = "",
+    val userId: String = "",
     val userName: String,
     val userAvatarUrl: String? = null,
     val rating: Double,
@@ -89,6 +92,7 @@ data class ReviewUiModel(
     val reviewText: String,
     val isVerified: Boolean = false,
     val attachedImages: List<String> = emptyList(),
+    val likedOptions: List<String> = emptyList(),
     val merchantReply: MerchantReplyUiModel? = null
 )
 
@@ -121,6 +125,7 @@ fun ReviewsSection(
     onSeeAllClick: () -> Unit,
     onReviewCardClick: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
+    hasUserReviewed: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -139,106 +144,114 @@ fun ReviewsSection(
                 style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
                 color = ContentPrimary
             )
-            Row(
-                modifier = Modifier.clickable { onSeeAllClick() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "See more",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Spacer(Modifier.width(2.dp))
-                Icon(
-                    imageVector = Icons.Rounded.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // Rating Breakdown Section
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                RatingSurface(rating = rating.toString())
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "$totalReviews ratings",
-                    style = JasnifyTheme.typography.labelSmall,
-                    color = ContentSecondary,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                reviewsData.ratingBreakdown.forEachIndexed { index, item ->
-                    if (index > 0) {
-                        VerticalDivider(
-                            modifier = Modifier.height(24.dp).padding(horizontal = 12.dp),
-                            thickness = 1.dp,
-                            color = ContentTertiary
-                        )
-                    }
-                    RatingBreakdownItem(item.score, item.label)
+            if (reviewsData.reviews.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.clickable { onSeeAllClick() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "See more",
+                        color = ContentBrandDark,
+                        style = JasnifyTheme.typography.labelLarge,
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = ContentBrandDark,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        // Rating Breakdown Section
+        if (totalReviews != "0" && totalReviews != "0 ratings" && totalReviews.isNotBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    RatingSurface(rating = rating.toString())
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = "$totalReviews ratings",
+                        style = JasnifyTheme.typography.labelSmall,
+                        color = ContentSecondary,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
 
-        // Horizontal Reviews List
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(reviewsData.reviews) { review ->
-                ReviewCard(
-                    review = review,
-                    onCardClick = { onReviewCardClick(review) }
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    reviewsData.ratingBreakdown.forEachIndexed { index, item ->
+                        if (index > 0) {
+                            VerticalDivider(
+                                modifier = Modifier.height(24.dp).padding(horizontal = 12.dp),
+                                thickness = 1.dp,
+                                color = ContentTertiary
+                            )
+                        }
+                        RatingBreakdownItem(item.score, item.label)
+                    }
+                }
             }
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // "Been there? Tell us how it was!" Card
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp),
-            shape = RoundedCornerShape(16.dp),
-            border = BorderStroke(1.dp, ContentSecondary),
-            color = Color.Transparent
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
+        // Horizontal Reviews List
+        if (reviewsData.reviews.isNotEmpty()) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Been there? Tell us how it was!",
-                    style = JasnifyTheme.typography.labelLarge,
-                    color = ContentPrimary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                items(reviewsData.reviews) { review ->
+                    ReviewCard(
+                        review = review,
+                        onCardClick = { onReviewCardClick(review) }
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (!hasUserReviewed) {
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // "Been there? Tell us how it was!" Card
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, ContentSecondary),
+                color = Color.Transparent
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
                 ) {
-                    repeat(5) { index ->
-                        val ratingValue = index + 1
-                        Icon(
-                            imageVector = Icons.Rounded.StarBorder,
-                            contentDescription = "Rate $ratingValue stars",
-                            tint = ContentSecondary,
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clickable { onWriteReviewClick(ratingValue) }
-                        )
+                    Text(
+                        text = "Been there? Tell us how it was!",
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = ContentPrimary
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        repeat(5) { index ->
+                            val ratingValue = index + 1
+                            Icon(
+                                imageVector = Icons.Rounded.StarBorder,
+                                contentDescription = "Rate $ratingValue stars",
+                                tint = ContentSecondary,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clickable { onWriteReviewClick(ratingValue) }
+                            )
+                        }
                     }
                 }
             }
@@ -254,9 +267,10 @@ fun AllReviewsScreen(
     onBack: () -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onLeaveReview: () -> Unit,
+    leaveReviewButtonText: String = "Leave a review",
     modifier: Modifier = Modifier
 ) {
-    var selectedFilterIndex by remember { mutableStateOf(0) }
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
     val filters = remember {
         listOf("Relevance", "Recent First", "Negative First", "With Photos", "Highest Rated", "Lowest Rated")
     }
@@ -278,11 +292,10 @@ fun AllReviewsScreen(
                     isLeftAligned = true,
                     buttonStyle = ButtonBackground.TRANSPARENT
                 )
-                Spacer(Modifier.height(24.dp))
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp, top = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
@@ -297,19 +310,20 @@ fun AllReviewsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 8.dp),
+                                .padding(horizontal = 24.dp, vertical = 4.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            reviewsData.subMetrics.forEachIndexed { index, item ->
-                                if (index > 0) {
+                            reviewsData.ratingBreakdown.forEachIndexed { index, item ->
+                                RatingBreakdownItem(item.score, item.label)
+
+                                if (index != reviewsData.ratingBreakdown.lastIndex) {
                                     VerticalDivider(
-                                        modifier = Modifier.height(32.dp),
+                                        modifier = Modifier.height(24.dp),
                                         thickness = 1.dp,
                                         color = ContentTertiary
                                     )
                                 }
-                                RatingBreakdownItem(item.score, item.label)
                             }
                         }
                     }
@@ -372,7 +386,7 @@ fun AllReviewsScreen(
                 ) {
                     CustomTextButton(
                         onClick = onLeaveReview,
-                        text = "Leave a review",
+                        text = leaveReviewButtonText,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -425,7 +439,7 @@ fun ReviewDetailPostScreen(
                                     .background(SurfaceBrandSecondary)
                             ) {
                                 AsyncImage(
-                                    model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
+                                    model = review.userAvatarUrl ?: "",
                                     contentDescription = "User Avatar",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize()
@@ -569,12 +583,19 @@ fun ReviewCard(
     onCardClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var isOverflowed by remember { mutableStateOf(false) }
+
     Surface(
-        color = SurfaceSecondary,
+        color = Color(0x80E2E2E2),
         shape = SquircleShape(CornerExtraLarge),
+        border = BorderStroke(width = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f)),
         modifier = modifier
             .width(280.dp)
-            .clickable(onClick = onCardClick)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onCardClick
+            )
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -590,9 +611,10 @@ fun ReviewCard(
                             .background(SurfaceSecondary)
                     ) {
                         AsyncImage(
-                            model = review.userAvatarUrl ?: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=100",
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop
+                            model = review.userAvatarUrl ?: "",
+                            contentDescription = "User Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
@@ -621,24 +643,29 @@ fun ReviewCard(
                 style = JasnifyTheme.typography.labelLarge,
                 color = ContentSecondary,
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { textLayoutResult ->
+                    isOverflowed = textLayoutResult.hasVisualOverflow
+                }
             )
 
-            Row(
-                modifier = Modifier.clickable { onCardClick() },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "More",
-                    color = ContentBrandDark,
-                    style = JasnifyTheme.typography.labelLarge,
-                )
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = ContentBrandDark,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (isOverflowed) {
+                Row(
+                    modifier = Modifier.clickable { onCardClick() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "More",
+                        color = ContentBrandDark,
+                        style = JasnifyTheme.typography.labelLarge,
+                    )
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = ContentBrandDark,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -657,13 +684,30 @@ fun ReviewCard(
 fun RatingSurface(
     rating: String,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = Color(0xFF009B0A),
     contentColor: Color = ContentInvPrimary,
     starIconSize: Dp = 12.dp,
     shape: Shape = RoundedCornerShape(100),
     paddingValues: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-    textStyle: TextStyle = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium)
+    textStyle: TextStyle = JasnifyTheme.typography.labelMedium.copy(
+        fontWeight = FontWeight.Medium
+    )
 ) {
+    val ratingValue = rating.toFloatOrNull() ?: 0f
+
+    val backgroundColor = when {
+        ratingValue >= 4.5f -> Color(0xFF009B0A)
+        ratingValue >= 3.5f -> Color(0xFF4CAF50)
+        ratingValue >= 2.5f -> Color(0xFFFFC107)
+        ratingValue >= 1.5f -> Color(0xFFFF9800)
+        else -> Color(0xFFF44336)
+    }
+
+    val displayRating = if (ratingValue % 1.0 == 0.0) {
+        ratingValue.toInt().toString()
+    } else {
+        rating
+    }
+
     Surface(
         color = backgroundColor,
         shape = shape,
@@ -679,9 +723,11 @@ fun RatingSurface(
                 modifier = Modifier.size(starIconSize),
                 tint = contentColor
             )
+
             Spacer(modifier = Modifier.width(4.dp))
+
             Text(
-                text = rating,
+                text = displayRating,
                 color = contentColor,
                 style = textStyle
             )
@@ -700,69 +746,80 @@ fun RatingDistributionSummaryBlock(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(12.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Left
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.weight(0.5f),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            RatingSurface(
-                rating = ratingValue,
-                textStyle = JasnifyTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    color = ContentInvPrimary
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = ratingValue,
+                    style = JasnifyTheme.typography.displayLarge,
+                    color = ContentPrimary,
+                    fontWeight = FontWeight.Medium
                 )
-            )
-            Spacer(modifier = Modifier.height(4.dp))
+
+                Spacer(Modifier.width(4.dp))
+
+                Icon(
+                    painter = painterResource(R.drawable.ic_star),
+                    contentDescription = null,
+                    tint = ContentPrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
             Text(
                 text = "Based on\n$totalRatings ratings",
+                textAlign = TextAlign.Center,
                 style = JasnifyTheme.typography.labelMedium,
-                color = ContentSecondary,
-                textAlign = TextAlign.Center
+                color = ContentSecondary
             )
         }
+        Spacer(Modifier.width(24.dp))
 
+        // Right
         Column(
-            modifier = Modifier
-                .weight(1.3f)
-                .padding(horizontal = 12.dp),
+            modifier = Modifier.weight(0.5f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val starLevels = listOf("5", "4", "3", "2", "1")
-            starLevels.forEachIndexed { idx, label ->
-                val progress = distribution.getOrNull(idx) ?: 0.0f
+            val stars = listOf("5", "4", "3", "2", "1")
+
+            stars.forEachIndexed { index, star ->
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.fillMaxWidth()
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.width(32.dp),
-                        horizontalArrangement = Arrangement.End
+                        modifier = Modifier.width(28.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = label,
-                            style = JasnifyTheme.typography.labelMedium,
-                            color = ContentBrand
+                            text = star,
+                            style = JasnifyTheme.typography.labelMedium
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(Modifier.width(2.dp))
+
                         Icon(
-                            painter = painterResource(id = R.drawable.ic_star),
+                            painter = painterResource(R.drawable.ic_star),
                             contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = ContentBrand
+                            modifier = Modifier.size(12.dp)
                         )
                     }
+
                     LinearProgressIndicator(
-                        progress = { progress },
+                        progress = { distribution[index] },
                         modifier = Modifier
                             .weight(1f)
                             .height(4.dp)
-                            .clip(RoundedCornerShape(100)),
-                        color = ContentBrandDark,
+                            .clip(CircleShape),
+                        color = ContentPrimary,
                         trackColor = SurfaceBrandSecondary
                     )
                 }
