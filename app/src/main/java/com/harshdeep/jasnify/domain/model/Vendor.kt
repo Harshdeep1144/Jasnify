@@ -34,6 +34,7 @@ data class Vendor(
     val highlightItems: List<VendorHighlightItem> = emptyList(),
     val galleryCategories: List<VendorGalleryCategory> = emptyList(),
     val reviewsData: VendorReviewsData? = null,
+    val offers: List<Offer> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 )
 

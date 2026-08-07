@@ -62,6 +62,7 @@ fun VenueExploreContent(
     onTextChange: (String) -> Unit,
     isSearchActive: Boolean,
     onSearchActiveChange: (Boolean) -> Unit,
+    onOfferClick: (Venue) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -186,6 +187,7 @@ fun VenueExploreContent(
                     venue = venueItem,
                     onFavoriteToggle = { onFavoriteToggle(venueItem) },
                     onCardClick = { handleVenueClick(venueItem) },
+                    onOfferClick = { onOfferClick(venueItem) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp)
@@ -214,6 +216,7 @@ fun VenueExploreContent(
                         venue = venueItem,
                         onFavoriteToggle = { onFavoriteToggle(venueItem) },
                         onCardClick = { handleVenueClick(venueItem) },
+                        onOfferClick = { onOfferClick(venueItem) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 12.dp)

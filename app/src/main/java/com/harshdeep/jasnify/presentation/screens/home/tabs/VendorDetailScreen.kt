@@ -111,7 +111,10 @@ import com.harshdeep.jasnify.domain.model.VendorReview
 import com.harshdeep.jasnify.domain.model.VendorReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.cards.OfferCard
+import com.harshdeep.jasnify.presentation.components.cards.OfferCardType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -266,6 +269,8 @@ fun VendorDetailScreen(
     var initialRatingForSheet by remember { mutableIntStateOf(0) }
     var showAddressSheet by remember { mutableStateOf(false) }
     var showAboutSheet by remember { mutableStateOf(false) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var selectedOfferForSheet by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Offer?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
 
     val isSubmitting by vendorViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
@@ -289,7 +294,7 @@ fun VendorDetailScreen(
         vendorViewModel.setSelectedVendorId(vendorDetail.id)
     }
 
-    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet
+    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet
     val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
     val backdropScaleState = animateFloatAsState(
@@ -304,12 +309,15 @@ fun VendorDetailScreen(
         label = "backdropCornerRadius"
     )
 
-    BackHandler(enabled = screenStack.size > 1 || anySheetVisible) {
+    BackHandler(enabled = anySheetVisible || screenStack.size > 1) {
         if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
         if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
         if (showAboutSheet) { showAboutSheet = false; return@BackHandler }
+        if (showOfferSheet) { showOfferSheet = false; return@BackHandler }
 
-        screenStack = screenStack.dropLast(1)
+        if (screenStack.size > 1) {
+            screenStack = screenStack.dropLast(1)
+        }
     }
 
     Box(modifier = modifier.fillMaxSize().background(Color.Black)) {
@@ -371,6 +379,10 @@ fun VendorDetailScreen(
                             onWriteReviewClick = { rating ->
                                 initialRatingForSheet = rating
                                 showReviewSheet = true
+                            },
+                            onOfferClick = { offer ->
+                                selectedOfferForSheet = offer
+                                showOfferSheet = true
                             },
                             onAddressClick = { showAddressSheet = true },
                             onAboutClick = { showAboutSheet = true },
@@ -507,6 +519,15 @@ fun VendorDetailScreen(
             )
         }
 
+        if (showOfferSheet) {
+            OfferBottomSheet(
+                offers = vendorDetail.offers,
+                initialOffer = selectedOfferForSheet,
+                onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
         androidx.compose.animation.AnimatedVisibility(
             visible = toastData?.message != null && !anySheetVisible,
             enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
@@ -551,6 +572,7 @@ private fun VendorDetailContent(
     onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
+    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
     onShowToast: (ToastData) -> Unit,
@@ -568,6 +590,7 @@ private fun VendorDetailContent(
         buildList {
             if (vendorDetail.pricingItems.isNotEmpty()) add("Pricings")
             if (vendorDetail.highlightItems.isNotEmpty()) add("Highlights")
+            if (vendorDetail.offers.isNotEmpty()) add("Offers")
             if (vendorDetail.aboutText != null) add("About")
             add("Ask AI")
             if (vendorDetail.galleryCategories.isNotEmpty()) add("Gallery")
@@ -586,6 +609,10 @@ private fun VendorDetailContent(
             if (vendorDetail.highlightItems.isNotEmpty()) {
                 add("highlights")
                 add("div_highlights")
+            }
+            if (vendorDetail.offers.isNotEmpty()) {
+                add("offers")
+                add("div_offers")
             }
             if (vendorDetail.aboutText != null) {
                 add("about")
@@ -618,6 +645,7 @@ private fun VendorDetailContent(
                 when (itemKey) {
                     "pricings", "div_pricings" -> activeTabs.indexOf("Pricings").coerceAtLeast(0)
                     "highlights", "div_highlights" -> activeTabs.indexOf("Highlights").coerceAtLeast(0)
+                    "offers", "div_offers" -> activeTabs.indexOf("Offers").coerceAtLeast(0)
                     "about", "div_about" -> activeTabs.indexOf("About").coerceAtLeast(0)
                     "ask_ai", "div_ask_ai" -> activeTabs.indexOf("Ask AI").coerceAtLeast(0)
                     "gallery", "div_gallery" -> activeTabs.indexOf("Gallery").coerceAtLeast(0)
@@ -625,11 +653,12 @@ private fun VendorDetailContent(
                     else -> {
                         val pricingsIdx = listKeys.indexOf("pricings").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val highlightsIdx = listKeys.indexOf("highlights").takeIf { it != -1 } ?: Int.MAX_VALUE
+                        val offersIdx = listKeys.indexOf("offers").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val aboutIdx = listKeys.indexOf("about").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val askAiIdx = listKeys.indexOf("ask_ai").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val galleryIdx = listKeys.indexOf("gallery").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
-                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
+                        val firstContentIdx = minOf(pricingsIdx, highlightsIdx, offersIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
                         if (itemIndex < firstContentIdx) 0 else {
                             // If we are past all content sections (e.g. footer), select the last tab
                             activeTabs.size - 1
@@ -730,6 +759,7 @@ private fun VendorDetailContent(
                                     val targetKey = when (activeTabs[index]) {
                                         "Pricings" -> "pricings"
                                         "Highlights" -> "highlights"
+                                        "Offers" -> "offers"
                                         "About" -> "about"
                                         "Ask AI" -> "ask_ai"
                                         "Gallery" -> "gallery"
@@ -771,6 +801,21 @@ private fun VendorDetailContent(
                         )
                     }
                     item(key = "div_highlights") {
+                        DashedDivider(
+                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                    }
+                }
+
+                if (vendorDetail.offers.isNotEmpty()) {
+                    item(key = "offers") {
+                        VendorOffersSection(
+                            offers = vendorDetail.offers,
+                            onOfferClick = onOfferClick
+                        )
+                    }
+                    item(key = "div_offers") {
                         DashedDivider(
                             color = MaterialTheme.colorScheme.outline.copy(0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
@@ -1278,6 +1323,43 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
                     null,
                     tint = ContentBrandDark,
                     modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun VendorOffersSection(
+    offers: List<com.harshdeep.jasnify.domain.model.Offer>,
+    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        Text(
+            text = "Available Offers",
+            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+            color = ContentPrimary,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            itemsIndexed(offers) { index, offer ->
+                OfferCard(
+                    title = offer.title,
+                    description = offer.description,
+                    type = OfferCardType.COMPACT,
+                    onViewDetailsClick = { onOfferClick(offer) },
+                    modifier = Modifier.width(300.dp),
+                    progress = "${index + 1}/${offers.size}"
                 )
             }
         }

@@ -157,12 +157,14 @@ fun VenueCardFull(
                     )
                 }
 
-                OfferBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp),
-                    onClick = onOfferClick
-                )
+                if (venue.offers.isNotEmpty()) {
+                    OfferBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
+                        onClick = onOfferClick
+                    )
+                }
 
                 Box(
                     Modifier
@@ -406,7 +408,7 @@ fun VenueCardCompact(
                 }
 
                 // Offer Badge for Medium size cards
-                if (isMedium) {
+                if (isMedium && venue.offers.isNotEmpty()) {
                     OfferBadge(
                         modifier = Modifier
                             .align(Alignment.BottomStart)

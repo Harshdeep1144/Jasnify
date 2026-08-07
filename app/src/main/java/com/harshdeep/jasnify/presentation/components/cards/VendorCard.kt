@@ -144,12 +144,14 @@ fun VendorCardFull(
                     )
                 }
 
-                OfferBadge(
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(12.dp),
-                    onClick = onOfferClick
-                )
+                if (vendor.offers.isNotEmpty()) {
+                    OfferBadge(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(12.dp),
+                        onClick = onOfferClick
+                    )
+                }
 
                 Box(
                     Modifier
@@ -403,7 +405,7 @@ fun VendorCardCompact(
                     }
                 }
 
-                if (isMedium) {
+                if (isMedium && vendor.offers.isNotEmpty()) {
                     OfferBadge(
                         modifier = Modifier
                             .align(Alignment.BottomStart)

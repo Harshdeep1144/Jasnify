@@ -69,8 +69,10 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
@@ -274,6 +276,8 @@ fun HomeTabContent(
     var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
     var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
     var activeTargetVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -283,7 +287,7 @@ fun HomeTabContent(
     var lastSavedVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    val isAnySheetVisible = showSaveListBottomSheet
+    val isAnySheetVisible = showSaveListBottomSheet || showOfferSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
@@ -410,10 +414,10 @@ fun HomeTabContent(
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
 
-    val homeTabNestedScrollConnection = remember(fadeDistancePx, showSaveListBottomSheet) {
+    val homeTabNestedScrollConnection = remember(fadeDistancePx, isAnySheetVisible) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (currentScreen != "home" || showSaveListBottomSheet) return Offset.Zero
+                if (currentScreen != "home" || isAnySheetVisible) return Offset.Zero
 
                 val delta = available.y
                 val currentScroll = homeScrollState.value.toFloat()
@@ -450,8 +454,8 @@ fun HomeTabContent(
         }
     }
 
-    LaunchedEffect(currentScreen, showSaveListBottomSheet, isBottomBarVisible) {
-        if (showSaveListBottomSheet) {
+    LaunchedEffect(currentScreen, isAnySheetVisible, isBottomBarVisible) {
+        if (isAnySheetVisible) {
             onBottomBarVisibilityChange(false)
         } else {
             if (currentScreen == "home") {
@@ -651,7 +655,10 @@ fun HomeTabContent(
                                     cardSize = CompactCardSize.MEDIUM,
                                     onFavoriteToggle = handleVenueFavoriteToggle,
                                     onSeeAllClick = { navigateTo("venues") },
-                                    onOfferClick = { }
+                                    onOfferClick = { venue ->
+                                        offersToShow = venue.offers
+                                        showOfferSheet = true
+                                    }
                                 )
 
                                 VenueCarousel(
@@ -665,7 +672,10 @@ fun HomeTabContent(
                                     onFavoriteToggle = handleVenueFavoriteToggle,
                                     cardSize = CompactCardSize.MEDIUM,
                                     onSeeAllClick = { navigateTo("venues") },
-                                    onOfferClick = { }
+                                    onOfferClick = { venue ->
+                                        offersToShow = venue.offers
+                                        showOfferSheet = true
+                                    }
                                 )
                             }
 
@@ -728,6 +738,14 @@ fun HomeTabContent(
                     }
                 }
             } // End scaling box
+
+            if (showOfferSheet) {
+                OfferBottomSheet(
+                    offers = offersToShow,
+                    onDismiss = { showOfferSheet = false },
+                    onProgress = { sheetMotionProgress = it }
+                )
+            }
 
             if (showSaveListBottomSheet) {
                     SaveListBottomSheet(
@@ -882,7 +900,6 @@ fun HomeTabContent(
                             selectedLocation = "City, State",
                             onVenueClick = { venue ->
                                 selectedVenueForDetail = venue
-                                currentScreen = "venue_detail"
                             },
                             onChatClick = { venue ->
                                 val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }

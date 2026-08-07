@@ -35,6 +35,7 @@ data class Venue(
     val highlightItems: List<VenueHighlightItem> = emptyList(),
     val galleryCategories: List<VenueGalleryCategory> = emptyList(),
     val reviewsData: VenueReviewsData? = null,
+    val offers: List<Offer> = emptyList(),
     val timestamp: Long = System.currentTimeMillis()
 )
 
