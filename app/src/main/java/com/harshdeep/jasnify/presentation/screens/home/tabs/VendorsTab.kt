@@ -186,6 +186,7 @@ fun VendorsTab(
     mainNavController: NavHostController,
     internalNavController: NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit,
+    onChatClick: (Vendor) -> Unit = {},
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
@@ -564,7 +565,8 @@ fun VendorsTab(
                                             onBackClick()
                                         }
                                     },
-                                    onFavoriteToggle = { handleFavoriteToggle(it) }
+                                    onFavoriteToggle = { handleFavoriteToggle(it) },
+                                    onChatClick = { onChatClick(it) }
                                 )
                             }
                         }

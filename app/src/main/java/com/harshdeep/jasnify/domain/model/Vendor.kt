@@ -20,6 +20,7 @@ data class Vendor(
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
+    val phoneNumber: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",
     val priceStartsFrom: String = "₹0",

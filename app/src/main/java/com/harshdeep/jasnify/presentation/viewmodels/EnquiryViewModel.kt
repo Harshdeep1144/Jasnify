@@ -37,7 +37,16 @@ class EnquiryViewModel @Inject constructor(
         return enquiryRepository.getEnquiryById(enquiryId).map { it?.messages ?: emptyList() }
     }
 
-    fun sendMessage(userId: String, merchantId: String, itemId: String, itemName: String, itemType: String = "Venue", text: String) {
+    fun sendMessage(
+        userId: String,
+        merchantId: String,
+        itemId: String,
+        itemName: String,
+        itemType: String = "Venue",
+        text: String,
+        merchantProfileUrl: String? = null,
+        merchantPhoneNumber: String? = null
+    ) {
         val enquiryId = "${userId}_${merchantId}_${itemId}"
         val message = ChatMessage(
             text = text,
@@ -59,6 +68,8 @@ class EnquiryViewModel @Inject constructor(
                     merchantId = merchantId,
                     venueId = itemId, 
                     venueName = itemName,
+                    merchantProfileUrl = merchantProfileUrl,
+                    merchantPhoneNumber = merchantPhoneNumber,
                     itemType = itemType,
                     lastMessage = text,
                     timestamp = System.currentTimeMillis(),

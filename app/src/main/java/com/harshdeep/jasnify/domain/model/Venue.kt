@@ -21,6 +21,7 @@ data class Venue(
     val city: String = "City",
     val locality: String = "Locality",
     val location: String = "",
+    val phoneNumber: String? = null,
     val type: String? = null,
     val rating: Double = 0.0,
     val totalReviews: String = "0",

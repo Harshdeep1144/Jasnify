@@ -53,7 +53,7 @@ fun EnquiryCard(
                     .background(SurfaceBrandSecondary)
             ) {
                 AsyncImage(
-                    model = R.drawable.ic_user_profile,
+                    model = enquiry.merchantProfileUrl ?: R.drawable.ic_user_profile,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

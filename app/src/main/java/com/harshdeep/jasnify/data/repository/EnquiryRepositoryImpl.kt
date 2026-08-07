@@ -39,8 +39,7 @@ class EnquiryRepositoryImpl @Inject constructor(
         val subscription = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
                 android.util.Log.e("EnquiryRepo", "Error fetching user enquiries: ${error.message}")
-                // If it's an index error, this will log the URL
-                close(error)
+                trySend(emptyList()) // Emit empty instead of closing with error to avoid crash
                 return@addSnapshotListener
             }
             
@@ -65,7 +64,8 @@ class EnquiryRepositoryImpl @Inject constructor(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    android.util.Log.e("EnquiryRepo", "Error fetching merchant enquiries: ${error.message}")
+                    trySend(emptyList())
                     return@addSnapshotListener
                 }
                 val enquiries = snapshot?.documents?.mapNotNull { it.toObject(Enquiry::class.java) } ?: emptyList()
@@ -79,7 +79,8 @@ class EnquiryRepositoryImpl @Inject constructor(
             .document(enquiryId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    close(error)
+                    android.util.Log.e("EnquiryRepo", "Error fetching enquiry by ID: ${error.message}")
+                    trySend(null)
                     return@addSnapshotListener
                 }
                 trySend(snapshot?.toObject(Enquiry::class.java))

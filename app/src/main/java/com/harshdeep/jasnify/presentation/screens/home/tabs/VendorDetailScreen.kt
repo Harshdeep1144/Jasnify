@@ -126,6 +126,9 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
@@ -249,6 +252,16 @@ fun VendorDetailScreen(
     val pagerState = rememberPagerState(pageCount = { vendorDetail.mediaItems.size })
     var isMuted by rememberSaveable { mutableStateOf(true) }
 
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    val context = LocalContext.current
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
+
     var showReviewSheet by remember { mutableStateOf(false) }
     var initialRatingForSheet by remember { mutableIntStateOf(0) }
     var showAddressSheet by remember { mutableStateOf(false) }
@@ -334,7 +347,15 @@ fun VendorDetailScreen(
                             onMuteToggle = { isMuted = !isMuted },
                             onBackClick = onBackClick,
                             onChatClick = onChatClick,
-                            onMenuClick = onMenuClick,
+                            onMenuClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    val shareMessage = "Check out ${vendorDetail.name} (${vendorDetail.category}) in ${vendorDetail.location} on Jasnify!\n\nhttps://jasnify.com"
+                                    putExtra(Intent.EXTRA_SUBJECT, "Vendor Share")
+                                    putExtra(Intent.EXTRA_TEXT, shareMessage)
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, "Share Vendor"))
+                            },
                             onFavoriteToggle = onFavoriteToggle,
                             onSeeAllReviewsClick = { screenStack = screenStack + VendorActiveScreen.REVIEWS },
                             onSeeAllGalleryClick = { screenStack = screenStack + VendorActiveScreen.GALLERY },
@@ -353,6 +374,7 @@ fun VendorDetailScreen(
                             },
                             onAddressClick = { showAddressSheet = true },
                             onAboutClick = { showAboutSheet = true },
+                            onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
                             modifier = Modifier.fillMaxSize()
@@ -484,6 +506,25 @@ fun VendorDetailScreen(
                 onProgress = { sheetMotionProgress = it }
             )
         }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = toastData?.message != null && !anySheetVisible,
+            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type
+                )
+            }
+        }
     }
 }
 
@@ -512,11 +553,13 @@ private fun VendorDetailContent(
     onWriteReviewClick: (Int) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     val density = LocalDensity.current
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
@@ -762,6 +805,7 @@ private fun VendorDetailContent(
                     )
                 }
 
+                if (vendorDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
@@ -775,6 +819,7 @@ private fun VendorDetailContent(
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
+                }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
@@ -874,7 +919,19 @@ private fun VendorDetailContent(
             ) {
                 FloatingBottomActionBar(
                     onMessageClick = { onChatClick(vendorDetail) },
-                    onBookCallClick = { },
+                    onBookCallClick = {
+                        val phone = vendorDetail.phoneNumber ?: ""
+                        if (phone.isEmpty()) {
+                            onShowToast(ToastData("No phone number available!", ToastType.DEFAULT))
+                            return@FloatingBottomActionBar
+                        }
+                        try {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("VendorDetail", "Error opening dialer: ${e.message}")
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)

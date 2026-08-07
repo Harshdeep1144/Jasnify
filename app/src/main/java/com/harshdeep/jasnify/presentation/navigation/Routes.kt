@@ -38,7 +38,11 @@ sealed class Screen(val route: String) {
 
     // Venue Feature
     data object VenueRoot : Screen("venue_root_screen?tab={tab}")
+    data object VenueDetail : Screen("venue_detail_screen/{venueId}")
     data object LocationSelector : Screen("location_selector_screen")
+
+    // Vendor Feature
+    data object VendorDetail : Screen("vendor_detail_screen/{vendorId}")
 
     // Budget Feature
     data object BudgetRoot : Screen("budget_root_screen")
@@ -47,5 +51,5 @@ sealed class Screen(val route: String) {
     data object CateringRoot : Screen("catering_root_screen")
 
     // Messaging
-    data object ChatScreen : Screen("chat_screen/{merchantId}/{venueId}")
+    data object ChatScreen : Screen("chat_screen/{merchantId}/{itemId}?itemType={itemType}")
 }

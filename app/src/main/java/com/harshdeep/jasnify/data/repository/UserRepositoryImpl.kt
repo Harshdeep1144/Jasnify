@@ -347,7 +347,12 @@ class UserRepositoryImpl @Inject constructor(
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document(roomType)
             .collection(collectionName)
-            .addSnapshotListener { snapshot, _ ->
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("UserRepository", "Error listening to room users for $roomType: ${error.message}")
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
                 if (snapshot != null) {
                     val users = snapshot.documents.mapNotNull { doc ->
                         try {

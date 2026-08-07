@@ -14,6 +14,8 @@ data class Enquiry(
     val merchantId: String = "",
     val venueId: String = "",
     val venueName: String = "",
+    val merchantProfileUrl: String? = null,
+    val merchantPhoneNumber: String? = null,
     val itemType: String = "Venue", // "Venue" or "Vendor"
     val lastMessage: String = "",
     val timestamp: Long = System.currentTimeMillis(),

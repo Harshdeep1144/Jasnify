@@ -5,9 +5,15 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -63,6 +69,8 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
@@ -78,9 +86,12 @@ import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
+import com.harshdeep.jasnify.presentation.screens.home.tabs.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -110,14 +121,20 @@ fun HomeTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
-    venueViewModel: VenueViewModel = hiltViewModel()
+    venueViewModel: VenueViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
     val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+    val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
 
     val venueSavedDestinations = remember(savedVenuesFromCloud) {
         savedVenuesFromCloud.associate { it.venueName to it.destination }
+    }
+
+    val vendorSavedDestinations = remember(savedVendorsFromCloud) {
+        savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
     }
 
     LaunchedEffect(Unit) {
@@ -127,6 +144,8 @@ fun HomeTab(
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)
+            venueViewModel.setEventId(id)
+            vendorViewModel.setEventId(id)
         }
     }
 
@@ -193,15 +212,17 @@ fun HomeTab(
         onBottomBarVisibilityChange = onBottomBarVisibilityChange,
         eventViewModel = eventViewModel,
         venueViewModel = venueViewModel,
+        vendorViewModel = vendorViewModel,
         isVenuesLoading = isVenuesLoading,
         venueSavedDestinations = venueSavedDestinations,
+        vendorSavedDestinations = vendorSavedDestinations,
         activeEvent = activeEvent
     )
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue")
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun HomeTabContent(
     eventName: String,
@@ -214,12 +235,16 @@ fun HomeTabContent(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     eventViewModel: EventViewModel? = null,
     venueViewModel: VenueViewModel? = null,
+    vendorViewModel: VendorViewModel? = null,
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
+    vendorSavedDestinations: Map<String, String> = emptyMap(),
     activeEvent: com.harshdeep.jasnify.domain.model.Event? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
+    var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
+    var selectedVendorForDetail by remember { mutableStateOf<Vendor?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
     // Header media items featuring local drawables, remote Image URLs, and remote Video URLs
@@ -250,15 +275,29 @@ fun HomeTabContent(
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var activeTargetVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
     var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
     var toastData by remember { mutableStateOf<com.harshdeep.jasnify.presentation.components.others.ToastData?>(null) }
     var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
+    var lastSavedVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    val isViewer = remember(activeEvent) { false }
+    val isAnySheetVisible = showSaveListBottomSheet
+    val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
+    val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
+    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
 
-    val handleFavoriteToggle: (com.harshdeep.jasnify.domain.model.Venue) -> Unit = { venue ->
+    val isSavedListToast = remember(toastData, lastSavedVenue, lastSavedVendor) {
+        toastData?.message?.contains("Saved List") == true && (lastSavedVenue != null || lastSavedVendor != null)
+    }
+
+    val isOwner = activeEvent?.ownerId == com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    // For simplicity in HomeTab, we assume owner for now or fetch role if needed.
+    // Ideally use RoomViewModel to get exact role, but false is safe for viewers.
+    val isViewer = !isOwner
+
+    val handleVenueFavoriteToggle: (Venue) -> Unit = { venue ->
         val alreadySaved = venueSavedDestinations.containsKey(venue.name)
         if (alreadySaved) {
             if (activeEvent?.multiDay == true) {
@@ -269,11 +308,37 @@ fun HomeTabContent(
                 showSaveListBottomSheet = true
             } else {
                 venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                lastSavedVenue = null
+                lastSavedVendor = null
                 toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
             }
         } else {
             venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
             lastSavedVenue = venue
+            lastSavedVendor = null
+            toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+        }
+    }
+
+    val handleVendorFavoriteToggle: (Vendor) -> Unit = { vendor ->
+        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+        if (alreadySaved) {
+            if (activeEvent?.multiDay == true) {
+                activeTargetVendor = vendor
+                val currentDestination = vendorSavedDestinations["${vendor.name}-${vendor.category}"]
+                isMySavedListChecked = currentDestination == "mysaved"
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                vendorViewModel?.toggleSaveVendor(vendor, isViewer, null)
+                lastSavedVenue = null
+                lastSavedVendor = null
+                toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+            }
+        } else {
+            vendorViewModel?.toggleSaveVendor(vendor, isViewer, "mysaved")
+            lastSavedVendor = vendor
+            lastSavedVenue = null
             toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
         }
     }
@@ -328,8 +393,16 @@ fun HomeTabContent(
     val homeScrollState = rememberScrollState()
 
     BackHandler(enabled = currentScreen != "home") {
-        selectedCategory = null
-        currentScreen = "home"
+        if (currentScreen == "venue_detail") {
+            selectedVenueForDetail = null
+            currentScreen = "home"
+        } else if (currentScreen == "vendor_detail") {
+            selectedVendorForDetail = null
+            currentScreen = "home"
+        } else {
+            selectedCategory = null
+            currentScreen = "home"
+        }
     }
 
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
@@ -337,10 +410,10 @@ fun HomeTabContent(
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
 
-    val homeTabNestedScrollConnection = remember(fadeDistancePx) {
+    val homeTabNestedScrollConnection = remember(fadeDistancePx, showSaveListBottomSheet) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (currentScreen != "home") return Offset.Zero
+                if (currentScreen != "home" || showSaveListBottomSheet) return Offset.Zero
 
                 val delta = available.y
                 val currentScroll = homeScrollState.value.toFloat()
@@ -377,11 +450,15 @@ fun HomeTabContent(
         }
     }
 
-    LaunchedEffect(currentScreen) {
-        if (currentScreen == "home") {
-            onBottomBarVisibilityChange(isBottomBarVisible)
-        } else if (currentScreen != "vendors") {
+    LaunchedEffect(currentScreen, showSaveListBottomSheet, isBottomBarVisible) {
+        if (showSaveListBottomSheet) {
             onBottomBarVisibilityChange(false)
+        } else {
+            if (currentScreen == "home") {
+                onBottomBarVisibilityChange(isBottomBarVisible)
+            } else if (currentScreen != "vendors") {
+                onBottomBarVisibilityChange(false)
+            }
         }
     }
 
@@ -418,19 +495,30 @@ fun HomeTabContent(
         label = "screen_transition",
         modifier = Modifier
             .fillMaxSize()
-            .then(
-                if (currentScreen == "home") Modifier.nestedScroll(homeTabNestedScrollConnection)
-                else Modifier
-            )
     ) { screen ->
 
         if (screen == "home") {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(BackgroundPrimary)
+                    .background(Color.Black)
             ) {
-                if (homeScrollState.value < fadeDistancePx) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = backdropScale
+                            scaleY = backdropScale
+                            clip = isAnySheetVisible || backdropCornerRadius > 0.dp
+                            shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
+                        }
+                        .background(BackgroundPrimary)
+                        .then(
+                            if (currentScreen == "home") Modifier.nestedScroll(homeTabNestedScrollConnection)
+                            else Modifier
+                        )
+                ) {
+                    if (homeScrollState.value < fadeDistancePx) {
                     HeaderMediaSlider(
                         mediaList = headerMediaItems,
                         pagerState = headerPagerState,
@@ -556,10 +644,13 @@ fun HomeTabContent(
                                     title = "Trending Venues in Patna",
                                     venues = trendingVenues,
                                     isLoading = isVenuesLoading,
-                                    onVenueClick = { navigateTo("venues") },
+                                    onVenueClick = { venue ->
+                                        selectedVenueForDetail = venue
+                                        currentScreen = "venue_detail"
+                                    },
                                     cardSize = CompactCardSize.MEDIUM,
-                                    onFavoriteToggle = handleFavoriteToggle,
-                                    onSeeAllClick = { },
+                                    onFavoriteToggle = handleVenueFavoriteToggle,
+                                    onSeeAllClick = { navigateTo("venues") },
                                     onOfferClick = { }
                                 )
 
@@ -567,10 +658,13 @@ fun HomeTabContent(
                                     title = "More Venues to Explore",
                                     venues = exploreVenues,
                                     isLoading = isVenuesLoading,
-                                    onVenueClick = { navigateTo("venues") },
-                                    onFavoriteToggle = handleFavoriteToggle,
+                                    onVenueClick = { venue ->
+                                        selectedVenueForDetail = venue
+                                        currentScreen = "venue_detail"
+                                    },
+                                    onFavoriteToggle = handleVenueFavoriteToggle,
                                     cardSize = CompactCardSize.MEDIUM,
-                                    onSeeAllClick = { },
+                                    onSeeAllClick = { navigateTo("venues") },
                                     onOfferClick = { }
                                 )
                             }
@@ -633,8 +727,9 @@ fun HomeTabContent(
                         )
                     }
                 }
+            } // End scaling box
 
-                if (showSaveListBottomSheet) {
+            if (showSaveListBottomSheet) {
                     SaveListBottomSheet(
                         timelineEvents = timelineEvents,
                         isMySavedListChecked = isMySavedListChecked,
@@ -665,34 +760,99 @@ fun HomeTabContent(
                                 activeTargetVenue?.let { venue ->
                                     venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, subEventItem.id)
                                 }
+                                activeTargetVendor?.let { vendor ->
+                                    vendorViewModel?.toggleSaveVendor(vendor, isViewer, subEventItem.id)
+                                }
 
                                 selectedSaveEventId = subEventItem.id
                                 isMySavedListChecked = false
                             }
                         },
                         isViewer = isViewer,
-                        onDismiss = { showSaveListBottomSheet = false },
+                        onDismiss = { 
+                            showSaveListBottomSheet = false
+                            activeTargetVenue = null
+                            activeTargetVendor = null
+                        },
                         onDone = {
+                            val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                             activeTargetVenue?.let { venue ->
-                                val destination = if (isMySavedListChecked) "mysaved" else selectedSaveEventId
                                 if (destination != null) {
                                     venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
                                     lastSavedVenue = venue
+                                    lastSavedVendor = null
                                     toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
                                 } else {
                                     venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
+                                    lastSavedVenue = null
+                                    lastSavedVendor = null
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                }
+                            }
+                            activeTargetVendor?.let { vendor ->
+                                if (destination != null) {
+                                    vendorViewModel?.toggleSaveVendor(vendor, isViewer, destination)
+                                    lastSavedVendor = vendor
+                                    lastSavedVenue = null
+                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                } else {
+                                    vendorViewModel?.toggleSaveVendor(vendor, isViewer, null)
+                                    lastSavedVendor = null
+                                    lastSavedVenue = null
                                     toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
                                 }
                             }
                             showSaveListBottomSheet = false
                             activeTargetVenue = null
+                            activeTargetVendor = null
                         },
                         onProgress = { sheetMotionProgress = it }
                     )
                 }
 
                 androidx.compose.animation.AnimatedVisibility(
-                    visible = toastData?.message != null,
+                    visible = toastData?.message != null && isSavedListToast,
+                    enter = slideInVertically(initialOffsetY = { it + 500 }),
+                    exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 100.dp)
+                        .padding(horizontal = 12.dp)
+                ) {
+                    toastData?.let { data ->
+                        com.harshdeep.jasnify.presentation.components.others.CustomToast(
+                            message = data.message ?: "",
+                            type = data.type,
+                            leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                            buttonText = if (activeEvent?.multiDay == true) "Change" else null,
+                            onButtonClick = if (activeEvent?.multiDay == true) {
+                                {
+                                    toastData = null
+                                    if (lastSavedVenue != null) {
+                                        val venue = lastSavedVenue!!
+                                        activeTargetVenue = venue
+                                        activeTargetVendor = null
+                                        val currentDest = venueSavedDestinations[venue.name]
+                                        isMySavedListChecked = currentDest == "mysaved"
+                                        selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                                        showSaveListBottomSheet = true
+                                    } else if (lastSavedVendor != null) {
+                                        val vendor = lastSavedVendor!!
+                                        activeTargetVendor = vendor
+                                        activeTargetVenue = null
+                                        val currentDest = vendorSavedDestinations["${vendor.name}-${vendor.category}"]
+                                        isMySavedListChecked = currentDest == "mysaved"
+                                        selectedSaveEventId = if (currentDest != "mysaved" && currentDest != null) currentDest else null
+                                        showSaveListBottomSheet = true
+                                    }
+                                }
+                            } else null
+                        )
+                    }
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = toastData?.message != null && !isSavedListToast,
                     enter = fadeIn(),
                     exit = fadeOut(),
                     modifier = Modifier
@@ -720,11 +880,14 @@ fun HomeTabContent(
                     "venues" -> eventViewModel?.let { vm ->
                         VenueScreen(
                             selectedLocation = "City, State",
-                            onVenueClick = {},
+                            onVenueClick = { venue ->
+                                selectedVenueForDetail = venue
+                                currentScreen = "venue_detail"
+                            },
                             onChatClick = { venue ->
                                 val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
-                                val venueId = venue.id.ifBlank { "unknown_venue" }
-                                mainNavController.navigate("chat_screen/$merchantId/$venueId")
+                                val itemId = venue.id.ifBlank { "unknown_venue" }
+                                mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
                             },
                             onBackClick = { currentScreen = "home" },
                             eventViewModel = vm
@@ -741,6 +904,11 @@ fun HomeTabContent(
                             mainNavController = mainNavController,
                             internalNavController = internalNavController,
                             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+                            onChatClick = { vendor ->
+                                val merchantId = vendor.merchantId.ifBlank { "unknown_merchant" }
+                                val itemId = vendor.id.ifBlank { "unknown_vendor" }
+                                mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
+                            },
                             initialCategory = selectedCategory,
                             onBackClick = {
                                 selectedCategory = null
@@ -748,6 +916,42 @@ fun HomeTabContent(
                             },
                             eventViewModel = eventViewModel ?: hiltViewModel()
                         )
+                    }
+                    "venue_detail" -> {
+                        selectedVenueForDetail?.let { venue ->
+                            VenueDetailScreen(
+                                venueDetail = venue,
+                                onBackClick = {
+                                    selectedVenueForDetail = null
+                                    currentScreen = "home"
+                                },
+                                onFavoriteToggle = {
+                                    handleVenueFavoriteToggle(venue)
+                                },
+                                onChatClick = { venueChat ->
+                                    val merchantId = venueChat.merchantId.ifBlank { "unknown_merchant" }
+                                    val itemId = venueChat.id.ifBlank { "unknown_venue" }
+                                    mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
+                                }
+                            )
+                        }
+                    }
+                    "vendor_detail" -> {
+                        selectedVendorForDetail?.let { vendor ->
+                            VendorDetailScreen(
+                                vendorDetail = vendor,
+                                onBackClick = {
+                                    selectedVendorForDetail = null
+                                    currentScreen = "home"
+                                },
+                                onChatClick = { vendorChat ->
+                                    val merchantId = vendorChat.merchantId.ifBlank { "unknown_merchant" }
+                                    val itemId = vendorChat.id.ifBlank { "unknown_vendor" }
+                                    mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
+                                },
+                                onFavoriteToggle = { handleVendorFavoriteToggle(it) }
+                            )
+                        }
                     }
                 }
             }
@@ -765,12 +969,11 @@ fun HeaderMediaSlider(
 ) {
     if (mediaList.isEmpty()) return
 
-    val isPreview = LocalInspectionMode.current
     val context = LocalContext.current
 
     // Continuous auto-slide forward loop (always moving left-to-right)
     LaunchedEffect(pagerState, mediaList.size) {
-        if (!isPreview && mediaList.size > 1) {
+        if (mediaList.size > 1) {
             while (true) {
                 delay(autoSlideIntervalMs.milliseconds)
                 if (!pagerState.isScrollInProgress) {
@@ -801,62 +1004,35 @@ fun HeaderMediaSlider(
                     )
                 }
                 is HeaderMedia.ImageUrl -> {
-                    if (isPreview) {
-                        Image(
-                            painter = painterResource(id = R.drawable.bg_home),
-                            contentDescription = "Header Image URL Preview",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(media.url)
-                                .crossfade(true)
-                                .placeholder(R.drawable.bg_home)
-                                .error(R.drawable.bg_home)
-                                .build(),
-                            contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
+                    AsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data(media.url)
+                            .crossfade(true)
+                            .placeholder(R.drawable.bg_home)
+                            .error(R.drawable.bg_home)
+                            .build(),
+                        contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
                 is HeaderMedia.VideoResource -> {
-                    if (isPreview) {
-                        Image(
-                            painter = painterResource(id = R.drawable.bg_home),
-                            contentDescription = "Header Video Preview",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        VideoPlayer(
-                            videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
-                            modifier = Modifier.fillMaxSize(),
-                            isMuted = true,
-                            autoPlay = true,
-                            isLooping = true
-                        )
-                    }
+                    VideoPlayer(
+                        videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
+                        modifier = Modifier.fillMaxSize(),
+                        isMuted = true,
+                        autoPlay = true,
+                        isLooping = true
+                    )
                 }
                 is HeaderMedia.VideoUrl -> {
-                    if (isPreview) {
-                        Image(
-                            painter = painterResource(id = R.drawable.bg_home),
-                            contentDescription = "Header Web Video Preview",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    } else {
-                        VideoPlayer(
-                            videoUrl = media.url,
-                            modifier = Modifier.fillMaxSize(),
-                            isMuted = true,
-                            autoPlay = true,
-                            isLooping = true
-                        )
-                    }
+                    VideoPlayer(
+                        videoUrl = media.url,
+                        modifier = Modifier.fillMaxSize(),
+                        isMuted = true,
+                        autoPlay = true,
+                        isLooping = true
+                    )
                 }
             }
         }

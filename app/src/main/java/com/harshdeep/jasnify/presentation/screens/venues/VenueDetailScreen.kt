@@ -126,6 +126,9 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
@@ -250,6 +253,15 @@ fun VenueDetailScreen(
     val pagerState = rememberPagerState(pageCount = { venueDetail.mediaItems.size })
     var isMuted by rememberSaveable { mutableStateOf(true) }
 
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+
+    LaunchedEffect(toastData?.message) {
+        if (toastData?.message != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
+
     var showReviewSheet by remember { mutableStateOf(false) }
     var initialRatingForSheet by remember { mutableIntStateOf(0) }
     var showAddressSheet by remember { mutableStateOf(false) }
@@ -354,6 +366,7 @@ fun VenueDetailScreen(
                             },
                             onAddressClick = { showAddressSheet = true },
                             onAboutClick = { showAboutSheet = true },
+                            onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
                             modifier = Modifier.fillMaxSize()
@@ -484,6 +497,25 @@ fun VenueDetailScreen(
                 onProgress = { sheetMotionProgress = it }
             )
         }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = toastData?.message != null && !anySheetVisible,
+            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type
+                )
+            }
+        }
     }
 }
 
@@ -511,11 +543,13 @@ private fun VenueDetailContent(
     onWriteReviewClick: (Int) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
     val density = LocalDensity.current
     val stickyHeaderHeightPx = with(density) { 56.dp.roundToPx() }
 
@@ -764,6 +798,7 @@ private fun VenueDetailContent(
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
+                if (venueDetail.galleryCategories.isNotEmpty()) {
                     item(key = "gallery") {
                         GallerySection(
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
@@ -774,6 +809,7 @@ private fun VenueDetailContent(
                     item(key = "div_gallery") {
                         DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
+                }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
                     item(key = "reviews") {
@@ -832,7 +868,15 @@ private fun VenueDetailContent(
                 onSecondaryClick = {
                     onFavoriteToggle(!venueDetail.favorite)
                 },
-                onMenuClick = { },
+                onMenuClick = {
+                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        val shareMessage = "Check out ${venueDetail.name} in ${venueDetail.location} on Jasnify!\n\nhttps://jasnify.com"
+                        putExtra(Intent.EXTRA_SUBJECT, "Venue Share")
+                        putExtra(Intent.EXTRA_TEXT, shareMessage)
+                    }
+                    context.startActivity(Intent.createChooser(shareIntent, "Share Venue"))
+                },
                 buttonStyle = dynamicButtonStyle,
                 translucentAlpha = if (scrollFraction > 0.8f) 1f else 0.5f,
                 textColor = ContentPrimary,
@@ -866,7 +910,19 @@ private fun VenueDetailContent(
             ) {
                 FloatingBottomActionBar(
                     onMessageClick = { onChatClick(venueDetail) },
-                    onBookCallClick = { },
+                    onBookCallClick = {
+                        val phone = venueDetail.phoneNumber ?: ""
+                        if (phone.isEmpty()) {
+                            onShowToast(ToastData("No phone number available!", ToastType.DEFAULT))
+                            return@FloatingBottomActionBar
+                        }
+                        try {
+                            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("VenueDetail", "Error opening dialer: ${e.message}")
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 12.dp, vertical = 8.dp)

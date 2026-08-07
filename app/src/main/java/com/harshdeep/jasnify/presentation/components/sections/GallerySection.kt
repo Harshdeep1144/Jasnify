@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.paddingFrom
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
@@ -24,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.rounded.KeyboardArrowRight
@@ -35,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -43,12 +40,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.core.R
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
@@ -67,17 +61,14 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 
-// Generic UI models for Gallery
 data class MediaItemUiModel(
     val url: String,
     val video: Boolean = false,
@@ -293,7 +284,6 @@ fun GallerySection(
     }
 }
 
-
 @Composable
 fun GalleryDetailScreen(
     title: String,
@@ -334,21 +324,27 @@ fun GalleryDetailScreen(
                     textColor = ContentPrimary
                 )
 
-                if (selectedTab == "Images") {
-                    ImagesTabView(
-                        mediaItems = allMediaItems,
-                        lastUpdated = galleryCategories.firstOrNull()?.lastUpdated,
-                        onImageClick = { item ->
-                            val index = allMediaItems.indexOf(item)
-                            onMediaClick(allMediaItems, index)
-                        }
-                    )
-                } else {
-                    AlbumsTabView(
-                        categories = galleryCategories,
-                        onOpenAlbum = onOpenAlbum,
-                        onMediaClick = onMediaClick
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    if (selectedTab == "Images") {
+                        ImagesTabView(
+                            mediaItems = allMediaItems,
+                            lastUpdated = galleryCategories.firstOrNull()?.lastUpdated,
+                            onImageClick = { item ->
+                                val index = allMediaItems.indexOf(item)
+                                onMediaClick(allMediaItems, index)
+                            }
+                        )
+                    } else {
+                        AlbumsTabView(
+                            categories = galleryCategories,
+                            onOpenAlbum = onOpenAlbum,
+                            onMediaClick = onMediaClick
+                        )
+                    }
                 }
             }
 
@@ -371,7 +367,7 @@ private fun ImagesTabView(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 86.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         item {
@@ -395,39 +391,59 @@ private fun ImagesTabView(
             }
         }
 
-        items(mediaItems.chunked(2)) { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                rowItems.forEach { item ->
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .clip(SquircleShape(CornerLargeIncrease))
-                            .background(SurfaceSecondary)
-                            .clickable { onImageClick(item) }
-                    ) {
-                        AsyncImage(
-                            model = item.url,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                        if (item.video) {
-                            VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
+        if (mediaItems.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillParentMaxHeight(0.6f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No images available",
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = ContentSecondary
+                    )
+                }
+            }
+        } else {
+            items(mediaItems.chunked(2)) { rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    rowItems.forEach { item ->
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(SquircleShape(CornerLargeIncrease))
+                                .background(SurfaceSecondary)
+                                .clickable { onImageClick(item) }
+                        ) {
+                            AsyncImage(
+                                model = item.url,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                            if (item.video) {
+                                VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
+                            }
                         }
                     }
-                }
-                if (rowItems.size == 1) {
-                    Spacer(modifier = Modifier.weight(1f))
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
         }
 
+        // Footer correctly aligned at the end of scrollable media list
         item {
+            Spacer(modifier = Modifier.height(16.dp))
             FooterJansify(footerType = FooterType.PRIMARY)
         }
     }
@@ -441,26 +457,43 @@ private fun AlbumsTabView(
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 86.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 80.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        items(categories) { category ->
-            AlbumCategorySection(
-                category = category,
-                onSeeAllClick = { onOpenAlbum(category) },
-                onImageClick = { item ->
-                    val index = category.mediaItems.indexOf(item)
-                    onMediaClick(category.mediaItems, index)
+        if (categories.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillParentMaxHeight(0.65f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No albums available",
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = ContentSecondary
+                    )
                 }
-            )
+            }
+        } else {
+            items(categories) { category ->
+                AlbumCategorySection(
+                    category = category,
+                    onSeeAllClick = { onOpenAlbum(category) },
+                    onImageClick = { item ->
+                        val index = category.mediaItems.indexOf(item)
+                        onMediaClick(category.mediaItems, index)
+                    }
+                )
+            }
         }
 
+        // Footer aligned at the end of albums list
         item {
             FooterJansify(footerType = FooterType.PRIMARY)
         }
     }
 }
-
 
 @Composable
 fun AlbumDetailScreen(
@@ -487,8 +520,10 @@ fun AlbumDetailScreen(
             }
 
             LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentPadding = PaddingValues(top = 12.dp, bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
@@ -510,51 +545,68 @@ fun AlbumDetailScreen(
                     }
                 }
 
-                items(category.mediaItems.chunked(2)) { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        rowItems.forEach { item ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .aspectRatio(1f)
-                                    .clip(SquircleShape(CornerLargeIncrease))
-                                    .background(SurfaceSecondary)
-                                    .clickable {
-                                        val index = category.mediaItems.indexOf(item)
-                                        onMediaClick(category.mediaItems, index)
+                if (category.mediaItems.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillParentMaxHeight(0.6f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No media available in this album",
+                                style = JasnifyTheme.typography.labelLarge,
+                                color = ContentSecondary
+                            )
+                        }
+                    }
+                } else {
+                    items(category.mediaItems.chunked(2)) { rowItems ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { item ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                        .clip(SquircleShape(CornerLargeIncrease))
+                                        .background(SurfaceSecondary)
+                                        .clickable {
+                                            val index = category.mediaItems.indexOf(item)
+                                            onMediaClick(category.mediaItems, index)
+                                        }
+                                ) {
+                                    AsyncImage(
+                                        model = item.url,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                    if (item.video) {
+                                        VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
                                     }
-                            ) {
-                                AsyncImage(
-                                    model = item.url,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                                if (item.video) {
-                                    VideoPlayOverlay(modifier = Modifier.align(Alignment.Center))
                                 }
                             }
-                        }
-                        if (rowItems.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
+                            if (rowItems.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
                         }
                     }
                 }
-            }
-        }
 
-        Box(
-            contentAlignment = Alignment.BottomCenter
-        ){
-            FooterJansify(footerType = FooterType.PRIMARY)
+                // Footer properly placed at the bottom of the album's grid items
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    FooterJansify(footerType = FooterType.PRIMARY)
+                }
+            }
         }
     }
 }
-
 
 @Composable
 private fun AlbumCategorySection(
@@ -639,7 +691,7 @@ private fun AlbumCategorySection(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
-                            
+
                             if (item.video) {
                                 VideoPlayOverlay(modifier = Modifier.align(Alignment.Center), iconSize = 24.dp)
                             }
@@ -668,7 +720,7 @@ private fun AlbumCategorySection(
                 }
             }
         }
-        
+
         Spacer(Modifier.height(24.dp))
         DashedDivider(
             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
@@ -676,7 +728,6 @@ private fun AlbumCategorySection(
         )
     }
 }
-
 
 @Composable
 fun VideoPlayOverlay(
@@ -747,7 +798,8 @@ fun MediaViewerScreen(
                 onClick = onBack,
                 icon = TopIcon.Predefined.BACK_2,
                 iconColor = ContentInvPrimary,
-                modifier = Modifier.statusBarsPadding()
+                modifier = Modifier
+                    .statusBarsPadding()
                     .padding(horizontal = 12.dp)
             )
 

@@ -1246,6 +1246,7 @@ object MockData {
 
         return vendor.copy(
             id = vendor.id.ifBlank { "vendor_${vendor.name.replace(" ", "_").lowercase()}" },
+            phoneNumber = "+919876543210",
             aboutText = "${vendor.name} is a premier ${vendor.category} professional based in ${vendor.locality}, ${vendor.city}. With years of experience and an unwavering commitment to quality, they specialize in grand celebrations, weddings, and high-profile social events.",
             mediaItems = detailImages.map { url -> VendorMediaItem(url = url, video = false) },
             pricingItems = listOf(
@@ -1319,6 +1320,7 @@ object MockData {
 
         return venue.copy(
             type = if (venue.name.contains("Lawn")) "Lawn / Farmhouse" else "Banquet Hall",
+            phoneNumber = "+919876543210",
             aboutText = "${venue.name} located in ${venue.location} is an exquisite venue suited for premium wedding receptions, engagement ceremonies, parties, and upscale corporate conferences. Our customizable services ensure that your special day matches your dreams perfectly.",
             enquiriesLastMonth = if (venue.enquiriesLastMonth == 0) (20..150).random() else venue.enquiriesLastMonth,
             mediaItems = listOf(
