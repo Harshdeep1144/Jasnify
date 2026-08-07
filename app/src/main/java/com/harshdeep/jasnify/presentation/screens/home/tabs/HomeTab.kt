@@ -87,6 +87,7 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
+import com.harshdeep.jasnify.presentation.screens.cardsandguest.CardsAndGuestScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.home.tabs.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
@@ -634,7 +635,7 @@ fun HomeTabContent(
                                         cardBgColor = Color(0xFFE8D0CE),
                                         waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
                                         insightColor = Color(0xFF5D1D1B),
-                                        onClick = {}
+                                        onClick = { navigateTo("cards_and_guest") }
                                     )
                                 }
 
@@ -914,6 +915,12 @@ fun HomeTabContent(
                         CateringMenuScreen(
                             onBackClick = { currentScreen = "home" },
                             eventViewModel = vm
+                        )
+                    }
+                    "cards_and_guest" -> {
+                        CardsAndGuestScreen(
+                            onBackClick = { currentScreen = "home" },
+                            onMenuClick = { /* Handle menu click if needed */ }
                         )
                     }
                     "vendors" -> {
