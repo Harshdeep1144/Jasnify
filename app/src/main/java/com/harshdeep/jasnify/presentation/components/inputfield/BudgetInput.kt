@@ -103,7 +103,8 @@ fun BudgetInput(
     value: String, // Keep clean String API signature
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    focusRequester: FocusRequester? = null
+    focusRequester: FocusRequester? = null,
+    onCurrencyClick: (() -> Unit)? = null // Allow external currency sheet handling
 ) {
     var showCurrencyCodeSheet by remember { mutableStateOf(false) }
     var selectedCurrency by remember {
@@ -161,7 +162,10 @@ fun BudgetInput(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(0.25f)
-                    .clickable { showCurrencyCodeSheet = true }
+                    .clickable { 
+                        if (onCurrencyClick != null) onCurrencyClick()
+                        else showCurrencyCodeSheet = true 
+                    }
                     .background(
                         SurfaceSecondary,
                         shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
@@ -254,7 +258,7 @@ fun BudgetInput(
         }
     }
 
-    if (showCurrencyCodeSheet) {
+    if (onCurrencyClick == null && showCurrencyCodeSheet) {
         CurrencyBottomSheet(
             initialSelection = selectedCurrency,
             onItemSelected = { selectedItem ->

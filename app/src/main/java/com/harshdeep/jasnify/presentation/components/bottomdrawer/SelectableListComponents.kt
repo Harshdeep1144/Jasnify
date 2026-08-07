@@ -123,7 +123,7 @@ fun SelectableListBottomSheet(
 ) {
     var selectedItem by remember {
         mutableStateOf(
-            if (items.isNotEmpty()) items.first() else initialSelectedItem
+            items.find { it.code == initialSelectedItem.code } ?: if (items.isNotEmpty()) items.first() else initialSelectedItem
         )
     }
 

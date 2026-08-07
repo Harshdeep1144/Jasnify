@@ -38,8 +38,10 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CurrencyBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
 import com.harshdeep.jasnify.presentation.components.buttons.*
 import com.harshdeep.jasnify.presentation.components.chip.EventTypeChip
 import com.harshdeep.jasnify.presentation.components.inputfield.BudgetInput
@@ -140,12 +142,13 @@ fun EventCreation(
     var showTimelineDatePicker by remember { mutableStateOf(false) }
     var selectedTimelineItem by remember { mutableStateOf<SubEventItem?>(null) }
     var isSingleDayDatePickerVisible by remember { mutableStateOf(false) }
+    var isCurrencySheetVisible by remember { mutableStateOf(false) }
 
     var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
-            isTimelineInfoSheetVisible || showTimelineDatePicker || isSingleDayDatePickerVisible
+            isTimelineInfoSheetVisible || showTimelineDatePicker || isSingleDayDatePickerVisible || isCurrencySheetVisible
         }
     }
 
@@ -451,7 +454,8 @@ fun EventCreation(
                                 EventCreationStep.EVENT_BUDGET -> EventBudgetContent(
                                     eventData,
                                     updateEventData,
-                                    onSkip
+                                    onSkip,
+                                    onCurrencyClick = { isCurrencySheetVisible = true }
                                 )
                             }
                         }
@@ -532,6 +536,20 @@ fun EventCreation(
             } ?: LocalDate.now(),
             onProgress = { sheetMotionProgress = it }
         )
+
+        if (isCurrencySheetVisible) {
+            val currentCurrencyCode = eventData.budget.takeWhile { !it.isDigit() && it != '.' }.ifEmpty { "INR" }
+            CurrencyBottomSheet(
+                initialSelection = SelectableItem(currentCurrencyCode, "", ""),
+                onItemSelected = { selectedItem ->
+                    val numericValue = eventData.budget.removePrefix(currentCurrencyCode)
+                    eventData = eventData.copy(budget = selectedItem.code + numericValue)
+                    isCurrencySheetVisible = false
+                },
+                onDismiss = { isCurrencySheetVisible = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
     }
 }
 
@@ -900,7 +918,8 @@ fun EventMultiDayContent(
 fun EventBudgetContent(
     eventData: EventCreateUiState,
     updateEventData: (EventCreateUiState) -> Unit,
-    onSkip: () -> Unit
+    onSkip: () -> Unit,
+    onCurrencyClick: () -> Unit
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -926,7 +945,8 @@ fun EventBudgetContent(
         ) {
             BudgetInput(
                 value = eventData.budget,
-                onValueChange = { updateEventData(eventData.copy(budget = it)) }
+                onValueChange = { updateEventData(eventData.copy(budget = it)) },
+                onCurrencyClick = onCurrencyClick
             )
 
             Row(
