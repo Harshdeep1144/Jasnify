@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -68,62 +69,79 @@ fun AddGuestInfoBottomSheet(
     var imageUrl by remember(initialGuest) { mutableStateOf(initialGuest?.imageUrl) }
 
     CustomBottomSheet(
-        heading = if (initialGuest == null) "Add Guest Info" else "Edit Guest Info",
+        heading = if (initialGuest == null) "Add Guest Details" else "Edit Guest Details",
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = null // Dynamic height
+        showDragHandle = false,
+        sheetHeight = null
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             // Upload Avatar Section
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(Modifier.height(16.dp))
+                // Avatar
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(128.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE5EBEA))
-                ) {
+                        .background(ContentSecondary)
+                ){
                     if (imageUrl != null) {
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Crop,
+                            placeholder = painterResource(id = R.drawable.ic_user_profile),
+                            error = painterResource(id = R.drawable.ic_user_profile)
                         )
                     } else {
-                        Icon(
+                        Image(
                             painter = painterResource(id = R.drawable.ic_user_profile),
                             contentDescription = null,
-                            modifier = Modifier
-                                .size(48.dp)
-                                .align(Alignment.Center),
-                            tint = Color(0xFF635994).copy(alpha = 0.5f)
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
                     }
                 }
+
                 Spacer(modifier = Modifier.height(12.dp))
-                CustomTextButton(
-                    onClick = { /* Handle Image Upload */ },
-                    text = "Upload",
-                    size = ButtonSize.Small,
-                    type = ButtonType.Secondary,
-                    shapeStyle = ButtonShapeStyle.Round,
-                    containerColor = Color(0xFFDEE9E8),
-                    contentColor = Color(0xFF005858),
-                    leadingIcon = painterResource(id = R.drawable.ic_upload)
-                )
+
+                Row {
+                    CustomTextButton(
+                        onClick = { /* Handle Image Upload */ },
+                        text = "Remove",
+                        size = ButtonSize.Small,
+                        type = ButtonType.Secondary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.error,
+                        leadingIcon = painterResource(id = R.drawable.ic_delete)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    CustomTextButton(
+                        onClick = { /* Handle Image Upload */ },
+                        text = "Upload",
+                        size = ButtonSize.Small,
+                        type = ButtonType.Secondary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        leadingIcon = painterResource(id = R.drawable.ic_upload)
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
             }
 
             // Name Field
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Guest Name",
-                    style = JasnifyTheme.typography.labelLarge,
+                    style = JasnifyTheme.typography.headingMedium,
                     color = ContentSecondary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -131,7 +149,6 @@ fun AddGuestInfoBottomSheet(
                     value = name,
                     onValueChange = { name = it },
                     placeholder = "Enter Guest's Name",
-                    shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
                 )
             }
 
@@ -139,14 +156,14 @@ fun AddGuestInfoBottomSheet(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Guest Type",
-                    style = JasnifyTheme.typography.labelLarge,
+                    style = JasnifyTheme.typography.headingMedium,
                     color = ContentSecondary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     var expanded by remember { mutableStateOf(false) }
 
@@ -155,12 +172,8 @@ fun AddGuestInfoBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp)
-                                .clip(SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault))
-                                .border(
-                                    1.dp,
-                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                    SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
-                                )
+                                .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), SquircleShape(CornerLarge, CornerSmoothingDefault))
                                 .clickable { expanded = true },
                             color = SurfaceSecondary
                         ) {
@@ -212,9 +225,7 @@ fun AddGuestInfoBottomSheet(
                         text = "New",
                         size = ButtonSize.Medium,
                         type = ButtonType.Secondary,
-                        shapeStyle = ButtonShapeStyle.Round,
-                        containerColor = Color(0xFFDEE9E8),
-                        contentColor = Color(0xFF005858),
+                        shapeStyle = ButtonShapeStyle.Square,
                         leadingIcon = painterResource(id = R.drawable.ic_plus)
                     )
                 }
@@ -224,7 +235,7 @@ fun AddGuestInfoBottomSheet(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Contact No. (optional)",
-                    style = JasnifyTheme.typography.labelLarge,
+                    style = JasnifyTheme.typography.headingMedium,
                     color = ContentSecondary,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -233,13 +244,13 @@ fun AddGuestInfoBottomSheet(
                     onValueChange = { contactNo = it },
                     placeholder = "Enter Contact No.",
                     keyboardType = KeyboardType.Phone,
-                    shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
                 )
             }
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
 
-            // Add Details Button
+        Column{
             CustomTextButton(
                 onClick = {
                     onAddClick(
@@ -258,12 +269,9 @@ fun AddGuestInfoBottomSheet(
                     )
                 },
                 text = if (initialGuest == null) "Add Details" else "Update Details",
-                modifier = Modifier.fillMaxWidth(),
-                size = ButtonSize.Medium,
-                type = ButtonType.Primary,
+                modifier = Modifier.fillMaxWidth()
+                    .padding(12.dp),
                 shapeStyle = ButtonShapeStyle.Square,
-                containerColor = Color(0xFF5D7371), // Dark teal/slate from image
-                contentColor = Color.White
             )
         }
     }
@@ -286,14 +294,13 @@ fun AddGuestTypeBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp)
+                .padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             PrimaryInput(
                 value = typeName,
                 onValueChange = { typeName = it },
                 placeholder = "Close Friend",
-                shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault)
             )
 
             CustomTextButton(
@@ -304,11 +311,7 @@ fun AddGuestTypeBottomSheet(
                 },
                 text = "Add Guest Type",
                 modifier = Modifier.fillMaxWidth(),
-                size = ButtonSize.Medium,
-                type = ButtonType.Primary,
                 shapeStyle = ButtonShapeStyle.Square,
-                containerColor = Color(0xFF5D7371),
-                contentColor = Color.White
             )
         }
     }

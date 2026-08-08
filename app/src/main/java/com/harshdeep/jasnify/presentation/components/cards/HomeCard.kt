@@ -176,7 +176,7 @@ fun HomeCardPreview() {
             ) {
                 HomeCard(
                     insight = "See cards for guests",
-                    heading = "Cards & Guests",
+                    heading = "Guests & Cards",
                     illustration = painterResource(R.drawable.ill_budget_tracker_card),
                     modifier = Modifier.fillMaxWidth(),
                     insightColor = Color.White,
@@ -192,7 +192,7 @@ fun HomeCardPreview() {
             ) {
                 HomeCard(
                     insight = "See cards for guests",
-                    heading = "Cards & Guests",
+                    heading = "Guests & Cards",
                     illustration = painterResource(R.drawable.ill_cards_and_guests_card),
                     modifier = Modifier.weight(1f),
                     insightColor = Color.White,
@@ -203,7 +203,7 @@ fun HomeCardPreview() {
 
                 HomeCard(
                     insight = "See cards for guests",
-                    heading = "Cards & Guests",
+                    heading = "Guests & Cards",
                     illustration = painterResource(R.drawable.ill_cards_and_guests_card),
                     modifier = Modifier.weight(1f),
                     insightColor = Color.White,

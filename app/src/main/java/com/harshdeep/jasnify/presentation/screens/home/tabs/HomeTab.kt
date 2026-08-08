@@ -58,7 +58,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -87,9 +86,8 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
-import com.harshdeep.jasnify.presentation.screens.cardsandguest.CardsAndGuestScreen
+import com.harshdeep.jasnify.presentation.screens.guestsandcards.GuestsAndCardsScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
-import com.harshdeep.jasnify.presentation.screens.home.tabs.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
@@ -629,13 +627,13 @@ fun HomeTabContent(
 
                                     HomeCard(
                                         insight = "Invite and Celebrate",
-                                        heading = "Cards & Guests",
+                                        heading = "Guests & Cards",
                                         illustration = painterResource(R.drawable.ill_cards_and_guests_card),
                                         modifier = Modifier.weight(1f),
                                         cardBgColor = Color(0xFFE8D0CE),
                                         waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
                                         insightColor = Color(0xFF5D1D1B),
-                                        onClick = { navigateTo("cards_and_guest") }
+                                        onClick = { navigateTo("guests_and_cards") }
                                     )
                                 }
 
@@ -917,10 +915,9 @@ fun HomeTabContent(
                             eventViewModel = vm
                         )
                     }
-                    "cards_and_guest" -> {
-                        CardsAndGuestScreen(
+                    "guests_and_cards" -> {
+                        GuestsAndCardsScreen(
                             onBackClick = { currentScreen = "home" },
-                            onMenuClick = { /* Handle menu click if needed */ }
                         )
                     }
                     "vendors" -> {

@@ -254,7 +254,7 @@ fun CustomIconButton(
 
     // Icon buttons often use a square or circle shape.
     val shape = when (shapeStyle) {
-        ButtonShapeStyle.Square -> SquircleShape(16.dp)
+        ButtonShapeStyle.Square -> SquircleShape(CornerLarge, CornerSmoothingDefault)
         ButtonShapeStyle.Round -> CircleShape
     }
 

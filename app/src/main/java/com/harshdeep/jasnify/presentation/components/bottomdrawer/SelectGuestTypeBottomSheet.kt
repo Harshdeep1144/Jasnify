@@ -4,11 +4,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +36,7 @@ fun SelectGuestTypeBottomSheet(
     initialSelectedTypes: List<String>,
     onDismiss: () -> Unit,
     onApply: (List<String>) -> Unit,
+    imageUrls: List<String> = emptyList(),
     onProgress: (Float) -> Unit = {}
 ) {
     var tempSelectedTypes by remember { mutableStateOf(initialSelectedTypes.toSet()) }
@@ -41,15 +45,17 @@ fun SelectGuestTypeBottomSheet(
         heading = "Select Guest Type",
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = null // Dynamic
+        sheetHeight = null,
+        showDragHandle = false
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f, fill = false),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 items(guestTypes, key = { it.id }) { type ->
                     GuestTypeCard(
@@ -64,30 +70,30 @@ fun SelectGuestTypeBottomSheet(
                                 tempSelectedTypes - type.name
                             }
                         },
-                        imageUrls = listOf(
-                            "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
-                            "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d",
-                            "https://images.unsplash.com/photo-1500648767791-00dcc994a43e"
-                        ).take(if (type.guestCount > 0) 3 else 0)
+                        imageUrls = imageUrls.take(if (type.guestCount > 0) 3 else 0),
+                        verticalPadding = 8.dp
                     )
                 }
             }
 
-            HorizontalDivider(
-                color = Color.LightGray.copy(alpha = 0.3f),
-                thickness = 1.dp
-            )
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CustomTextButton(
-                    onClick = onDismiss,
-                    text = "Cancel",
+                    onClick = {
+                        if (tempSelectedTypes.size > 1) {
+                            tempSelectedTypes = emptySet()
+                        } else {
+                            onDismiss()
+                        }
+                    },
+                    text = if (tempSelectedTypes.size > 1) "Clear" else "Cancel",
                     modifier = Modifier.weight(1f),
                     size = ButtonSize.Medium,
                     type = ButtonType.Tertiary,
@@ -98,16 +104,14 @@ fun SelectGuestTypeBottomSheet(
                     onClick = { onApply(tempSelectedTypes.toList()) },
                     text = "Apply",
                     modifier = Modifier.weight(1f),
-                    size = ButtonSize.Medium,
-                    type = ButtonType.Primary,
                     shapeStyle = ButtonShapeStyle.Square,
-                    containerColor = Color(0xFF5D7371),
-                    contentColor = Color.White
                 )
             }
         }
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable

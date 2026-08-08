@@ -33,8 +33,10 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
@@ -45,6 +47,7 @@ fun GuestTypeCard(
     modifier: Modifier = Modifier,
     showChecker: Boolean = true,
     isSelected: Boolean = false,
+    verticalPadding: Dp = 16.dp,
     imageUrls: List<String> = emptyList(),
     onToggle: (Boolean) -> Unit = {},
     onClick: () -> Unit = { onToggle(!isSelected) }
@@ -52,13 +55,13 @@ fun GuestTypeCard(
     Card(
         onClick = onClick,
         modifier = modifier.fillMaxWidth(),
-        shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-        colors = CardDefaults.cardColors(containerColor = SurfaceSecondary),
+        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
+        colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = verticalPadding)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -66,9 +69,8 @@ fun GuestTypeCard(
                 CustomChecker(
                     checked = isSelected,
                     onCheckedChange = onToggle,
-                    activeColor = Color(0xFF005858)
                 )
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(12.dp))
             }
 
             Column(
@@ -77,7 +79,6 @@ fun GuestTypeCard(
                 Text(
                     text = label,
                     style = JasnifyTheme.typography.labelXLarge,
-                    fontWeight = FontWeight.SemiBold,
                     color = ContentPrimary
                 )
                 Text(
@@ -98,8 +99,8 @@ fun GuestTypeCard(
 fun AvatarStack(
     imageUrls: List<String>,
     modifier: Modifier = Modifier,
-    size: Dp = 32.dp,
-    overlap: Dp = 12.dp
+    size: Dp = 40.dp,
+    overlap: Dp = 20.dp
 ) {
     Row(
         modifier = modifier,
@@ -112,7 +113,7 @@ fun AvatarStack(
                 modifier = Modifier
                     .size(size)
                     .clip(CircleShape)
-                    .border(2.dp, SurfaceSecondary, CircleShape),
+                    .border(2.dp, SurfacePrimary, CircleShape),
                 contentScale = ContentScale.Crop,
                 placeholder = painterResource(id = R.drawable.ic_user_profile),
                 error = painterResource(id = R.drawable.ic_user_profile)

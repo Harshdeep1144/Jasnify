@@ -1,13 +1,18 @@
 package com.harshdeep.jasnify.presentation.components.cards
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
@@ -49,6 +55,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -58,9 +65,9 @@ import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 enum class GuestCardType {
+    DEFAULT,
     SELECTABLE,
-    INVITE_ACTION,
-    VIEW_DETAILS
+    INVITE_ACTION
 }
 
 @Composable
@@ -68,28 +75,42 @@ fun GuestCard(
     name: String,
     label: String,
     modifier: Modifier = Modifier,
-    type: GuestCardType = GuestCardType.SELECTABLE,
+    type: GuestCardType = GuestCardType.DEFAULT,
     imageUrl: String? = null,
     isSelected: Boolean = false,
     isInvited: Boolean = false,
-    isExpanded: Boolean = false,
+    showActions: Boolean = false,
     lastUpdatedBy: String? = null,
     lastUpdatedAt: String? = null,
     labelColor: Color = Color(0xFF635994),
+    cardShape: SquircleShape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     onCardClick: () -> Unit = {},
     onSelectToggle: (Boolean) -> Unit = {},
     onInviteClick: () -> Unit = {},
     onViewDetailsClick: () -> Unit = {}
 ) {
+    val animationDuration = 150
+
     Card(
-        onClick = onCardClick,
-        modifier = modifier.fillMaxWidth(),
-        shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onCardClick
+            )
+            .animateContentSize(
+                animationSpec = tween(
+                    durationMillis = animationDuration,
+                    easing = EaseInOut
+                )
+            ),
+        shape = cardShape,
         colors = CardDefaults.cardColors(containerColor = SurfaceSecondary),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
-            modifier = Modifier.padding(12.dp)
+            modifier = Modifier.padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -99,17 +120,17 @@ fun GuestCard(
                     CustomChecker(
                         checked = isSelected,
                         onCheckedChange = onSelectToggle,
-                        activeColor = Color(0xFF005858)
+                        activeColor = ContentPrimary
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                 }
 
-                // Avatar
+                // Avatar Container
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
-                        .background(Color.LightGray)
+                        .background(ContentSecondary)
                 ) {
                     if (imageUrl != null) {
                         AsyncImage(
@@ -128,7 +149,6 @@ fun GuestCard(
                         )
                     }
                 }
-
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // Name and Label
@@ -138,7 +158,6 @@ fun GuestCard(
                     Text(
                         text = name,
                         style = JasnifyTheme.typography.labelXLarge,
-                        fontWeight = FontWeight.SemiBold,
                         color = ContentPrimary
                     )
                     Text(
@@ -156,27 +175,28 @@ fun GuestCard(
                             size = ButtonSize.Small,
                             type = ButtonType.Primary,
                             shapeStyle = ButtonShapeStyle.Round,
-                            containerColor = Color.Black,
-                            contentColor = Color.White
+                            containerColor = ContentPrimary,
+                            contentColor = ContentInvPrimary
                         )
                     } else {
                         Surface(
                             modifier = Modifier
-                                .size(40.dp)
-                                .clickable { onInviteClick() },
-                            shape = CircleShape,
+                                .width(56.dp)
+                                .height(40.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onInviteClick
+                                ),
+                            shape = RoundedCornerShape(100),
                             color = BackgroundPrimary,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                Color.LightGray.copy(alpha = 0.5f)
-                            )
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    imageVector = Icons.Default.Check,
+                                    painter = painterResource(R.drawable.ic_check),
                                     contentDescription = "Invited",
                                     modifier = Modifier.size(20.dp),
-                                    tint = Color.Black
+                                    tint = ContentPrimary
                                 )
                             }
                         }
@@ -184,39 +204,83 @@ fun GuestCard(
                 }
             }
 
-            if (type == GuestCardType.VIEW_DETAILS) {
-                AnimatedVisibility(
-                    visible = isExpanded,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column {
+            AnimatedVisibility(
+                visible = showActions,
+                enter = fadeIn(
+                    animationSpec = tween(
+                        durationMillis = animationDuration,
+                        easing = EaseInOut
+                    )
+                ) + expandVertically(
+                    expandFrom = Alignment.Top,
+                    animationSpec = tween(
+                        durationMillis = animationDuration,
+                        easing = EaseInOut
+                    )
+                ),
+                exit = fadeOut(
+                    animationSpec = tween(
+                        durationMillis = animationDuration,
+                        easing = EaseInOut
+                    )
+                ) + shrinkVertically(
+                    shrinkTowards = Alignment.Top,
+                    animationSpec = tween(
+                        durationMillis = animationDuration,
+                        easing = EaseInOut
+                    )
+                )
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    CustomTextButton(
+                        onClick = onViewDetailsClick,
+                        text = "View Details",
+                        modifier = Modifier.fillMaxWidth(),
+                        size = ButtonSize.Small,
+                        containerColor = ContentInvPrimary,
+                        contentColor = ContentPrimary
+                    )
+
+                    if (lastUpdatedBy != null || lastUpdatedAt != null) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Surface(
-                            onClick = onViewDetailsClick,
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = SquircleShape(16.dp, CornerSmoothingDefault),
-                            color = BackgroundPrimary
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier.padding(vertical = 12.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (lastUpdatedBy != null) {
+                                    Text(
+                                        text = "Last updated by ",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentSecondary,
+                                        fontWeight = FontWeight.Light
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = lastUpdatedBy,
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentSecondary
+                                    )
+                                } else {
+                                    Text(
+                                        text = "Last updated",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentSecondary,
+                                        fontWeight = FontWeight.Light
+                                    )
+                                }
+                            }
+                            if (lastUpdatedAt != null) {
                                 Text(
-                                    text = "View Details",
-                                    style = JasnifyTheme.typography.labelXLarge,
-                                    fontWeight = FontWeight.Medium,
-                                    color = ContentPrimary
+                                    text = lastUpdatedAt,
+                                    style = JasnifyTheme.typography.bodyMedium,
+                                    color = ContentSecondary,
+                                    fontWeight = FontWeight.Light
                                 )
                             }
-                        }
-
-                        if (lastUpdatedBy != null) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            InfoRow(
-                                label = "Last updated by $lastUpdatedBy",
-                                value = lastUpdatedAt ?: ""
-                            )
                         }
                     }
                 }
@@ -225,30 +289,10 @@ fun GuestCard(
     }
 }
 
-@Composable
-private fun InfoRow(label: String, value: String) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = JasnifyTheme.typography.labelLarge,
-            color = ContentSecondary.copy(alpha = 0.6f)
-        )
-        Text(
-            text = value,
-            style = JasnifyTheme.typography.labelLarge,
-            color = ContentSecondary.copy(alpha = 0.6f)
-        )
-    }
-}
-
 @Preview(showBackground = true)
 @Composable
-fun PreviewGuestCards() {
-    var expanded by remember { mutableStateOf(false) }
+private fun PreviewGuestCards() {
+    var showActions by remember { mutableStateOf(false) }
 
     JasnifyTheme {
         Column(
@@ -276,11 +320,11 @@ fun PreviewGuestCards() {
             GuestCard(
                 name = "Akriti R.",
                 label = "Close Friend",
-                type = GuestCardType.VIEW_DETAILS,
-                isExpanded = expanded,
+                type = GuestCardType.DEFAULT,
+                showActions = showActions,
                 lastUpdatedBy = "Anand K.",
                 lastUpdatedAt = "Aug 24, 2025, 01:04pm",
-                onCardClick = { expanded = !expanded },
+                onCardClick = { showActions = !showActions },
                 onViewDetailsClick = { /* Open Bottom Sheet */ },
                 modifier = Modifier.fillMaxWidth()
             )
