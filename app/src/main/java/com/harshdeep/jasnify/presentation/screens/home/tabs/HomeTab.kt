@@ -86,7 +86,7 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
-import com.harshdeep.jasnify.presentation.screens.guestsandcards.GuestsAndCardsScreen
+import com.harshdeep.jasnify.presentation.screens.cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
@@ -627,13 +627,13 @@ fun HomeTabContent(
 
                                     HomeCard(
                                         insight = "Invite and Celebrate",
-                                        heading = "Guests & Cards",
+                                        heading = "Cards",
                                         illustration = painterResource(R.drawable.ill_cards_and_guests_card),
                                         modifier = Modifier.weight(1f),
                                         cardBgColor = Color(0xFFE8D0CE),
                                         waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
                                         insightColor = Color(0xFF5D1D1B),
-                                        onClick = { navigateTo("guests_and_cards") }
+                                        onClick = { navigateTo("cards") }
                                     )
                                 }
 
@@ -915,8 +915,8 @@ fun HomeTabContent(
                             eventViewModel = vm
                         )
                     }
-                    "guests_and_cards" -> {
-                        GuestsAndCardsScreen(
+                    "cards" -> {
+                        CardsScreen(
                             onBackClick = { currentScreen = "home" },
                         )
                     }

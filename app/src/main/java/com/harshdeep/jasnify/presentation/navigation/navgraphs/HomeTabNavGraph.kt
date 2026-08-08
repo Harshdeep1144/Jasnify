@@ -21,9 +21,9 @@ import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 
 private val tabOrder = listOf(
     Screen.HomeTabScreen.Home.route,
-    Screen.HomeTabScreen.Inspirations.route,
-    Screen.HomeTabScreen.Checklists.route,
     Screen.HomeTabScreen.Vendors.route,
+    Screen.HomeTabScreen.Checklists.route,
+    Screen.HomeTabScreen.Guests.route,
     Screen.HomeTabScreen.Profile.route
 )
 
@@ -124,12 +124,18 @@ fun NavGraphBuilder.homeNavGraph(
     }
 
     composable(
-        route = Screen.HomeTabScreen.Inspirations.route,
+        route = Screen.HomeTabScreen.Guests.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
     ) {
         LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
-        InspirationsTab()
+        GuestsTab(
+            onBackClick = {
+                navController.navigate(Screen.HomeTabScreen.Home.route) {
+                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                }
+            }
+        )
     }
 
     composable(

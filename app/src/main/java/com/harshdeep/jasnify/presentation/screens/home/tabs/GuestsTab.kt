@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.guestsandcards
+package com.harshdeep.jasnify.presentation.screens.home.tabs
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -16,20 +16,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -37,24 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.FabPosition
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -71,52 +42,33 @@ import androidx.core.content.ContextCompat
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
 import com.harshdeep.jasnify.domain.model.Guest
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectGuestTypeBottomSheet
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.*
+import com.harshdeep.jasnify.presentation.components.buttons.*
 import com.harshdeep.jasnify.presentation.components.cards.GuestCard
 import com.harshdeep.jasnify.presentation.components.cards.GuestCardType
 import com.harshdeep.jasnify.presentation.components.cards.GuestTypeCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.theme.*
 import com.harshdeep.jasnify.util.ContactHelper
 import com.harshdeep.jasnify.util.SearchHistoryManager
 
-enum class GuestsAndCardsView {
+enum class GuestsView {
     MAIN,
     MANAGE_GUEST_TYPES,
     GUEST_TYPE_DETAIL
 }
 
 @Composable
-fun GuestsAndCardsScreen(
+fun GuestsTab(
     onBackClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val searchHistoryManager = remember { SearchHistoryManager(context) }
-    var currentView by remember { mutableStateOf(GuestsAndCardsView.MAIN) }
+    var currentView by remember { mutableStateOf(GuestsView.MAIN) }
     var selectedGuestTypeForDetail by remember { mutableStateOf<String?>(null) }
 
-    var selectedTab by remember { mutableStateOf("Guests") }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
@@ -246,14 +198,14 @@ fun GuestsAndCardsScreen(
     }
 
     // Handle back button
-    BackHandler(enabled = currentView != GuestsAndCardsView.MAIN || isSearchActive) {
+    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive) {
         if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
         } else {
             when (currentView) {
-                GuestsAndCardsView.GUEST_TYPE_DETAIL -> currentView = GuestsAndCardsView.MANAGE_GUEST_TYPES
-                GuestsAndCardsView.MANAGE_GUEST_TYPES -> currentView = GuestsAndCardsView.MAIN
+                GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
+                GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
                 else -> {}
             }
         }
@@ -281,13 +233,11 @@ fun GuestsAndCardsScreen(
                 label = "ViewTransition"
             ) { view ->
                 when (view) {
-                    GuestsAndCardsView.MAIN -> {
+                    GuestsView.MAIN -> {
                         Scaffold(
                             topBar = {
                                 if (!isSearchActive) {
-                                    GuestsAndCardsTopBar(
-                                        selectedTab = selectedTab,
-                                        onTabSelect = { selectedTab = it },
+                                    GuestsTopBar(
                                         onBackClick = {
                                             if (isMultiSelectMode) {
                                                 isMultiSelectMode = false
@@ -374,54 +324,41 @@ fun GuestsAndCardsScreen(
                                         }
                                     )
                                 } else {
-                                    AnimatedContent(
-                                        targetState = selectedTab,
-                                        transitionSpec = { fadeIn() togetherWith fadeOut() },
-                                        label = "TabContentTransition"
-                                    ) { tab ->
-                                        if (tab == "Guests") {
-                                            if (guests.isEmpty() && showEmptyState) {
-                                                GuestEmptyState(onAllowAccess = onAddGuestClick)
-                                            } else {
-                                                GuestListContent(
-                                                    guests = filteredGuests,
-                                                    searchQuery = searchQuery,
-                                                    onSearchQueryChange = { searchQuery = it },
-                                                    onAddClick = onAddGuestClick,
-                                                    onInviteToggle = { guestId ->
-                                                        val index = guests.indexOfFirst { it.id == guestId }
-                                                        if (index != -1) {
-                                                            guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
-                                                        }
-                                                    },
-                                                    onViewDetails = { guest ->
-                                                        selectedGuestForInfo = guest
-                                                    },
-                                                    onFilterClick = { showTypeFilterSheet = true },
-                                                    selectedTypesFilter = selectedTypesFilter,
-                                                    getGuestTypeColor = ::getGuestTypeColor,
-                                                    inviteFilter = inviteFilter,
-                                                    onInviteFilterChange = { inviteFilter = it },
-                                                    isMultiSelectMode = isMultiSelectMode,
-                                                    selectedGuestIds = selectedGuestIds,
-                                                    onGuestSelectToggle = { id, selected ->
-                                                        if (selected) selectedGuestIds.add(id) else selectedGuestIds.remove(id)
-                                                    },
-                                                    onSearchClick = { isSearchActive = true }
-                                                )
-                                            }
-                                        } else {
-                                            // Cards tab placeholder
-                                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                Text(text = "Cards Tab Content", style = JasnifyTheme.typography.displayMedium)
-                                            }
-                                        }
+                                    if (guests.isEmpty() && showEmptyState) {
+                                        GuestEmptyState(onAllowAccess = onAddGuestClick)
+                                    } else {
+                                        GuestListContent(
+                                            guests = filteredGuests,
+                                            searchQuery = searchQuery,
+                                            onSearchQueryChange = { searchQuery = it },
+                                            onAddClick = onAddGuestClick,
+                                            onInviteToggle = { guestId ->
+                                                val index = guests.indexOfFirst { it.id == guestId }
+                                                if (index != -1) {
+                                                    guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
+                                                }
+                                            },
+                                            onViewDetails = { guest ->
+                                                selectedGuestForInfo = guest
+                                            },
+                                            onFilterClick = { showTypeFilterSheet = true },
+                                            selectedTypesFilter = selectedTypesFilter,
+                                            getGuestTypeColor = ::getGuestTypeColor,
+                                            inviteFilter = inviteFilter,
+                                            onInviteFilterChange = { inviteFilter = it },
+                                            isMultiSelectMode = isMultiSelectMode,
+                                            selectedGuestIds = selectedGuestIds,
+                                            onGuestSelectToggle = { id, selected ->
+                                                if (selected) selectedGuestIds.add(id) else selectedGuestIds.remove(id)
+                                            },
+                                            onSearchClick = { isSearchActive = true }
+                                        )
                                     }
                                 }
                             }
                         }
                     }
-                    GuestsAndCardsView.MANAGE_GUEST_TYPES -> {
+                    GuestsView.MANAGE_GUEST_TYPES -> {
                         GuestTypeScreen(
                             guestTypes = guestTypes.map { typeName ->
                                 com.harshdeep.jasnify.domain.model.GuestType(
@@ -429,22 +366,22 @@ fun GuestsAndCardsScreen(
                                     guestCount = guests.count { it.type == typeName }
                                 )
                             },
-                            onBackClick = { currentView = GuestsAndCardsView.MAIN },
+                            onBackClick = { currentView = GuestsView.MAIN },
                             onAddTypeClick = { showAddTypeSheet = true },
                             onTypeClick = { type ->
                                 selectedGuestTypeForDetail = type.name
-                                currentView = GuestsAndCardsView.GUEST_TYPE_DETAIL
+                                currentView = GuestsView.GUEST_TYPE_DETAIL
                             },
                             getGuestThumbnails = { typeName ->
                                 guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
                             }
                         )
                     }
-                    GuestsAndCardsView.GUEST_TYPE_DETAIL -> {
+                    GuestsView.GUEST_TYPE_DETAIL -> {
                         GuestTypeDetailScreen(
                             typeName = selectedGuestTypeForDetail ?: "",
                             guests = guests.filter { it.type == selectedGuestTypeForDetail },
-                            onBackClick = { currentView = GuestsAndCardsView.MANAGE_GUEST_TYPES },
+                            onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
                             onInviteToggle = { guestId ->
                                 val index = guests.indexOfFirst { it.id == guestId }
                                 if (index != -1) {
@@ -612,7 +549,7 @@ fun GuestsAndCardsScreen(
                     iconPlacement = IconPlacement.Left,
                     onClick = {
                         showMenuSheet = false
-                        currentView = GuestsAndCardsView.MANAGE_GUEST_TYPES
+                        currentView = GuestsView.MANAGE_GUEST_TYPES
                     }
                 )
             ),
@@ -643,9 +580,7 @@ fun GuestsAndCardsScreen(
 }
 
 @Composable
-fun GuestsAndCardsTopBar(
-    selectedTab: String,
-    onTabSelect: (String) -> Unit,
+fun GuestsTopBar(
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     isMultiSelectMode: Boolean = false,
@@ -685,23 +620,11 @@ fun GuestsAndCardsTopBar(
                 )
             } else {
                 Spacer(modifier = Modifier.weight(1f))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TopBarTabText(
-                        text = "Guests",
-                        isSelected = selectedTab == "Guests",
-                        onClick = { onTabSelect("Guests") }
-                    )
-                    TopBarTabText(
-                        text = "Cards",
-                        isSelected = selectedTab == "Cards",
-                        onClick = { onTabSelect("Cards") }
-                    )
-                }
-
+                Text(
+                    text = "Guests",
+                    style = JasnifyTheme.typography.headingLarge,
+                    color = ContentPrimary
+                )
                 Spacer(modifier = Modifier.weight(1f))
 
                 TopBarIconButton(
@@ -710,40 +633,6 @@ fun GuestsAndCardsTopBar(
                     backgroundStyle = ButtonBackground.OPAQUE
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun TopBarTabText(
-    text: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(
-            interactionSource = remember { MutableInteractionSource() },
-            indication = null,
-            onClick = onClick
-        )
-    ) {
-        Text(
-            text = text,
-            style = JasnifyTheme.typography.headingLarge,
-            color = if (isSelected) Color(0xFF005858) else ContentSecondary,
-            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-        )
-        if (isSelected) {
-            Spacer(modifier = Modifier.height(4.dp))
-            Box(
-                modifier = Modifier
-                    .width(40.dp)
-                    .height(3.dp)
-                    .background(Color(0xFF005858), CircleShape)
-            )
-        } else {
-            Spacer(modifier = Modifier.height(7.dp))
         }
     }
 }
@@ -1317,9 +1206,9 @@ fun GuestSearchContent(
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewGuestsAndCardsScreen() {
+fun PreviewGuestsTab() {
     JasnifyTheme {
-        GuestsAndCardsScreen()
+        GuestsTab()
     }
 }
 
