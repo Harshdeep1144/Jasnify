@@ -34,10 +34,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -83,9 +81,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
 import com.harshdeep.jasnify.domain.model.Guest
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
@@ -109,11 +111,16 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -126,26 +133,59 @@ import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.util.ContactHelper
 import com.harshdeep.jasnify.util.SearchHistoryManager
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class GuestsView {
     MAIN,
     MANAGE_GUEST_TYPES,
-    GUEST_TYPE_DETAIL
+    GUEST_TYPE_DETAIL,
+    ROOM_ACCESS
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GuestsTab(
-    onBottomBarVisibilityChange: (Boolean) -> Unit = {}
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
+    guestViewModel: GuestViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
+
+    val auth = FirebaseAuth.getInstance()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val roomSearchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
+
+    val currentUserUid = auth.currentUser?.uid ?: ""
+
+    LaunchedEffect(Unit) {
+        roomViewModel.resetAccessState()
+        eventViewModel.fetchUserEvents()
+    }
+
+    LaunchedEffect(activeEvent) {
+        if (activeEvent != null) {
+            roomViewModel.verifyAccess(activeEvent!!.id, "Guest", currentUserUid)
+            roomViewModel.loadRoomUsers(activeEvent!!.id, "Guest")
+            guestViewModel.setEventId(activeEvent!!.id)
+        } else {
+            roomViewModel.setAccessState(true)
+        }
+    }
+
     val searchHistoryManager = remember { SearchHistoryManager(context) }
     var recentSearches by remember { mutableStateOf(searchHistoryManager.getRecentSearches()) }
     var currentView by remember { mutableStateOf(GuestsView.MAIN) }
@@ -160,7 +200,7 @@ fun GuestsTab(
         }
     }
 
-    val guests = remember { mutableStateListOf<Guest>() }
+    val guests = guestsFromCloud
 
     var showEmptyState by remember { mutableStateOf(true) }
     var selectedGuestForInfo by remember { mutableStateOf<Guest?>(null) }
@@ -182,6 +222,10 @@ fun GuestsTab(
     var showMultiDeleteConfirmation by remember { mutableStateOf(false) }
     var showSuccessSheet by remember { mutableStateOf(false) }
     var importedCount by remember { mutableIntStateOf(0) }
+
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.User?>(null) }
 
     var isHeaderVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
@@ -237,7 +281,7 @@ fun GuestsTab(
     LaunchedEffect(toastData?.message) {
         if (toastData?.message != null) {
             activeToastData = toastData
-            delay(2000.milliseconds)
+            delay(3000.milliseconds)
             toastData = null
         }
     }
@@ -247,6 +291,15 @@ fun GuestsTab(
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         )
     }
+
+    val isOwner = activeEvent?.ownerId == currentUserUid
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+    val currentUserRole = when {
+        isOwner -> UserRole.OWNER
+        currentUserInRoom != null -> currentUserInRoom.role
+        else -> UserRole.VIEWER
+    }
+    val isViewer = currentUserRole == UserRole.VIEWER
 
     // Clear selection when filters change
     LaunchedEffect(inviteFilter, selectedTypesFilter) {
@@ -266,7 +319,10 @@ fun GuestsTab(
                     showMenuSheet ||
                     guestToDeleteForInfo != null ||
                     showMultiDeleteConfirmation ||
-                    showSuccessSheet
+                    showSuccessSheet ||
+                    showRoomMenuBottomSheet ||
+                    userToRemove != null ||
+                    showLeaveConfirmation
         }
     }
 
@@ -335,20 +391,38 @@ fun GuestsTab(
         }
     }
 
-    fun getGuestTypeColor(type: String): Color {
-        return typeColors.getOrPut(type) {
-            colorPalette[typeColors.size % colorPalette.size]
+    val onInviteToggle = { guestId: String ->
+        val guest = guests.find { it.id == guestId }
+        if (guest != null && !isViewer) {
+            val nameFromAuth = auth.currentUser?.displayName
+            val nameFromRoom = currentUserInRoom?.name
+            val currentUserName = when {
+                !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                else -> "User"
+            }
+
+            val isInviting = !guest.invited
+            val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+            
+            guestViewModel.updateGuest(guest.copy(
+                invited = isInviting,
+                invitedBy = if (isInviting) currentUserName else null,
+                invitedAt = if (isInviting) timestamp else null,
+                lastUpdatedBy = currentUserName,
+                lastUpdatedAt = timestamp
+            ))
         }
     }
 
-    val filteredGuests by remember(searchQuery, selectedTypesFilter, inviteFilter) {
+    val filteredGuests by remember(searchQuery, selectedTypesFilter, inviteFilter, guests) {
         derivedStateOf {
             guests.filter { guest ->
                 val matchesSearch = guest.name.contains(searchQuery, ignoreCase = true)
                 val matchesType = selectedTypesFilter.isEmpty() || selectedTypesFilter.contains(guest.type)
                 val matchesInvite = when (inviteFilter) {
-                    "Yet to invite" -> !guest.isInvited
-                    "Already invited" -> guest.isInvited
+                    "Yet to invite" -> !guest.invited
+                    "Already invited" -> guest.invited
                     else -> true
                 }
                 matchesSearch && matchesType && matchesInvite
@@ -367,21 +441,18 @@ fun GuestsTab(
         }
     }
 
-    val onInviteToggle = { guestId: String ->
-        val index = guests.indexOfFirst { it.id == guestId }
-        if (index != -1) {
-            guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
-        }
-    }
-
-    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive) {
+    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) {
         if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
+        } else if (isMultiSelectMode) {
+            isMultiSelectMode = false
+            selectedGuestIds.clear()
         } else {
             when (currentView) {
                 GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
                 GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
+                GuestsView.ROOM_ACCESS -> currentView = GuestsView.MAIN
                 else -> {}
             }
         }
@@ -410,21 +481,22 @@ fun GuestsTab(
                     shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
                 }
         ) {
-            AnimatedContent(
-                targetState = currentView,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
-                label = "ViewTransition"
-            ) { view ->
-                when (view) {
-                    GuestsView.MAIN -> {
-                        Scaffold(
-                            containerColor = BackgroundPrimary,
-                            contentWindowInsets = WindowInsets(0, 0, 0, 0)
-                        ) { paddingValues ->
+            RoomAccessGuardian(
+                hasAccess = hasAccess,
+                roomName = "Guest",
+                onBackClick = { currentView = GuestsView.MAIN }
+            ) {
+                AnimatedContent(
+                    targetState = currentView,
+                    transitionSpec = { fadeIn() togetherWith fadeOut() },
+                    label = "ViewTransition"
+                ) { view ->
+                    when (view) {
+                        GuestsView.MAIN -> {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(paddingValues)
+                                    .background(BackgroundPrimary)
                             ) {
                                 if (isSearchActive) {
                                     GuestSearchContent(
@@ -454,7 +526,7 @@ fun GuestsTab(
                                             recentSearches = searchHistoryManager.getRecentSearches()
                                         },
                                         onAddGuestClick = onAddGuestClick,
-                                        getGuestTypeColor = ::getGuestTypeColor,
+                                        getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
                                         onInviteToggle = onInviteToggle
                                     )
                                 } else {
@@ -466,18 +538,8 @@ fun GuestsTab(
                                     } else {
                                         var expandedGuestId by remember { mutableStateOf<String?>(null) }
 
-                                        // Pinned status bar background overlay ensuring no content bleeds into status bar
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .windowInsetsTopHeight(WindowInsets.statusBars)
-                                                .background(Color.Transparent)
-                                                .zIndex(100f)
-                                        )
-
                                         LazyColumn(
-                                            modifier = Modifier
-                                                .fillMaxSize()
+                                            modifier = Modifier.fillMaxSize()
                                                 .statusBarsPadding(),
                                             state = mainListState,
                                         ) {
@@ -533,7 +595,7 @@ fun GuestsTab(
                                                         Row(
                                                             modifier = Modifier
                                                                 .fillMaxWidth()
-                                                                .padding(12.dp),
+                                                                .padding(start = 12.dp, top = 12.dp, bottom = 0.dp, end = 12.dp),
                                                             verticalAlignment = Alignment.CenterVertically,
                                                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                         ) {
@@ -555,7 +617,8 @@ fun GuestsTab(
                                                     }
 
                                                     LazyRow(
-                                                        modifier = Modifier.fillMaxWidth(),
+                                                        modifier = Modifier.fillMaxWidth()
+                                                            .padding(top = 12.dp),
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                     ) {
@@ -660,23 +723,19 @@ fun GuestsTab(
                                                             name = guest.name,
                                                             label = guest.type,
                                                             imageUrl = guest.imageUrl,
-                                                            isInvited = guest.isInvited,
+                                                            isInvited = guest.invited,
+                                                            invitedBy = guest.invitedBy,
+                                                            invitedAt = guest.invitedAt,
                                                             type = when {
                                                                 isMultiSelectMode -> GuestCardType.SELECTABLE
                                                                 else -> GuestCardType.INVITE_ACTION
                                                             },
                                                             isSelected = isSelected,
                                                             showActions = isExpanded,
-                                                            lastUpdatedBy = guest.lastUpdatedBy,
-                                                            lastUpdatedAt = guest.lastUpdatedAt,
-                                                            labelColor = getGuestTypeColor(guest.type),
+                                                            labelColor = typeColors.getOrDefault(guest.type, Color.Gray),
                                                             onCardClick = {
                                                                 if (isMultiSelectMode) {
-                                                                    if (isSelected) {
-                                                                        selectedGuestIds.remove(guest.id)
-                                                                    } else {
-                                                                        selectedGuestIds.add(guest.id)
-                                                                    }
+                                                                    if (isSelected) selectedGuestIds.remove(guest.id) else selectedGuestIds.add(guest.id)
                                                                 } else {
                                                                     expandedGuestId = if (isExpanded) null else guest.id
                                                                 }
@@ -751,15 +810,24 @@ fun GuestsTab(
                                             ) {
                                                 CustomTextButton(
                                                     onClick = {
-                                                        selectedGuestIds.forEach { id ->
-                                                            val index = guests.indexOfFirst { it.id == id }
-                                                            if (index != -1) {
-                                                                guests[index] = guests[index].copy(
-                                                                    isInvited = true,
-                                                                    invitedBy = "Me",
-                                                                    invitedAt = java.text.SimpleDateFormat("MMM dd, yyyy, hh:mma", java.util.Locale.getDefault()).format(java.util.Date())
-                                                                )
-                                                            }
+                                                        val nameFromAuth = auth.currentUser?.displayName
+                                                        val nameFromRoom = currentUserInRoom?.name
+                                                        val currentUserName = when {
+                                                            !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                                                            !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                                                            else -> "User"
+                                                        }
+
+                                                        val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
+                                                        selectedGuests.forEach { guest ->
+                                                            val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+                                                            guestViewModel.updateGuest(guest.copy(
+                                                                invited = true,
+                                                                invitedBy = currentUserName,
+                                                                invitedAt = timestamp,
+                                                                lastUpdatedBy = currentUserName,
+                                                                lastUpdatedAt = timestamp
+                                                            ))
                                                         }
                                                         selectedGuestIds.clear()
                                                         isMultiSelectMode = false
@@ -777,39 +845,93 @@ fun GuestsTab(
                                 }
                             }
                         }
-                    }
-                    GuestsView.MANAGE_GUEST_TYPES -> {
-                        GuestTypeScreen(
-                            guestTypes = guestTypes.map { typeName ->
-                                com.harshdeep.jasnify.domain.model.GuestType(
-                                    name = typeName,
-                                    guestCount = guests.count { it.type == typeName }
+                        GuestsView.MANAGE_GUEST_TYPES -> {
+                            GuestTypeScreen(
+                                guestTypes = guestTypes.map { typeName ->
+                                    com.harshdeep.jasnify.domain.model.GuestType(
+                                        name = typeName,
+                                        guestCount = guests.count { it.type == typeName }
+                                    )
+                                },
+                                onBackClick = { currentView = GuestsView.MAIN },
+                                onAddTypeClick = { showAddTypeSheet = true },
+                                onTypeClick = { type ->
+                                    selectedGuestTypeForDetail = type.name
+                                    currentView = GuestsView.GUEST_TYPE_DETAIL
+                                },
+                                getGuestThumbnails = { typeName ->
+                                    guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
+                                }
+                            )
+                        }
+                        GuestsView.GUEST_TYPE_DETAIL -> {
+                            GuestTypeDetailScreen(
+                                typeName = selectedGuestTypeForDetail ?: "",
+                                guests = guests.filter { it.type == selectedGuestTypeForDetail },
+                                onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
+                                getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
+                                onViewDetails = { guest -> selectedGuestForInfo = guest },
+                                onEditTypeClick = {
+                                    selectedGuestTypeForEdit = selectedGuestTypeForDetail
+                                    showAddTypeSheet = true
+                                },
+                                onInviteToggle = onInviteToggle
+                            )
+                        }
+                        GuestsView.ROOM_ACCESS -> {
+                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                                val self = com.harshdeep.jasnify.domain.model.User(
+                                    uid = currentUserUid,
+                                    name = auth.currentUser?.displayName ?: "Me",
+                                    email = auth.currentUser?.email ?: "",
+                                    role = currentUserRole,
+                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
                                 )
-                            },
-                            onBackClick = { currentView = GuestsView.MAIN },
-                            onAddTypeClick = { showAddTypeSheet = true },
-                            onTypeClick = { type ->
-                                selectedGuestTypeForDetail = type.name
-                                currentView = GuestsView.GUEST_TYPE_DETAIL
-                            },
-                            getGuestThumbnails = { typeName ->
-                                guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
+                                (listOf(self) + roomUsers).distinctBy { it.uid }
+                            } else {
+                                roomUsers
                             }
-                        )
-                    }
-                    GuestsView.GUEST_TYPE_DETAIL -> {
-                        GuestTypeDetailScreen(
-                            typeName = selectedGuestTypeForDetail ?: "",
-                            guests = guests.filter { it.type == selectedGuestTypeForDetail },
-                            onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
-                            getGuestTypeColor = ::getGuestTypeColor,
-                            onViewDetails = { guest -> selectedGuestForInfo = guest },
-                            onEditTypeClick = {
-                                selectedGuestTypeForEdit = selectedGuestTypeForDetail
-                                showAddTypeSheet = true
-                            },
-                            onInviteToggle = onInviteToggle
-                        )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(SurfaceSecondary)
+                            ) {
+                                RoomScreen(
+                                    allUsers = displayUsers,
+                                    currentUserRole = currentUserRole,
+                                    isSelf = { it.uid == currentUserUid },
+                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onMenuClick = {
+                                        focusManager.clearFocus()
+                                        showRoomMenuBottomSheet = true
+                                    },
+                                    onRoleChange = { targetUser, newRole ->
+                                        activeEvent?.id?.let { eventId ->
+                                            roomViewModel.updateRole(eventId, "Guest", targetUser, newRole)
+                                        }
+                                    },
+                                    onRemove = { targetUser ->
+                                        userToRemove = targetUser
+                                    },
+                                    onReport = { targetUser ->
+                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                    },
+                                    onLeave = {
+                                        showLeaveConfirmation = true
+                                    },
+                                    searchResults = roomSearchResults,
+                                    onSearch = { roomViewModel.searchUsers(it) },
+                                    onGrantAccess = { email, role ->
+                                        activeEvent?.id?.let { eventId ->
+                                            roomViewModel.grantAccess(eventId, "Guest", email, role)
+                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -836,29 +958,21 @@ fun GuestsTab(
     }
 
     if (selectedGuestForInfo != null) {
+        val currentGuest = guests.find { it.id == selectedGuestForInfo?.id } ?: selectedGuestForInfo!!
+        
         GuestDetailsBottomSheet(
-            guest = selectedGuestForInfo!!,
+            guest = currentGuest,
             onDismiss = { selectedGuestForInfo = null },
             onProgress = { sheetMotionProgress = it },
             onEditClick = {
-                selectedGuestForEdit = selectedGuestForInfo
+                selectedGuestForEdit = currentGuest
                 selectedGuestForInfo = null
             },
             onInviteClick = {
-                val guestId = selectedGuestForInfo!!.id
-                val index = guests.indexOfFirst { it.id == guestId }
-                if (index != -1) {
-                    val updatedGuest = guests[index].copy(
-                        isInvited = !guests[index].isInvited,
-                        invitedBy = if (!guests[index].isInvited) "Me" else null,
-                        invitedAt = if (!guests[index].isInvited) java.text.SimpleDateFormat("MMM dd, yyyy, hh:mma", java.util.Locale.getDefault()).format(java.util.Date()) else null
-                    )
-                    guests[index] = updatedGuest
-                    selectedGuestForInfo = updatedGuest
-                }
+                onInviteToggle(currentGuest.id)
             },
             onDeleteClick = {
-                guestToDeleteForInfo = selectedGuestForInfo
+                guestToDeleteForInfo = currentGuest
                 selectedGuestForInfo = null
             }
         )
@@ -874,7 +988,7 @@ fun GuestsTab(
             confirmButtonText = "Remove $formattedName",
             onDismiss = { guestToDeleteForInfo = null },
             onConfirm = {
-                guests.removeAll { it.id == guest.id }
+                guestViewModel.deleteGuest(guest.id)
                 guestToDeleteForInfo = null
                 if (guests.isEmpty()) showEmptyState = true
             },
@@ -901,7 +1015,7 @@ fun GuestsTab(
             confirmButtonText = "Remove All ${selectedGuestIds.size} Guests",
             onDismiss = { showMultiDeleteConfirmation = false },
             onConfirm = {
-                guests.removeAll { it.id in selectedGuestIds }
+                guestViewModel.deleteMultipleGuests(selectedGuestIds.toList())
                 selectedGuestIds.clear()
                 isMultiSelectMode = false
                 showMultiDeleteConfirmation = false
@@ -919,15 +1033,21 @@ fun GuestsTab(
             },
             onProgress = { sheetMotionProgress = it },
             onAddClick = { newGuest ->
+                val nameFromAuth = auth.currentUser?.displayName
+                val nameFromRoom = currentUserInRoom?.name
+                val currentUserName = when {
+                    !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                    !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                    else -> "User"
+                }
+                val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+
                 if (selectedGuestForEdit != null) {
-                    val index = guests.indexOfFirst { it.id == selectedGuestForEdit!!.id }
-                    if (index != -1) {
-                        guests[index] = newGuest.copy(
-                            id = selectedGuestForEdit!!.id,
-                            lastUpdatedBy = "Me",
-                            lastUpdatedAt = java.text.SimpleDateFormat("MMM dd, yyyy, hh:mma", java.util.Locale.getDefault()).format(java.util.Date())
-                        )
-                    }
+                    guestViewModel.updateGuest(newGuest.copy(
+                        id = selectedGuestForEdit!!.id,
+                        lastUpdatedBy = currentUserName,
+                        lastUpdatedAt = timestamp
+                    ))
                     selectedGuestForEdit = null
                 } else {
                     val exists = guests.any {
@@ -938,7 +1058,10 @@ fun GuestsTab(
                     if (exists) {
                         toastData = ToastData("${newGuest.name} already exists", ToastType.DEFAULT)
                     } else {
-                        guests.add(0, newGuest)
+                        guestViewModel.addGuest(newGuest.copy(
+                            lastUpdatedBy = currentUserName,
+                            lastUpdatedAt = timestamp
+                        ))
                         showAddGuestSheet = false
                         showEmptyState = false
                     }
@@ -982,17 +1105,20 @@ fun GuestsTab(
             initialType = selectedGuestTypeForEdit,
             onAddType = { newType ->
                 if (selectedGuestTypeForEdit != null) {
+                    // Update existing type name in guestTypes list
                     val index = guestTypes.indexOf(selectedGuestTypeForEdit)
                     if (index != -1) {
                         guestTypes[index] = newType
                     }
 
+                    // Update all guests who had this type
                     guests.forEachIndexed { idx, guest ->
                         if (guest.type == selectedGuestTypeForEdit) {
-                            guests[idx] = guest.copy(type = newType)
+                            guestViewModel.updateGuest(guest.copy(type = newType))
                         }
                     }
 
+                    // Update detail view if active
                     if (selectedGuestTypeForDetail == selectedGuestTypeForEdit) {
                         selectedGuestTypeForDetail = newType
                     }
@@ -1063,8 +1189,7 @@ fun GuestsTab(
                             it.name.equals(contact.name, ignoreCase = true) && it.contactNo == phoneNumber
                         }
                         if (!exists) {
-                            guests.add(
-                                0,
+                            guestViewModel.addGuest(
                                 Guest(
                                     name = contact.name,
                                     contactNo = phoneNumber,
@@ -1122,6 +1247,69 @@ fun GuestsTab(
         )
     }
 
+    if (showRoomMenuBottomSheet) {
+        MenuBottomSheet(
+            items = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        iconPlacement = IconPlacement.Left,
+                        contentColor = Color.Red,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            showLeaveConfirmation = true
+                        }
+                    )
+                )
+            ),
+            onCancelClick = {
+                showRoomMenuBottomSheet = false
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
+    if (showLeaveConfirmation) {
+        ConfirmationBottomSheet(
+            heading = "Leaving Guest Room?",
+            subHeading = "You will lose access to this room and won't be able to see updates.",
+            confirmButtonText = "Leave",
+            onDismiss = {
+                showLeaveConfirmation = false
+            },
+            onConfirm = {
+                activeEvent?.id?.let { eventId ->
+                    roomViewModel.removeAccess(eventId, "Guest", currentUserUid)
+                }
+                toastData = ToastData("You left the room", ToastType.DEFAULT)
+                currentView = GuestsView.MAIN
+                showLeaveConfirmation = false
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
+    userToRemove?.let { user ->
+        ConfirmationBottomSheet(
+            heading = "Remove ${user.name} from Guest Room?",
+            subHeading = "They will not be able to access this room anymore.",
+            confirmButtonText = "Remove",
+            onDismiss = {
+                userToRemove = null
+            },
+            onConfirm = {
+                val target = userToRemove
+                if (target != null && activeEvent != null) {
+                    roomViewModel.removeAccess(activeEvent!!.id, "Guest", target.uid)
+                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
+                }
+                userToRemove = null
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
     if (showMenuSheet) {
         val menuItems = listOf(
             listOfNotNull(
@@ -1160,10 +1348,13 @@ fun GuestsTab(
             ),
             listOf(
                 MenuSheetActionItem(
-                    text = "Manage Room Access",
+                    text = if (isOwner) "Manage Room Access" else "Room Members",
                     icon = painterResource(id = R.drawable.ic_user_default),
                     iconPlacement = IconPlacement.Left,
-                    onClick = { showMenuSheet = false }
+                    onClick = { 
+                        showMenuSheet = false
+                        currentView = GuestsView.ROOM_ACCESS
+                    }
                 )
             ),
             listOf(
@@ -1314,7 +1505,7 @@ fun GuestTypeScreen(
                                 0.00f to Color.Transparent,
                                 0.25f to BackgroundSecondary.copy(alpha = 0.15f),
                                 0.55f to BackgroundSecondary.copy(alpha = 0.65f),
-                                0.80f to BackgroundSecondary.copy(alpha = 0.92f),
+                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
                                 1.00f to BackgroundPrimary
                             )
                         )
@@ -1372,8 +1563,8 @@ fun GuestTypeDetailScreen(
 
     val filteredGuests = remember(guests, activeFilter) {
         when (activeFilter) {
-            "Yet to invite" -> guests.filter { !it.isInvited }
-            "Already invited" -> guests.filter { it.isInvited }
+            "Yet to invite" -> guests.filter { !it.invited }
+            "Already invited" -> guests.filter { it.invited }
             else -> guests
         }
     }
@@ -1395,6 +1586,7 @@ fun GuestTypeDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .navigationBarsPadding()
         ) {
             Row(
                 modifier = Modifier
@@ -1510,7 +1702,9 @@ fun GuestTypeDetailScreen(
                             name = guest.name,
                             label = guest.type,
                             imageUrl = guest.imageUrl,
-                            isInvited = guest.isInvited,
+                            isInvited = guest.invited,
+                            invitedBy = guest.invitedBy,
+                            invitedAt = guest.invitedAt,
                             type = GuestCardType.INVITE_ACTION,
                             labelColor = getGuestTypeColor(guest.type),
                             showActions = isExpanded,
@@ -1519,8 +1713,6 @@ fun GuestTypeDetailScreen(
                             },
                             onViewDetailsClick = { onViewDetails(guest) },
                             onInviteClick = { onInviteToggle(guest.id) },
-                            lastUpdatedBy = guest.lastUpdatedBy,
-                            lastUpdatedAt = guest.lastUpdatedAt,
                             cardShape = itemShape
                         )
                     }
@@ -1685,7 +1877,9 @@ fun GuestSearchContent(
                             name = guest.name,
                             label = guest.type,
                             imageUrl = guest.imageUrl,
-                            isInvited = guest.isInvited,
+                            isInvited = guest.invited,
+                            invitedBy = guest.invitedBy,
+                            invitedAt = guest.invitedAt,
                             type = GuestCardType.INVITE_ACTION,
                             labelColor = getGuestTypeColor(guest.type),
                             onCardClick = {
@@ -1693,8 +1887,6 @@ fun GuestSearchContent(
                             },
                             onInviteClick = { onInviteToggle(guest.id) },
                             cardShape = itemShape,
-                            lastUpdatedBy = guest.lastUpdatedBy,
-                            lastUpdatedAt = guest.lastUpdatedAt
                         )
                     }
                 }

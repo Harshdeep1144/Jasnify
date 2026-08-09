@@ -1,7 +1,18 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.EaseInOut
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,9 +30,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -40,6 +56,7 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -117,45 +134,18 @@ fun GuestDetailsBottomSheet(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Invite Action
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CustomTextButton(
-                        onClick = onInviteClick,
-                        text = if (guest.isInvited) "Invited" else "Mark as invited",
-                        size = ButtonSize.Small,
-                        type = ButtonType.Primary,
-                        shapeStyle = ButtonShapeStyle.Round,
-                        containerColor = if (guest.isInvited) ContentInvPrimary else ContentPrimary,
-                        contentColor = if (guest.isInvited) ContentPrimary else ContentInvPrimary,
-                        enabled = true,
-                        leadingIcon = if (guest.isInvited) painterResource(R.drawable.ic_check) else null,
-                    )
-
-                    if (guest.isInvited && guest.invitedBy != null) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Row{
-                            Text(
-                                text = "Invited by",
-                                style = JasnifyTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Light,
-                                color = ContentSecondary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = guest.invitedBy,
-                                style = JasnifyTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
-                                color = ContentSecondary
-                            )
-                        }
-                        Text(
-                            text = guest.invitedAt ?: "",
-                            style = JasnifyTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Light,
-                            color = ContentSecondary
-                        )
-                    }
-                }
+                // Invite Button
+                CustomTextButton(
+                    onClick = onInviteClick,
+                    text = if (guest.invited) "Invited" else "Mark as invited",
+                    size = ButtonSize.Small,
+                    type = ButtonType.Primary,
+                    shapeStyle = ButtonShapeStyle.Round,
+                    containerColor = if (guest.invited) ContentInvPrimary else ContentPrimary,
+                    contentColor = if (guest.invited) ContentPrimary else ContentInvPrimary,
+                    enabled = true,
+                    leadingIcon = if (guest.invited) painterResource(R.drawable.ic_check) else null,
+                )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -234,6 +224,13 @@ fun GuestDetailsBottomSheet(
                         }
                     }
                 }
+
+                if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Custom Updates Dropdown
+                    UpdatesDropdownCard(guest = guest)
+                }
             }
 
             Spacer(Modifier.height(24.dp))
@@ -244,7 +241,6 @@ fun GuestDetailsBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Delete Button
                 CustomIconButton(
                     onClick = onDeleteClick,
                     icon = painterResource(R.drawable.ic_delete),
@@ -253,7 +249,6 @@ fun GuestDetailsBottomSheet(
                     contentColor = MaterialTheme.colorScheme.error
                 )
 
-                // Edit Details Button
                 CustomTextButton(
                     onClick = onEditClick,
                     text = "Edit Details",
@@ -266,6 +261,166 @@ fun GuestDetailsBottomSheet(
     }
 }
 
+
+@Composable
+fun UpdatesDropdownCard(
+    guest: Guest,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val rotationAngle by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "arrow_rotation"
+    )
+
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = tween(200, easing = EaseInOut)),
+        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
+        color = SurfacePrimary
+    ) {
+        Column(
+            modifier = Modifier
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { expanded = !expanded }
+                )
+                .padding(16.dp)
+        ) {
+            // Dropdown Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Updates",
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentPrimary
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_down),
+                    contentDescription = if (expanded) "Collapse updates" else "Expand updates",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .rotate(rotationAngle),
+                    tint = ContentPrimary
+                )
+            }
+
+            // Expandable Content
+            AnimatedVisibility(
+                visible = expanded,
+                enter = fadeIn(tween(150)) + expandVertically(tween(150)),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    DashedDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Invited Row
+                    if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_tick2),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(18.dp),
+                                tint = ContentTertiary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Column {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val formattedName = guest.invitedBy?.trim()?.split("\\s+".toRegex()).let { parts ->
+                                        parts?.size?.let { if (it >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0] }
+                                    }
+                                    Text(
+                                        text = "Invited by",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Light,
+                                        color = ContentTertiary
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (!guest.invitedBy.isNullOrBlank()) "$formattedName" else "Anonymous",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentTertiary
+                                    )
+                                }
+
+                                if (!guest.invitedAt.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = guest.invitedAt ?: "",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Light,
+                                        color = ContentTertiary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Last Updated Row
+                    if (!guest.lastUpdatedBy.isNullOrBlank()) {
+                        if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                        Row(verticalAlignment = Alignment.Top) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_edit_pen),
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .size(18.dp)
+                                    .padding(top = 2.dp),
+                                tint = ContentTertiary
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Column {
+                                val formattedName = guest.lastUpdatedBy.trim()?.split("\\s+".toRegex()).let { parts ->
+                                    parts?.size?.let { if (it >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0] }
+                                }
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Last updated by",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Light,
+                                        color = ContentTertiary
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = if (guest.lastUpdatedBy.isNotBlank()) "$formattedName" else "Anonymous",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentTertiary
+                                    )
+                                }
+                                if (!guest.lastUpdatedAt.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = guest.lastUpdatedAt ?: "",
+                                        style = JasnifyTheme.typography.bodyMedium,
+                                        color = ContentTertiary
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
 @Preview(showBackground = true)
 @Composable
 fun PreviewGuestInfoBottomSheet() {
@@ -275,9 +430,11 @@ fun PreviewGuestInfoBottomSheet() {
                 name = "Akriti R.",
                 type = "Close Friend",
                 contactNo = "+91 9875462130",
-                isInvited = false,
+                invited = true,
                 invitedBy = "Anand K.",
-                invitedAt = "Aug 24, 2025, 01:04pm"
+                invitedAt = "Aug 24, 2025, 01:04pm",
+                lastUpdatedBy = "Anand K.",
+                lastUpdatedAt = "Aug 24, 2025, 01:04pm"
             ),
             onDismiss = {},
             onEditClick = {},

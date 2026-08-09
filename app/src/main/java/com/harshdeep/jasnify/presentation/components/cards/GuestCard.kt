@@ -8,7 +8,6 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -27,8 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -59,6 +56,7 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -80,9 +78,9 @@ fun GuestCard(
     imageUrl: String? = null,
     isSelected: Boolean = false,
     isInvited: Boolean = false,
+    invitedBy: String? = null,
+    invitedAt: String? = null,
     showActions: Boolean = false,
-    lastUpdatedBy: String? = null,
-    lastUpdatedAt: String? = null,
     labelColor: Color = Color(0xFF635994),
     cardShape: SquircleShape = SquircleShape(CornerLarge, CornerSmoothingDefault),
     onCardClick: () -> Unit = {},
@@ -154,7 +152,8 @@ fun GuestCard(
 
                 // Name and Label
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .padding(end = 12.dp)
                 ) {
                     Text(
@@ -175,7 +174,7 @@ fun GuestCard(
                     if (!isInvited) {
                         CustomTextButton(
                             onClick = onInviteClick,
-                            text = "Mark Invited",
+                            text = "Mark invited",
                             size = ButtonSize.Small,
                             type = ButtonType.Primary,
                             shapeStyle = ButtonShapeStyle.Round,
@@ -240,7 +239,7 @@ fun GuestCard(
 
                     CustomTextButton(
                         onClick = onViewDetailsClick,
-                        text = "View Details",
+                        text = "View Guest Details",
                         modifier = Modifier.fillMaxWidth(),
                         size = ButtonSize.Small,
                         shapeStyle = ButtonShapeStyle.Square,
@@ -248,42 +247,48 @@ fun GuestCard(
                         contentColor = ContentPrimary
                     )
 
-                    if (lastUpdatedBy != null || lastUpdatedAt != null) {
+                    if (isInvited || !invitedBy.isNullOrBlank() || !invitedAt.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(12.dp))
+
+                        val formattedName = invitedBy?.trim()?.split("\\s+".toRegex()).let { parts ->
+                            parts?.size?.let { if (it >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0] }
+                        }
+
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (lastUpdatedBy != null) {
-                                    Text(
-                                        text = "Last updated by ",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentSecondary,
-                                        fontWeight = FontWeight.Light
-                                    )
-                                    Spacer(Modifier.width(4.dp))
-                                    Text(
-                                        text = lastUpdatedBy,
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentSecondary
-                                    )
-                                } else {
-                                    Text(
-                                        text = "Last updated",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentSecondary,
-                                        fontWeight = FontWeight.Light
-                                    )
-                                }
-                            }
-                            if (lastUpdatedAt != null) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_tick2),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = ContentTertiary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
-                                    text = lastUpdatedAt,
+                                    text = "Invited by",
                                     style = JasnifyTheme.typography.bodyMedium,
-                                    color = ContentSecondary,
-                                    fontWeight = FontWeight.Light
+                                    fontWeight = FontWeight.Light,
+                                    color = ContentTertiary
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (!invitedBy.isNullOrBlank()) "$formattedName" else "Anonymous",
+                                    style = JasnifyTheme.typography.bodyMedium,
+                                    color = ContentTertiary
+                                )
+                            }
+
+                            if (!invitedAt.isNullOrBlank()) {
+                                Text(
+                                    text = invitedAt,
+                                    style = JasnifyTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Light,
+                                    color = ContentTertiary
                                 )
                             }
                         }
@@ -297,7 +302,7 @@ fun GuestCard(
 @Preview(showBackground = true)
 @Composable
 private fun PreviewGuestCards() {
-    var showActions by remember { mutableStateOf(false) }
+    var showActions by remember { mutableStateOf(true) }
 
     JasnifyTheme {
         Column(
@@ -307,28 +312,13 @@ private fun PreviewGuestCards() {
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             GuestCard(
-                name = "Akriti R.",
-                label = "Close Friend",
-                type = GuestCardType.SELECTABLE,
-                isSelected = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            GuestCard(
-                name = "Akriti R.",
-                label = "Close Friend",
-                type = GuestCardType.INVITE_ACTION,
-                isInvited = false,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            GuestCard(
-                name = "Akriti R.",
+                name = "Lina A.",
                 label = "Close Friend",
                 type = GuestCardType.DEFAULT,
+                isInvited = true,
+                invitedBy = "Anand K.",
+                invitedAt = "Aug 24, 2025, 01:04pm",
                 showActions = showActions,
-                lastUpdatedBy = "Anand K.",
-                lastUpdatedAt = "Aug 24, 2025, 01:04pm",
                 onCardClick = { showActions = !showActions },
                 onViewDetailsClick = { /* Open Bottom Sheet */ },
                 modifier = Modifier.fillMaxWidth()

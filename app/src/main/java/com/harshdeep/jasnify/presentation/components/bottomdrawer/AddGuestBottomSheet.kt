@@ -288,7 +288,7 @@ fun AddGuestInfoBottomSheet(
                                 type = selectedType,
                                 contactNo = contactNo,
                                 imageUrl = imageUrl,
-                                isInvited = initialGuest?.isInvited ?: false,
+                                invited = initialGuest?.invited ?: false,
                                 invitedBy = initialGuest?.invitedBy,
                                 invitedAt = initialGuest?.invitedAt,
                                 lastUpdatedBy = initialGuest?.lastUpdatedBy,
