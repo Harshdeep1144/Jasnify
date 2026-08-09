@@ -25,9 +25,17 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -67,6 +75,15 @@ fun AddGuestInfoBottomSheet(
     var selectedType by remember(initialGuest) { mutableStateOf(initialGuest?.type ?: "") }
     var contactNo by remember(initialGuest) { mutableStateOf(initialGuest?.contactNo ?: "") }
     var imageUrl by remember(initialGuest) { mutableStateOf(initialGuest?.imageUrl) }
+    var prevSize by remember { mutableIntStateOf(guestTypes.size) }
+
+    // Automatically select the newly added guest type
+    LaunchedEffect(guestTypes.size) {
+        if (guestTypes.size > prevSize) {
+            selectedType = guestTypes.last().name
+        }
+        prevSize = guestTypes.size
+    }
 
     CustomBottomSheet(
         heading = if (initialGuest == null) "Add Guest Details" else "Edit Guest Details",
@@ -98,12 +115,12 @@ fun AddGuestInfoBottomSheet(
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.ic_user_profile),
-                            error = painterResource(id = R.drawable.ic_user_profile)
+                            placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                            error = painterResource(id = R.drawable.ic_profile_placeholder)
                         )
                     } else {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_user_profile),
+                            painter = painterResource(id = R.drawable.ic_profile_placeholder),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -281,12 +298,18 @@ fun AddGuestInfoBottomSheet(
 fun AddGuestTypeBottomSheet(
     onDismiss: () -> Unit,
     onAddType: (String) -> Unit,
+    initialType: String? = null,
     onProgress: (Float) -> Unit = {}
 ) {
-    var typeName by remember { mutableStateOf("") }
+    var typeName by remember(initialType) { mutableStateOf(initialType ?: "") }
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     CustomBottomSheet(
-        heading = "Add a Guest Type",
+        heading = if (initialType == null) "Add a Guest Type" else "Edit Guest Type",
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null
@@ -301,6 +324,7 @@ fun AddGuestTypeBottomSheet(
                 value = typeName,
                 onValueChange = { typeName = it },
                 placeholder = "Close Friend",
+                modifier = Modifier.focusRequester(focusRequester)
             )
 
             CustomTextButton(
@@ -309,7 +333,7 @@ fun AddGuestTypeBottomSheet(
                         onAddType(typeName)
                     }
                 },
-                text = "Add Guest Type",
+                text = if (initialType == null) "Add Guest Type" else "Update Guest Type",
                 modifier = Modifier.fillMaxWidth(),
                 shapeStyle = ButtonShapeStyle.Square,
             )

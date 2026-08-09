@@ -12,7 +12,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.runtime.LaunchedEffect
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.tabs.*
 
@@ -128,13 +127,8 @@ fun NavGraphBuilder.homeNavGraph(
         enterTransition = enterTransition,
         exitTransition = exitTransition
     ) {
-        LaunchedEffect(Unit) { onBottomBarVisibilityChange(true) }
         GuestsTab(
-            onBackClick = {
-                navController.navigate(Screen.HomeTabScreen.Home.route) {
-                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
-                }
-            }
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange
         )
     }
 

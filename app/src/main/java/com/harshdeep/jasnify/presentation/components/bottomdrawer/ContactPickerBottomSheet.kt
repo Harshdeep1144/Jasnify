@@ -2,7 +2,9 @@ package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -216,7 +218,12 @@ private fun ContactItem(
             .fillMaxWidth()
             .clip(shape)
             .background(SurfaceSecondary)
-            .clickable { onToggle() }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                onToggle()
+            }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -243,7 +250,7 @@ private fun ContactItem(
                 )
             } else {
                 Image(
-                    painter = painterResource(id = R.drawable.ic_user_profile),
+                    painter = painterResource(id = R.drawable.ic_profile_placeholder),
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize()
                 )
@@ -256,7 +263,9 @@ private fun ContactItem(
             Text(
                 text = contact.name,
                 style = JasnifyTheme.typography.labelXLarge,
-                color = ContentPrimary
+                color = ContentPrimary,
+                maxLines = 1,
+                modifier = Modifier.basicMarquee()
             )
             Text(
                 text = contact.phoneNumber,

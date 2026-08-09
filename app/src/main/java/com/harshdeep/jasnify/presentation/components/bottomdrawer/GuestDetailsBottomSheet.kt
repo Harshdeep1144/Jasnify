@@ -92,12 +92,12 @@ fun GuestDetailsBottomSheet(
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.ic_user_profile),
-                            error = painterResource(id = R.drawable.ic_user_profile)
+                            placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                            error = painterResource(id = R.drawable.ic_profile_placeholder)
                         )
                     } else {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_user_profile),
+                            painter = painterResource(id = R.drawable.ic_profile_placeholder),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop

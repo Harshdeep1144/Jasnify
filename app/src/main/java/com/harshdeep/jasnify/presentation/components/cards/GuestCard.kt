@@ -11,6 +11,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -138,12 +139,12 @@ fun GuestCard(
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
-                            placeholder = painterResource(id = R.drawable.ic_user_profile),
-                            error = painterResource(id = R.drawable.ic_user_profile)
+                            placeholder = painterResource(id = R.drawable.ic_profile_placeholder),
+                            error = painterResource(id = R.drawable.ic_profile_placeholder)
                         )
                     } else {
                         Image(
-                            painter = painterResource(id = R.drawable.ic_user_profile),
+                            painter = painterResource(id = R.drawable.ic_profile_placeholder),
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize()
                         )
@@ -154,11 +155,14 @@ fun GuestCard(
                 // Name and Label
                 Column(
                     modifier = Modifier.weight(1f)
+                        .padding(end = 12.dp)
                 ) {
                     Text(
                         text = name,
                         style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentPrimary
+                        color = ContentPrimary,
+                        maxLines = 1,
+                        modifier = Modifier.basicMarquee()
                     )
                     Text(
                         text = label,
@@ -167,11 +171,11 @@ fun GuestCard(
                     )
                 }
 
-                if (type == GuestCardType.INVITE_ACTION) {
+                if (type == GuestCardType.INVITE_ACTION && !showActions) {
                     if (!isInvited) {
                         CustomTextButton(
                             onClick = onInviteClick,
-                            text = "Mark as invited",
+                            text = "Mark Invited",
                             size = ButtonSize.Small,
                             type = ButtonType.Primary,
                             shapeStyle = ButtonShapeStyle.Round,
@@ -239,6 +243,7 @@ fun GuestCard(
                         text = "View Details",
                         modifier = Modifier.fillMaxWidth(),
                         size = ButtonSize.Small,
+                        shapeStyle = ButtonShapeStyle.Square,
                         containerColor = ContentInvPrimary,
                         contentColor = ContentPrimary
                     )

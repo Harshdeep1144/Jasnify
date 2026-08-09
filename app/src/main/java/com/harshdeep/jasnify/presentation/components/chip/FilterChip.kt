@@ -256,7 +256,7 @@ fun FilterChip(
                 color = styles.contentColor
             )
 
-            if (hasDropdown && !isSelected) {
+            if (hasDropdown) {
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.KeyboardArrowDown,
