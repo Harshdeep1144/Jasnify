@@ -71,7 +71,6 @@ fun SelectGuestTypeBottomSheet(
                             }
                         },
                         imageUrls = imageUrls.take(if (type.guestCount > 0) 3 else 0),
-                        verticalPadding = 8.dp
                     )
                 }
             }

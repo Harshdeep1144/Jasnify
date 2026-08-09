@@ -30,8 +30,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
@@ -68,7 +71,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -385,15 +390,14 @@ fun VendorsTab(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
 
-                // Only react if we are in MAIN screen and it's scrollable
                 if (currentScreenState != VendorScreenState.MAIN) return Offset.Zero
                 val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
                 if (!canScroll) return Offset.Zero
 
-                if (delta > 0) { // Scrolling up (showing)
+                if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
-                } else if (delta < 0) { // Scrolling down (hiding)
+                } else if (delta < 0) {
                     if (scrollAccumulator > 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
                 }
@@ -469,14 +473,14 @@ fun VendorsTab(
                     targetState = currentScreenState,
                     transitionSpec = {
                         when {
-                            targetState == VendorScreenState.VENDOR_DETAIL || 
-                            targetState == VendorScreenState.LOCATION_SELECTOR || 
-                            targetState == VendorScreenState.TIMELINE_DETAIL -> 
+                            targetState == VendorScreenState.VENDOR_DETAIL ||
+                                    targetState == VendorScreenState.LOCATION_SELECTOR ||
+                                    targetState == VendorScreenState.TIMELINE_DETAIL ->
                                 ScreenTransitions.SlideBottomToTopFastTransition
-                            
-                            initialState == VendorScreenState.VENDOR_DETAIL || 
-                            initialState == VendorScreenState.LOCATION_SELECTOR || 
-                            initialState == VendorScreenState.TIMELINE_DETAIL -> 
+
+                            initialState == VendorScreenState.VENDOR_DETAIL ||
+                                    initialState == VendorScreenState.LOCATION_SELECTOR ||
+                                    initialState == VendorScreenState.TIMELINE_DETAIL ->
                                 ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
@@ -896,7 +900,7 @@ fun VendorsTab(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun VendorMainContent(
     selectedCity: String,
@@ -919,6 +923,18 @@ fun VendorMainContent(
     isLoading: Boolean,
     listState: LazyListState = rememberLazyListState()
 ) {
+    val density = LocalDensity.current
+    val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
+    val topBarScrollProgress by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
+            }
+        }
+    }
+
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         baseList.filter {
@@ -936,183 +952,223 @@ fun VendorMainContent(
         }
     }
 
-    val searchBarTopPadding by animateDpAsState(
-        targetValue = if (isSearchActive) 0.dp else 12.dp,
-        label = "searchBarTopPadding"
-    )
-
     Scaffold(
         containerColor = BackgroundPrimary,
-        topBar = {
-            Column(modifier = Modifier.statusBarsPadding()) {
-                AnimatedContent(
-                    targetState = isSearchActive,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
-                    },
-                    label = "TopBarSearchTransition"
-                ) { active ->
-                    CustomTopBar(
-                        title = if (active) "Search Vendors" else "Vendors",
-                        subtitle = if (active) null else selectedCity,
-                        onBackClick = if (active) {
-                            {
-                                onSearchActiveChange(false)
-                                onSearchQueryChange("")
-                                focusManager.clearFocus()
-                            }
-                        } else null,
-                        onMenuClick = if (active) null else onMenuClick,
-                        onDropdownClick = if (active) null else onLocationClick,
-                        titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
-                        backIcon = TopIcon.Predefined.DOWN,
-                        isLargeTitle = true,
-                        isLeftAligned = !active,
-                        buttonStyle = ButtonBackground.OPAQUE
-                    )
-                }
-            }
-        },
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding()),
-            state = listState,
-            contentPadding = PaddingValues(bottom = 0.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(paddingValues)
         ) {
-            item {
-                Spacer(Modifier.height(searchBarTopPadding))
-                CustomSearchBar(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    onActiveChange = onSearchActiveChange,
-                    placeholder = "Search Vendors",
-                    isAiSearch = true,
-                    modifier = Modifier.padding(horizontal = 12.dp)
-                )
-            }
+            // Pinned status bar background overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsTopHeight(WindowInsets.statusBars)
+                    .background(BackgroundPrimary)
+                    .zIndex(100f)
+            )
 
-            if (isSearchActive && searchQuery.isNotEmpty()) {
-                if (filteredAllVendors.isEmpty()) {
-                    item(key = "empty_search") {
-                        EmptyState(message = "No matches for \"$searchQuery\"")
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding(),
+                state = listState,
+                contentPadding = PaddingValues(bottom = 0.dp)
+            ) {
+                item(key = "top_bar") {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                translationY = -topBarScrollProgress * 30f
+                            }
+                    ) {
+                        AnimatedContent(
+                            targetState = isSearchActive,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
+                            },
+                            label = "TopBarSearchTransition"
+                        ) { active ->
+                            CustomTopBar(
+                                title = if (active) "Search Vendors" else "Vendors",
+                                subtitle = if (active) null else selectedCity,
+                                onBackClick = if (active) {
+                                    {
+                                        onSearchActiveChange(false)
+                                        onSearchQueryChange("")
+                                        focusManager.clearFocus()
+                                    }
+                                } else null,
+                                onMenuClick = if (active) null else onMenuClick,
+                                onDropdownClick = if (active) null else onLocationClick,
+                                titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
+                                backIcon = TopIcon.Predefined.DOWN,
+                                isLargeTitle = true,
+                                isLeftAligned = !active,
+                                buttonStyle = ButtonBackground.OPAQUE
+                            )
+                        }
+                    }
+                }
+
+                stickyHeader(key = "search_header") {
+                    Column(
+                        modifier = Modifier
+                            .background(BackgroundPrimary)
+                            .fillMaxWidth()
+                            .zIndex(10f)
+                            .padding(bottom = 4.dp)
+                    ) {
+                        Spacer(Modifier.height(12.dp))
+                        CustomSearchBar(
+                            value = searchQuery,
+                            onValueChange = onSearchQueryChange,
+                            onActiveChange = onSearchActiveChange,
+                            placeholder = "Search Vendors",
+                            isAiSearch = true,
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+
+                if (isSearchActive && searchQuery.isNotEmpty()) {
+                    if (filteredAllVendors.isEmpty()) {
+                        item(key = "empty_search") {
+                            EmptyState(message = "No matches for \"$searchQuery\"")
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    } else {
+                        items(
+                            items = filteredAllVendors.take(8),
+                            key = { "search_${it.name}_${it.category}" }
+                        ) { vendor ->
+                            SearchSuggestionItem(
+                                title = vendor.name,
+                                subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
+                                onClick = {
+                                    onVendorClick(vendor)
+                                    focusManager.clearFocus()
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
+                    }
+                } else if (!isSearchActive && searchQuery.isNotEmpty()) {
+                    items(
+                        items = filteredAllVendors,
+                        key = { "filtered_${it.name}_${it.category}" }
+                    ) { vendor ->
+                        VendorCardFull(
+                            vendor = vendor,
+                            onCardClick = { onVendorClick(vendor) },
+                            onFavoriteToggle = { onFavoriteToggle(vendor) },
+                            onOfferClick = { onOfferClick(vendor) },
+                            modifier = Modifier.padding(horizontal = 12.dp)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                } else if (!isSearchActive) {
+                    item(key = "categories_grid") {
+                        VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "explore_divider") {
+                        OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "carousel_makeup") {
+                        VendorCarousel(
+                            title = "Top Makeup Artists in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                            isLoading = isLoading,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
+                            onFavoriteToggle = onFavoriteToggle,
+                            onOfferClick = { onOfferClick(it) },
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "carousel_photography") {
+                        VendorCarousel(
+                            title = "Best Photographers in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                            isLoading = isLoading,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
+                            onFavoriteToggle = onFavoriteToggle,
+                            onOfferClick = { onOfferClick(it) },
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "carousel_mehendi") {
+                        VendorCarousel(
+                            title = "Expert Mehendi Artists in $selectedCity",
+                            vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                            isLoading = isLoading,
+                            onVendorClick = { vendor ->
+                                saveRecentSearch(context, vendor.name)
+                                onRecentSearchesUpdate(getRecentSearches(context))
+                                onVendorClick(vendor)
+                            },
+                            onFavoriteToggle = onFavoriteToggle,
+                            onOfferClick = { onOfferClick(it) },
+                            cardSize = CompactCardSize.MEDIUM
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "explore_horizontal") {
+                        DashedDivider()
+                        ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                    item(key = "footer") {
+                        FooterJansify()
                     }
                 } else {
-                    items(
-                        items = filteredAllVendors.take(8),
-                        key = { "search_${it.name}_${it.category}" }
-                    ) { vendor ->
-                        SearchSuggestionItem(
-                            title = vendor.name,
-                            subtitle = "${vendor.category} • ${vendor.locality}, ${vendor.city}",
-                            onClick = {
-                                onVendorClick(vendor)
-                                focusManager.clearFocus()
-                            }
-                        )
+                    item(key = "trending_searches") {
+                        TrendingAiSearchesSection(onTrendingClick = { query ->
+                            onSearchQueryChange(query)
+                            focusManager.clearFocus()
+                        })
+                        Spacer(modifier = Modifier.height(12.dp))
                     }
-                }
-            } else if (!isSearchActive && searchQuery.isNotEmpty()) {
-                items(
-                    items = filteredAllVendors,
-                    key = { "filtered_${it.name}_${it.category}" }
-                ) { vendor ->
-                    VendorCardFull(
-                        vendor = vendor,
-                        onCardClick = { onVendorClick(vendor) },
-                        onFavoriteToggle = { onFavoriteToggle(vendor) },
-                        onOfferClick = { onOfferClick(vendor) },
-                        modifier = Modifier.padding(horizontal = 12.dp)
-                    )
-                }
-            } else if (!isSearchActive) {
-                item(key = "categories_grid") {
-                    VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
-                }
-                item(key = "explore_divider") {
-                    OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
-                }
-                item(key = "carousel_makeup") {
-                    VendorCarousel(
-                        title = "Top Makeup Artists in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
-                        isLoading = isLoading,
-                        onVendorClick = { vendor ->
-                            saveRecentSearch(context, vendor.name)
-                            onRecentSearchesUpdate(getRecentSearches(context))
-                            onVendorClick(vendor)
-                        },
-                        onFavoriteToggle = onFavoriteToggle,
-                        onOfferClick = { onOfferClick(it) },
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item(key = "carousel_photography") {
-                    VendorCarousel(
-                        title = "Best Photographers in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
-                        isLoading = isLoading,
-                        onVendorClick = { vendor ->
-                            saveRecentSearch(context, vendor.name)
-                            onRecentSearchesUpdate(getRecentSearches(context))
-                            onVendorClick(vendor)
-                        },
-                        onFavoriteToggle = onFavoriteToggle,
-                        onOfferClick = { onOfferClick(it) },
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item(key = "carousel_mehendi") {
-                    VendorCarousel(
-                        title = "Expert Mehendi Artists in $selectedCity",
-                        vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
-                        isLoading = isLoading,
-                        onVendorClick = { vendor ->
-                            saveRecentSearch(context, vendor.name)
-                            onRecentSearchesUpdate(getRecentSearches(context))
-                            onVendorClick(vendor)
-                        },
-                        onFavoriteToggle = onFavoriteToggle,
-                        onOfferClick = { onOfferClick(it) },
-                        cardSize = CompactCardSize.MEDIUM
-                    )
-                }
-                item(key = "explore_horizontal") {
-                    DashedDivider()
-                    ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
-                }
-                item(key = "footer") { FooterJansify() }
-            } else {
-                item(key = "trending_searches") {
-                    TrendingAiSearchesSection(onTrendingClick = { query ->
-                        onSearchQueryChange(query)
-                        focusManager.clearFocus()
-                    })
-                }
-                if (recentVendorsList.isNotEmpty()) {
-                    item(key = "recent_searches_section") {
-                        RecentSearchesSection(
-                            recentVendors = recentVendorsList,
-                            onVendorClick = onVendorClick,
-                            onRemoveVendor = { vendor ->
-                                val current = getRecentSearches(context).toMutableList()
-                                current.remove(vendor.name)
-                                context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit { putString(KEY_RECENT_SEARCHES, current.joinToString("|||")) }
-                                onRecentSearchesUpdate(getRecentSearches(context))
-                            }
-                        )
+                    if (recentVendorsList.isNotEmpty()) {
+                        item(key = "recent_searches_section") {
+                            RecentSearchesSection(
+                                recentVendors = recentVendorsList,
+                                onVendorClick = onVendorClick,
+                                onRemoveVendor = { vendor ->
+                                    val current = getRecentSearches(context).toMutableList()
+                                    current.remove(vendor.name)
+                                    context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit { putString(KEY_RECENT_SEARCHES, current.joinToString("|||")) }
+                                    onRecentSearchesUpdate(getRecentSearches(context))
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
+                    item(key = "spacer_bottom") { Spacer(Modifier.height(24.dp)) }
                 }
-                item(key = "spacer_bottom") { Spacer(Modifier.height(24.dp)) }
             }
         }
     }
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun VendorCategoryDetailContent(
     category: VendorCategoryItem,
@@ -1139,6 +1195,18 @@ fun VendorCategoryDetailContent(
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
+
+    val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
+    val topBarScrollProgress by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
+            }
+        }
+    }
 
     val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
@@ -1185,7 +1253,6 @@ fun VendorCategoryDetailContent(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
 
-                // Determine scrollability based on active tab
                 val canScroll = if (selectedTab == "explore") {
                     listState.canScrollForward || listState.canScrollBackward
                 } else {
@@ -1213,11 +1280,6 @@ fun VendorCategoryDetailContent(
         }
     }
 
-    val searchBarTopPadding by animateDpAsState(
-        targetValue = if (isSearchActive) 0.dp else 12.dp,
-        label = "searchBarTopPadding"
-    )
-
     val bottomTabs = remember(allVendors.size, savedVendorsForCategory.size) {
         listOf(
             TabItem("Explore", "explore", badgeCount = allVendors.size),
@@ -1228,6 +1290,21 @@ fun VendorCategoryDetailContent(
     val recentVendorsList = remember(recentSearchesNames, allVendors) {
         recentSearchesNames.mapNotNull { name ->
             allVendors.find { it.name == name }
+        }
+    }
+
+    var searchBarOnlyHeightPx by remember { mutableIntStateOf(0) }
+
+    // Dynamically calculate when inline filter chips reach the bottom edge of sticky search bar
+    val isChipsSticky by remember {
+        derivedStateOf {
+            val inlineFilterItem = listState.layoutInfo.visibleItemsInfo.find { it.key == "filters_inline_item" }
+            if (inlineFilterItem != null) {
+                val threshold = if (searchBarOnlyHeightPx > 0) searchBarOnlyHeightPx else 150
+                inlineFilterItem.offset <= threshold
+            } else {
+                listState.firstVisibleItemIndex >= 4
+            }
         }
     }
 
@@ -1245,38 +1322,22 @@ fun VendorCategoryDetailContent(
     ) {
         Scaffold(
             containerColor = Color.Transparent,
-            contentWindowInsets = WindowInsets(0, 0, 0, 0),
-            topBar = {
-                Column(modifier = Modifier.statusBarsPadding()) {
-                    AnimatedContent(
-                        targetState = isSearchActive,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
-                        },
-                        label = "CategoryTopBarSearchTransition"
-                    ) { active ->
-                        CustomTopBar(
-                            title = if (active) "Search ${category.name}" else category.name,
-                            subtitle = if (active) null else selectedCity,
-                            onBackClick = if (active) {
-                                {
-                                    isSearchActive = false
-                                    searchQuery = ""
-                                    focusManager.clearFocus()
-                                }
-                            } else onBackClick,
-                            backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
-                            onMenuClick = if (active) null else onMenuClick,
-                            onDropdownClick = if (active) null else onLocationClick,
-                            buttonStyle = ButtonBackground.OPAQUE
-                        )
-                    }
-                }
-            },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { paddingValues ->
-            val topPadding = paddingValues.calculateTopPadding()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+            ) {
+                // Pinned status bar background overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsTopHeight(WindowInsets.statusBars)
+                        .background(BackgroundPrimary)
+                        .zIndex(100f)
+                )
 
-            Box(modifier = Modifier.fillMaxSize()) {
                 AnimatedContent(
                     targetState = selectedTab,
                     transitionSpec = {
@@ -1287,37 +1348,96 @@ fun VendorCategoryDetailContent(
                             ScreenTransitions.SlideInFromLeftTransition togetherWith ScreenTransitions.SlideOutToRightTransition
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = topPadding),
+                    modifier = Modifier.fillMaxSize(),
                     label = "CategoryTabTransition"
                 ) { currentTab ->
                     if (currentTab == "explore") {
                         LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            state = listState,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding(),
+                            state = listState
                         ) {
-                            item {
-                                Row(
+                            item(key = "top_bar") {
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(
-                                            start = 12.dp,
-                                            end = 12.dp,
-                                            top = 12.dp,
-                                            bottom = 12.dp
-                                        ),
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .graphicsLayer {
+                                            alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                            translationY = -topBarScrollProgress * 30f
+                                        }
                                 ) {
+                                    AnimatedContent(
+                                        targetState = isSearchActive,
+                                        transitionSpec = {
+                                            fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
+                                        },
+                                        label = "CategoryTopBarSearchTransition"
+                                    ) { active ->
+                                        CustomTopBar(
+                                            title = if (active) "Search ${category.name}" else category.name,
+                                            subtitle = if (active) null else selectedCity,
+                                            onBackClick = if (active) {
+                                                {
+                                                    isSearchActive = false
+                                                    searchQuery = ""
+                                                    focusManager.clearFocus()
+                                                }
+                                            } else onBackClick,
+                                            backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                                            onMenuClick = if (active) null else onMenuClick,
+                                            onDropdownClick = if (active) null else onLocationClick,
+                                            buttonStyle = ButtonBackground.OPAQUE
+                                        )
+                                    }
+                                }
+                            }
+
+                            stickyHeader(key = "search_and_sticky_filters_header") {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(BackgroundPrimary)
+                                        .zIndex(10f)
+                                        .padding(bottom = 4.dp)
+                                        .onGloballyPositioned { coordinates ->
+                                            if (!isChipsSticky) {
+                                                searchBarOnlyHeightPx = coordinates.size.height
+                                            }
+                                        }
+                                ) {
+                                    Spacer(Modifier.height(12.dp))
                                     CustomSearchBar(
                                         value = searchQuery,
                                         onValueChange = { searchQuery = it },
                                         onActiveChange = { isSearchActive = it },
-                                        modifier = Modifier.weight(1f),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 12.dp, vertical = 6.dp),
                                         isAiSearch = true,
                                         placeholder = "Search ${category.name}"
                                     )
+
+                                    if (isChipsSticky && !isSearchActive && searchQuery.isEmpty()) {
+                                        LazyRow(
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            itemsIndexed(
+                                                items = filters,
+                                                key = { _, filter -> "sticky_filter_$filter" }
+                                            ) { index, filter ->
+                                                val isSelected = selectedFilterIndex == index
+                                                FilterChip(
+                                                    label = filter,
+                                                    isSelected = isSelected,
+                                                    hasStroke = true,
+                                                    shapeStyle = ChipShapeStyle.Round,
+                                                    onClick = { selectedFilterIndex = index }
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
 
@@ -1325,6 +1445,7 @@ fun VendorCategoryDetailContent(
                                 if (filteredVendors.isEmpty()) {
                                     item(key = "empty_category_search") {
                                         EmptyState(message = "No matches for \"$searchQuery\"")
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 } else {
                                     items(
@@ -1339,6 +1460,7 @@ fun VendorCategoryDetailContent(
                                                 focusManager.clearFocus()
                                             }
                                         )
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 }
                             } else if (!isSearchActive && searchQuery.isNotEmpty()) {
@@ -1357,6 +1479,7 @@ fun VendorCategoryDetailContent(
                                         onOfferClick = { onOfferClick(vendor) },
                                         modifier = Modifier.padding(horizontal = 12.dp)
                                     )
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
                             } else if (!isSearchActive) {
                                 item(key = "top_rated_carousel") {
@@ -1372,25 +1495,23 @@ fun VendorCategoryDetailContent(
                                         onFavoriteToggle = onFavoriteToggle,
                                         onOfferClick = { onOfferClick(it) }
                                     )
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
 
                                 item(key = "cat_explore_divider") {
                                     OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
 
-                                @OptIn(ExperimentalFoundationApi::class)
-                                stickyHeader(key = "filters_header") {
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        color = BackgroundPrimary
-                                    ) {
+                                item(key = "filters_inline_item") {
+                                    if (!isChipsSticky) {
                                         LazyRow(
-                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             itemsIndexed(
                                                 items = filters,
-                                                key = { _, filter -> "filter_$filter" }
+                                                key = { _, filter -> "inline_filter_$filter" }
                                             ) { index, filter ->
                                                 val isSelected = selectedFilterIndex == index
                                                 FilterChip(
@@ -1402,7 +1523,10 @@ fun VendorCategoryDetailContent(
                                                 )
                                             }
                                         }
+                                    } else {
+                                        Spacer(modifier = Modifier.height(44.dp))
                                     }
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
 
                                 if (isLoading && filteredVendors.isEmpty()) {
@@ -1412,9 +1536,13 @@ fun VendorCategoryDetailContent(
                                             isLoading = true,
                                             modifier = Modifier.padding(horizontal = 12.dp)
                                         )
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 } else if (filteredVendors.isEmpty()) {
-                                    item(key = "no_vendors_found") { EmptyState(message = "No vendors found in this category") }
+                                    item(key = "no_vendors_found") {
+                                        EmptyState(message = "No vendors found in this category")
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                    }
                                 } else {
                                     items(
                                         items = filteredVendors,
@@ -1431,16 +1559,21 @@ fun VendorCategoryDetailContent(
                                             onOfferClick = { onOfferClick(vendor) },
                                             modifier = Modifier.padding(horizontal = 12.dp)
                                         )
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 }
 
-                                item(key = "cat_footer") { FooterJansify() }
+                                item(key = "cat_footer") {
+                                    FooterJansify()
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
                             } else {
                                 item(key = "cat_trending") {
                                     TrendingAiSearchesSection(onTrendingClick = { query ->
                                         searchQuery = query
                                         focusManager.clearFocus()
                                     })
+                                    Spacer(modifier = Modifier.height(12.dp))
                                 }
                                 if (recentVendorsList.isNotEmpty()) {
                                     item(key = "cat_recent_searches") {
@@ -1459,6 +1592,7 @@ fun VendorCategoryDetailContent(
                                                 recentSearchesNames = getCategoryRecentSearches(context, category.name)
                                             }
                                         )
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 }
                                 item(key = "cat_bottom_spacer") { Spacer(Modifier.height(24.dp)) }
@@ -1489,11 +1623,26 @@ fun VendorCategoryDetailContent(
 
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(2),
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .statusBarsPadding()
+                                .padding(horizontal = 12.dp),
                             state = gridState,
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            item(span = { GridItemSpan(2) }, key = "saved_top_bar") {
+                                CustomTopBar(
+                                    title = category.name,
+                                    subtitle = selectedCity,
+                                    onBackClick = onBackClick,
+                                    backIcon = TopIcon.Predefined.BACK,
+                                    onMenuClick = onMenuClick,
+                                    onDropdownClick = onLocationClick,
+                                    buttonStyle = ButtonBackground.OPAQUE
+                                )
+                            }
+
                             item(span = { GridItemSpan(2) }) {
                                 IosSegmentedControl(
                                     options = viewOptions,

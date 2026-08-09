@@ -15,12 +15,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
@@ -51,20 +56,29 @@ fun ContactPickerBottomSheet(
     onDismiss: () -> Unit,
     onAddManuallyClick: () -> Unit,
     onContactsSelected: (List<Contact>, Boolean) -> Unit,
-    onProgress: (Float) -> Unit = {}
+    existingGuestIdentifiers: Set<String> = emptySet(),
+    onProgress: (Float) -> Unit = {},
+    hasToast: Boolean = false,
+    toast: @Composable () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val selectedContacts = remember { mutableStateListOf<Contact>() }
     var includePhoneNo by remember { mutableStateOf(true) }
+    var currentSheetHeight by remember { mutableStateOf<Dp?>(620.dp) }
 
-    val filteredContacts = remember(contacts, searchQuery) {
-        if (searchQuery.isBlank()) {
+    val filteredContacts = remember(contacts, searchQuery, existingGuestIdentifiers) {
+        val base = if (searchQuery.isBlank()) {
             contacts
         } else {
             contacts.filter {
                 it.name.contains(searchQuery, ignoreCase = true) ||
                         it.phoneNumber.contains(searchQuery)
             }
+        }
+        
+        base.filter { contact ->
+            val identifier = contact.name.lowercase() + contact.phoneNumber
+            !existingGuestIdentifiers.contains(identifier)
         }
     }
 
@@ -73,9 +87,11 @@ fun ContactPickerBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         showCloseButton = true,
-        sheetGesturesEnabled = false,
+        sheetGesturesEnabled = true,
         showDragHandle = false,
-        sheetHeight = 620.dp
+        sheetHeight = currentSheetHeight,
+        hasToast = hasToast,
+        toast = toast
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
@@ -109,7 +125,17 @@ fun ContactPickerBottomSheet(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 16.dp)
+                    .nestedScroll(remember {
+                        object : NestedScrollConnection {
+                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                if (available.y < 0 && currentSheetHeight != null) {
+                                    currentSheetHeight = null
+                                }
+                                return Offset.Zero
+                            }
+                        }
+                    }),
                 contentPadding = PaddingValues(bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -155,6 +181,13 @@ fun ContactPickerBottomSheet(
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth()
+                        .clip(SquircleShape(radius = CornerLarge, cornerSmoothing = CornerSmoothingDefault))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            includePhoneNo = !includePhoneNo
+                        }
                         .padding(12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -193,8 +226,12 @@ fun ContactPickerBottomSheet(
 
                 CustomTextButton(
                     onClick = {
-                        onContactsSelected(selectedContacts.toList(), includePhoneNo)
-                        onDismiss()
+                        if (selectedContacts.isEmpty()) {
+                            onContactsSelected(emptyList(), includePhoneNo)
+                        } else {
+                            onContactsSelected(selectedContacts.toList(), includePhoneNo)
+                            onDismiss()
+                        }
                     },
                     text = "Import Selected (${selectedContacts.size})",
                     modifier = Modifier.fillMaxWidth(),

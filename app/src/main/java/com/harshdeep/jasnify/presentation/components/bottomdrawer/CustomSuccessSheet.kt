@@ -8,25 +8,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfacePrimary
-import sv.lib.squircleshape.SquircleShape
+import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -34,61 +31,49 @@ fun CustomSuccessBottomSheet(
     message: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    buttonText: String = "Close",
+    coolDownMillis: Long = 2000L,
+    height: Dp = 400.dp,
     onProgress: ((Float) -> Unit)? = null
 ) {
+    LaunchedEffect(coolDownMillis) {
+        delay(coolDownMillis.milliseconds)
+        onDismiss()
+    }
+
     CustomBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
-        showDragHandle = true,
+        showDragHandle = false,
         showCloseButton = false
     ) {
-        Column {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(396.dp)
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+        Column(
+            modifier = modifier
+                .fillMaxWidth()
+                .height(height)
+                .padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier.size(80.dp),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
+                Icon(
+                    painter = painterResource(R.drawable.ic_tick),
+                    contentDescription = "Success checkmark",
                     modifier = Modifier.size(80.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_tick),
-                        contentDescription = "Success checkmark",
-                        modifier = Modifier.size(80.dp),
-                        tint = ContentBrandDark
-                    )
-                }
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Text(
-                    text = message, // Using the dynamic input here
-                    style = JasnifyTheme.typography.displayMedium,
-                    textAlign = TextAlign.Center,
-                    color = ContentBrandDark
+                    tint = ContentBrandDark
                 )
             }
+            Spacer(modifier = Modifier.height(24.dp))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                CustomTextButton(
-                    onClick = onDismiss,
-                    text = buttonText, // Using the dynamic button text
-                    type = ButtonType.Secondary,
-                    shapeStyle = ButtonShapeStyle.Square,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            Text(
+                text = message,
+                style = JasnifyTheme.typography.displayMedium,
+                textAlign = TextAlign.Center,
+                color = ContentBrandDark
+            )
         }
     }
 }

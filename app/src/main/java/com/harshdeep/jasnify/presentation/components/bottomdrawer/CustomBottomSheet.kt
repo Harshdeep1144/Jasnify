@@ -334,6 +334,11 @@ fun CustomBottomSheet(
                         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                     )
                     .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {}
+                    )
                     .windowInsetsPadding(WindowInsets.ime)
                     .navigationBarsPadding()
             ) {

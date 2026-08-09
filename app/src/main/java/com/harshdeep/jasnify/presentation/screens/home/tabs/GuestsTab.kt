@@ -16,6 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -26,18 +27,22 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -51,6 +56,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -60,10 +66,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -77,7 +88,9 @@ import com.harshdeep.jasnify.domain.model.Contact
 import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -99,8 +112,8 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
-import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrandDark
@@ -125,12 +138,14 @@ enum class GuestsView {
     GUEST_TYPE_DETAIL
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GuestsTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val density = LocalDensity.current
     val searchHistoryManager = remember { SearchHistoryManager(context) }
     var recentSearches by remember { mutableStateOf(searchHistoryManager.getRecentSearches()) }
     var currentView by remember { mutableStateOf(GuestsView.MAIN) }
@@ -149,6 +164,7 @@ fun GuestsTab(
 
     var showEmptyState by remember { mutableStateOf(true) }
     var selectedGuestForInfo by remember { mutableStateOf<Guest?>(null) }
+    var guestToDeleteForInfo by remember { mutableStateOf<Guest?>(null) }
     var selectedGuestForEdit by remember { mutableStateOf<Guest?>(null) }
     var selectedGuestTypeForEdit by remember { mutableStateOf<String?>(null) }
     var showAddGuestSheet by remember { mutableStateOf(false) }
@@ -163,12 +179,65 @@ fun GuestsTab(
 
     var isMultiSelectMode by remember { mutableStateOf(false) }
     val selectedGuestIds = remember { mutableStateListOf<String>() }
+    var showMultiDeleteConfirmation by remember { mutableStateOf(false) }
+    var showSuccessSheet by remember { mutableStateOf(false) }
+    var importedCount by remember { mutableIntStateOf(0) }
+
+    var isHeaderVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+    val mainListState = rememberLazyListState()
+
+    val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
+    val topBarScrollProgress by remember {
+        derivedStateOf {
+            if (mainListState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (mainListState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
+            }
+        }
+    }
+
+    val guestsNestedScrollConnection = remember(mainListState, currentView, isSearchActive, isMultiSelectMode) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) return Offset.Zero
+
+                val delta = available.y
+                val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
+                if (!canScroll) {
+                    isHeaderVisible = true
+                    return Offset.Zero
+                }
+
+                if (delta > 0) { // Scrolling up (showing)
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling down (hiding)
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isHeaderVisible) {
+                    isHeaderVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isHeaderVisible) {
+                    isHeaderVisible = false
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
+    var activeToastData by remember { mutableStateOf<ToastData?>(null) }
 
     LaunchedEffect(toastData?.message) {
         if (toastData?.message != null) {
-            delay(3000.milliseconds)
+            activeToastData = toastData
+            delay(2000.milliseconds)
             toastData = null
         }
     }
@@ -194,13 +263,16 @@ fun GuestsTab(
                     showAddTypeSheet ||
                     showTypeFilterSheet ||
                     showContactPicker ||
-                    showMenuSheet
+                    showMenuSheet ||
+                    guestToDeleteForInfo != null ||
+                    showMultiDeleteConfirmation ||
+                    showSuccessSheet
         }
     }
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode
+            !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible
         }
     }
 
@@ -295,6 +367,13 @@ fun GuestsTab(
         }
     }
 
+    val onInviteToggle = { guestId: String ->
+        val index = guests.indexOfFirst { it.id == guestId }
+        if (index != -1) {
+            guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
+        }
+    }
+
     BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive) {
         if (isSearchActive) {
             isSearchActive = false
@@ -318,6 +397,7 @@ fun GuestsTab(
             ) {
                 focusManager.clearFocus()
             }
+            .nestedScroll(guestsNestedScrollConnection)
     ) {
         Box(
             modifier = Modifier
@@ -338,120 +418,293 @@ fun GuestsTab(
                 when (view) {
                     GuestsView.MAIN -> {
                         Scaffold(
-                            topBar = {
-                                Column(modifier = Modifier.statusBarsPadding())
-                                {
-                                    if (!isSearchActive) {
-                                        if (!isMultiSelectMode) {
-                                            CustomTopBar(
-                                                title = "Guests",
-                                                titleIcon = painterResource(R.drawable.ic_guests),
-                                                isLeftAligned = true,
-                                                isLargeTitle = true,
-                                                onMenuClick = {
-                                                    focusManager.clearFocus()
-                                                    showMenuSheet = true
-                                                },
-                                                buttonStyle = ButtonBackground.OPAQUE
-                                            )
-                                        } else {
-                                            CustomTopBar(
-                                                title = "${selectedGuestIds.size} selected",
-                                                onBackClick = {
-                                                    isMultiSelectMode = false
-                                                    selectedGuestIds.clear()
-                                                },
-                                                menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
-                                                onMenuClick = {
-                                                    focusManager.clearFocus()
-                                                    guests.removeAll { it.id in selectedGuestIds }
-                                                    selectedGuestIds.clear()
-                                                    isMultiSelectMode = false
-                                                    if (guests.isEmpty()) showEmptyState = true
-                                                },
-                                                buttonStyle = ButtonBackground.OPAQUE
-                                            )
-                                        }
-                                    }
-                                }
-                            },
-                            containerColor = BackgroundPrimary
+                            containerColor = BackgroundPrimary,
+                            contentWindowInsets = WindowInsets(0, 0, 0, 0)
                         ) { paddingValues ->
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .padding(paddingValues)
                             ) {
-                                Column(modifier = Modifier.fillMaxSize()) {
-                                    if (isSearchActive) {
-                                        GuestSearchContent(
-                                            searchQuery = searchQuery,
-                                            onSearchQueryChange = { searchQuery = it },
-                                            onBackClick = {
-                                                if (searchQuery.isNotEmpty()) {
-                                                    searchHistoryManager.addSearch(searchQuery)
-                                                    recentSearches = searchHistoryManager.getRecentSearches()
-                                                }
-                                                isSearchActive = false
-                                                searchQuery = ""
-                                            },
-                                            recentSearches = recentSearches,
-                                            onClearRecent = {
-                                                searchHistoryManager.clearAll()
-                                                recentSearches = emptyList()
-                                            },
-                                            onRemoveRecent = { search ->
-                                                searchHistoryManager.removeSearch(search)
+                                if (isSearchActive) {
+                                    GuestSearchContent(
+                                        searchQuery = searchQuery,
+                                        onSearchQueryChange = { searchQuery = it },
+                                        onBackClick = {
+                                            if (searchQuery.isNotEmpty()) {
+                                                searchHistoryManager.addSearch(searchQuery)
                                                 recentSearches = searchHistoryManager.getRecentSearches()
-                                            },
-                                            searchResults = filteredGuests,
-                                            onGuestClick = { guest ->
-                                                selectedGuestForInfo = guest
-                                                searchHistoryManager.addSearch(guest.name)
-                                                recentSearches = searchHistoryManager.getRecentSearches()
-                                            },
-                                            onAddGuestClick = onAddGuestClick,
-                                            getGuestTypeColor = ::getGuestTypeColor,
-                                            onInviteToggle = { guestId ->
-                                                val index = guests.indexOfFirst { it.id == guestId }
-                                                if (index != -1) {
-                                                    guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
-                                                }
                                             }
+                                            isSearchActive = false
+                                            searchQuery = ""
+                                        },
+                                        recentSearches = recentSearches,
+                                        onClearRecent = {
+                                            searchHistoryManager.clearAll()
+                                            recentSearches = emptyList()
+                                        },
+                                        onRemoveRecent = { search ->
+                                            searchHistoryManager.removeSearch(search)
+                                            recentSearches = searchHistoryManager.getRecentSearches()
+                                        },
+                                        searchResults = filteredGuests,
+                                        onGuestClick = { guest ->
+                                            selectedGuestForInfo = guest
+                                            searchHistoryManager.addSearch(guest.name)
+                                            recentSearches = searchHistoryManager.getRecentSearches()
+                                        },
+                                        onAddGuestClick = onAddGuestClick,
+                                        getGuestTypeColor = ::getGuestTypeColor,
+                                        onInviteToggle = onInviteToggle
+                                    )
+                                } else {
+                                    if (guests.isEmpty() && showEmptyState) {
+                                        GuestEmptyState(
+                                            hasContactPermission = hasContactPermission,
+                                            onAddGuestClick = onAddGuestClick
                                         )
                                     } else {
-                                        if (guests.isEmpty() && showEmptyState) {
-                                            GuestEmptyState(
-                                                hasContactPermission = hasContactPermission,
-                                                onAddGuestClick = onAddGuestClick
-                                            )
-                                        } else {
-                                            GuestListContent(
-                                                guests = filteredGuests,
-                                                searchQuery = searchQuery,
-                                                onSearchQueryChange = { searchQuery = it },
-                                                onAddClick = onAddGuestClick,
-                                                onInviteToggle = { guestId ->
-                                                    val index = guests.indexOfFirst { it.id == guestId }
-                                                    if (index != -1) {
-                                                        guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
+                                        var expandedGuestId by remember { mutableStateOf<String?>(null) }
+
+                                        // Pinned status bar background overlay ensuring no content bleeds into status bar
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .windowInsetsTopHeight(WindowInsets.statusBars)
+                                                .background(Color.Transparent)
+                                                .zIndex(100f)
+                                        )
+
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .statusBarsPadding(),
+                                            state = mainListState,
+                                        ) {
+                                            item {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .graphicsLayer {
+                                                            alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                                            translationY = -topBarScrollProgress * 30f
+                                                        }
+                                                ) {
+                                                    if (!isMultiSelectMode) {
+                                                        CustomTopBar(
+                                                            title = "Guests",
+                                                            titleIcon = painterResource(R.drawable.ic_guests),
+                                                            isLeftAligned = true,
+                                                            isLargeTitle = true,
+                                                            onMenuClick = {
+                                                                focusManager.clearFocus()
+                                                                showMenuSheet = true
+                                                            },
+                                                            buttonStyle = ButtonBackground.OPAQUE
+                                                        )
+                                                    } else {
+                                                        CustomTopBar(
+                                                            title = "${selectedGuestIds.size} selected",
+                                                            onBackClick = {
+                                                                isMultiSelectMode = false
+                                                                selectedGuestIds.clear()
+                                                            },
+                                                            menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
+                                                            onMenuClick = if (selectedGuestIds.isNotEmpty()) {
+                                                                {
+                                                                    focusManager.clearFocus()
+                                                                    showMultiDeleteConfirmation = true
+                                                                }
+                                                            } else null,
+                                                            buttonStyle = ButtonBackground.OPAQUE
+                                                        )
                                                     }
-                                                },
-                                                onViewDetails = { guest ->
-                                                    selectedGuestForInfo = guest
-                                                },
-                                                onFilterClick = { showTypeFilterSheet = true },
-                                                selectedTypesFilter = selectedTypesFilter,
-                                                getGuestTypeColor = ::getGuestTypeColor,
-                                                inviteFilter = inviteFilter,
-                                                onInviteFilterChange = { inviteFilter = it },
-                                                isMultiSelectMode = isMultiSelectMode,
-                                                selectedGuestIds = selectedGuestIds,
-                                                onGuestSelectToggle = { id, selected ->
-                                                    if (selected) selectedGuestIds.add(id) else selectedGuestIds.remove(id)
-                                                },
-                                                onSearchClick = { isSearchActive = true }
-                                            )
+                                                }
+                                            }
+
+                                            stickyHeader {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .background(BackgroundPrimary)
+                                                        .fillMaxWidth()
+                                                        .zIndex(10f)
+                                                ) {
+                                                    if (!isMultiSelectMode) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            CustomSearchBar(
+                                                                value = searchQuery,
+                                                                onValueChange = { searchQuery = it },
+                                                                placeholder = "Search Guests",
+                                                                modifier = Modifier.weight(1f),
+                                                                onActiveChange = { if (it) isSearchActive = true }
+                                                            )
+
+                                                            CustomTextButton(
+                                                                onClick = onAddGuestClick,
+                                                                text = "Add",
+                                                                leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                                                shapeStyle = ButtonShapeStyle.Round
+                                                            )
+                                                        }
+                                                    }
+
+                                                    LazyRow(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        contentPadding = PaddingValues(horizontal = 12.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        item {
+                                                            FilterChip(
+                                                                label = when {
+                                                                    selectedTypesFilter.isEmpty() -> "Guest Type"
+                                                                    selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
+                                                                    else -> "Guest Types (${selectedTypesFilter.size})"
+                                                                },
+                                                                hasDropdown = true,
+                                                                isSelected = selectedTypesFilter.isNotEmpty(),
+                                                                onClick = { showTypeFilterSheet = true },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
+                                                            )
+                                                        }
+                                                        item {
+                                                            FilterChip(
+                                                                label = "Yet to invite",
+                                                                isSelected = inviteFilter == "Yet to invite",
+                                                                onClick = {
+                                                                    inviteFilter = if (inviteFilter == "Yet to invite") null else "Yet to invite"
+                                                                },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
+                                                            )
+                                                        }
+                                                        item {
+                                                            FilterChip(
+                                                                label = "Already invited",
+                                                                isSelected = inviteFilter == "Already invited",
+                                                                onClick = {
+                                                                    inviteFilter = if (inviteFilter == "Already invited") null else "Already invited"
+                                                                },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(modifier = Modifier.height(12.dp))
+                                                }
+                                            }
+
+                                            if (filteredGuests.isEmpty()) {
+                                                item {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .height(320.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Column(
+                                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                                            verticalArrangement = Arrangement.Top,
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.ic_cross_arrow),
+                                                                contentDescription = null,
+                                                                tint = ContentTertiary,
+                                                                modifier = Modifier.size(84.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.height(12.dp))
+                                                            Text(
+                                                                text = "No guests found",
+                                                                style = JasnifyTheme.typography.displayMedium.copy(
+                                                                    textAlign = TextAlign.Center,
+                                                                    fontWeight = FontWeight.Medium
+                                                                ),
+                                                                color = ContentTertiary
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            } else {
+                                                itemsIndexed(
+                                                    filteredGuests,
+                                                    key = { _, guest -> guest.id }
+                                                ) { index, guest ->
+
+                                                    val isExpanded = expandedGuestId == guest.id
+                                                    val isSelected = selectedGuestIds.contains(guest.id)
+
+                                                    val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
+                                                    val bottomRadius =
+                                                        if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
+
+                                                    val itemShape = SquircleShape(
+                                                        topStart = topRadius,
+                                                        topEnd = topRadius,
+                                                        bottomStart = bottomRadius,
+                                                        bottomEnd = bottomRadius,
+                                                        cornerSmoothing = CornerSmoothingDefault
+                                                    )
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(horizontal = 12.dp, vertical = 1.dp)
+                                                    ) {
+                                                        GuestCard(
+                                                            name = guest.name,
+                                                            label = guest.type,
+                                                            imageUrl = guest.imageUrl,
+                                                            isInvited = guest.isInvited,
+                                                            type = when {
+                                                                isMultiSelectMode -> GuestCardType.SELECTABLE
+                                                                else -> GuestCardType.INVITE_ACTION
+                                                            },
+                                                            isSelected = isSelected,
+                                                            showActions = isExpanded,
+                                                            lastUpdatedBy = guest.lastUpdatedBy,
+                                                            lastUpdatedAt = guest.lastUpdatedAt,
+                                                            labelColor = getGuestTypeColor(guest.type),
+                                                            onCardClick = {
+                                                                if (isMultiSelectMode) {
+                                                                    if (isSelected) {
+                                                                        selectedGuestIds.remove(guest.id)
+                                                                    } else {
+                                                                        selectedGuestIds.add(guest.id)
+                                                                    }
+                                                                } else {
+                                                                    expandedGuestId = if (isExpanded) null else guest.id
+                                                                }
+                                                            },
+                                                            onSelectToggle = { selected ->
+                                                                if (selected) {
+                                                                    selectedGuestIds.add(guest.id)
+                                                                } else {
+                                                                    selectedGuestIds.remove(guest.id)
+                                                                }
+                                                            },
+                                                            onViewDetailsClick = {
+                                                                selectedGuestForInfo = guest
+                                                            },
+                                                            onInviteClick = {
+                                                                onInviteToggle(guest.id)
+                                                            },
+                                                            cardShape = itemShape
+                                                        )
+                                                    }
+                                                }
+
+                                                if (guests.size > 10) {
+                                                    item {
+                                                        FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -472,6 +725,7 @@ fun GuestsTab(
                                                     )
                                                 )
                                             )
+                                            .navigationBarsPadding()
                                             .padding(horizontal = 12.dp, vertical = 12.dp)
                                     ) {
                                         Surface(
@@ -554,12 +808,7 @@ fun GuestsTab(
                                 selectedGuestTypeForEdit = selectedGuestTypeForDetail
                                 showAddTypeSheet = true
                             },
-                            onInviteToggle = { guestId ->
-                                val index = guests.indexOfFirst { it.id == guestId }
-                                if (index != -1) {
-                                    guests[index] = guests[index].copy(isInvited = !guests[index].isInvited)
-                                }
-                            }
+                            onInviteToggle = onInviteToggle
                         )
                     }
                 }
@@ -567,7 +816,7 @@ fun GuestsTab(
         }
 
         AnimatedVisibility(
-            visible = toastData?.message != null,
+            visible = toastData?.message != null && !isAnyBottomSheetOpen,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
             exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
@@ -609,10 +858,56 @@ fun GuestsTab(
                 }
             },
             onDeleteClick = {
-                guests.removeAll { it.id == selectedGuestForInfo?.id }
+                guestToDeleteForInfo = selectedGuestForInfo
                 selectedGuestForInfo = null
-                if (guests.isEmpty()) showEmptyState = true
             }
+        )
+    }
+
+    guestToDeleteForInfo?.let { guest ->
+        val formattedName = guest.name.trim().split("\\s+".toRegex()).let { parts ->
+            if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
+        }
+        ConfirmationBottomSheet(
+            heading = "Are you sure?",
+            subHeading = "${guest.name} will be removed from the guest list.",
+            confirmButtonText = "Remove $formattedName",
+            onDismiss = { guestToDeleteForInfo = null },
+            onConfirm = {
+                guests.removeAll { it.id == guest.id }
+                guestToDeleteForInfo = null
+                if (guests.isEmpty()) showEmptyState = true
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
+    if (showMultiDeleteConfirmation) {
+        val selectedGuests = guests.filter { it.id in selectedGuestIds }
+        val subHeading = when {
+            selectedGuests.size == 1 -> "${selectedGuests[0].name} will be removed from the guest list."
+            selectedGuests.size == 2 -> "${selectedGuests[0].name} and ${selectedGuests[1].name} will be removed from the guest list."
+            selectedGuests.size > 2 -> {
+                val n1 = selectedGuests[0].name.trim().split("\\s+".toRegex())[0]
+                val n2 = selectedGuests[1].name.trim().split("\\s+".toRegex())[0]
+                "$n1, $n2 & ${selectedGuests.size - 2} other guests will be removed from the guest list."
+            }
+            else -> ""
+        }
+
+        ConfirmationBottomSheet(
+            heading = "Are you sure?",
+            subHeading = subHeading,
+            confirmButtonText = "Remove All ${selectedGuestIds.size} Guests",
+            onDismiss = { showMultiDeleteConfirmation = false },
+            onConfirm = {
+                guests.removeAll { it.id in selectedGuestIds }
+                selectedGuestIds.clear()
+                isMultiSelectMode = false
+                showMultiDeleteConfirmation = false
+                if (guests.isEmpty()) showEmptyState = true
+            },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 
@@ -651,7 +946,29 @@ fun GuestsTab(
             },
             onAddNewTypeClick = { showAddTypeSheet = true },
             guestTypes = guestTypes.map { com.harshdeep.jasnify.domain.model.GuestType(name = it) },
-            initialGuest = selectedGuestForEdit
+            initialGuest = selectedGuestForEdit,
+            onError = { message ->
+                toastData = ToastData(message, ToastType.ERROR)
+            },
+            hasToast = toastData != null,
+            toast = {
+                AnimatedVisibility(
+                    visible = toastData?.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(12.dp)
+                ) {
+                    activeToastData?.let { data ->
+                        CustomToast(
+                            message = data.message ?: "",
+                            type = data.type
+                        )
+                    }
+                }
+            }
         )
     }
 
@@ -684,6 +1001,25 @@ fun GuestsTab(
                     guestTypes.add(newType)
                 }
                 showAddTypeSheet = false
+            },
+            hasToast = toastData != null,
+            toast = {
+                AnimatedVisibility(
+                    visible = toastData?.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(12.dp)
+                ) {
+                    activeToastData?.let { data ->
+                        CustomToast(
+                            message = data.message ?: "",
+                            type = data.type
+                        )
+                    }
+                }
             }
         )
     }
@@ -715,42 +1051,80 @@ fun GuestsTab(
                 showContactPicker = false
                 showAddGuestSheet = true
             },
+            existingGuestIdentifiers = guests.map { it.name.lowercase() + it.contactNo }.toSet(),
             onContactsSelected = { selectedContacts, includePhoneNo ->
-                var duplicateCount = 0
-                selectedContacts.forEach { contact ->
-                    val phoneNumber = if (includePhoneNo) contact.phoneNumber else ""
-                    val exists = guests.any {
-                        it.name.equals(contact.name, ignoreCase = true) && it.contactNo == phoneNumber
-                    }
-                    if (!exists) {
-                        guests.add(
-                            0,
-                            Guest(
-                                name = contact.name,
-                                contactNo = phoneNumber,
-                                imageUrl = contact.photoUri,
-                                type = "Others"
+                if (selectedContacts.isEmpty()) {
+                    toastData = ToastData("Please select at least 1 guest!", ToastType.ERROR)
+                } else {
+                    var duplicateCount = 0
+                    selectedContacts.forEach { contact ->
+                        val phoneNumber = if (includePhoneNo) contact.phoneNumber else ""
+                        val exists = guests.any {
+                            it.name.equals(contact.name, ignoreCase = true) && it.contactNo == phoneNumber
+                        }
+                        if (!exists) {
+                            guests.add(
+                                0,
+                                Guest(
+                                    name = contact.name,
+                                    contactNo = phoneNumber,
+                                    imageUrl = contact.photoUri,
+                                    type = "Others"
+                                )
                             )
+                        } else {
+                            duplicateCount++
+                        }
+                    }
+                    if (duplicateCount > 0) {
+                        toastData = ToastData(
+                            if (duplicateCount == 1) "Guest already exists!" else "$duplicateCount Guests already exist!",
+                            ToastType.DEFAULT
                         )
-                    } else {
-                        duplicateCount++
+                    }
+
+                    if (selectedContacts.size > duplicateCount) {
+                        importedCount = selectedContacts.size - duplicateCount
+                        showSuccessSheet = true
+                    }
+
+                    showEmptyState = false
+                    showContactPicker = false
+                }
+            },
+            hasToast = toastData != null,
+            toast = {
+                AnimatedVisibility(
+                    visible = toastData?.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(12.dp)
+                ) {
+                    activeToastData?.let { data ->
+                        CustomToast(
+                            message = data.message ?: "",
+                            type = data.type
+                        )
                     }
                 }
-                if (duplicateCount > 0) {
-                    toastData = ToastData(
-                        if (duplicateCount == 1) "1 guest already exists" else "$duplicateCount guests already exist",
-                        ToastType.DEFAULT
-                    )
-                }
-                showEmptyState = false
-                showContactPicker = false
             }
+        )
+    }
+
+    if (showSuccessSheet) {
+        CustomSuccessBottomSheet(
+            message = "$importedCount Contacts Imported",
+            onDismiss = { showSuccessSheet = false },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 
     if (showMenuSheet) {
         val menuItems = listOf(
-            listOf(
+            listOfNotNull(
                 MenuSheetActionItem(
                     text = "Add Guests",
                     icon = painterResource(id = R.drawable.ic_add_circle),
@@ -760,16 +1134,18 @@ fun GuestsTab(
                         onAddGuestClick()
                     }
                 ),
-                MenuSheetActionItem(
-                    text = "Multi-Select",
-                    icon = painterResource(id = R.drawable.ic_multi_select),
-                    iconPlacement = IconPlacement.Top,
-                    onClick = {
-                        showMenuSheet = false
-                        isMultiSelectMode = true
-                        inviteFilter = "Yet to invite"
-                    }
-                )
+                if (guests.isNotEmpty()) {
+                    MenuSheetActionItem(
+                        text = "Multi-Select",
+                        icon = painterResource(id = R.drawable.ic_multi_select),
+                        iconPlacement = IconPlacement.Top,
+                        onClick = {
+                            showMenuSheet = false
+                            isMultiSelectMode = true
+                            inviteFilter = "Yet to invite"
+                        }
+                    )
+                } else null
             ),
             listOf(
                 MenuSheetActionItem(
@@ -808,183 +1184,22 @@ fun GuestsTab(
     }
 }
 
+@Preview(showBackground = true)
 @Composable
-fun GuestListContent(
-    guests: List<Guest>,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onAddClick: () -> Unit,
-    onInviteToggle: (String) -> Unit,
-    onViewDetails: (Guest) -> Unit,
-    onFilterClick: () -> Unit,
-    selectedTypesFilter: List<String>,
-    getGuestTypeColor: (String) -> Color,
-    inviteFilter: String?,
-    onInviteFilterChange: (String?) -> Unit,
-    isMultiSelectMode: Boolean = false,
-    selectedGuestIds: List<String> = emptyList(),
-    onGuestSelectToggle: (String, Boolean) -> Unit = { _, _ -> },
-    onSearchClick: () -> Unit = {}
-) {
-    var expandedGuestId by remember { mutableStateOf<String?>(null) }
-    val showMultiSelectActionBar = isMultiSelectMode && selectedGuestIds.isNotEmpty() && inviteFilter != "Already invited"
+fun PreviewGuestsTab() {
+    JasnifyTheme {
+        GuestsTab()
+    }
+}
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (!isMultiSelectMode) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                CustomSearchBar(
-                    value = searchQuery,
-                    onValueChange = onSearchQueryChange,
-                    placeholder = "Search Guests",
-                    modifier = Modifier.weight(1f),
-                    onActiveChange = { if (it) onSearchClick() }
-                )
-
-                CustomTextButton(
-                    onClick = onAddClick,
-                    text = "Add",
-                    leadingIcon = painterResource(id = R.drawable.ic_plus),
-                    shapeStyle = ButtonShapeStyle.Round
-                )
-            }
-        }
-
-        LazyRow(
-            modifier = Modifier
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            item {
-                FilterChip(
-                    label = when {
-                        selectedTypesFilter.isEmpty() -> "Guest Type"
-                        selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
-                        else -> "Guest Types (${selectedTypesFilter.size})"
-                    },
-                    hasDropdown = true,
-                    isSelected = selectedTypesFilter.isNotEmpty(),
-                    onClick = onFilterClick,
-                    shapeStyle = ChipShapeStyle.Round,
-                    hasStroke = true
-                )
-            }
-            item {
-                FilterChip(
-                    label = "Yet to invite",
-                    isSelected = inviteFilter == "Yet to invite",
-                    onClick = {
-                        onInviteFilterChange(if (inviteFilter == "Yet to invite") null else "Yet to invite")
-                    },
-                    shapeStyle = ChipShapeStyle.Round,
-                    hasStroke = true
-                )
-            }
-            item {
-                FilterChip(
-                    label = "Already invited",
-                    isSelected = inviteFilter == "Already invited",
-                    onClick = {
-                        onInviteFilterChange(if (inviteFilter == "Already invited") null else "Already invited")
-                    },
-                    shapeStyle = ChipShapeStyle.Round,
-                    hasStroke = true
-                )
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                start = 12.dp,
-                top = 12.dp,
-                end = 12.dp,
-                bottom = if (showMultiSelectActionBar) 88.dp else 12.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            if (guests.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(320.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Top,
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_cross_arrow),
-                                contentDescription = null,
-                                tint = ContentTertiary,
-                                modifier = Modifier.size(84.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "No guests found",
-                                style = JasnifyTheme.typography.displayMedium.copy(
-                                    textAlign = TextAlign.Center,
-                                    fontWeight = FontWeight.Medium
-                                ),
-                                color = ContentTertiary
-                            )
-                        }
-                    }
-                }
-            } else {
-                itemsIndexed(guests, key = { _, guest -> guest.id }) { index, guest ->
-                    val isExpanded = expandedGuestId == guest.id
-                    val isSelected = selectedGuestIds.contains(guest.id)
-
-                    val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                    val bottomRadius = if (index == guests.lastIndex) CornerLargeIncrease else CornerExtraSmall
-                    val itemShape = SquircleShape(
-                        topStart = topRadius,
-                        topEnd = topRadius,
-                        bottomStart = bottomRadius,
-                        bottomEnd = bottomRadius,
-                        cornerSmoothing = CornerSmoothingDefault
-                    )
-
-                    GuestCard(
-                        name = guest.name,
-                        label = guest.type,
-                        imageUrl = guest.imageUrl,
-                        isInvited = guest.isInvited,
-                        type = when {
-                            isMultiSelectMode -> GuestCardType.SELECTABLE
-                            else -> GuestCardType.INVITE_ACTION
-                        },
-                        isSelected = isSelected,
-                        showActions = isExpanded,
-                        lastUpdatedBy = guest.lastUpdatedBy,
-                        lastUpdatedAt = guest.lastUpdatedAt,
-                        labelColor = getGuestTypeColor(guest.type),
-                        onCardClick = {
-                            if (isMultiSelectMode) {
-                                onGuestSelectToggle(guest.id, !isSelected)
-                            } else {
-                                expandedGuestId = if (isExpanded) null else guest.id
-                            }
-                        },
-                        onSelectToggle = { selected ->
-                            onGuestSelectToggle(guest.id, selected)
-                        },
-                        onViewDetailsClick = { onViewDetails(guest) },
-                        onInviteClick = { onInviteToggle(guest.id) },
-                        cardShape = itemShape
-                    )
-                }
-            }
-        }
+@Preview(showBackground = true)
+@Composable
+fun PreviewGuestEmptyState() {
+    JasnifyTheme {
+        GuestEmptyState(
+            hasContactPermission = false,
+            onAddGuestClick = {}
+        )
     }
 }
 
@@ -994,7 +1209,8 @@ fun GuestEmptyState(
     onAddGuestClick: () -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -1064,7 +1280,8 @@ fun GuestTypeScreen(
                 )
             }
         },
-        containerColor = BackgroundSecondary
+        containerColor = BackgroundSecondary,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Box(
             modifier = Modifier
@@ -1098,10 +1315,11 @@ fun GuestTypeScreen(
                                 0.25f to BackgroundSecondary.copy(alpha = 0.15f),
                                 0.55f to BackgroundSecondary.copy(alpha = 0.65f),
                                 0.80f to BackgroundSecondary.copy(alpha = 0.92f),
-                                1.00f to BackgroundSecondary
+                                1.00f to BackgroundPrimary
                             )
                         )
                     )
+                    .navigationBarsPadding()
                     .padding(horizontal = 12.dp, vertical = 12.dp)
             ) {
                 Surface(
@@ -1170,7 +1388,8 @@ fun GuestTypeDetailScreen(
                 )
             }
         },
-        containerColor = BackgroundPrimary
+        containerColor = BackgroundPrimary,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -1336,6 +1555,7 @@ fun GuestSearchContent(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundPrimary)
+            .statusBarsPadding()
     ) {
         CustomSearchBar(
             value = searchQuery,
@@ -1351,11 +1571,11 @@ fun GuestSearchContent(
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(12.dp, 12.dp, 12.dp, 0.dp)
                 .focusRequester(focusRequester)
         )
 
-        if (searchQuery.isEmpty()) {
+        if (searchQuery.isEmpty() && recentSearches.isNotEmpty()) {
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1480,24 +1700,5 @@ fun GuestSearchContent(
                 }
             }
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewGuestsTab() {
-    JasnifyTheme {
-        GuestsTab()
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewGuestEmptyState() {
-    JasnifyTheme {
-        GuestEmptyState(
-            hasContactPermission = false,
-            onAddGuestClick = {}
-        )
     }
 }

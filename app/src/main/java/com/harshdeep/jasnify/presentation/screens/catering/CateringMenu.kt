@@ -2,20 +2,13 @@ package com.harshdeep.jasnify.presentation.screens.catering
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -23,12 +16,30 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -36,19 +47,34 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
@@ -61,52 +87,62 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
-import com.harshdeep.jasnify.presentation.components.filter.FilterBottomSheet
-import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
-import com.harshdeep.jasnify.presentation.components.chip.FoodChip
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.chip.FoodChip
+import com.harshdeep.jasnify.presentation.components.filter.FilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.google.firebase.auth.FirebaseAuth
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import androidx.hilt.navigation.compose.hiltViewModel
-import com.harshdeep.jasnify.data.models.eventTypes
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.theme.BackgroundBrand
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BackgroundSecondary
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.Pattaya
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -123,7 +159,7 @@ enum class CateringMenuView {
     MANAGE_ROOM_ACCESS
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
@@ -132,7 +168,7 @@ fun CateringMenuScreen(
     roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
-    val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
     val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
@@ -177,7 +213,6 @@ fun CateringMenuScreen(
             roomViewModel.verifyAccess(activeEventId!!, "Catering", currentUserUid)
             roomViewModel.loadRoomUsers(activeEventId!!, "Catering")
         } else {
-            // Allow access to view general menu if no event is active
             roomViewModel.setAccessState(true)
         }
     }
@@ -194,6 +229,7 @@ fun CateringMenuScreen(
 
     BackHandler(enabled = isSearchActive) {
         isSearchActive = false
+        searchText = ""
         focusManager.clearFocus()
     }
 
@@ -245,8 +281,20 @@ fun CateringMenuScreen(
     var showRoomAccessBottomSheet by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
-    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    val mainListState = rememberLazyListState()
+
+    val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
+    val topBarScrollProgress by remember {
+        derivedStateOf {
+            if (mainListState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (mainListState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
+            }
+        }
+    }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
@@ -278,7 +326,6 @@ fun CateringMenuScreen(
         label = "backdropScale"
     )
 
-    // Using DampingRatioNoBouncy (1.0f) prevents negative undershoot below 0.dp
     val backdropCornerRadius by animateDpAsState(
         targetValue = if (isAnyBottomSheetOpen) CornerExtraLarge else 0.dp,
         animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
@@ -326,12 +373,6 @@ fun CateringMenuScreen(
         }
     }
 
-    val searchBarParentBg by animateColorAsState(
-        targetValue = if (isSearchActive) SurfaceBrandPrimary else Color.Transparent,
-        animationSpec = tween(durationMillis = 250),
-        label = "SearchBarParent_Bg"
-    )
-
     RoomAccessGuardian(
         hasAccess = hasAccess,
         roomName = "Catering",
@@ -361,184 +402,182 @@ fun CateringMenuScreen(
                 ) { targetScreen ->
                     when (targetScreen) {
                         CateringMenuView.MENU -> {
-                            Scaffold(
-                                contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                                topBar = {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .animateContentSize(animationSpec = tween(durationMillis = 250))
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .background(SurfaceBrandPrimary)
-                                                .animateContentSize(animationSpec = tween(durationMillis = 250))
-                                        ) {
-                                            Spacer(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .windowInsetsTopHeight(WindowInsets.statusBars)
-                                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(BackgroundPrimary)
+                                    .pointerInput(Unit) {
+                                        detectTapGestures(onTap = { focusManager.clearFocus() })
+                                    }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .windowInsetsTopHeight(WindowInsets.statusBars)
+                                        .background(BackgroundPrimary)
+                                        .zIndex(100f)
+                                )
 
-                                            AnimatedVisibility(
-                                                visible = !isSearchActive,
-                                                enter = fadeIn(animationSpec = tween(150)) + expandVertically(
-                                                    animationSpec = tween(250)
-                                                ),
-                                                exit = fadeOut(animationSpec = tween(100)) + shrinkVertically(
-                                                    animationSpec = tween(250)
-                                                )
-                                            ) {
-                                                CustomTopBar(
-                                                    title = "Catering Menu",
-                                                    onBackClick = {
-                                                        focusManager.clearFocus()
-                                                        onBackClick()
-                                                    },
-                                                    onMenuClick = {
-                                                        focusManager.clearFocus()
-                                                        showMenuBottomSheet = true
-                                                    },
-                                                    isLargeTitle = true,
-                                                    buttonStyle = ButtonBackground.TRANSLUCENT,
-                                                    textColor = ContentInvPrimary,
-                                                )
-                                            }
-                                        }
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .statusBarsPadding(),
+                                    state = mainListState,
+                                ) {
+                                    item(key = "top_bar") {
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .background(searchBarParentBg)
-                                                .padding(
-                                                    top = 12.dp,
-                                                    bottom = if (isSearchActive) 12.dp else 0.dp,
-                                                    start = 12.dp,
-                                                    end = 12.dp
-                                                )
+                                                .graphicsLayer {
+                                                    alpha =
+                                                        (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                                    translationY = -topBarScrollProgress * 30f
+                                                }
                                         ) {
+                                            AnimatedContent(
+                                                targetState = isSearchActive,
+                                                transitionSpec = {
+                                                    fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
+                                                },
+                                                label = "CateringTopBarSearchTransition"
+                                            ) { active ->
+                                                CustomTopBar(
+                                                    title = if (active) "Search Menu" else "Catering Menu",
+                                                    onBackClick = if (active) {
+                                                        {
+                                                            isSearchActive = false
+                                                            searchText = ""
+                                                            focusManager.clearFocus()
+                                                        }
+                                                    } else {
+                                                        {
+                                                            focusManager.clearFocus()
+                                                            onBackClick()
+                                                        }
+                                                    },
+                                                    onMenuClick = if (active) null else {
+                                                        {
+                                                            focusManager.clearFocus()
+                                                            showMenuBottomSheet = true
+                                                        }
+                                                    },
+                                                    isLargeTitle = true,
+                                                    buttonStyle = ButtonBackground.OPAQUE
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    stickyHeader(key = "search_and_filters_header") {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(BackgroundPrimary)
+                                                .zIndex(10f)
+                                        ) {
+                                            Spacer(Modifier.height(12.dp))
                                             CustomSearchBar(
                                                 value = searchText,
                                                 onValueChange = { searchText = it },
-                                                onActiveChange = { isSearchActive = it }
+                                                onActiveChange = { isSearchActive = it },
+                                                placeholder = "Search Menu",
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                                             )
+
+                                            LazyRow(
+                                                state = rememberLazyListState(),
+                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                item {
+                                                    FilterChip(
+                                                        label = "All Items",
+                                                        isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
+                                                        shapeStyle = ChipShapeStyle.Round,
+                                                        hasStroke = true,
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            selectedFilterTab = "All Items"
+                                                            selectedCuisines = emptySet()
+                                                            selectedTypes = emptySet()
+                                                        }
+                                                    )
+                                                }
+                                                item {
+                                                    FoodChip(
+                                                        foodType = Dietary.Veg,
+                                                        isSelected = selectedFilterTab == "Veg",
+                                                        shapeStyle = ChipShapeStyle.Round,
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            selectedFilterTab = "Veg"
+                                                        }
+                                                    )
+                                                }
+                                                item {
+                                                    FoodChip(
+                                                        foodType = Dietary.NonVeg,
+                                                        isSelected = selectedFilterTab == "Non-Veg",
+                                                        shapeStyle = ChipShapeStyle.Round,
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            selectedFilterTab = "Non-Veg"
+                                                        }
+                                                    )
+                                                }
+
+                                                item {
+                                                    val hasSelectedCuisines = selectedCuisines.isNotEmpty()
+                                                    val cuisineLabel = if (hasSelectedCuisines) {
+                                                        "Cuisine (${selectedCuisines.size})"
+                                                    } else {
+                                                        "Cuisine"
+                                                    }
+                                                    FilterChip(
+                                                        label = cuisineLabel,
+                                                        isSelected = hasSelectedCuisines,
+                                                        shapeStyle = ChipShapeStyle.Round,
+                                                        hasStroke = true,
+                                                        hasDropdown = true,
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            showCuisineBottomSheet = true
+                                                        }
+                                                    )
+                                                }
+
+                                                item {
+                                                    val hasSelectedTypes = selectedTypes.isNotEmpty()
+                                                    val typeLabel = if (hasSelectedTypes) {
+                                                        "Type (${selectedTypes.size})"
+                                                    } else {
+                                                        "Type"
+                                                    }
+                                                    FilterChip(
+                                                        label = typeLabel,
+                                                        isSelected = hasSelectedTypes,
+                                                        shapeStyle = ChipShapeStyle.Round,
+                                                        hasStroke = true,
+                                                        hasDropdown = true,
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            showTypeBottomSheet = true
+                                                        }
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
-                                }
-                            ) { paddingValues ->
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(BackgroundPrimary)
-                                        .pointerInput(Unit) {
-                                            detectTapGestures(onTap = { focusManager.clearFocus() })
+
+                                    if (isLoading) {
+                                        items(3) {
+                                            Spacer(Modifier.height(12.dp))
+                                            SkeletonMenuCategoryCard(brush = shimmerBrush())
                                         }
-                                        .padding(paddingValues)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.fillMaxSize()
-                                    ) {
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        LazyRow(
-                                            state = rememberLazyListState(),
-                                            contentPadding = PaddingValues(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            item {
-                                                FilterChip(
-                                                    label = "All Items",
-                                                    isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
-                                                    shapeStyle = ChipShapeStyle.Round,
-                                                    hasStroke = true,
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        selectedFilterTab = "All Items"
-                                                        selectedCuisines = emptySet()
-                                                        selectedTypes = emptySet()
-                                                    }
-                                                )
-                                            }
-                                            item {
-                                                FoodChip(
-                                                    foodType = Dietary.Veg,
-                                                    isSelected = selectedFilterTab == "Veg",
-                                                    shapeStyle = ChipShapeStyle.Round,
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        selectedFilterTab = "Veg"
-                                                    }
-                                                )
-                                            }
-                                            item {
-                                                FoodChip(
-                                                    foodType = Dietary.NonVeg,
-                                                    isSelected = selectedFilterTab == "Non-Veg",
-                                                    shapeStyle = ChipShapeStyle.Round,
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        selectedFilterTab = "Non-Veg"
-                                                    }
-                                                )
-                                            }
-
-                                            item {
-                                                val hasSelectedCuisines = selectedCuisines.isNotEmpty()
-                                                val cuisineLabel = if (hasSelectedCuisines) {
-                                                    "Cuisine (${selectedCuisines.size})"
-                                                } else {
-                                                    "Cuisine"
-                                                }
-                                                FilterChip(
-                                                    label = cuisineLabel,
-                                                    isSelected = hasSelectedCuisines,
-                                                    shapeStyle = ChipShapeStyle.Round,
-                                                    hasStroke = true,
-                                                    hasDropdown = true,
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        showCuisineBottomSheet = true
-                                                    }
-                                                )
-                                            }
-
-                                            item {
-                                                val hasSelectedTypes = selectedTypes.isNotEmpty()
-                                                val typeLabel = if (hasSelectedTypes) {
-                                                    "Type (${selectedTypes.size})"
-                                                } else {
-                                                    "Type"
-                                                }
-                                                FilterChip(
-                                                    label = typeLabel,
-                                                    isSelected = hasSelectedTypes,
-                                                    shapeStyle = ChipShapeStyle.Round,
-                                                    hasStroke = true,
-                                                    hasDropdown = true,
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        showTypeBottomSheet = true
-                                                    }
-                                                )
-                                            }
-                                        }
-
-                                        Spacer(modifier = Modifier.height(12.dp))
-
-                                        if (isLoading) {
-                                            LazyColumn(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .weight(1f),
-                                                contentPadding = PaddingValues(bottom = 80.dp),
-                                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                items(3) {
-                                                    SkeletonMenuCategoryCard(brush = shimmerBrush())
-                                                }
-                                            }
-                                        } else if (categorizedItems.isEmpty()) {
+                                    } else if (categorizedItems.isEmpty()) {
+                                        item {
+                                            Spacer(Modifier.height(12.dp))
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -566,105 +605,101 @@ fun CateringMenuScreen(
                                                     )
                                                 }
                                             }
-                                        } else {
-                                            LazyColumn(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .weight(1f),
-                                                contentPadding = PaddingValues(bottom = 80.dp),
-                                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                categorizedItems.forEach { (category, items) ->
-                                                    item {
-                                                        MenuCategoryCard(
-                                                            categoryTitle = category,
-                                                            items = items,
-                                                            onItemClick = { item ->
-                                                                focusManager.clearFocus()
-                                                                selectedItemForDetails = item
-                                                                showDetailsBottomSheet = true
-                                                            },
-                                                            modifier = Modifier.padding(horizontal = 12.dp)
-                                                        )
-                                                    }
-                                                }
-
-                                                item {
-                                                    FooterJansify()
-                                                }
+                                        }
+                                    } else {
+                                        item {
+                                            Spacer(Modifier.height(12.dp))
+                                        }
+                                        categorizedItems.forEach { (category, items) ->
+                                            item(key = "category_$category") {
+                                                MenuCategoryCard(
+                                                    categoryTitle = category,
+                                                    items = items,
+                                                    onItemClick = { item ->
+                                                        focusManager.clearFocus()
+                                                        selectedItemForDetails = item
+                                                        showDetailsBottomSheet = true
+                                                    },
+                                                    modifier = Modifier.padding(horizontal = 12.dp)
+                                                )
+                                                Spacer(Modifier.height(12.dp))
                                             }
                                         }
-                                    }
 
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .align(Alignment.BottomCenter)
-                                            .background(
-                                                brush = Brush.verticalGradient(
-                                                    colorStops = arrayOf(
-                                                        0.00f to Color.Transparent,
-                                                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                                        1.00f to BackgroundPrimary
-                                                    )
+                                        item(key = "footer") {
+                                            FooterJansify()
+                                        }
+                                    }
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .align(Alignment.BottomCenter)
+                                        .background(
+                                            brush = Brush.verticalGradient(
+                                                colorStops = arrayOf(
+                                                    0.00f to Color.Transparent,
+                                                    0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                                    0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                                    1.00f to BackgroundPrimary
                                                 )
                                             )
-                                            .navigationBarsPadding()
-                                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                                        )
+                                        .navigationBarsPadding()
+                                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                                ) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(62.dp)
+                                            .pill360Shadow(
+                                                ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                ambientBlur = 12.dp,
+                                                ambientSpread = 2.dp,
+                                                spotColor = Color.Black.copy(alpha = 0.15f),
+                                                spotBlur = 18.dp,
+                                                spotOffsetY = 4.dp
+                                            ),
+                                        color = SurfacePrimary,
+                                        shape = CircleShape
                                     ) {
-                                        Surface(
+                                        Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(62.dp)
-                                                .pill360Shadow(
-                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                    ambientBlur = 12.dp,
-                                                    ambientSpread = 2.dp,
-                                                    spotColor = Color.Black.copy(alpha = 0.15f),
-                                                    spotBlur = 18.dp,
-                                                    spotOffsetY = 4.dp
-                                                ),
-                                            color = SurfacePrimary,
-                                            shape = CircleShape
+                                                .padding(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
+                                            CustomTextButton(
+                                                onClick = {
+                                                    focusManager.clearFocus()
+                                                },
+                                                text = "Ask AI",
+                                                type = ButtonType.Secondary,
+                                                shapeStyle = ButtonShapeStyle.Round,
+                                                leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                                modifier = if (isViewer) Modifier.weight(1f) else Modifier
+                                            )
+
+                                            if (!isViewer) {
+                                                Spacer(Modifier.width(4.dp))
+
                                                 CustomTextButton(
                                                     onClick = {
                                                         focusManager.clearFocus()
+                                                        editingItem = null
+                                                        newItemName = ""
+                                                        newItemCuisine = "Indian"
+                                                        newItemType = "Starters"
+                                                        newItemDietary = Dietary.Veg
+                                                        showAddItemSheet = true
                                                     },
-                                                    text = "Ask AI",
-                                                    type = ButtonType.Secondary,
+                                                    text = "Add an Item",
+                                                    type = ButtonType.Primary,
                                                     shapeStyle = ButtonShapeStyle.Round,
-                                                    leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                                    modifier = if (isViewer) Modifier.weight(1f) else Modifier
+                                                    modifier = Modifier.weight(1f)
                                                 )
-
-                                                if (!isViewer) {
-                                                    Spacer(Modifier.width(4.dp))
-
-                                                    CustomTextButton(
-                                                        onClick = {
-                                                            focusManager.clearFocus()
-                                                            editingItem = null
-                                                            newItemName = ""
-                                                            newItemCuisine = "Indian"
-                                                            newItemType = "Starters"
-                                                            newItemDietary = Dietary.Veg
-                                                            showAddItemSheet = true
-                                                        },
-                                                        text = "Add an Item",
-                                                        type = ButtonType.Primary,
-                                                        shapeStyle = ButtonShapeStyle.Round,
-                                                        modifier = Modifier.weight(1f)
-                                                    )
-                                                }
                                             }
                                         }
                                     }
@@ -1129,7 +1164,6 @@ fun CateringMenuScreen(
         )
     }
 }
-
 
 @Composable
 fun MenuCategoryCard(

@@ -6,6 +6,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -16,16 +17,11 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -54,10 +50,8 @@ import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -92,7 +86,9 @@ fun CustomSearchBar(
     val focusRequester = remember { FocusRequester() }
 
     var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT) }
-    val duration = 300
+
+    val duration = 50
+    val transitionEasing = FastOutSlowInEasing
 
     // AI active status only applies when the text field is actively focused
     val effectiveIsAiSearch = isAiSearch && isFocused
@@ -170,17 +166,22 @@ fun CustomSearchBar(
 
     AnimatedContent(
         targetState = isExpanded,
-        modifier = modifier.animateContentSize(tween(durationMillis = duration)),
+        modifier = modifier.animateContentSize(
+            animationSpec = tween(
+                durationMillis = duration,
+                easing = transitionEasing
+            )
+        ),
         transitionSpec = {
             (expandHorizontally(
-                animationSpec = tween(durationMillis = duration),
+                animationSpec = tween(durationMillis = duration, easing = transitionEasing),
                 expandFrom = Alignment.Start
-            ) + fadeIn(animationSpec = tween(durationMillis = duration)))
+            ) + fadeIn(animationSpec = tween(durationMillis = duration, easing = transitionEasing)))
                 .togetherWith(
                     shrinkHorizontally(
-                        animationSpec = tween(durationMillis = duration),
+                        animationSpec = tween(durationMillis = duration, easing = transitionEasing),
                         shrinkTowards = Alignment.Start
-                    ) + fadeOut(animationSpec = tween(durationMillis = duration))
+                    ) + fadeOut(animationSpec = tween(durationMillis = duration, easing = transitionEasing))
                 )
         },
         label = "SearchBarTransition"
@@ -210,7 +211,7 @@ fun CustomSearchBar(
                         } else {
                             Modifier.border(
                                 width = 1.dp,
-                                color = if (isFocused) ContentBrandDark else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                color = if (isFocused) ContentPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                                 shape = RoundedCornerShape(100)
                             )
                         }

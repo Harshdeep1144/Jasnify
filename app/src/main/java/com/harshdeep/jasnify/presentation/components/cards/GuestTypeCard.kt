@@ -47,7 +47,6 @@ fun GuestTypeCard(
     modifier: Modifier = Modifier,
     showChecker: Boolean = true,
     isSelected: Boolean = false,
-    verticalPadding: Dp = 16.dp,
     imageUrls: List<String> = emptyList(),
     onToggle: (Boolean) -> Unit = {},
     onClick: () -> Unit = { onToggle(!isSelected) }
@@ -61,7 +60,7 @@ fun GuestTypeCard(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = verticalPadding)
+                .padding(16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
