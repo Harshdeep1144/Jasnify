@@ -156,7 +156,8 @@ fun GuestsTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    guestViewModel: GuestViewModel = hiltViewModel()
+    guestViewModel: GuestViewModel = hiltViewModel(),
+    onBackClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -328,7 +329,7 @@ fun GuestsTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible
+            hasAccess == true && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible
         }
     }
 
@@ -484,7 +485,7 @@ fun GuestsTab(
             RoomAccessGuardian(
                 hasAccess = hasAccess,
                 roomName = "Guest",
-                onBackClick = { currentView = GuestsView.MAIN }
+                onBackClick = onBackClick
             ) {
                 AnimatedContent(
                     targetState = currentView,
@@ -610,12 +611,14 @@ fun GuestsTab(
                                                                 onActiveChange = { if (it) isSearchActive = true }
                                                             )
 
-                                                            CustomTextButton(
-                                                                onClick = onAddGuestClick,
-                                                                text = "Add",
-                                                                leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                                                shapeStyle = ButtonShapeStyle.Round
-                                                            )
+                                                            if (!isViewer) {
+                                                                CustomTextButton(
+                                                                    onClick = onAddGuestClick,
+                                                                    text = "Add",
+                                                                    leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                                                    shapeStyle = ButtonShapeStyle.Round
+                                                                )
+                                                            }
                                                         }
                                                     }
 
@@ -731,6 +734,7 @@ fun GuestsTab(
                                                             invitedAt = guest.invitedAt,
                                                             type = when {
                                                                 isMultiSelectMode -> GuestCardType.SELECTABLE
+                                                                isViewer -> GuestCardType.DEFAULT
                                                                 else -> GuestCardType.INVITE_ACTION
                                                             },
                                                             isSelected = isSelected,
@@ -850,6 +854,7 @@ fun GuestsTab(
                         }
                         GuestsView.MANAGE_GUEST_TYPES -> {
                             GuestTypeScreen(
+                                isViewer = isViewer,
                                 guestTypes = guestTypes.map { typeName ->
                                     com.harshdeep.jasnify.domain.model.GuestType(
                                         name = typeName,
@@ -869,6 +874,7 @@ fun GuestsTab(
                         }
                         GuestsView.GUEST_TYPE_DETAIL -> {
                             GuestTypeDetailScreen(
+                                isViewer = isViewer,
                                 typeName = selectedGuestTypeForDetail ?: "",
                                 guests = guests.filter { it.type == selectedGuestTypeForDetail },
                                 onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
@@ -964,6 +970,7 @@ fun GuestsTab(
         val currentGuest = guests.find { it.id == selectedGuestForInfo?.id } ?: selectedGuestForInfo!!
         
         GuestDetailsBottomSheet(
+            isViewer = isViewer,
             guest = currentGuest,
             onDismiss = { selectedGuestForInfo = null },
             onProgress = { sheetMotionProgress = it },
@@ -1312,16 +1319,18 @@ fun GuestsTab(
     if (showMenuSheet) {
         val menuItems = listOf(
             listOfNotNull(
-                MenuSheetActionItem(
-                    text = "Add Guests",
-                    icon = painterResource(id = R.drawable.ic_add_circle),
-                    iconPlacement = IconPlacement.Top,
-                    onClick = {
-                        showMenuSheet = false
-                        onAddGuestClick()
-                    }
-                ),
-                if (guests.isNotEmpty()) {
+                if (!isViewer) {
+                    MenuSheetActionItem(
+                        text = "Add Guests",
+                        icon = painterResource(id = R.drawable.ic_add_circle),
+                        iconPlacement = IconPlacement.Top,
+                        onClick = {
+                            showMenuSheet = false
+                            onAddGuestClick()
+                        }
+                    )
+                } else null,
+                if (guests.isNotEmpty() && !isViewer) {
                     MenuSheetActionItem(
                         text = "Multi-Select",
                         icon = painterResource(id = R.drawable.ic_multi_select),
@@ -1451,6 +1460,7 @@ fun GuestEmptyState(
 
 @Composable
 fun GuestTypeScreen(
+    isViewer: Boolean = false,
     guestTypes: List<com.harshdeep.jasnify.domain.model.GuestType>,
     onBackClick: () -> Unit,
     onAddTypeClick: () -> Unit,
@@ -1494,52 +1504,54 @@ fun GuestTypeScreen(
                 }
             }
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.00f to Color.Transparent,
-                                0.25f to BackgroundSecondary.copy(alpha = 0.15f),
-                                0.55f to BackgroundSecondary.copy(alpha = 0.65f),
-                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                1.00f to BackgroundPrimary
-                            )
-                        )
-                    )
-                    .navigationBarsPadding()
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
-            ) {
-                Surface(
+            if (!isViewer) {
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(62.dp)
-                        .pill360Shadow(
-                            ambientColor = Color.Black.copy(alpha = 0.10f),
-                            ambientBlur = 12.dp,
-                            ambientSpread = 2.dp,
-                            spotColor = Color.Black.copy(alpha = 0.15f),
-                            spotBlur = 18.dp,
-                            spotOffsetY = 4.dp
-                        ),
-                    color = SurfacePrimary,
-                    shape = CircleShape
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0.00f to Color.Transparent,
+                                    0.25f to BackgroundSecondary.copy(alpha = 0.15f),
+                                    0.55f to BackgroundSecondary.copy(alpha = 0.65f),
+                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                    1.00f to BackgroundPrimary
+                                )
+                            )
+                        )
+                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
                 ) {
-                    Row(
+                    Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                            .height(62.dp)
+                            .pill360Shadow(
+                                ambientColor = Color.Black.copy(alpha = 0.10f),
+                                ambientBlur = 12.dp,
+                                ambientSpread = 2.dp,
+                                spotColor = Color.Black.copy(alpha = 0.15f),
+                                spotBlur = 18.dp,
+                                spotOffsetY = 4.dp
+                            ),
+                        color = SurfacePrimary,
+                        shape = CircleShape
                     ) {
-                        CustomTextButton(
-                            onClick = onAddTypeClick,
-                            text = "Add a Guest Type",
-                            leadingIcon = painterResource(id = R.drawable.ic_plus),
-                            modifier = Modifier.fillMaxWidth(),
-                            shapeStyle = ButtonShapeStyle.Round
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CustomTextButton(
+                                onClick = onAddTypeClick,
+                                text = "Add a Guest Type",
+                                leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                modifier = Modifier.fillMaxWidth(),
+                                shapeStyle = ButtonShapeStyle.Round
+                            )
+                        }
                     }
                 }
             }
@@ -1549,6 +1561,7 @@ fun GuestTypeScreen(
 
 @Composable
 fun GuestTypeDetailScreen(
+    isViewer: Boolean = false,
     typeName: String,
     guests: List<Guest>,
     onBackClick: () -> Unit,
@@ -1599,15 +1612,18 @@ fun GuestTypeDetailScreen(
                     fontWeight = FontWeight.Medium,
                     color = ContentPrimary
                 )
-                Spacer(modifier = Modifier.width(8.dp))
 
-                CustomIconButton(
-                    icon = painterResource(R.drawable.ic_edit),
-                    size = ButtonSize.Small,
-                    contentColor = ContentPrimary,
-                    containerColor = ContentInvPrimary,
-                    onClick = onEditTypeClick
-                )
+                if (!isViewer) {
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    CustomIconButton(
+                        icon = painterResource(R.drawable.ic_edit),
+                        size = ButtonSize.Small,
+                        contentColor = ContentPrimary,
+                        containerColor = ContentInvPrimary,
+                        onClick = onEditTypeClick
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
 
@@ -1704,7 +1720,7 @@ fun GuestTypeDetailScreen(
                             isInvited = guest.invited,
                             invitedBy = guest.invitedBy,
                             invitedAt = guest.invitedAt,
-                            type = GuestCardType.INVITE_ACTION,
+                            type = if (isViewer) GuestCardType.DEFAULT else GuestCardType.INVITE_ACTION,
                             labelColor = getGuestTypeColor(guest.type),
                             showActions = isExpanded,
                             onCardClick = {
@@ -1723,6 +1739,7 @@ fun GuestTypeDetailScreen(
 
 @Composable
 fun GuestSearchContent(
+    isViewer: Boolean = false,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onBackClick: () -> Unit,
@@ -1879,7 +1896,7 @@ fun GuestSearchContent(
                             isInvited = guest.invited,
                             invitedBy = guest.invitedBy,
                             invitedAt = guest.invitedAt,
-                            type = GuestCardType.INVITE_ACTION,
+                            type = if (isViewer) GuestCardType.DEFAULT else GuestCardType.INVITE_ACTION,
                             labelColor = getGuestTypeColor(guest.type),
                             onCardClick = {
                                 onGuestClick(guest)

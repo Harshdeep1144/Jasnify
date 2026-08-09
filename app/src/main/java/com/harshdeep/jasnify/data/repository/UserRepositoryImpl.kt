@@ -247,7 +247,7 @@ class UserRepositoryImpl @Inject constructor(
 
         // 2. Fallback: Manual Room-by-Room Check (if no group results and eventId is provided)
         if (pendingByEvent.isEmpty() && eventId.isNotBlank()) {
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
             for (roomType in rooms) {
                 try {
                     // We check against the input eventId (Doc ID or Short Code)
@@ -482,7 +482,7 @@ class UserRepositoryImpl @Inject constructor(
             }
 
             // Target search fallback for specific event
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
 
             // We check against EVERY potential ID variant Bob might have entered or Admin might have used
             val eventIdsToCheck = (listOf(actualDocId, eventId) + docIdsToTry).distinct()
@@ -578,7 +578,7 @@ class UserRepositoryImpl @Inject constructor(
 
             // 2. Remove from all rooms in the event (Deletes from room sub-collections)
             // We use the room sub-collection deletion part only since profile is already updated
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
             for (room in rooms) {
                 val collectionName = getUserCollectionName(room)
                 firestore.collection("events").document(eventId)

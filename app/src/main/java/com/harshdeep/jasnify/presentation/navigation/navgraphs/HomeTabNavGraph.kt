@@ -128,7 +128,12 @@ fun NavGraphBuilder.homeNavGraph(
         exitTransition = exitTransition
     ) {
         GuestsTab(
-            onBottomBarVisibilityChange = onBottomBarVisibilityChange
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            onBackClick = {
+                navController.navigate(Screen.HomeTabScreen.Home.route) {
+                    popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
+                }
+            }
         )
     }
 

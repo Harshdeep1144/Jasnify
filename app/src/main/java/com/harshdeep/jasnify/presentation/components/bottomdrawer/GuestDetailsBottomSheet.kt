@@ -67,6 +67,7 @@ import sv.lib.squircleshape.SquircleShape
 
 @Composable
 fun GuestDetailsBottomSheet(
+    isViewer: Boolean = false,
     guest: Guest,
     onDismiss: () -> Unit,
     onEditClick: () -> Unit,
@@ -132,20 +133,22 @@ fun GuestDetailsBottomSheet(
                     color = ContentPrimary
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                if (!isViewer) {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // Invite Button
-                CustomTextButton(
-                    onClick = onInviteClick,
-                    text = if (guest.invited) "Invited" else "Mark as invited",
-                    size = ButtonSize.Small,
-                    type = ButtonType.Primary,
-                    shapeStyle = ButtonShapeStyle.Round,
-                    containerColor = if (guest.invited) ContentInvPrimary else ContentPrimary,
-                    contentColor = if (guest.invited) ContentPrimary else ContentInvPrimary,
-                    enabled = true,
-                    leadingIcon = if (guest.invited) painterResource(R.drawable.ic_check) else null,
-                )
+                    // Invite Button
+                    CustomTextButton(
+                        onClick = onInviteClick,
+                        text = if (guest.invited) "Invited" else "Mark as invited",
+                        size = ButtonSize.Small,
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Round,
+                        containerColor = if (guest.invited) ContentInvPrimary else ContentPrimary,
+                        contentColor = if (guest.invited) ContentPrimary else ContentInvPrimary,
+                        enabled = true,
+                        leadingIcon = if (guest.invited) painterResource(R.drawable.ic_check) else null,
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -233,29 +236,31 @@ fun GuestDetailsBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            if (!isViewer) {
+                Spacer(Modifier.height(24.dp))
 
-            // Footer Buttons
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CustomIconButton(
-                    onClick = onDeleteClick,
-                    icon = painterResource(R.drawable.ic_delete),
-                    shapeStyle = ButtonShapeStyle.Square,
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.error
-                )
+                // Footer Buttons
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CustomIconButton(
+                        onClick = onDeleteClick,
+                        icon = painterResource(R.drawable.ic_delete),
+                        shapeStyle = ButtonShapeStyle.Square,
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
 
-                CustomTextButton(
-                    onClick = onEditClick,
-                    text = "Edit Details",
-                    modifier = Modifier.weight(1f),
-                    type = ButtonType.Secondary,
-                    shapeStyle = ButtonShapeStyle.Square,
-                )
+                    CustomTextButton(
+                        onClick = onEditClick,
+                        text = "Edit Details",
+                        modifier = Modifier.weight(1f),
+                        type = ButtonType.Secondary,
+                        shapeStyle = ButtonShapeStyle.Square,
+                    )
+                }
             }
         }
     }
