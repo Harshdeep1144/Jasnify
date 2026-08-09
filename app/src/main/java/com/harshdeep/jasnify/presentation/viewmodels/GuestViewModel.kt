@@ -20,14 +20,19 @@ class GuestViewModel @Inject constructor(
     private val _guests = MutableStateFlow<List<Guest>>(emptyList())
     val guests: StateFlow<List<Guest>> = _guests.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val _eventId = MutableStateFlow<String?>(null)
 
     fun setEventId(eventId: String) {
         if (_eventId.value == eventId) return
         _eventId.value = eventId
         viewModelScope.launch {
+            _isLoading.value = true
             repository.getGuests(eventId).collectLatest {
                 _guests.value = it
+                _isLoading.value = false
             }
         }
     }

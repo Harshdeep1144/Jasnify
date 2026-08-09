@@ -168,6 +168,7 @@ fun GuestsTab(
     val roomSearchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
+    val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -202,7 +203,6 @@ fun GuestsTab(
 
     val guests = guestsFromCloud
 
-    var showEmptyState by remember { mutableStateOf(true) }
     var selectedGuestForInfo by remember { mutableStateOf<Guest?>(null) }
     var guestToDeleteForInfo by remember { mutableStateOf<Guest?>(null) }
     var selectedGuestForEdit by remember { mutableStateOf<Guest?>(null) }
@@ -529,8 +529,11 @@ fun GuestsTab(
                                         getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
                                         onInviteToggle = onInviteToggle
                                     )
+                                } else if (isLoading) {
+                                    // Initial loading state - show nothing or a skeleton to prevent flickering
+                                    Box(modifier = Modifier.fillMaxSize())
                                 } else {
-                                    if (guests.isEmpty() && showEmptyState) {
+                                    if (guests.isEmpty()) {
                                         GuestEmptyState(
                                             hasContactPermission = hasContactPermission,
                                             onAddGuestClick = onAddGuestClick
@@ -990,7 +993,6 @@ fun GuestsTab(
             onConfirm = {
                 guestViewModel.deleteGuest(guest.id)
                 guestToDeleteForInfo = null
-                if (guests.isEmpty()) showEmptyState = true
             },
             onProgress = { sheetMotionProgress = it }
         )
@@ -1019,7 +1021,6 @@ fun GuestsTab(
                 selectedGuestIds.clear()
                 isMultiSelectMode = false
                 showMultiDeleteConfirmation = false
-                if (guests.isEmpty()) showEmptyState = true
             },
             onProgress = { sheetMotionProgress = it }
         )
@@ -1063,7 +1064,6 @@ fun GuestsTab(
                             lastUpdatedAt = timestamp
                         ))
                         showAddGuestSheet = false
-                        showEmptyState = false
                     }
                 }
             },
@@ -1213,7 +1213,6 @@ fun GuestsTab(
                         showSuccessSheet = true
                     }
 
-                    showEmptyState = false
                     showContactPicker = false
                 }
             },
