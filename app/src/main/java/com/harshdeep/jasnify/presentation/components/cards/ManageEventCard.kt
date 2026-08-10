@@ -270,7 +270,7 @@ fun ManageEventCardPreview() {
             "Budget Tracker" to UserRole.EDITOR,
             "Catering Menu" to UserRole.VIEWER,
             "Venue" to UserRole.EDITOR,
-            "Cards & Guests" to UserRole.EDITOR,
+            "Guests & Cards" to UserRole.EDITOR,
             "Moments" to UserRole.VIEWER
         )
     )

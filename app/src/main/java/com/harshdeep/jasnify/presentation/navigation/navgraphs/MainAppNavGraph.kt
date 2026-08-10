@@ -14,6 +14,7 @@ import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
+import com.harshdeep.jasnify.presentation.screens.cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.home.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
@@ -282,6 +283,17 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     }
                 },
                 eventViewModel = eventViewModel
+            )
+        }
+
+        // Cards Feature
+        composable(Screen.CardsRoot.route) { entry ->
+            CardsScreen(
+                onBackClick = {
+                    if (mainNavController.previousBackStackEntry != null) {
+                        mainNavController.popBackStack()
+                    }
+                }
             )
         }
     }

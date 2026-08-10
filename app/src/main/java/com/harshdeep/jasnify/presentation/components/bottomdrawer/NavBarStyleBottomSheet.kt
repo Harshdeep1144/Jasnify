@@ -109,9 +109,9 @@ fun NavBarStyleContent(
 
     val navItems = listOf(
         Screen.HomeTabScreen.Home,
-        Screen.HomeTabScreen.Inspirations,
-        Screen.HomeTabScreen.Checklists,
         Screen.HomeTabScreen.Vendors,
+        Screen.HomeTabScreen.Checklists,
+        Screen.HomeTabScreen.Guests,
         Screen.HomeTabScreen.Profile
     )
 

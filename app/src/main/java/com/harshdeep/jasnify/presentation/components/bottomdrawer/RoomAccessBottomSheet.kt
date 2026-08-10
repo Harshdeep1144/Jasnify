@@ -6,39 +6,62 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.PersonAddAlt
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.vectorResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.buttons.*
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * Validates whether the search query matches a standard email format.
@@ -57,7 +80,6 @@ fun RoomAccessBottomSheet(
     onSearch: (String) -> Unit,
     onProgress: ((Float) -> Unit)? = null
 ) {
-    // Hoisting state variables to compute the bottom sheet's height dynamically
     var searchQuery by remember { mutableStateOf("") }
     var selectedUser by remember { mutableStateOf<User?>(null) }
     var selectedRole by remember { mutableStateOf(UserRole.VIEWER) }
@@ -67,20 +89,22 @@ fun RoomAccessBottomSheet(
     val isShowingInvite = searchQuery.isNotEmpty() && searchResults.isEmpty() && hasValidEmail && selectedUser == null
     val isUserSelected = selectedUser != null
 
-    // Determine the target sheet height dynamically based on active visual states
+    // Determine target height dynamically based on state and search result count
     val targetHeight = when {
-        isShowingResults -> 420.dp
-        isShowingInvite -> 290.dp
-        isUserSelected -> 290.dp
+        isShowingResults -> {
+            val dynamicHeight = 220.dp + (searchResults.size * 72).dp
+            dynamicHeight.coerceIn(290.dp, 460.dp)
+        }
+        isShowingInvite || isUserSelected -> 290.dp
         else -> 220.dp
     }
 
-    // Smoothly animate the height transitions
+    // Smoothly animate height transitions
     val animatedSheetHeight by animateDpAsState(
         targetValue = targetHeight,
         animationSpec = spring(
-            dampingRatio = 0.85f, // Clean modern spring bounce
-            stiffness = 400f      // Responsive transition speed
+            dampingRatio = 0.85f,
+            stiffness = 400f
         ),
         label = "BottomSheetHeight"
     )
@@ -126,101 +150,103 @@ fun RoomAccessBottomSheetContent(
     onGrantAccess: (String, UserRole) -> Unit,
     searchResults: List<User>
 ) {
+    val focusRequester = remember { FocusRequester() }
+
+    // Auto-focus input and raise keyboard when bottom sheet opens
+    LaunchedEffect(Unit) {
+        delay(150.milliseconds)
+        focusRequester.requestFocus()
+    }
+
     Column(
         modifier = Modifier
-            .fillMaxSize() 
+            .fillMaxSize()
             .padding(12.dp)
             .navigationBarsPadding()
     ) {
-        Column(
+        // Top-anchored input keeps the Compose layout node stable across recompositions
+        PrimaryInput(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = "Email or username",
             modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(focusRequester)
+        )
+
+        // Dynamic result list container
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
                 .weight(1f)
+                .padding(vertical = 8.dp)
                 .animateContentSize()
         ) {
-            PrimaryInput(
-                value = searchQuery,
-                onValueChange = onSearchQueryChange,
-                placeholder = "Email or username",
-            )
-
             if (searchQuery.isNotEmpty() && selectedUser == null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(top = 8.dp)
-                ) {
-                    if (searchResults.isNotEmpty()) {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            items(searchResults) { user ->
-                                UserSearchItem(
-                                    user = user,
-                                    onClick = { onSelectedUserChange(user) }
-                                )
-                            }
+                if (searchResults.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        items(searchResults) { user ->
+                            UserSearchItem(
+                                user = user,
+                                onClick = { onSelectedUserChange(user) }
+                            )
                         }
                     }
-
-                    // Checks if search is empty but the text is a valid formal email format
-                    if (searchResults.isEmpty() && isValidEmail(searchQuery)) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                .background(SurfaceSecondary.copy(alpha = 0.5f))
-                                .clickable {
-                                    onSelectedUserChange(
-                                        User(
-                                            name = searchQuery.substringBefore("@"),
-                                            email = searchQuery,
-                                            username = "",
-                                            role = UserRole.VIEWER
-                                        )
+                } else if (isValidEmail(searchQuery)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(SurfaceSecondary.copy(alpha = 0.5f))
+                            .clickable {
+                                onSelectedUserChange(
+                                    User(
+                                        name = searchQuery.substringBefore("@"),
+                                        email = searchQuery,
+                                        username = "",
+                                        role = UserRole.VIEWER
                                     )
-                                }
-                                .padding(12.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    painter = painterResource(R.drawable.ic_user_profile),
-                                    contentDescription = null,
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(48.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Text(
-                                    text = "Invite '$searchQuery'",
-                                    color = ContentPrimary,
-                                    style = JasnifyTheme.typography.labelXLarge
                                 )
                             }
+                            .padding(12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_user_profile),
+                                contentDescription = null,
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(48.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = "Invite '$searchQuery'",
+                                color = ContentPrimary,
+                                style = JasnifyTheme.typography.labelXLarge
+                            )
                         }
                     }
                 }
             } else if (selectedUser != null) {
-                Column(modifier = Modifier.padding(vertical = 8.dp)) {
-                    UserSearchItem(
-                        user = selectedUser,
-                        onClick = { onSelectedUserChange(null) },
-                        modifier = Modifier.background(SurfaceBrandSecondary, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                UserSearchItem(
+                    user = selectedUser,
+                    onClick = { onSelectedUserChange(null) },
+                    modifier = Modifier.background(
+                        SurfaceBrandSecondary,
+                        SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
                     )
-                }
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
+                )
             }
         }
 
+        // Footer action controls
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp)
+            modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 FilterChip(

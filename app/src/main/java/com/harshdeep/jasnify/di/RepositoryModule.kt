@@ -2,8 +2,11 @@ package com.harshdeep.jasnify.di
 
 import com.harshdeep.jasnify.data.repository.ChecklistRepositoryImpl
 import com.harshdeep.jasnify.data.repository.EnquiryRepositoryImpl
+import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.repository.ChecklistRepository
 import com.harshdeep.jasnify.domain.repository.EnquiryRepository
+import com.harshdeep.jasnify.domain.repository.GuestRepository
+import com.harshdeep.jasnify.data.repository.GuestRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -55,4 +58,10 @@ abstract class RepositoryModule {
     abstract fun bindVendorRepository(
         vendorRepositoryImpl: com.harshdeep.jasnify.data.repository.VendorRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.VendorRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGuestRepository(
+        guestRepositoryImpl: GuestRepositoryImpl
+    ): GuestRepository
 }

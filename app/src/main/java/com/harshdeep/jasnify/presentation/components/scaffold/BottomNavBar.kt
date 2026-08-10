@@ -79,7 +79,7 @@ import kotlin.time.Duration.Companion.milliseconds
 fun Modifier.pill360Shadow(
     ambientColor: Color = Color.Black.copy(alpha = 0.08f),
     ambientBlur: Dp = 12.dp,
-    ambientSpread: Dp = 2.dp,
+    ambientSpread: Dp = 0.dp,
     spotColor: Color = Color.Black.copy(alpha = 0.14f),
     spotBlur: Dp = 16.dp,
     spotOffsetY: Dp = 4.dp
@@ -139,9 +139,9 @@ fun BottomNavBar(
 ) {
     val navItems = listOf(
         Screen.HomeTabScreen.Home,
-        Screen.HomeTabScreen.Inspirations,
-        Screen.HomeTabScreen.Checklists,
         Screen.HomeTabScreen.Vendors,
+        Screen.HomeTabScreen.Checklists,
+        Screen.HomeTabScreen.Guests,
         Screen.HomeTabScreen.Profile
     )
 

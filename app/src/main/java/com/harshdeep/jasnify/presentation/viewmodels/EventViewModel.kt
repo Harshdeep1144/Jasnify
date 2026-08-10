@@ -211,6 +211,9 @@ class EventViewModel @Inject constructor(
      * Saves the event data to Cloud Firestore.
      */
     fun saveEventData(eventData: EventCreateUiState) {
+        // Prevent multiple simultaneous save requests
+        if (_eventState.value is EventCreationState.Loading) return
+
         val user = auth.currentUser
         if (user == null) {
             _eventState.value = EventCreationState.Error("Login to save event.")
@@ -278,13 +281,14 @@ class EventViewModel @Inject constructor(
                                     "Catering" to UserRole.OWNER,
                                     "Checklist" to UserRole.OWNER,
                                     "Vendors" to UserRole.OWNER,
-                                    "Venue" to UserRole.OWNER
+                                    "Venue" to UserRole.OWNER,
+                                    "Guest" to UserRole.OWNER
                                 )
                             )
                             userRepository.updateUserJoinedEvents(userId, userEvent)
 
                             // 2. Grant room-specific access (internal collections)
-                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
                             val currentUserEmail = auth.currentUser?.email
                             val currentUserId = auth.currentUser?.uid
                             if (currentUserEmail != null && currentUserId != null) {
@@ -314,6 +318,7 @@ class EventViewModel @Inject constructor(
             "checklist" -> "checklist_room_users"
             "vendors" -> "vendors_room_users"
             "venue" -> "venue_room_users"
+            "guest" -> "guest_room_users"
             else -> "room_users"
         }
         
@@ -486,7 +491,7 @@ class EventViewModel @Inject constructor(
 
             // 2. Check if user is a member of ANY room (Budget, Catering, etc.)
             // We search for the user's UID in all room-specific user collections
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
             for (room in rooms) {
                 val collectionName = when (room.lowercase()) {
                     "budget" -> "budget_room_users"
@@ -494,6 +499,7 @@ class EventViewModel @Inject constructor(
                     "checklist" -> "checklist_room_users"
                     "vendors" -> "vendors_room_users"
                     "venue" -> "venue_room_users"
+                    "guest" -> "guest_room_users"
                     else -> "room_users"
                 }
 

@@ -25,7 +25,7 @@ sealed class Screen(val route: String) {
     // --- Bottom Navigation Tab Items ---
     sealed class HomeTabScreen(val route: String, @DrawableRes val iconResId: Int, val title: String) {
         data object Home : HomeTabScreen("home_tab_root", R.drawable.ic_home, "Home")
-        data object Inspirations : HomeTabScreen("inspirations_tab_root", R.drawable.ic_inspirations, "Inspiration")
+        data object Guests : HomeTabScreen("guests_tab_root", R.drawable.ic_guests, "Guests")
         data object Checklists : HomeTabScreen("checklists_tab_root", R.drawable.ic_checklists, "Checklist")
         data object Vendors : HomeTabScreen("vendors_tab_root", R.drawable.ic_vendor, "Vendor")
         data object Profile : HomeTabScreen("profile_tab_root", R.drawable.ic_profile, "Profile")
@@ -49,6 +49,9 @@ sealed class Screen(val route: String) {
 
     // Catering Feature
     data object CateringRoot : Screen("catering_root_screen")
+
+    // Cards Feature
+    data object CardsRoot : Screen("cards_root_screen")
 
     // Messaging
     data object ChatScreen : Screen("chat_screen/{merchantId}/{itemId}?itemType={itemType}")
