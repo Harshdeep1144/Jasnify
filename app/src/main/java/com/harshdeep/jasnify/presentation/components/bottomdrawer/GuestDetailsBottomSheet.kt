@@ -153,7 +153,7 @@ fun GuestDetailsBottomSheet(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Recent Activity Card (Moved to top of info card)
-                if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank() || !guest.addedBy.isNullOrBlank()) {
+                if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.updatedBy.isNullOrBlank() || !guest.addedBy.isNullOrBlank()) {
                     RecentActivityCard(guest = guest)
                     Spacer(modifier = Modifier.height(12.dp))
                 }
@@ -351,7 +351,7 @@ fun RecentActivityCard(
                     }
 
                     // Last Updated Row
-                    if (!guest.lastUpdatedBy.isNullOrBlank()) {
+                    if (!guest.updatedBy.isNullOrBlank()) {
                         if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             DashedDivider()
@@ -360,14 +360,14 @@ fun RecentActivityCard(
                         ActivityItem(
                             iconRes = R.drawable.ic_edit_pen,
                             label = "Last updated by",
-                            userName = guest.lastUpdatedBy,
-                            timestamp = guest.lastUpdatedAt
+                            userName = guest.updatedBy,
+                            timestamp = guest.updatedAt
                         )
                     }
 
                     // Added Row
                     if (!guest.addedBy.isNullOrBlank()) {
-                        if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank()) {
+                        if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.updatedBy.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(12.dp))
                             DashedDivider()
                             Spacer(modifier = Modifier.height(12.dp))
@@ -442,8 +442,8 @@ fun PreviewGuestInfoBottomSheet() {
                 invited = true,
                 invitedBy = "Anand K.",
                 invitedAt = "Aug 30, 2026, 12:09pm",
-                lastUpdatedBy = "Anand K.",
-                lastUpdatedAt = "Aug 25, 2026, 09:44pm",
+                updatedBy = "Anand K.",
+                updatedAt = "Aug 25, 2026, 09:44pm",
                 addedBy = "Steve R.",
                 addedAt = "Aug 24, 2026, 01:04pm"
             ),

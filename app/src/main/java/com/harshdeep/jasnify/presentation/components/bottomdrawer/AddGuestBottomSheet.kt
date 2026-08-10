@@ -345,8 +345,8 @@ fun AddGuestInfoBottomSheet(
                                     invited = initialGuest?.invited ?: false,
                                     invitedBy = initialGuest?.invitedBy,
                                     invitedAt = initialGuest?.invitedAt,
-                                    lastUpdatedBy = initialGuest?.lastUpdatedBy,
-                                    lastUpdatedAt = initialGuest?.lastUpdatedAt,
+                                    updatedBy = initialGuest?.updatedBy,
+                                    updatedAt = initialGuest?.updatedAt,
                                     addedBy = initialGuest?.addedBy,
                                     addedAt = initialGuest?.addedAt
                                 )

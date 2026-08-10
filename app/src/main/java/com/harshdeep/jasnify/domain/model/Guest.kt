@@ -14,8 +14,8 @@ data class Guest(
     val imageUrl: String? = null,
     val invitedBy: String? = null,
     val invitedAt: String? = null,
-    val lastUpdatedBy: String? = null,
-    val lastUpdatedAt: String? = null,
+    val updatedBy: String? = null,
+    val updatedAt: String? = null,
     val addedBy: String? = null,
     val addedAt: String? = null
 ) {
