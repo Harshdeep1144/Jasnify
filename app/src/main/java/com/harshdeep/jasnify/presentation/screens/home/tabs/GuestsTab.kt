@@ -405,7 +405,7 @@ fun GuestsTab(
 
             val isInviting = !guest.invited
             val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
-            
+
             guestViewModel.updateGuest(guest.copy(
                 invited = isInviting,
                 invitedBy = if (isInviting) currentUserName else null,
@@ -968,7 +968,7 @@ fun GuestsTab(
 
     if (selectedGuestForInfo != null) {
         val currentGuest = guests.find { it.id == selectedGuestForInfo?.id } ?: selectedGuestForInfo!!
-        
+
         GuestDetailsBottomSheet(
             isViewer = isViewer,
             guest = currentGuest,
@@ -1183,7 +1183,8 @@ fun GuestsTab(
             onApply = { types ->
                 selectedTypesFilter = types
                 showTypeFilterSheet = false
-            }
+            },
+            imageUrls = guests.mapNotNull { it.imageUrl }.distinct()
         )
     }
 
@@ -1384,7 +1385,7 @@ fun GuestsTab(
                     text = if (isOwner) "Manage Room Access" else "Room Members",
                     icon = painterResource(id = R.drawable.ic_user_default),
                     iconPlacement = IconPlacement.Left,
-                    onClick = { 
+                    onClick = {
                         showMenuSheet = false
                         currentView = GuestsView.ROOM_ACCESS
                     }
