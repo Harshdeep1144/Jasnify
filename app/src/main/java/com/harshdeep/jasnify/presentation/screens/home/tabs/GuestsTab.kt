@@ -94,6 +94,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
@@ -205,6 +206,7 @@ fun GuestsTab(
     val guests = guestsFromCloud
 
     var selectedGuestForInfo by remember { mutableStateOf<Guest?>(null) }
+    var selectedGuestForRecentActivity by remember { mutableStateOf<Guest?>(null) }
     var guestToDeleteForInfo by remember { mutableStateOf<Guest?>(null) }
     var selectedGuestForEdit by remember { mutableStateOf<Guest?>(null) }
     var selectedGuestTypeForEdit by remember { mutableStateOf<String?>(null) }
@@ -312,6 +314,7 @@ fun GuestsTab(
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
             selectedGuestForInfo != null ||
+                    selectedGuestForRecentActivity != null ||
                     selectedGuestForEdit != null ||
                     showAddGuestSheet ||
                     showAddTypeSheet ||
@@ -980,7 +983,18 @@ fun GuestsTab(
             onDeleteClick = {
                 guestToDeleteForInfo = currentGuest
                 selectedGuestForInfo = null
+            },
+            onRecentActivityClick = {
+                selectedGuestForRecentActivity = currentGuest
             }
+        )
+    }
+
+    if (selectedGuestForRecentActivity != null) {
+        RecentActivityBottomSheet(
+            guest = selectedGuestForRecentActivity!!,
+            onDismiss = { selectedGuestForRecentActivity = null },
+            onProgress = { sheetMotionProgress = it }
         )
     }
 
@@ -1786,6 +1800,7 @@ fun GuestSearchContent(
 
         if (searchQuery.isEmpty() && recentSearches.isNotEmpty()) {
             Column(modifier = Modifier.padding(horizontal = 12.dp)) {
+                Spacer(Modifier.height(24.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

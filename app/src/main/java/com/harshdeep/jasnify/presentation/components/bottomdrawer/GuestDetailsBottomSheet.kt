@@ -1,6 +1,5 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.EaseInOut
 import androidx.compose.animation.core.animateFloatAsState
@@ -11,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +73,7 @@ fun GuestDetailsBottomSheet(
     onEditClick: () -> Unit,
     onInviteClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onRecentActivityClick: () -> Unit = {},
     labelColor: Color = Color(0xFF635994),
     onProgress: (Float) -> Unit = {}
 ) {
@@ -80,6 +81,7 @@ fun GuestDetailsBottomSheet(
         heading = "Guest Details",
         onDismiss = onDismiss,
         onProgress = onProgress,
+        showDragHandle = false,
         sheetHeight = null
     ) {
         Column(
@@ -152,9 +154,46 @@ fun GuestDetailsBottomSheet(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Recent Activity Card (Moved to top of info card)
+                // Recent Activity Row
                 if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.updatedBy.isNullOrBlank() || !guest.addedBy.isNullOrBlank()) {
-                    RecentActivityCard(guest = guest)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onRecentActivityClick
+                            ),
+                        color = SurfacePrimary,
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_clock_forward),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = ContentSecondary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Recent Activity",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentSecondary
+                                )
+                            }
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_right_chevron),
+                                contentDescription = null,
+                                modifier = Modifier.size(24.dp),
+                                tint = ContentPrimary
+                            )
+                        }
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
@@ -265,81 +304,35 @@ fun GuestDetailsBottomSheet(
     }
 }
 
-private fun formatUserName(name: String?): String {
-    if (name.isNullOrBlank()) return "Anonymous"
-    val parts = name.trim().split("\\s+".toRegex())
-    return if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
-}
-
 @Composable
-fun RecentActivityCard(
+fun RecentActivityBottomSheet(
     guest: Guest,
-    modifier: Modifier = Modifier
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit = {}
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val rotationAngle by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = tween(durationMillis = 200),
-        label = "arrow_rotation"
-    )
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize(animationSpec = tween(200, easing = EaseInOut)),
-        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
-        color = SurfacePrimary
+    CustomBottomSheet(
+        heading = "Recent Activity",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        showDragHandle = false,
+        sheetHeight = 312.dp
     ) {
         Column(
             modifier = Modifier
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { expanded = !expanded }
-                )
-                .padding(16.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
         ) {
-            // Dropdown Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                    .border(1.dp, SurfaceSecondary, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)),
+                color = SurfacePrimary,
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_clock_forward),
-                        contentDescription = null,
-                        modifier = Modifier.size(24.dp),
-                        tint = ContentPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Recent Activity",
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentPrimary
-                    )
-                }
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_down),
-                    contentDescription = if (expanded) "Collapse updates" else "Expand updates",
-                    modifier = Modifier
-                        .size(20.dp)
-                        .rotate(rotationAngle),
-                    tint = ContentPrimary
-                )
-            }
-
-            // Expandable Content
-            AnimatedVisibility(
-                visible = expanded,
-                enter = fadeIn(tween(150)) + expandVertically(tween(150)),
-                exit = fadeOut(tween(150)) + shrinkVertically(tween(150))
-            ) {
-                Column {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    DashedDivider()
-                    Spacer(modifier = Modifier.height(16.dp))
-
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
                     // Invited Row
                     if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
                         ActivityItem(
@@ -353,13 +346,11 @@ fun RecentActivityCard(
                     // Last Updated Row
                     if (!guest.updatedBy.isNullOrBlank()) {
                         if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(12.dp))
                             DashedDivider()
-                            Spacer(modifier = Modifier.height(12.dp))
                         }
                         ActivityItem(
                             iconRes = R.drawable.ic_edit_pen,
-                            label = "Last updated by",
+                            label = "Last Edited by",
                             userName = guest.updatedBy,
                             timestamp = guest.updatedAt
                         )
@@ -368,9 +359,7 @@ fun RecentActivityCard(
                     // Added Row
                     if (!guest.addedBy.isNullOrBlank()) {
                         if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.updatedBy.isNullOrBlank()) {
-                            Spacer(modifier = Modifier.height(12.dp))
                             DashedDivider()
-                            Spacer(modifier = Modifier.height(12.dp))
                         }
                         ActivityItem(
                             iconRes = R.drawable.ic_add_circle,
@@ -381,8 +370,15 @@ fun RecentActivityCard(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
+}
+
+private fun formatUserName(name: String?): String {
+    if (name.isNullOrBlank()) return "Anonymous"
+    val parts = name.trim().split("\\s+".toRegex())
+    return if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
 }
 
 @Composable
@@ -397,22 +393,22 @@ private fun ActivityItem(
             painter = painterResource(id = iconRes),
             contentDescription = null,
             modifier = Modifier.size(18.dp),
-            tint = ContentTertiary
+            tint = ContentSecondary
         )
         Spacer(modifier = Modifier.width(8.dp))
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = label,
-                    style = JasnifyTheme.typography.bodyMedium,
+                    style = JasnifyTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Light,
-                    color = ContentTertiary
+                    color = ContentSecondary
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = formatUserName(userName),
-                    style = JasnifyTheme.typography.bodyMedium,
-                    color = ContentTertiary
+                    style = JasnifyTheme.typography.bodyLarge,
+                    color = ContentSecondary
                 )
             }
 
@@ -420,9 +416,9 @@ private fun ActivityItem(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = timestamp,
-                    style = JasnifyTheme.typography.bodyMedium,
+                    style = JasnifyTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Light,
-                    color = ContentTertiary
+                    color = ContentSecondary
                 )
             }
         }
