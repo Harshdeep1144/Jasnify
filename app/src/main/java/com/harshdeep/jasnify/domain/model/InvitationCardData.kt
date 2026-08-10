@@ -31,7 +31,7 @@ data class TextElement(
     val zIndex: Int = 0
 )
 
-data class InvitationCard(
+data class InvitationCardData(
     val id: String = UUID.randomUUID().toString(),
     val backgroundRes: Int = R.drawable.bg_invitation_card_01,
     val backgroundColorHex: Long = 0xFFFFFDF9L,

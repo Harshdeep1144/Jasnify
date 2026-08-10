@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.InvitationCard
+import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -55,7 +55,7 @@ fun CardsScreen(
     var currentView by remember { mutableStateOf(InvitationCardsView.MAIN) }
 
     // Unified state for invitation card data using domain model
-    var cardData by remember { mutableStateOf(InvitationCard()) }
+    var cardData by remember { mutableStateOf(InvitationCardData()) }
 
     // Sync state with active event once loaded by mapping values into the card's TextElement list
     LaunchedEffect(activeEvent) {
@@ -108,7 +108,7 @@ fun CardsScreen(
 
 @Composable
 fun InvitationCardsMainContent(
-    cardData: InvitationCard,
+    cardData: InvitationCardData,
     onBackClick: () -> Unit,
     onEditDetailsClick: () -> Unit
 ) {
@@ -129,9 +129,9 @@ fun InvitationCardsMainContent(
         pageCount = { Int.MAX_VALUE }
     )
 
-    var cardToCapture by remember { mutableStateOf<InvitationCard?>(null) }
+    var cardToCapture by remember { mutableStateOf<InvitationCardData?>(null) }
 
-    val onShareTrigger = { data: InvitationCard, whatsappOnly: Boolean ->
+    val onShareTrigger = { data: InvitationCardData, whatsappOnly: Boolean ->
         coroutineScope.launch {
             cardToCapture = data
             delay(100.milliseconds) // Brief delay to allow graphicsLayer to record the specific card

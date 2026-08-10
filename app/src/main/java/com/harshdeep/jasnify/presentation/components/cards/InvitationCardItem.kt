@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import com.harshdeep.jasnify.domain.model.InvitationCard
+import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
@@ -41,14 +41,14 @@ import sv.lib.squircleshape.SquircleShape
 @Composable
 fun InvitationCardItem(
     modifier: Modifier = Modifier,
-    data: InvitationCard = InvitationCard(),
+    data: InvitationCardData = InvitationCardData(),
     pageOffset: Float = 0f,
     isEditable: Boolean = false,
     showControls: Boolean = false,
     forCapture: Boolean = false,
     onLikeClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onUpdate: (InvitationCard) -> Unit = {}
+    onUpdate: (InvitationCardData) -> Unit = {}
 ) {
     val scale = lerp(
         start = 0.9f,

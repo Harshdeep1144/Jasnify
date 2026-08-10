@@ -43,7 +43,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.InvitationCard
+import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.defaultElements
@@ -55,8 +55,8 @@ import java.util.UUID
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditInvitationDetailsScreen(
-    initialData: InvitationCard = InvitationCard(),
-    onDataChange: (InvitationCard) -> Unit = {},
+    initialData: InvitationCardData = InvitationCardData(),
+    onDataChange: (InvitationCardData) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     var editingData by remember { mutableStateOf(initialData) }
@@ -213,7 +213,7 @@ fun EditInvitationDetailsScreen(
 
 @Composable
 fun InteractiveCardCanvas(
-    card: InvitationCard,
+    card: InvitationCardData,
     selectedElementId: String?,
     onSelectElement: (String) -> Unit,
     onUpdateElement: (TextElement) -> Unit,
@@ -529,8 +529,8 @@ fun ElementInspectorSheet(
 
 @Composable
 fun GlobalCardSheet(
-    card: InvitationCard,
-    onUpdateCard: (InvitationCard) -> Unit,
+    card: InvitationCardData,
+    onUpdateCard: (InvitationCardData) -> Unit,
     onAddHeading: () -> Unit,
     onAddSubheading: () -> Unit,
     onAddBody: () -> Unit,

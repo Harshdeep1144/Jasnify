@@ -18,7 +18,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.InvitationCard
+import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.presentation.components.cards.InvitationCardItem
 import com.harshdeep.jasnify.theme.*
 import kotlin.math.absoluteValue
@@ -27,12 +27,12 @@ import kotlin.math.absoluteValue
 @Composable
 fun InvitationCardCarousel(
     modifier: Modifier = Modifier,
-    cardData: InvitationCard = InvitationCard(),
+    cardData: InvitationCardData = InvitationCardData(),
     cardWidth: Dp = 280.dp,
     cardHeight: Dp = 373.dp,
     showControls: Boolean = true,
-    onLikeClick: (InvitationCard) -> Unit = {},
-    onShareClick: (InvitationCard) -> Unit = {},
+    onLikeClick: (InvitationCardData) -> Unit = {},
+    onShareClick: (InvitationCardData) -> Unit = {},
     pagerState: PagerState = rememberPagerState(
         initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
         pageCount = { Int.MAX_VALUE }
