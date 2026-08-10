@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -39,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -54,6 +59,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -61,6 +67,7 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+import java.util.UUID
 
 @Composable
 fun AddGuestInfoBottomSheet(
@@ -69,16 +76,29 @@ fun AddGuestInfoBottomSheet(
     onAddNewTypeClick: () -> Unit,
     guestTypes: List<GuestType>,
     initialGuest: Guest? = null,
+    onUploadPhoto: (Uri, String, (String) -> Unit) -> Unit = { _, _, _ -> },
+    onRemovePhoto: (String) -> Unit = {},
     onProgress: (Float) -> Unit = {},
     onError: (String) -> Unit = {},
     hasToast: Boolean = false,
     toast: @Composable () -> Unit = {}
 ) {
+    val guestId = remember(initialGuest) { initialGuest?.id ?: UUID.randomUUID().toString() }
     var name by remember(initialGuest) { mutableStateOf(initialGuest?.name ?: "") }
     var selectedType by remember(initialGuest) { mutableStateOf(initialGuest?.type ?: "") }
     var contactNo by remember(initialGuest) { mutableStateOf(initialGuest?.contactNo ?: "") }
     var imageUrl by remember(initialGuest) { mutableStateOf(initialGuest?.imageUrl) }
+    var localImageUri by remember { mutableStateOf<Uri?>(null) }
     var prevSize by remember { mutableIntStateOf(guestTypes.size) }
+    var isUploading by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            localImageUri = it
+        }
+    }
 
     // Automatically select the newly added guest type
     LaunchedEffect(guestTypes.size) {
@@ -102,8 +122,7 @@ fun AddGuestInfoBottomSheet(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Upload Avatar Section
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -113,11 +132,13 @@ fun AddGuestInfoBottomSheet(
                     modifier = Modifier
                         .size(128.dp)
                         .clip(CircleShape)
-                        .background(ContentSecondary)
+                        .background(ContentSecondary),
+                    contentAlignment = Alignment.Center
                 ){
-                    if (imageUrl != null) {
+                    val displayImage = localImageUri ?: imageUrl
+                    if (displayImage != null) {
                         AsyncImage(
-                            model = imageUrl,
+                            model = displayImage,
                             contentDescription = null,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
@@ -132,33 +153,61 @@ fun AddGuestInfoBottomSheet(
                             contentScale = ContentScale.Crop
                         )
                     }
+
+                    if (isUploading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(ContentPrimary.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = ContentInvPrimary,
+                                modifier = Modifier.size(32.dp),
+                                strokeWidth = 3.dp
+                            )
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row {
+                    if (localImageUri != null || imageUrl != null) {
+                        CustomTextButton(
+                            onClick = {
+                                localImageUri = null
+                                imageUrl?.let {
+                                    onRemovePhoto(it)
+                                    imageUrl = null
+                                }
+                            },
+                            text = "Remove",
+                            size = ButtonSize.Small,
+                            type = ButtonType.Secondary,
+                            shapeStyle = ButtonShapeStyle.Round,
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            leadingIcon = painterResource(id = R.drawable.ic_delete),
+                            enabled = !isUploading
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    
                     CustomTextButton(
-                        onClick = { /* Handle Image Upload */ },
-                        text = "Remove",
+                        onClick = { photoPickerLauncher.launch("image/*") },
+                        text = if (localImageUri == null && imageUrl == null) "Upload" else "Change",
                         size = ButtonSize.Small,
                         type = ButtonType.Secondary,
                         shapeStyle = ButtonShapeStyle.Round,
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.error,
-                        leadingIcon = painterResource(id = R.drawable.ic_delete)
-                    )
-                    Spacer(Modifier.width(4.dp))
-                    CustomTextButton(
-                        onClick = { /* Handle Image Upload */ },
-                        text = "Upload",
-                        size = ButtonSize.Small,
-                        type = ButtonType.Secondary,
-                        shapeStyle = ButtonShapeStyle.Round,
-                        leadingIcon = painterResource(id = R.drawable.ic_upload)
+                        leadingIcon = painterResource(id = R.drawable.ic_upload),
+                        enabled = !isUploading
                     )
                 }
-                Spacer(Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
             }
+
+            Spacer(Modifier.height(12.dp))
 
             // Name Field
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -174,6 +223,8 @@ fun AddGuestInfoBottomSheet(
                     placeholder = "Enter Guest's Name",
                 )
             }
+
+            Spacer(Modifier.height(12.dp))
 
             // Guest Type Field
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -254,6 +305,8 @@ fun AddGuestInfoBottomSheet(
                 }
             }
 
+            Spacer(Modifier.height(12.dp))
+
             // Contact Field
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
@@ -281,30 +334,46 @@ fun AddGuestInfoBottomSheet(
                     } else if (selectedType.isBlank()) {
                         onError("Please select a suitable Guest Type!")
                     } else {
-                        onAddClick(
-                            Guest(
-                                id = initialGuest?.id ?: java.util.UUID.randomUUID().toString(),
-                                name = name,
-                                type = selectedType,
-                                contactNo = contactNo,
-                                imageUrl = imageUrl,
-                                invited = initialGuest?.invited ?: false,
-                                invitedBy = initialGuest?.invitedBy,
-                                invitedAt = initialGuest?.invitedAt,
-                                lastUpdatedBy = initialGuest?.lastUpdatedBy,
-                                lastUpdatedAt = initialGuest?.lastUpdatedAt
+                        val handleFinalAction = { finalImageUrl: String? ->
+                            onAddClick(
+                                Guest(
+                                    id = guestId,
+                                    name = name,
+                                    type = selectedType,
+                                    contactNo = contactNo,
+                                    imageUrl = finalImageUrl,
+                                    invited = initialGuest?.invited ?: false,
+                                    invitedBy = initialGuest?.invitedBy,
+                                    invitedAt = initialGuest?.invitedAt,
+                                    lastUpdatedBy = initialGuest?.lastUpdatedBy,
+                                    lastUpdatedAt = initialGuest?.lastUpdatedAt,
+                                    addedBy = initialGuest?.addedBy,
+                                    addedAt = initialGuest?.addedAt
+                                )
                             )
-                        )
+                        }
+
+                        if (localImageUri != null) {
+                            isUploading = true
+                            onUploadPhoto(localImageUri!!, guestId) { uploadedUrl ->
+                                isUploading = false
+                                handleFinalAction(uploadedUrl)
+                            }
+                        } else {
+                            handleFinalAction(imageUrl)
+                        }
                     }
                 },
                 text = if (initialGuest == null) "Add Details" else "Update Details",
                 modifier = Modifier.fillMaxWidth()
                     .padding(12.dp),
                 shapeStyle = ButtonShapeStyle.Square,
+                enabled = !isUploading
             )
         }
     }
 }
+
 
 @Composable
 fun AddGuestTypeBottomSheet(

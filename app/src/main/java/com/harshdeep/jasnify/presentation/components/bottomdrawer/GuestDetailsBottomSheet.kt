@@ -152,7 +152,13 @@ fun GuestDetailsBottomSheet(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Info Card
+                // Recent Activity Card (Moved to top of info card)
+                if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank() || !guest.addedBy.isNullOrBlank()) {
+                    RecentActivityCard(guest = guest)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
+                // Info Card (Guest Type, Contact No)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
@@ -227,13 +233,6 @@ fun GuestDetailsBottomSheet(
                         }
                     }
                 }
-
-                if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Custom Updates Dropdown
-                    UpdatesDropdownCard(guest = guest)
-                }
             }
 
             if (!isViewer) {
@@ -266,9 +265,14 @@ fun GuestDetailsBottomSheet(
     }
 }
 
+private fun formatUserName(name: String?): String {
+    if (name.isNullOrBlank()) return "Anonymous"
+    val parts = name.trim().split("\\s+".toRegex())
+    return if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
+}
 
 @Composable
-fun UpdatesDropdownCard(
+fun RecentActivityCard(
     guest: Guest,
     modifier: Modifier = Modifier
 ) {
@@ -301,11 +305,20 @@ fun UpdatesDropdownCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Updates",
-                    style = JasnifyTheme.typography.labelXLarge,
-                    color = ContentPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_clock_forward),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = ContentPrimary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Recent Activity",
+                        style = JasnifyTheme.typography.labelXLarge,
+                        color = ContentPrimary
+                    )
+                }
                 Icon(
                     painter = painterResource(id = R.drawable.ic_down),
                     contentDescription = if (expanded) "Collapse updates" else "Expand updates",
@@ -329,97 +342,88 @@ fun UpdatesDropdownCard(
 
                     // Invited Row
                     if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_tick2),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(18.dp),
-                                tint = ContentTertiary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Column {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    val formattedName = guest.invitedBy?.trim()?.split("\\s+".toRegex()).let { parts ->
-                                        parts?.size?.let { if (it >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0] }
-                                    }
-                                    Text(
-                                        text = "Invited by",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Light,
-                                        color = ContentTertiary
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (!guest.invitedBy.isNullOrBlank()) "$formattedName" else "Anonymous",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentTertiary
-                                    )
-                                }
-
-                                if (!guest.invitedAt.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = guest.invitedAt ?: "",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Light,
-                                        color = ContentTertiary
-                                    )
-                                }
-                            }
-                        }
+                        ActivityItem(
+                            iconRes = R.drawable.ic_tick2,
+                            label = "Invited by",
+                            userName = guest.invitedBy,
+                            timestamp = guest.invitedAt
+                        )
                     }
 
                     // Last Updated Row
                     if (!guest.lastUpdatedBy.isNullOrBlank()) {
                         if (guest.invited || !guest.invitedBy.isNullOrBlank()) {
                             Spacer(modifier = Modifier.height(12.dp))
+                            DashedDivider()
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
-                        Row(verticalAlignment = Alignment.Top) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_edit_pen),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(18.dp)
-                                    .padding(top = 2.dp),
-                                tint = ContentTertiary
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Column {
-                                val formattedName = guest.lastUpdatedBy.trim()?.split("\\s+".toRegex()).let { parts ->
-                                    parts?.size?.let { if (it >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0] }
-                                }
+                        ActivityItem(
+                            iconRes = R.drawable.ic_edit_pen,
+                            label = "Last updated by",
+                            userName = guest.lastUpdatedBy,
+                            timestamp = guest.lastUpdatedAt
+                        )
+                    }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "Last updated by",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Light,
-                                        color = ContentTertiary
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = if (guest.lastUpdatedBy.isNotBlank()) "$formattedName" else "Anonymous",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentTertiary
-                                    )
-                                }
-                                if (!guest.lastUpdatedAt.isNullOrBlank()) {
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text(
-                                        text = guest.lastUpdatedAt ?: "",
-                                        style = JasnifyTheme.typography.bodyMedium,
-                                        color = ContentTertiary
-                                    )
-                                }
-                            }
+                    // Added Row
+                    if (!guest.addedBy.isNullOrBlank()) {
+                        if (guest.invited || !guest.invitedBy.isNullOrBlank() || !guest.lastUpdatedBy.isNullOrBlank()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            DashedDivider()
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
+                        ActivityItem(
+                            iconRes = R.drawable.ic_add_circle,
+                            label = "Added by",
+                            userName = guest.addedBy,
+                            timestamp = guest.addedAt
+                        )
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityItem(
+    iconRes: Int,
+    label: String,
+    userName: String?,
+    timestamp: String?
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = ContentTertiary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = label,
+                    style = JasnifyTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Light,
+                    color = ContentTertiary
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = formatUserName(userName),
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentTertiary
+                )
+            }
+
+            if (!timestamp.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = timestamp,
+                    style = JasnifyTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Light,
+                    color = ContentTertiary
+                )
             }
         }
     }
@@ -437,9 +441,11 @@ fun PreviewGuestInfoBottomSheet() {
                 contactNo = "+91 9875462130",
                 invited = true,
                 invitedBy = "Anand K.",
-                invitedAt = "Aug 24, 2025, 01:04pm",
+                invitedAt = "Aug 30, 2026, 12:09pm",
                 lastUpdatedBy = "Anand K.",
-                lastUpdatedAt = "Aug 24, 2025, 01:04pm"
+                lastUpdatedAt = "Aug 25, 2026, 09:44pm",
+                addedBy = "Steve R.",
+                addedAt = "Aug 24, 2026, 01:04pm"
             ),
             onDismiss = {},
             onEditClick = {},

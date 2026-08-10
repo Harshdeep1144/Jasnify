@@ -1,7 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -17,8 +16,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,13 +23,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,39 +39,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.zIndex
-import androidx.core.graphics.ColorUtils
-import androidx.core.view.WindowCompat
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
-import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
-import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,8 +86,7 @@ fun EditProfileBottomSheet(
 
     LaunchedEffect(updateState) {
         if (updateState is ProfileUpdateState.Success) {
-            toastData = ToastData(updateState.message, ToastType.SUCCESS)
-            // We don't call resetUpdateState here immediately because parent might need it to close
+            toastData = ToastData("Update successfully!", ToastType.SUCCESS)
         } else if (updateState is ProfileUpdateState.Error) {
             toastData = ToastData(updateState.message, ToastType.ERROR)
             resetUpdateState()
@@ -142,8 +125,6 @@ fun EditProfileBottomSheet(
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
-
             Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
                 EditProfileContent(
                     userName = userName,
@@ -187,6 +168,20 @@ fun EditProfileContent(
         }
     }
 
+    // Image that should be displayed in the preview
+    val displayImage = remember(selectedImageUri, shouldRemovePhoto, profilePic) {
+        when {
+            shouldRemovePhoto -> R.drawable.ic_user_profile
+            selectedImageUri != null -> selectedImageUri
+            else -> profilePic
+        }
+    }
+
+    // Check if there is an image to remove (either original is not placeholder or a new one is selected)
+    val hasImageToRemove = remember(selectedImageUri, shouldRemovePhoto, profilePic) {
+        (selectedImageUri != null || (profilePic != R.drawable.ic_user_profile && profilePic != "")) && !shouldRemovePhoto
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -209,15 +204,32 @@ fun EditProfileContent(
                     modifier = Modifier
                         .size(140.dp)
                         .clip(CircleShape)
-                        .background(SurfaceSecondary)
+                        .background(SurfaceSecondary),
+                    contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
-                        model = if (shouldRemovePhoto) R.drawable.ic_user_profile else (selectedImageUri ?: profilePic),
+                        model = displayImage,
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.ic_user_profile)
+                        placeholder = painterResource(R.drawable.ic_user_profile),
+                        error = painterResource(R.drawable.ic_user_profile)
                     )
+
+                    if (isUpdating) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = ContentInvPrimary,
+                                modifier = Modifier.size(36.dp),
+                                strokeWidth = 3.dp
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
@@ -227,25 +239,29 @@ fun EditProfileContent(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CustomTextButton(
-                        onClick = { 
-                            selectedImageUri = null
-                            shouldRemovePhoto = true
-                        },
-                        text = "Remove",
-                        size = ButtonSize.Small,
-                        leadingIcon = painterResource(R.drawable.ic_delete),
-                        containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
+                    if (hasImageToRemove) {
+                        CustomTextButton(
+                            onClick = {
+                                selectedImageUri = null
+                                shouldRemovePhoto = true
+                            },
+                            text = "Remove",
+                            size = ButtonSize.Small,
+                            leadingIcon = painterResource(R.drawable.ic_delete),
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.error,
+                            enabled = !isUpdating
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
 
                     CustomTextButton(
                         onClick = { photoPickerLauncher.launch("image/*") },
-                        text = "Upload",
+                        text = if (displayImage == R.drawable.ic_user_profile) "Upload" else "Change",
                         size = ButtonSize.Small,
                         leadingIcon = painterResource(R.drawable.ic_upload),
-                        type = ButtonType.Secondary
+                        type = ButtonType.Secondary,
+                        enabled = !isUpdating
                     )
                 }
             }
@@ -262,7 +278,8 @@ fun EditProfileContent(
                 PrimaryInput(
                     value = name,
                     onValueChange = { name = it },
-                    placeholder = "Enter your name"
+                    placeholder = "Enter your name",
+                    readOnly = isUpdating
                 )
             }
 
@@ -279,7 +296,8 @@ fun EditProfileContent(
                 PrimaryInput(
                     value = handle,
                     onValueChange = { handle = it },
-                    placeholder = "Enter username"
+                    placeholder = "Enter username",
+                    readOnly = isUpdating
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -314,7 +332,7 @@ fun EditProfileContent(
         ) {
             CustomTextButton(
                 onClick = { onUpdateProfile(name, handle, selectedImageUri, shouldRemovePhoto) },
-                text = if (isUpdating) "Uploading..." else "Update Profile",
+                text = if (isUpdating) "Updating Profile..." else "Update Profile",
                 shapeStyle = ButtonShapeStyle.Square,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !isUpdating

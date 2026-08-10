@@ -211,6 +211,9 @@ class EventViewModel @Inject constructor(
      * Saves the event data to Cloud Firestore.
      */
     fun saveEventData(eventData: EventCreateUiState) {
+        // Prevent multiple simultaneous save requests
+        if (_eventState.value is EventCreationState.Loading) return
+
         val user = auth.currentUser
         if (user == null) {
             _eventState.value = EventCreationState.Error("Login to save event.")

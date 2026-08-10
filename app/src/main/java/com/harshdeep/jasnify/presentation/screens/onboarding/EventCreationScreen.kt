@@ -437,7 +437,8 @@ fun EventCreation(
                                     eventData,
                                     updateEventData,
                                     onSkip,
-                                    onShowDatePicker = { isSingleDayDatePickerVisible = true }
+                                    onShowDatePicker = { isSingleDayDatePickerVisible = true },
+                                    isLoading = eventState is EventCreationState.Loading
                                 )
 
                                 EventCreationStep.EVENT_TIMELINE -> EventMultiDayContent(
@@ -448,14 +449,16 @@ fun EventCreation(
                                     onShowDatePicker = { item ->
                                         selectedTimelineItem = item
                                         showTimelineDatePicker = true
-                                    }
+                                    },
+                                    isLoading = eventState is EventCreationState.Loading
                                 )
 
                                 EventCreationStep.EVENT_BUDGET -> EventBudgetContent(
                                     eventData,
                                     updateEventData,
                                     onSkip,
-                                    onCurrencyClick = { isCurrencySheetVisible = true }
+                                    onCurrencyClick = { isCurrencySheetVisible = true },
+                                    isLoading = eventState is EventCreationState.Loading
                                 )
                             }
                         }
@@ -695,7 +698,8 @@ fun EventSingleDayContent(
     eventData: EventCreateUiState,
     updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit,
-    onShowDatePicker: () -> Unit
+    onShowDatePicker: () -> Unit,
+    isLoading: Boolean = false
 ) {
     val selectedDate = remember(eventData.singleDayDateString) {
         eventData.singleDayDateString?.let {
@@ -786,7 +790,10 @@ fun EventSingleDayContent(
                 text = "Skip for later",
                 style = JasnifyTheme.typography.labelXLarge,
                 color = ContentPrimary,
-                modifier = Modifier.clickable(onClick = onSkip)
+                modifier = Modifier.clickable(
+                    enabled = !isLoading,
+                    onClick = onSkip
+                )
             )
         }
     }
@@ -800,7 +807,8 @@ fun EventMultiDayContent(
     updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit,
     onInfoClick: () -> Unit,
-    onShowDatePicker: (SubEventItem) -> Unit
+    onShowDatePicker: (SubEventItem) -> Unit,
+    isLoading: Boolean = false
 ) {
     val hasUnsavedEditingItem by remember(eventData.subEvents) {
         derivedStateOf {
@@ -882,7 +890,10 @@ fun EventMultiDayContent(
                             text = "Skip for later",
                             style = JasnifyTheme.typography.labelXLarge,
                             color = ContentPrimary,
-                            modifier = Modifier.clickable(onClick = onSkip)
+                            modifier = Modifier.clickable(
+                                enabled = !isLoading,
+                                onClick = onSkip
+                            )
                         )
                     }
                 }
@@ -919,7 +930,8 @@ fun EventBudgetContent(
     eventData: EventCreateUiState,
     updateEventData: (EventCreateUiState) -> Unit,
     onSkip: () -> Unit,
-    onCurrencyClick: () -> Unit
+    onCurrencyClick: () -> Unit,
+    isLoading: Boolean = false
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -963,7 +975,10 @@ fun EventBudgetContent(
                     text = "Skip for later",
                     style = JasnifyTheme.typography.labelXLarge,
                     color = ContentPrimary,
-                    modifier = Modifier.clickable(onClick = onSkip)
+                    modifier = Modifier.clickable(
+                        enabled = !isLoading,
+                        onClick = onSkip
+                    )
                 )
             }
         }

@@ -30,6 +30,10 @@ class CloudinaryManager @Inject constructor() {
         return uploadFromSource(uri, "jasnify/vendors/$vendorId/reviews", null)
     }
 
+    suspend fun uploadGuestProfilePicture(uri: Uri, eventId: String, guestId: String): String {
+        return uploadFromSource(uri, "jasnify/guests/$eventId", guestId)
+    }
+
     private suspend fun uploadFromSource(source: Any, folder: String, publicId: String?): String {
         return suspendCancellableCoroutine { continuation ->
             val uploadRequest = when (source) {

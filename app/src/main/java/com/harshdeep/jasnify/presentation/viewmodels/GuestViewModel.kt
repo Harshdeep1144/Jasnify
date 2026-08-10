@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.presentation.viewmodels
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.repository.GuestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class GuestViewModel @Inject constructor(
-    private val repository: GuestRepository
+    private val repository: GuestRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _guests = MutableStateFlow<List<Guest>>(emptyList())
@@ -33,6 +36,28 @@ class GuestViewModel @Inject constructor(
             repository.getGuests(eventId).collectLatest {
                 _guests.value = it
                 _isLoading.value = false
+            }
+        }
+    }
+
+    fun uploadGuestPhoto(uri: Uri, guestId: String, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
+        val eventId = _eventId.value ?: return
+        viewModelScope.launch {
+            try {
+                val url = cloudinaryManager.uploadGuestProfilePicture(uri, eventId, guestId)
+                onSuccess(url)
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to upload photo")
+            }
+        }
+    }
+
+    fun deleteGuestPhoto(url: String) {
+        viewModelScope.launch {
+            try {
+                cloudinaryManager.deleteImageByUrl(url)
+            } catch (e: Exception) {
+                // Ignore
             }
         }
     }

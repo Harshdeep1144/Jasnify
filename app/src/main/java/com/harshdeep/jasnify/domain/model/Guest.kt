@@ -15,7 +15,9 @@ data class Guest(
     val invitedBy: String? = null,
     val invitedAt: String? = null,
     val lastUpdatedBy: String? = null,
-    val lastUpdatedAt: String? = null
+    val lastUpdatedAt: String? = null,
+    val addedBy: String? = null,
+    val addedAt: String? = null
 ) {
     // Required no-argument constructor for Firestore
     constructor() : this(id = "")

@@ -1040,6 +1040,14 @@ fun GuestsTab(
                 selectedGuestForEdit = null
             },
             onProgress = { sheetMotionProgress = it },
+            onUploadPhoto = { uri, guestId, onUrlReady ->
+                guestViewModel.uploadGuestPhoto(uri, guestId, onUrlReady) { error ->
+                    toastData = ToastData(error, ToastType.ERROR)
+                }
+            },
+            onRemovePhoto = { url ->
+                guestViewModel.deleteGuestPhoto(url)
+            },
             onAddClick = { newGuest ->
                 val nameFromAuth = auth.currentUser?.displayName
                 val nameFromRoom = currentUserInRoom?.name
@@ -1057,6 +1065,7 @@ fun GuestsTab(
                         lastUpdatedAt = timestamp
                     ))
                     selectedGuestForEdit = null
+                    toastData = ToastData("Update successfully!", ToastType.SUCCESS)
                 } else {
                     val exists = guests.any {
                         it.name.equals(newGuest.name, ignoreCase = true) &&
@@ -1067,10 +1076,13 @@ fun GuestsTab(
                         toastData = ToastData("${newGuest.name} already exists", ToastType.DEFAULT)
                     } else {
                         guestViewModel.addGuest(newGuest.copy(
+                            addedBy = currentUserName,
+                            addedAt = timestamp,
                             lastUpdatedBy = currentUserName,
                             lastUpdatedAt = timestamp
                         ))
                         showAddGuestSheet = false
+                        toastData = ToastData("Guest added successfully!", ToastType.SUCCESS)
                     }
                 }
             },
@@ -1189,6 +1201,15 @@ fun GuestsTab(
                 if (selectedContacts.isEmpty()) {
                     toastData = ToastData("Please select at least 1 guest!", ToastType.ERROR)
                 } else {
+                    val nameFromAuth = auth.currentUser?.displayName
+                    val nameFromRoom = currentUserInRoom?.name
+                    val currentUserName = when {
+                        !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                        !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                        else -> "User"
+                    }
+                    val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+
                     var duplicateCount = 0
                     selectedContacts.forEach { contact ->
                         val phoneNumber = if (includePhoneNo) contact.phoneNumber else ""
@@ -1201,7 +1222,11 @@ fun GuestsTab(
                                     name = contact.name,
                                     contactNo = phoneNumber,
                                     imageUrl = contact.photoUri,
-                                    type = "Others"
+                                    type = "Others",
+                                    addedBy = currentUserName,
+                                    addedAt = timestamp,
+                                    lastUpdatedBy = currentUserName,
+                                    lastUpdatedAt = timestamp
                                 )
                             )
                         } else {
