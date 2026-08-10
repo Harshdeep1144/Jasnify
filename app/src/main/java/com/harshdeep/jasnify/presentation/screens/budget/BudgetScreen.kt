@@ -652,7 +652,7 @@ fun BudgetScreen(
                                                         color = ContentPrimary
                                                     )
 
-                                                    if (!isBudgetNotSet && allExpenses.isNotEmpty()) {
+                                                    if (allExpenses.isNotEmpty()) {
                                                         Row(
                                                             modifier = Modifier.fillMaxWidth(),
                                                             verticalAlignment = Alignment.CenterVertically,
