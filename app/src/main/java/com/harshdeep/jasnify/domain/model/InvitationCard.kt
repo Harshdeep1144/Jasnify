@@ -1,24 +1,108 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextAlign
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.theme.Pattaya
 import java.util.UUID
+
+enum class FontStyleType(val label: String, val fontFamily: FontFamily) {
+    DEFAULT("Sans Serif", FontFamily.Default),
+    SERIF("Classic Serif", FontFamily.Serif),
+    CURSIVE("Script / Cursive", FontFamily.Cursive),
+    MONOSPACE("Monospace", FontFamily.Monospace),
+    PATTAYA("Pattaya (Header)", Pattaya)
+}
+
+data class TextElement(
+    val id: String = UUID.randomUUID().toString(),
+    val text: String = "Sample Text",
+    val xRatio: Float = 0.5f,
+    val yRatio: Float = 0.5f,
+    val fontSizeSp: Float = 16f,
+    val colorHex: Long = 0xFF444444L,
+    val fontStyle: FontStyleType = FontStyleType.DEFAULT,
+    val isBold: Boolean = false,
+    val isItalic: Boolean = false,
+    val textAlign: TextAlign = TextAlign.Center,
+    val letterSpacingSp: Float = 0f,
+    val lineHeightSp: Float = 0f, // 0 means default
+    val rotationDegrees: Float = 0f,
+    val zIndex: Int = 0
+)
 
 data class InvitationCard(
     val id: String = UUID.randomUUID().toString(),
     val backgroundRes: Int = R.drawable.bg_invitation_card_01,
-    val primaryHeader: String = "THE WEDDING CELEBRATION OF",
-    val names: String = "Taylor & Travis",
-    val description: String = "WE REQUEST YOUR PRESENCE AT THE CEREMONY OF THEIR WEDDING",
-    val day: String = "SAT",
-    val date: String = "14",
-    val month: String = "SEPT",
-    val year: String = "2026",
-    val subHeader: String = "CEREMONY & RECEPTION",
-    val timeAndVenue: String = "05:00 PM • TAJ HOTEL, MUMBAI",
-    val rsvpDeadline: String = "KINDLY RESPOND BY AUG 1ST, 2026",
-    val rsvpContact: String = "RSVP : ANAND K.",
-    // Store as Long hexadecimal values
-    val nameColorHex: Long = 0xFFA6852FL,
-    val contentColorHex: Long = 0xFF444444L,
-    val secondaryContentColorHex: Long = 0xFF8E8E8EL
+    val backgroundColorHex: Long = 0xFFFFFDF9L,
+    val elements: List<TextElement> = defaultElements()
+)
+
+fun defaultElements(): List<TextElement> = listOf(
+    TextElement(
+        text = "THE WEDDING CELEBRATION OF",
+        xRatio = 0.5f,
+        yRatio = 0.16f,
+        fontSizeSp = 10f,
+        colorHex = 0xFF444444L,
+        fontStyle = FontStyleType.DEFAULT,
+        letterSpacingSp = 1.2f,
+        zIndex = 0
+    ),
+    TextElement(
+        text = "Taylor & Travis",
+        xRatio = 0.5f,
+        yRatio = 0.28f,
+        fontSizeSp = 36f,
+        colorHex = 0xFFA6852FL,
+        fontStyle = FontStyleType.PATTAYA,
+        zIndex = 1
+    ),
+    TextElement(
+        text = "WE REQUEST YOUR PRESENCE AT THE CEREMONY OF THEIR WEDDING",
+        xRatio = 0.5f,
+        yRatio = 0.42f,
+        fontSizeSp = 9f,
+        colorHex = 0xFF8E8E8EL,
+        fontStyle = FontStyleType.DEFAULT,
+        letterSpacingSp = 0.5f,
+        zIndex = 2
+    ),
+    TextElement(
+        text = "SAT • 14 SEPT • 2026",
+        xRatio = 0.5f,
+        yRatio = 0.56f,
+        fontSizeSp = 14f,
+        colorHex = 0xFF444444L,
+        fontStyle = FontStyleType.SERIF,
+        isBold = true,
+        letterSpacingSp = 1.0f,
+        zIndex = 3
+    ),
+    TextElement(
+        text = "CEREMONY & RECEPTION",
+        xRatio = 0.5f,
+        yRatio = 0.68f,
+        fontSizeSp = 10f,
+        colorHex = 0xFF444444L,
+        isBold = true,
+        zIndex = 4
+    ),
+    TextElement(
+        text = "05:00 PM • TAJ HOTEL, MUMBAI",
+        xRatio = 0.5f,
+        yRatio = 0.74f,
+        fontSizeSp = 9f,
+        colorHex = 0xFF8E8E8EL,
+        zIndex = 5
+    ),
+    TextElement(
+        text = "RSVP : ANAND K.",
+        xRatio = 0.5f,
+        yRatio = 0.86f,
+        fontSizeSp = 10f,
+        colorHex = 0xFF444444L,
+        isBold = true,
+        zIndex = 6
+    )
 )

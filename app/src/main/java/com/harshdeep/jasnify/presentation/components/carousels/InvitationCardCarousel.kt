@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
@@ -28,7 +29,14 @@ fun InvitationCardCarousel(
     modifier: Modifier = Modifier,
     cardData: InvitationCard = InvitationCard(),
     cardWidth: Dp = 280.dp,
-    cardHeight: Dp = 373.dp
+    cardHeight: Dp = 373.dp,
+    showControls: Boolean = true,
+    onLikeClick: (InvitationCard) -> Unit = {},
+    onShareClick: (InvitationCard) -> Unit = {},
+    pagerState: PagerState = rememberPagerState(
+        initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
+        pageCount = { Int.MAX_VALUE }
+    )
 ) {
     val backgrounds = listOf(
         R.drawable.bg_invitation_card_01,
@@ -39,15 +47,6 @@ fun InvitationCardCarousel(
     )
 
     val itemCount = backgrounds.size
-    val virtualCount = Int.MAX_VALUE
-
-    // Start at a multiple of itemCount near the middle so users can swipe both directions infinitely
-    val initialPage = (virtualCount / 2) - ((virtualCount / 2) % itemCount)
-
-    val pagerState = rememberPagerState(
-        initialPage = initialPage,
-        pageCount = { virtualCount }
-    )
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -68,9 +67,13 @@ fun InvitationCardCarousel(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
+                val currentCard = cardData.copy(backgroundRes = backgrounds[actualIndex])
                 InvitationCardItem(
-                    data = cardData.copy(backgroundRes = backgrounds[actualIndex]),
+                    data = currentCard,
                     pageOffset = pageOffset,
+                    showControls = showControls,
+                    onLikeClick = { onLikeClick(currentCard) },
+                    onShareClick = { onShareClick(currentCard) },
                     modifier = Modifier.size(cardWidth, cardHeight)
                 )
             }
