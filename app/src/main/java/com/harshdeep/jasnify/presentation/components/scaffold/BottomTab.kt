@@ -7,7 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -16,25 +18,60 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.times
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
+
+enum class BottomTabStyle {
+    STANDARD,
+    FLOATING
+}
 
 data class TabItem<T>(
     val label: String,
     val value: T,
-    val badgeCount: Int? = null
+    val badgeCount: Int? = null,
+    val icon: Painter? = null
 )
 
 @Composable
 fun <T> BottomTab(
+    items: List<TabItem<T>>,
+    selectedValue: T,
+    onItemSelected: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    style: BottomTabStyle = BottomTabStyle.STANDARD,
+    activeColor: Color = ContentBrandDark
+) {
+    when (style) {
+        BottomTabStyle.STANDARD -> StandardBottomTab(
+            items = items,
+            selectedValue = selectedValue,
+            onItemSelected = onItemSelected,
+            modifier = modifier,
+            activeColor = activeColor
+        )
+
+        BottomTabStyle.FLOATING -> FloatingBottomTab(
+            items = items,
+            selectedValue = selectedValue,
+            onItemSelected = onItemSelected,
+            modifier = modifier,
+            activeColor = activeColor
+        )
+    }
+}
+
+@Composable
+private fun <T> StandardBottomTab(
     items: List<TabItem<T>>,
     selectedValue: T,
     onItemSelected: (T) -> Unit,
@@ -44,7 +81,7 @@ fun <T> BottomTab(
     Box(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Top shadow casting upwards, using graphicsLayer to avoid adding layout height
+        // Top shadow casting upwards using graphicsLayer
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -78,9 +115,9 @@ fun <T> BottomTab(
 
                     if (tabCount > 0) {
                         val tabWidth = totalWidth / tabCount
-                        val selectedIndex =
-                            items.indexOfFirst { it.value == selectedValue }
-                                .coerceAtLeast(0)
+                        val selectedIndex = items
+                            .indexOfFirst { it.value == selectedValue }
+                            .coerceAtLeast(0)
 
                         val animatedIndex by animateFloatAsState(
                             targetValue = selectedIndex.toFloat(),
@@ -88,7 +125,7 @@ fun <T> BottomTab(
                                 dampingRatio = 0.82f,
                                 stiffness = 380f
                             ),
-                            label = "IndicatorSlidingAnimation"
+                            label = "StandardIndicatorAnimation"
                         )
 
                         Box(
@@ -120,9 +157,7 @@ fun <T> BottomTab(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable(
-                                        interactionSource = remember {
-                                            MutableInteractionSource()
-                                        },
+                                        interactionSource = remember { MutableInteractionSource() },
                                         indication = null
                                     ) {
                                         onItemSelected(item.value)
@@ -153,6 +188,114 @@ fun <T> BottomTab(
 }
 
 @Composable
+private fun <T> FloatingBottomTab(
+    items: List<TabItem<T>>,
+    selectedValue: T,
+    onItemSelected: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    activeColor: Color = ContentBrandDark
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                brush = Brush.verticalGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color.Transparent,
+                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                        1.00f to BackgroundPrimary
+                    )
+                )
+            )
+            .navigationBarsPadding()
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        contentAlignment = Alignment.BottomCenter
+    ) {
+        Surface(
+            modifier = Modifier
+                .pill360Shadow(
+                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                    ambientBlur = 12.dp,
+                    ambientSpread = 2.dp,
+                    spotColor = Color.Black.copy(alpha = 0.15f),
+                    spotBlur = 18.dp,
+                    spotOffsetY = 4.dp
+                ),
+            color = SurfacePrimary,
+            shape = CircleShape
+        ) {
+            BoxWithConstraints(
+                modifier = Modifier
+                    .padding(4.dp)
+                    .wrapContentWidth()
+            ) {
+                val tabCount = items.size
+                val availableWidth = maxWidth
+                val itemWidth = (availableWidth / tabCount).coerceAtMost(142.dp)
+                val totalWidth = itemWidth * tabCount
+
+                if (tabCount > 0) {
+                    val selectedIndex = items
+                        .indexOfFirst { it.value == selectedValue }
+                        .coerceAtLeast(0)
+
+                    val animatedIndex by animateFloatAsState(
+                        targetValue = selectedIndex.toFloat(),
+                        animationSpec = spring(
+                            dampingRatio = 0.82f,
+                            stiffness = 380f
+                        ),
+                        label = "FloatingIndicatorAnimation"
+                    )
+
+                    // Sliding Pill Highlight Background behind Active Tab
+                    Box(
+                        modifier = Modifier
+                            .width(itemWidth)
+                            .height(56.dp)
+                            .offset(x = itemWidth * animatedIndex)
+                            .background(
+                                color = activeColor.copy(alpha = 0.12f),
+                                shape = CircleShape
+                            )
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.width(totalWidth),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    items.forEach { item ->
+                        val isSelected = item.value == selectedValue
+
+                        Box(
+                            modifier = Modifier
+                                .width(itemWidth)
+                                .height(56.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    onItemSelected(item.value)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            BottomNavItemContent(
+                                item = item,
+                                isSelected = isSelected,
+                                activeColor = activeColor
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun <T> BottomNavItemContent(
     item: TabItem<T>,
     isSelected: Boolean,
@@ -167,6 +310,15 @@ private fun <T> BottomNavItemContent(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
+        if (item.icon != null) {
+            Icon(
+                painter = item.icon,
+                contentDescription = null,
+                tint = contentColor
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
+
         if (item.badgeCount != null) {
             Surface(
                 color = contentColor,
@@ -200,7 +352,7 @@ private fun <T> BottomNavItemContent(
 
 @Preview(showBackground = true)
 @Composable
-fun PreviewGenericBottomTab() {
+fun PreviewStandardBottomTab() {
     var selectedValue by remember { mutableStateOf(1) }
 
     val items = listOf(
@@ -210,8 +362,24 @@ fun PreviewGenericBottomTab() {
     BottomTab(
         items = items,
         selectedValue = selectedValue,
-        onItemSelected = { newValue ->
-            selectedValue = newValue
-        }
+        onItemSelected = { newValue -> selectedValue = newValue },
+        style = BottomTabStyle.STANDARD
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun PreviewFloatingBottomTab() {
+    var selectedValue by remember { mutableStateOf(1) }
+
+    val items = listOf(
+        TabItem("Explore", 1),
+        TabItem("Saved", 2),
+    )
+    BottomTab(
+        items = items,
+        selectedValue = selectedValue,
+        onItemSelected = { newValue -> selectedValue = newValue },
+        style = BottomTabStyle.FLOATING
     )
 }

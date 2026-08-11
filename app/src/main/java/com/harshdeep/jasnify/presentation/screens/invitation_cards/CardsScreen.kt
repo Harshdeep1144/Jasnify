@@ -1,18 +1,27 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -31,7 +40,11 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.InvitationCardItem
 import com.harshdeep.jasnify.presentation.components.carousels.InvitationCardCarousel
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
+import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
+import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.*
 import com.harshdeep.jasnify.util.ShareUtils
@@ -44,6 +57,11 @@ import kotlin.time.Duration.Companion.milliseconds
 enum class InvitationCardsView {
     MAIN,
     EDIT_DETAILS
+}
+
+enum class InvitationCardsTab {
+    EXPLORE,
+    SAVED
 }
 
 @Composable
@@ -115,6 +133,7 @@ fun InvitationCardsMainContent(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
+    var selectedTab by remember { mutableStateOf(InvitationCardsTab.EXPLORE) }
 
     val backgrounds = listOf(
         R.drawable.bg_invitation_card_01,
@@ -123,26 +142,36 @@ fun InvitationCardsMainContent(
         R.drawable.bg_invitation_card_04,
         R.drawable.bg_invitation_card_05
     )
-    
+
     val pagerState = rememberPagerState(
         initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % backgrounds.size),
         pageCount = { Int.MAX_VALUE }
     )
 
     var cardToCapture by remember { mutableStateOf<InvitationCardData?>(null) }
+    var likedCardRes by remember { mutableStateOf(setOf<Int>()) }
+
+    val onLikeToggle = { resId: Int ->
+        likedCardRes = if (likedCardRes.contains(resId)) {
+            likedCardRes - resId
+        } else {
+            likedCardRes + resId
+        }
+    }
 
     val onShareTrigger = { data: InvitationCardData, whatsappOnly: Boolean ->
         coroutineScope.launch {
             cardToCapture = data
-            delay(100.milliseconds) // Brief delay to allow graphicsLayer to record the specific card
+            delay(100.milliseconds)
             val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
             ShareUtils.shareImage(context, bitmap, whatsappOnly = whatsappOnly)
             cardToCapture = null
         }
+        Unit
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Hidden Capture Area (Off-screen but with valid size)
+        // Hidden Capture Area
         Box(
             modifier = Modifier
                 .size(280.dp, 373.dp)
@@ -177,104 +206,227 @@ fun InvitationCardsMainContent(
                     )
                 }
             },
-            containerColor = BackgroundPrimary
+            containerColor = BackgroundPrimary,
+            contentWindowInsets = WindowInsets(0, 0, 0, 0)
         ) { innerPadding ->
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .padding(innerPadding)
             ) {
-                item {
-                    Column(
-                        modifier = Modifier.padding(vertical = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        InvitationCardCarousel(
-                            cardData = cardData,
-                            cardWidth = 280.dp,
-                            cardHeight = 373.dp,
-                            pagerState = pagerState,
-                            onShareClick = { card -> onShareTrigger(card, false) }
-                        )
-
-                        Spacer(modifier = Modifier.height(24.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            CustomIconButton(
-                                icon = painterResource(id = R.drawable.ic_edit),
-                                onClick = onEditDetailsClick,
-                                type = ButtonType.Secondary
+                AnimatedContent(
+                    targetState = selectedTab,
+                    transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    },
+                    label = "InvitationCardsTabContent"
+                ) { tab ->
+                    when (tab) {
+                        InvitationCardsTab.EXPLORE -> {
+                            ExploreCardsContent(
+                                cardData = cardData,
+                                backgrounds = backgrounds,
+                                likedCardRes = likedCardRes,
+                                onLikeToggle = onLikeToggle,
+                                pagerState = pagerState,
+                                onEditDetailsClick = onEditDetailsClick,
+                                onShareTrigger = onShareTrigger
                             )
-                            CustomTextButton(
-                                text = "Share Card",
-                                onClick = {
-                                    val currentCard = cardData.copy(
-                                        backgroundRes = backgrounds[pagerState.currentPage % backgrounds.size]
-                                    )
-                                    onShareTrigger(currentCard, false)
-                                },
-                                modifier = Modifier.weight(1f),
-                                containerColor = ContentPrimary,
-                                contentColor = ContentInvPrimary,
-                                trailingIcon = painterResource(id = R.drawable.ic_share)
-                            )
-                            CustomIconButton(
-                                icon = painterResource(id = R.drawable.ic_whatsapp),
-                                onClick = {
-                                    val currentCard = cardData.copy(
-                                        backgroundRes = backgrounds[pagerState.currentPage % backgrounds.size]
-                                    )
-                                    onShareTrigger(currentCard, true)
-                                },
-                                containerColor = Color(0xFF1BA911),
-                                contentColor = ContentInvPrimary
+                        }
+                        InvitationCardsTab.SAVED -> {
+                            SavedCardsContent(
+                                cardData = cardData,
+                                backgrounds = backgrounds,
+                                likedCardRes = likedCardRes,
+                                onLikeToggle = onLikeToggle,
+                                onShareClick = { onShareTrigger(it, false) }
                             )
                         }
                     }
                 }
 
-                item {
-                    DashedDivider()
-                }
+            }
+        }
 
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 24.dp)
-                    ) {
-                        Text(
-                            text = "Explore Cards",
-                            style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                            color = ContentPrimary
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
+        // Floating Tab anchored to the bottom center
+        BottomTab(
+            modifier = Modifier
+                .align(Alignment.BottomCenter),
+            items = listOf(
+                TabItem(
+                    label = "Explore",
+                    value = InvitationCardsTab.EXPLORE,
+                    icon = painterResource(R.drawable.ic_notes)
+                ),
+                TabItem(
+                    label = "Saved",
+                    value = InvitationCardsTab.SAVED,
+                    icon = painterResource(R.drawable.ic_heart)
+                )
+            ),
+            selectedValue = selectedTab,
+            onItemSelected = { selectedTab = it },
+            style = BottomTabStyle.FLOATING
+        )
+    }
+}
 
-                items(backgrounds) { bgRes ->
-                    val card = cardData.copy(backgroundRes = bgRes)
-                    InvitationCardItem(
-                        data = card,
-                        showControls = true,
-                        onShareClick = { onShareTrigger(card, false) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .aspectRatio(280f / 373f)
+@Composable
+fun ExploreCardsContent(
+    cardData: InvitationCardData,
+    backgrounds: List<Int>,
+    likedCardRes: Set<Int>,
+    onLikeToggle: (Int) -> Unit,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    onEditDetailsClick: () -> Unit,
+    onShareTrigger: (InvitationCardData, Boolean) -> Unit
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item {
+            Column(
+                modifier = Modifier.padding(vertical = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                InvitationCardCarousel(
+                    cardData = cardData,
+                    cardWidth = 280.dp,
+                    cardHeight = 373.dp,
+                    pagerState = pagerState,
+                    isLiked = { likedCardRes.contains(it) },
+                    onLikeClick = { card -> onLikeToggle(card.backgroundRes) },
+                    onShareClick = { card -> onShareTrigger(card, false) }
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    CustomIconButton(
+                        icon = painterResource(id = R.drawable.ic_edit),
+                        onClick = onEditDetailsClick,
+                        type = ButtonType.Secondary
+                    )
+                    CustomTextButton(
+                        text = "Share Card",
+                        onClick = {
+                            val currentCard = cardData.copy(
+                                backgroundRes = backgrounds[pagerState.currentPage % backgrounds.size]
+                            )
+                            onShareTrigger(currentCard, false)
+                        },
+                        modifier = Modifier.weight(1f),
+                        containerColor = ContentPrimary,
+                        contentColor = ContentInvPrimary,
+                        trailingIcon = painterResource(id = R.drawable.ic_share)
+                    )
+                    CustomIconButton(
+                        icon = painterResource(id = R.drawable.ic_whatsapp),
+                        onClick = {
+                            val currentCard = cardData.copy(
+                                backgroundRes = backgrounds[pagerState.currentPage % backgrounds.size]
+                            )
+                            onShareTrigger(currentCard, true)
+                        },
+                        containerColor = Color(0xFF1BA911),
+                        contentColor = ContentInvPrimary
                     )
                 }
+            }
+        }
 
-                item {
-                    Spacer(modifier = Modifier.height(32.dp))
-                }
+        item {
+            DashedDivider()
+        }
+
+        item {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 24.dp)
+            ) {
+                Text(
+                    text = "Explore Cards",
+                    style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
+                    color = ContentPrimary
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+        }
+
+        items(backgrounds) { bgRes ->
+            val card = cardData.copy(backgroundRes = bgRes)
+            InvitationCardItem(
+                data = card,
+                showControls = true,
+                isLiked = likedCardRes.contains(bgRes),
+                onLikeClick = { onLikeToggle(bgRes) },
+                onShareClick = { onShareTrigger(card, false) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .aspectRatio(280f / 373f)
+            )
+        }
+
+        item {
+            Spacer(modifier = Modifier.height(80.dp)) // Extra space for floating tab
+        }
+    }
+}
+
+@Composable
+fun SavedCardsContent(
+    cardData: InvitationCardData,
+    backgrounds: List<Int>,
+    likedCardRes: Set<Int>,
+    onLikeToggle: (Int) -> Unit,
+    onShareClick: (InvitationCardData) -> Unit
+) {
+    val likedBackgrounds = backgrounds.filter { likedCardRes.contains(it) }
+
+    if (likedBackgrounds.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No saved cards yet",
+                style = JasnifyTheme.typography.bodyLarge,
+                color = ContentSecondary
+            )
+        }
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(likedBackgrounds) { bgRes ->
+                val card = cardData.copy(backgroundRes = bgRes)
+                InvitationCardItem(
+                    data = card,
+                    showControls = true,
+                    isLiked = true,
+                    onLikeClick = { onLikeToggle(bgRes) },
+                    onShareClick = { onShareClick(card) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(280f / 373f)
+                )
+            }
+
+            item {
+                Spacer(modifier = Modifier.height(80.dp))
             }
         }
     }

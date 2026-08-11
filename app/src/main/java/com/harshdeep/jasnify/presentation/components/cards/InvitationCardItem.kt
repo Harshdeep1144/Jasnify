@@ -46,6 +46,7 @@ fun InvitationCardItem(
     isEditable: Boolean = false,
     showControls: Boolean = false,
     forCapture: Boolean = false,
+    isLiked: Boolean = false,
     onLikeClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
     onUpdate: (InvitationCardData) -> Unit = {}
@@ -140,9 +141,9 @@ fun InvitationCardItem(
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
-                                painter = painterResource(id = R.drawable.ic_heart),
+                                painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart),
                                 contentDescription = "Like",
-                                tint = Color.White,
+                                tint = if (isLiked) Color.Red else Color.White,
                                 modifier = Modifier.size((18 * scaleFactor).dp)
                             )
                         }

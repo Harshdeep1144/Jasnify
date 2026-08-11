@@ -31,6 +31,7 @@ fun InvitationCardCarousel(
     cardWidth: Dp = 280.dp,
     cardHeight: Dp = 373.dp,
     showControls: Boolean = true,
+    isLiked: (Int) -> Boolean = { false },
     onLikeClick: (InvitationCardData) -> Unit = {},
     onShareClick: (InvitationCardData) -> Unit = {},
     pagerState: PagerState = rememberPagerState(
@@ -72,6 +73,7 @@ fun InvitationCardCarousel(
                     data = currentCard,
                     pageOffset = pageOffset,
                     showControls = showControls,
+                    isLiked = isLiked(backgrounds[actualIndex]),
                     onLikeClick = { onLikeClick(currentCard) },
                     onShareClick = { onShareClick(currentCard) },
                     modifier = Modifier.size(cardWidth, cardHeight)
