@@ -19,15 +19,17 @@ data class TextElement(
     val text: String = "Sample Text",
     val xRatio: Float = 0.5f,
     val yRatio: Float = 0.5f,
+    val widthRatio: Float = 1.0f,
     val fontSizeSp: Float = 16f,
     val colorHex: Long = 0xFF444444L,
     val fontStyle: FontStyleType = FontStyleType.DEFAULT,
     val isBold: Boolean = false,
     val isItalic: Boolean = false,
+    val isUnderline: Boolean = false,
     val textAlign: TextAlign = TextAlign.Center,
     val letterSpacingSp: Float = 0f,
     val lineHeightSp: Float = 0f, // 0 means default
-    val rotationDegrees: Float = 0f,
+    val verticalPaddingSp: Float = 0f,
     val zIndex: Int = 0
 )
 

@@ -104,7 +104,7 @@ fun InvitationCardItem(
 
             // Baseline width for scaling text relative to canvas size
             // We use 280dp as the standard reference width
-            val scaleFactor = canvasWidthDp / 280f
+            val scaleFactor = canvasWidthDp / 284f
 
             data.elements.sortedBy { it.zIndex }.forEach { element ->
                 RenderCardTextElement(
@@ -206,7 +206,6 @@ private fun RenderCardTextElement(
             .graphicsLayer {
                 translationX = -size.width / 2f
                 translationY = -size.height / 2f
-                rotationZ = element.rotationDegrees
             },
         contentAlignment = Alignment.Center
     ) {
