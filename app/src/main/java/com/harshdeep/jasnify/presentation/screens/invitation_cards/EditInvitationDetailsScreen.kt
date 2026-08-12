@@ -12,8 +12,11 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -61,7 +64,11 @@ import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.sliders.CustomSlider
+import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
+import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderHeader
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.drawScrollbar
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.abs
@@ -301,7 +308,7 @@ fun EditInvitationDetailsScreen(
                     .fillMaxWidth()
                     .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight()),
                 shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
-                color = BackgroundSecondary,
+                color = Color(0xFFE5E5E5), // Light Gray Header Background
                 shadowElevation = 24.dp
             ) {
                 Column(
@@ -327,26 +334,16 @@ fun EditInvitationDetailsScreen(
                         Box(
                             modifier = Modifier
                                 .width(40.dp)
-                                .height(5.dp)
+                                .height(4.dp)
                                 .clip(CircleShape)
                                 .background(Color.Gray.copy(alpha = 0.4f))
                         )
                     }
 
-                    // HEADER TITLE + DONE BUTTON
+                    // HEADER TITLE + ADD BUTTON
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures { change, dragAmount ->
-                                    change.consume()
-                                    if (parentHeightPx > 0f) {
-                                        val deltaWeight = -dragAmount / parentHeightPx
-                                        bottomSheetWeight = (bottomSheetWeight + deltaWeight)
-                                            .coerceIn(minSheetWeight, maxSheetWeight)
-                                    }
-                                }
-                            }
                             .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
@@ -357,8 +354,8 @@ fun EditInvitationDetailsScreen(
                                 EditorTab.TEXT -> "Edit Text"
                                 EditorTab.FONT -> "Edit Font"
                                 EditorTab.SIZE -> "Edit Size"
-                                EditorTab.COLOR -> "Edit Color"
-                                EditorTab.FORMAT -> "Edit Format"
+                                EditorTab.COLOR -> "Select Text Color"
+                                EditorTab.FORMAT -> "Edit Text Format"
                                 EditorTab.ADD_ROW -> "Add Row"
                             },
                             style = JasnifyTheme.typography.headingMedium,
@@ -366,17 +363,20 @@ fun EditInvitationDetailsScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        if (activeTab == EditorTab.TEXT && isTextFieldFocused) {
-                            Surface(
-                                modifier = Modifier.size(40.dp),
-                                shape = CircleShape,
-                                color = Color.White,
-                                onClick = { keyboardController?.hide() },
-                                shadowElevation = 2.dp
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Check, contentDescription = "Done", tint = Color.Black, modifier = Modifier.size(20.dp))
-                                }
+                        Surface(
+                            modifier = Modifier.size(40.dp),
+                            shape = CircleShape,
+                            color = Color.White,
+                            onClick = {
+                                val newElement = TextElement(text = "New Text", yRatio = 0.5f)
+                                updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                selectedElementId = newElement.id
+                                activeTab = EditorTab.TEXT
+                            },
+                            shadowElevation = 2.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.Black, modifier = Modifier.size(24.dp))
                             }
                         }
                     }
@@ -385,27 +385,50 @@ fun EditInvitationDetailsScreen(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp)
                             .padding(horizontal = 16.dp),
                         verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.Start
                     ) {
-                        items(EditorTab.entries) { tab ->
+                        items(EditorTab.entries.filter { it != EditorTab.ADD_ROW }) { tab ->
                             val isSelected = activeTab == tab
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                                     .background(if (isSelected) Color.White else Color.Transparent)
                                     .clickable { activeTab = tab }
-                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                    .padding(horizontal = 24.dp, vertical = 14.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = tab.label,
                                     style = JasnifyTheme.typography.labelLarge,
                                     color = if (isSelected) Color(0xFF005D5D) else Color(0xFF757575),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                                 )
+                            }
+                        }
+                        // Add Row Tab
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .clickable {
+                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f)
+                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                        selectedElementId = newElement.id
+                                        activeTab = EditorTab.TEXT
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF757575))
+                                    Text(
+                                        text = "Add Row",
+                                        style = JasnifyTheme.typography.labelLarge,
+                                        color = Color(0xFF757575),
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
@@ -415,9 +438,11 @@ fun EditInvitationDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.weight(1f))
-                            .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                            .padding(24.dp)
-                            .verticalScroll(rememberScrollState())
+                            .background(ContentInvPrimary)
+                            .then(
+                                if (activeTab != EditorTab.SIZE) Modifier.verticalScroll(rememberScrollState())
+                                else Modifier
+                            )
                     ) {
                         when (activeTab) {
                             EditorTab.THEME -> ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
@@ -426,7 +451,7 @@ fun EditInvitationDetailsScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(16.dp))
+                                            .clip(RoundedCornerShape(20.dp))
                                             .background(Color(0xFFE5E5E5))
                                             .padding(16.dp)
                                     ) {
@@ -441,7 +466,26 @@ fun EditInvitationDetailsScreen(
                                             minLines = 2
                                         )
                                     }
-                                } else Text("Tap any text on the card to edit", color = ContentSecondary)
+                                } else {
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.TouchApp,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(64.dp),
+                                            tint = Color.LightGray
+                                        )
+                                        Text(
+                                            text = "Tap on any text from the card",
+                                            style = JasnifyTheme.typography.bodyLarge,
+                                            color = Color.Gray,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
                             }
                             EditorTab.FONT -> {
                                 if (selectedElement != null) {
@@ -469,63 +513,126 @@ fun EditInvitationDetailsScreen(
                                 }
                             }
                             EditorTab.SIZE -> {
-                                if (selectedElement != null) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        SliderWithLabel("Font Size", selectedElement.fontSizeSp, { updateElement(selectedElement.copy(fontSizeSp = it)) }, 8f..72f, "px", Icons.Default.FormatSize)
-                                        SliderWithLabel("Vertical Padding", selectedElement.verticalPaddingSp, { updateElement(selectedElement.copy(verticalPaddingSp = it)) }, 0f..100f, "px", Icons.Default.Height)
-                                        SliderWithLabel("Line Height", selectedElement.lineHeightSp, { updateElement(selectedElement.copy(lineHeightSp = it)) }, 0f..100f, "px", Icons.Default.FormatLineSpacing)
-                                        SliderWithLabel("Letter Spacing", selectedElement.letterSpacingSp, { updateElement(selectedElement.copy(letterSpacingSp = it)) }, -2f..10f, "px", Icons.Default.FormatLineSpacing)
+                                selectedElement?.let { element ->
+                                    val sliders = listOf(
+                                        Triple("Font Size", element.fontSizeSp, Icons.Default.FormatSize) to { v: Float -> updateElement(element.copy(fontSizeSp = v)) },
+                                        Triple("Line Height", element.lineHeightSp, Icons.Default.FormatLineSpacing) to { v: Float -> updateElement(element.copy(lineHeightSp = v)) },
+                                        Triple("Vertical Padding", element.verticalPaddingSp, Icons.Default.Height) to { v: Float -> updateElement(element.copy(verticalPaddingSp = v)) }
+                                    )
+
+                                    val sizeScrollState = rememberScrollState()
+
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .drawScrollbar(sizeScrollState)
+                                            .verticalScroll(sizeScrollState)
+                                            .padding(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                    ) {
+                                        sliders.forEachIndexed { index, (data, onValueChange) ->
+                                            val (label, value, icon) = data
+
+                                            val itemShape = when (index) {
+                                                0 -> SquircleShape(topStart = CornerLargeIncrease, topEnd = CornerLargeIncrease, bottomStart = CornerExtraSmall, bottomEnd = CornerExtraSmall)
+                                                sliders.lastIndex -> SquircleShape(topStart = CornerExtraSmall, topEnd = CornerExtraSmall, bottomStart = CornerLargeIncrease, bottomEnd = CornerLargeIncrease)
+                                                else -> SquircleShape(CornerExtraSmall)
+                                            }
+
+                                            CustomSliderCard(
+                                                label = label,
+                                                value = value,
+                                                onValueChange = onValueChange,
+                                                valueRange = 8f..100f,
+                                                unit = "px",
+                                                icon = icon,
+                                                shape = itemShape
+                                            )
+                                        }
                                     }
                                 }
                             }
                             EditorTab.COLOR -> {
                                 if (selectedElement != null) {
-                                    val palette = listOf(0xFF000000L, 0xFFFFFFFFL, 0xFF444444L, 0xFF8E8E8EL, 0xFFA6852FL, 0xFF536E6DL, 0xFFB23B3BL, 0xFF2B5B84L, 0xFF6B4226L)
-                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        items(palette) { hex ->
+                                    val palette = listOf(0xFF000000L, 0xFFFFFFFFL, 0xFFE0E0E0L, 0xFF9E9E9EL, 0xFFA6852FL, 0xFF3E2723L, 0xFFB71C1CL, 0xFF1B5E20L, 0xFF004D40L, 0xFF01579BL, 0xFF311B92L, 0xFF880E4FL, 0xFF4E342EL, 0xFF212121L)
+                                    FlowRow(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        // Color Picker Icon
+                                        Box(
+                                            modifier = Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFF5F5F5)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Colorize, contentDescription = null, modifier = Modifier.size(24.dp))
+                                        }
+
+                                        // Color Wheel Icon (Placeholder)
+                                        Box(
+                                            modifier = Modifier.size(56.dp).clip(CircleShape).background(Color(0xFFF5F5F5)),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(Icons.Default.Palette, contentDescription = null, modifier = Modifier.size(28.dp), tint = Color.Gray)
+                                        }
+
+                                        palette.forEach { hex ->
                                             Box(
                                                 modifier = Modifier
-                                                    .size(44.dp)
+                                                    .size(56.dp)
                                                     .clip(CircleShape)
                                                     .background(Color(hex))
                                                     .border(
                                                         width = if (selectedElement.colorHex == hex) 3.dp else 1.dp,
-                                                        color = if (selectedElement.colorHex == hex) Color(0xFF005D5D) else Color.LightGray,
+                                                        color = if (selectedElement.colorHex == hex) Color(0xFF005D5D) else Color.LightGray.copy(alpha = 0.3f),
                                                         shape = CircleShape
                                                     )
-                                                    .clickable { updateElement(selectedElement.copy(colorHex = hex)) }
-                                            )
+                                                    .clickable { updateElement(selectedElement.copy(colorHex = hex)) },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (selectedElement.colorHex == hex) {
+                                                    Icon(Icons.Default.Check, contentDescription = null, tint = if (hex == 0xFFFFFFFFL) Color.Black else Color.White)
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                             EditorTab.FORMAT -> {
                                 if (selectedElement != null) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(24.dp))
+                                            .background(Color(0xFFF5F5F5))
+                                            .padding(24.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(24.dp)
+                                    ) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                             FormatToggleButton(Icons.Default.FormatBold, selectedElement.isBold) { updateElement(selectedElement.copy(isBold = !selectedElement.isBold)) }
                                             FormatToggleButton(Icons.Default.FormatItalic, selectedElement.isItalic) { updateElement(selectedElement.copy(isItalic = !selectedElement.isItalic)) }
                                             FormatToggleButton(Icons.Default.FormatUnderlined, selectedElement.isUnderline) { updateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline)) }
                                         }
-                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                            FormatToggleButton(Icons.Default.FormatAlignLeft, selectedElement.textAlign == TextAlign.Left) { updateElement(selectedElement.copy(textAlign = TextAlign.Left)) }
-                                            FormatToggleButton(Icons.Default.FormatAlignCenter, selectedElement.textAlign == TextAlign.Center) { updateElement(selectedElement.copy(textAlign = TextAlign.Center)) }
-                                            FormatToggleButton(Icons.Default.FormatAlignRight, selectedElement.textAlign == TextAlign.Right) { updateElement(selectedElement.copy(textAlign = TextAlign.Right)) }
+
+                                        HorizontalDivider(color = Color.LightGray.copy(alpha = 0.3f))
+
+                                        Row(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp))
+                                                .background(Color(0xFFE0E0E0).copy(alpha = 0.5f))
+                                                .padding(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            AlignmentToggleButton(Icons.Default.FormatAlignLeft, selectedElement.textAlign == TextAlign.Left) { updateElement(selectedElement.copy(textAlign = TextAlign.Left)) }
+                                            AlignmentToggleButton(Icons.Default.FormatAlignCenter, selectedElement.textAlign == TextAlign.Center) { updateElement(selectedElement.copy(textAlign = TextAlign.Center)) }
+                                            AlignmentToggleButton(Icons.Default.FormatAlignRight, selectedElement.textAlign == TextAlign.Right) { updateElement(selectedElement.copy(textAlign = TextAlign.Right)) }
+                                            AlignmentToggleButton(Icons.Default.FormatAlignJustify, selectedElement.textAlign == TextAlign.Justify) { updateElement(selectedElement.copy(textAlign = TextAlign.Justify)) }
                                         }
                                     }
                                 }
                             }
-                            EditorTab.ADD_ROW -> {
-                                Button(
-                                    onClick = {
-                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f)
-                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                        selectedElementId = newElement.id
-                                        activeTab = EditorTab.TEXT
-                                    },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF005D5D))
-                                ) { Text("Add New Text Row") }
-                            }
+                            else -> {}
                         }
                     }
                 }
@@ -537,47 +644,28 @@ fun EditInvitationDetailsScreen(
 @Composable
 fun FormatToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.size(48.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = if (isSelected) Color(0xFF005D5D) else Color(0xFFF5F5F5),
+        modifier = Modifier.size(64.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = if (isSelected) Color(0xFF5D7474) else Color(0xFFE5E5E5),
         onClick = onClick
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) Color.White else Color.Black)
+            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) Color.White else Color(0xFF757575), modifier = Modifier.size(28.dp))
         }
     }
 }
 
 @Composable
-fun SliderWithLabel(
-    label: String,
-    value: Float,
-    onValueChange: (Float) -> Unit,
-    valueRange: ClosedFloatingPointRange<Float>,
-    unit: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
-) {
-    Column {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp), tint = Color.Gray)
-                Text(label, color = Color.Gray, style = JasnifyTheme.typography.bodyMedium)
-            }
-            Text("${value.toInt()} $unit", color = Color.Black, fontWeight = FontWeight.Bold)
+fun AlignmentToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.size(56.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = if (isSelected) Color(0xFF5D7474) else Color.Transparent,
+        onClick = onClick
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = null, tint = if (isSelected) Color.White else Color(0xFF757575), modifier = Modifier.size(24.dp))
         }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.LightGray, inactiveTrackColor = Color(0xFFEEEEEE)),
-            modifier = Modifier.height(24.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
     }
 }
 
@@ -828,19 +916,42 @@ fun InteractiveTextElementItem(
 @Composable
 fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
     val themes = listOf(
-        Pair(R.drawable.bg_invitation_card_01, "Default"),
-        Pair(R.drawable.bg_invitation_card_02, "Red Velvet"),
-        Pair(R.drawable.bg_invitation_card_03, "Mint Green"),
-        Pair(R.drawable.bg_invitation_card_04, "Midnight Blue"),
-        Pair(R.drawable.bg_invitation_card_05, "Golden Rose")
+        R.drawable.bg_invitation_card_01,
+        R.drawable.bg_invitation_card_02,
+        R.drawable.bg_invitation_card_03,
+        R.drawable.bg_invitation_card_04,
+        R.drawable.bg_invitation_card_05
     )
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
-        items(themes) { (bgRes, name) ->
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(bottom = 8.dp)
+    ) {
+        item {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(110.dp, 150.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .border(1.dp, Color.LightGray, RoundedCornerShape(16.dp))
+                        .background(Color.White)
+                        .clickable { /* Handle Upload */ },
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Dashed border effect would need a custom modifier, using solid for now
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Upload, contentDescription = null, tint = Color.Gray)
+                        Text("Upload\nImage", textAlign = TextAlign.Center, color = Color.Gray, style = JasnifyTheme.typography.labelSmall)
+                    }
+                }
+            }
+        }
+
+        items(themes) { bgRes ->
             val isSelected = currentRes == bgRes
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     modifier = Modifier
-                        .size(100.dp, 140.dp)
+                        .size(110.dp, 150.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .border(
                             width = if (isSelected) 3.dp else 0.dp,
@@ -851,7 +962,7 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                 ) {
                     Image(painter = painterResource(id = bgRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
                     if (isSelected) {
-                        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(0.1f)), contentAlignment = Alignment.Center) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF005D5D).copy(0.2f)), contentAlignment = Alignment.Center) {
                             Surface(shape = CircleShape, color = Color(0xFF005D5D), modifier = Modifier.size(36.dp)) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
@@ -860,7 +971,6 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                         }
                     }
                 }
-                Text(text = name, style = JasnifyTheme.typography.labelMedium, color = if (isSelected) Color(0xFF005D5D) else Color.Gray, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }

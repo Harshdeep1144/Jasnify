@@ -1,13 +1,20 @@
 package com.harshdeep.jasnify.presentation.utils
 
+import androidx.compose.foundation.ScrollState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
 
 /**
  * Custom 360-degree drop shadow modifier.
@@ -67,4 +74,56 @@ fun Modifier.pill360Shadow(
             paint = spotPaint
         )
     }
+}
+
+
+
+fun Modifier.drawScrollbar(
+    scrollState: ScrollState,
+    width: Dp = 4.dp,
+    trackColor: Color = Color(0xFFCCCCCC),
+    thumbColor: Color = ContentTertiary,
+    paddingRight: Dp = 2.dp
+): Modifier = this.drawWithContent {
+    drawContent()
+
+    val maxValue = scrollState.maxValue
+    // Do not draw scrollbar if content fits without scrolling or is unconstrained
+    if (maxValue <= 0 || maxValue == Int.MAX_VALUE) return@drawWithContent
+
+    val viewportHeight = size.height
+    if (viewportHeight <= 0f) return@drawWithContent
+
+    val totalContentHeight = viewportHeight + maxValue
+
+    // Calculate thumb height ratio
+    val visibleRatio = viewportHeight / totalContentHeight
+    val minThumbHeight = 32.dp.toPx()
+    // Cap thumb height so it never fills the entire viewport when scrollable
+    val maxThumbHeight = viewportHeight * 0.8f
+    val thumbHeight = (viewportHeight * visibleRatio).coerceIn(minThumbHeight, maxThumbHeight)
+
+    // Calculate scroll thumb offset
+    val scrollProgress = (scrollState.value.toFloat() / maxValue.toFloat()).coerceIn(0f, 1f)
+    val thumbOffsetY = scrollProgress * (viewportHeight - thumbHeight)
+
+    val widthPx = width.toPx()
+    val cornerRadiusPx = widthPx / 2f
+    val xOffset = size.width - widthPx - paddingRight.toPx()
+
+    // 1. Draw Track
+    drawRoundRect(
+        color = trackColor,
+        topLeft = Offset(xOffset, 0f),
+        size = Size(widthPx, viewportHeight),
+        cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+    )
+
+    // 2. Draw Thumb
+    drawRoundRect(
+        color = thumbColor,
+        topLeft = Offset(xOffset, thumbOffsetY),
+        size = Size(widthPx, thumbHeight),
+        cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+    )
 }
