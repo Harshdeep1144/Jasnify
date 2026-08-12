@@ -31,7 +31,6 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -148,7 +147,6 @@ fun EditInvitationDetailsScreen(
     val targetCanvasOffsetY = remember(isImeVisible, selectedElement) {
         if (isImeVisible && selectedElement != null) {
             val ratio = selectedElement.yRatio.coerceIn(0f, 1f)
-            // Increased upward shift (-220dp for top elements, up to -480dp for bottom elements)
             (-220 - (ratio * 260)).dp
         } else {
             0.dp
@@ -178,9 +176,7 @@ fun EditInvitationDetailsScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    brush = TopGradientBrush
-                )
+                .background(brush = TopGradientBrush)
                 .statusBarsPadding()
                 .zIndex(10f)
                 .padding(12.dp),
@@ -248,7 +244,7 @@ fun EditInvitationDetailsScreen(
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(16.dp),
+                    .padding(horizontal = 40.dp, vertical = 16.dp), // Extra horizontal padding gives space for handles
                 contentAlignment = Alignment.Center
             ) {
                 val cardWidth = minOf(
@@ -276,7 +272,6 @@ fun EditInvitationDetailsScreen(
                     modifier = Modifier
                         .width(cardWidth)
                         .aspectRatio(3f / 4f)
-                        .shadow(16.dp, SquircleShape(CornerLargeIncrease))
                 )
             }
         }
@@ -595,15 +590,24 @@ fun InteractiveCardCanvas(
     Box(
         modifier = modifier
             .onGloballyPositioned { canvasSize = it.size }
-            .clip(SquircleShape(CornerLargeIncrease))
-            .background(Color(card.backgroundColorHex))
     ) {
-        Image(
-            painter = painterResource(id = card.backgroundRes),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop
-        )
+        // 1. Clipped background card layer
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .shadow(16.dp, SquircleShape(CornerLargeIncrease))
+                .clip(SquircleShape(CornerLargeIncrease))
+                .background(Color(card.backgroundColorHex))
+        ) {
+            Image(
+                painter = painterResource(id = card.backgroundRes),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        // 2. Interactive layer (Unclipped so control handles can overflow outside the card)
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -711,7 +715,8 @@ fun InteractiveTextElementItem(
                     if (isSelected) Modifier
                         .border(2.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
                     else Modifier
-                ).padding(horizontal = 12.dp),
+                )
+                .padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -735,7 +740,7 @@ fun InteractiveTextElementItem(
                 )
             )
             if (isSelected) {
-                // handles... (Delete, Width, Resize)
+                // Delete Handle
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -750,6 +755,8 @@ fun InteractiveTextElementItem(
                         Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(18.dp))
                     }
                 }
+
+                // Width Drag Handle
                 Surface(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -771,6 +778,8 @@ fun InteractiveTextElementItem(
                         Icon(Icons.Default.Code, contentDescription = "Width", tint = Color.White, modifier = Modifier.size(16.dp))
                     }
                 }
+
+                // Resize Drag Handle
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
