@@ -66,7 +66,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel

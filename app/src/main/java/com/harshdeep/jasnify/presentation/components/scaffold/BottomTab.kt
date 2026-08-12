@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -199,15 +201,7 @@ private fun <T> FloatingBottomTab(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                brush = Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.00f to Color.Transparent,
-                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                        1.00f to BackgroundPrimary
-                    )
-                )
+                brush = BottomGradientBrush
             )
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),

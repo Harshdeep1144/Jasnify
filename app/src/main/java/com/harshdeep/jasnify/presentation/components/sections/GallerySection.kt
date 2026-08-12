@@ -55,7 +55,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterType
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
-import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary

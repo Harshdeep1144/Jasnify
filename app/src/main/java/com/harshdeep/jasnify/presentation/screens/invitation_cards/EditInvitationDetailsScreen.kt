@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,7 +12,6 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +21,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,21 +31,22 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
-import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
@@ -55,11 +59,10 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.domain.model.TextElement
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.abs
@@ -74,7 +77,7 @@ enum class EditorTab(val label: String) {
     ADD_ROW("+ Add Row")
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun EditInvitationDetailsScreen(
     initialData: InvitationCardData = InvitationCardData(),
@@ -101,6 +104,10 @@ fun EditInvitationDetailsScreen(
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    // IME Keyboard Visibility
+    val isImeVisible = WindowInsets.isImeVisible
 
     // Helper to commit changes into history
     fun updateCardState(newCard: InvitationCardData) {
@@ -137,6 +144,23 @@ fun EditInvitationDetailsScreen(
 
     val selectedElement = currentCard.elements.find { it.id == selectedElementId }
 
+    // Dynamic vertical shift calculation for Canvas based on selected text element's yRatio
+    val targetCanvasOffsetY = remember(isImeVisible, selectedElement) {
+        if (isImeVisible && selectedElement != null) {
+            val ratio = selectedElement.yRatio.coerceIn(0f, 1f)
+            // Increased upward shift (-220dp for top elements, up to -480dp for bottom elements)
+            (-220 - (ratio * 260)).dp
+        } else {
+            0.dp
+        }
+    }
+
+    val animatedCanvasOffsetY by animateDpAsState(
+        targetValue = targetCanvasOffsetY,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "CanvasOffsetAnimation"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -146,43 +170,52 @@ fun EditInvitationDetailsScreen(
             }
     ) {
         // ================================================================
-        // MAIN CANVAS + BOTTOM SHEET LAYOUT (Extends into Status Bar space)
+        // 1. TOP BAR (Floats over canvas)
         // ================================================================
-        Column(
-            modifier = Modifier.fillMaxSize()
+
+        SetStatusBarTheme(useDarkIcons = false)
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(
+                    brush = TopGradientBrush
+                )
+                .statusBarsPadding()
+                .zIndex(10f)
+                .padding(12.dp),
+            contentAlignment = Alignment.BottomCenter
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(12.dp)
                     .zIndex(10f),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                CustomIconButton(
+                    icon = rememberVectorPainter(image = Icons.Rounded.Close),
+                    onClick = onBackClick,
+                    size = ButtonSize.Small,
+                    contentColor = ContentInvPrimary,
+                    containerColor = Color(0xE53D3D3D)
+                )
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TopBarIconButton(
-                        icon = TopIcon.Predefined.CLOSE,
-                        onClick = onBackClick,
-                        backgroundStyle = ButtonBackground.TRANSPARENT,
-                        iconColor = ContentInvPrimary,
-                        iconSize = 18.dp
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    TopBarIconButton(
-                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_undo)),
+                    CustomIconButton(
+                        icon = painterResource(R.drawable.ic_undo),
                         onClick = ::undo,
-                        backgroundStyle = ButtonBackground.TRANSLUCENT,
-                        translucentAlpha = 0.1f,
-                        iconColor = if (historyIndex > 0) Color.White else Color.White.copy(alpha = 0.3f),
+                        size = ButtonSize.Small,
+                        contentColor = if (historyIndex > 0) ContentInvPrimary else ContentSecondary,
+                        containerColor = Color(0xE53D3D3D)
                     )
                     Spacer(Modifier.width(8.dp))
-                    TopBarIconButton(
-                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_redo)),
+                    CustomIconButton(
+                        icon = painterResource(R.drawable.ic_redo),
                         onClick = ::redo,
-                        backgroundStyle = ButtonBackground.TRANSLUCENT,
-                        translucentAlpha = 0.1f,
-                        iconColor = if (historyIndex < history.size - 1) Color.White else Color.White.copy(alpha = 0.3f)
+                        size = ButtonSize.Small,
+                        contentColor = if (historyIndex < history.size - 1) ContentInvPrimary else ContentSecondary,
+                        containerColor = Color(0xE53D3D3D)
                     )
                 }
 
@@ -198,295 +231,299 @@ fun EditInvitationDetailsScreen(
                     containerColor = ContentInvPrimary
                 )
             }
+        }
 
-            // 1. CANVAS AREA (Dynamically resized via weight)
-            Column(
+        // ================================================================
+        // 2. INTERACTIVE CANVAS AREA (Dynamically offset when keyboard is active)
+        // ================================================================
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .zIndex(0f)
+                .padding(top = 64.dp, bottom = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp)
+                .offset(y = animatedCanvasOffsetY),
+            contentAlignment = Alignment.Center
+        ) {
+            BoxWithConstraints(
                 modifier = Modifier
-                    .weight((1f - bottomSheetWeight).coerceAtLeast(0.1f))
-                    .padding(12.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.Center
-            ){
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val cardWidth = minOf(
-                        maxWidth,
-                        maxHeight * (3f / 4f)
-                    )
+                    .fillMaxSize()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val cardWidth = minOf(
+                    maxWidth,
+                    maxHeight * (3f / 4f)
+                )
 
-                    InteractiveCardCanvas(
-                        card = currentCard,
-                        selectedElementId = selectedElementId,
-                        onSelectElement = { id -> selectedElementId = id },
-                        onDoubleTapElement = { id ->
-                            selectedElementId = id
-                            activeTab = EditorTab.TEXT
-                            focusRequester.requestFocus()
-                            keyboardController?.show()
-                        },
-                        onUpdateElement = ::updateElement,
-                        onSwapElements = ::swapElements,
-                        onDeleteElement = { id ->
-                            val remaining = currentCard.elements.filter { it.id != id }
-                            updateCardState(currentCard.copy(elements = remaining))
-                            if (selectedElementId == id) selectedElementId = null
-                        },
-                        modifier = Modifier
-                            .width(cardWidth)
-                            .aspectRatio(3f / 4f)
-                            .shadow(16.dp, SquircleShape(CornerLargeIncrease))
-                    )
-                }
-            }
-
-            // 2. RESIZABLE BOTTOM SHEET EDITOR
-            Column(
-                modifier = Modifier
-                    .weight(bottomSheetWeight)
-                    .fillMaxWidth()
-            ){
-                Surface(
+                InteractiveCardCanvas(
+                    card = currentCard,
+                    selectedElementId = selectedElementId,
+                    onSelectElement = { id -> selectedElementId = id },
+                    onDoubleTapElement = { id ->
+                        selectedElementId = id
+                        activeTab = EditorTab.TEXT
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
+                    onUpdateElement = ::updateElement,
+                    onSwapElements = ::swapElements,
+                    onDeleteElement = { id ->
+                        val remaining = currentCard.elements.filter { it.id != id }
+                        updateCardState(currentCard.copy(elements = remaining))
+                        if (selectedElementId == id) selectedElementId = null
+                    },
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight()
-                        .zIndex(2f)
-                        .layout { measurable, constraints ->
-                            val overlapPx = 0.dp.roundToPx()
-                            val placeable = measurable.measure(constraints)
-                            layout(placeable.width, (placeable.height - overlapPx).coerceAtLeast(0)) {
-                                placeable.placeRelative(0, -overlapPx)
-                            }
-                        },
-                    shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
-                    color = BackgroundSecondary,
-                    shadowElevation = 24.dp
+                        .width(cardWidth)
+                        .aspectRatio(3f / 4f)
+                        .shadow(16.dp, SquircleShape(CornerLargeIncrease))
+                )
+            }
+        }
+
+        // ================================================================
+        // 3. OVERLAPPING BOTTOM SHEET EDITOR
+        // ================================================================
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .then(
+                    if (isImeVisible) Modifier.wrapContentHeight()
+                    else Modifier.fillMaxHeight(bottomSheetWeight)
+                )
+                .imePadding()
+                .zIndex(5f)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight()),
+                shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
+                color = BackgroundSecondary,
+                shadowElevation = 24.dp
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(
+                    // DRAG HANDLE
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .imePadding()
-                    ) {
-                        // DRAG HANDLE & DRAG AREA
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pointerInput(Unit) {
-                                    detectVerticalDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        if (parentHeightPx > 0f) {
-                                            val deltaWeight = -dragAmount / parentHeightPx
-                                            bottomSheetWeight = (bottomSheetWeight + deltaWeight)
-                                                .coerceIn(minSheetWeight, maxSheetWeight)
-                                        }
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    if (parentHeightPx > 0f) {
+                                        val deltaWeight = -dragAmount / parentHeightPx
+                                        bottomSheetWeight = (bottomSheetWeight + deltaWeight)
+                                            .coerceIn(minSheetWeight, maxSheetWeight)
                                     }
                                 }
-                                .padding(vertical = 10.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                            }
+                            .padding(vertical = 10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(40.dp)
+                                .height(5.dp)
+                                .clip(CircleShape)
+                                .background(Color.Gray.copy(alpha = 0.4f))
+                        )
+                    }
+
+                    // HEADER TITLE + DONE BUTTON
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .pointerInput(Unit) {
+                                detectVerticalDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    if (parentHeightPx > 0f) {
+                                        val deltaWeight = -dragAmount / parentHeightPx
+                                        bottomSheetWeight = (bottomSheetWeight + deltaWeight)
+                                            .coerceIn(minSheetWeight, maxSheetWeight)
+                                    }
+                                }
+                            }
+                            .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = when (activeTab) {
+                                EditorTab.THEME -> "Select Theme"
+                                EditorTab.TEXT -> "Edit Text"
+                                EditorTab.FONT -> "Edit Font"
+                                EditorTab.SIZE -> "Edit Size"
+                                EditorTab.COLOR -> "Edit Color"
+                                EditorTab.FORMAT -> "Edit Format"
+                                EditorTab.ADD_ROW -> "Add Row"
+                            },
+                            style = JasnifyTheme.typography.headingMedium,
+                            color = Color.Black,
+                            fontWeight = FontWeight.Bold
+                        )
+
+                        if (activeTab == EditorTab.TEXT && isTextFieldFocused) {
+                            Surface(
+                                modifier = Modifier.size(40.dp),
+                                shape = CircleShape,
+                                color = Color.White,
+                                onClick = { keyboardController?.hide() },
+                                shadowElevation = 2.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Default.Check, contentDescription = "Done", tint = Color.Black, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+
+                    // TAB ROW
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(EditorTab.entries) { tab ->
+                            val isSelected = activeTab == tab
                             Box(
                                 modifier = Modifier
-                                    .width(40.dp)
-                                    .height(5.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Gray.copy(alpha = 0.4f))
-                            )
-                        }
-
-                        // HEADER TITLE + DONE BUTTON
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .pointerInput(Unit) {
-                                    detectVerticalDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        if (parentHeightPx > 0f) {
-                                            val deltaWeight = -dragAmount / parentHeightPx
-                                            bottomSheetWeight = (bottomSheetWeight + deltaWeight)
-                                                .coerceIn(minSheetWeight, maxSheetWeight)
-                                        }
-                                    }
-                                }
-                                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = when (activeTab) {
-                                    EditorTab.THEME -> "Select Theme"
-                                    EditorTab.TEXT -> "Edit Text"
-                                    EditorTab.FONT -> "Edit Font"
-                                    EditorTab.SIZE -> "Edit Size"
-                                    EditorTab.COLOR -> "Edit Color"
-                                    EditorTab.FORMAT -> "Edit Format"
-                                    EditorTab.ADD_ROW -> "Add Row"
-                                },
-                                style = JasnifyTheme.typography.headingMedium,
-                                color = Color.Black,
-                                fontWeight = FontWeight.Bold
-                            )
-
-                            if (activeTab == EditorTab.TEXT && isTextFieldFocused) {
-                                Surface(
-                                    modifier = Modifier.size(40.dp),
-                                    shape = CircleShape,
-                                    color = Color.White,
-                                    onClick = { keyboardController?.hide() },
-                                    shadowElevation = 2.dp
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(Icons.Default.Check, contentDescription = "Done", tint = Color.Black, modifier = Modifier.size(20.dp))
-                                    }
-                                }
+                                    .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                                    .background(if (isSelected) Color.White else Color.Transparent)
+                                    .clickable { activeTab = tab }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = tab.label,
+                                    style = JasnifyTheme.typography.labelLarge,
+                                    color = if (isSelected) Color(0xFF005D5D) else Color(0xFF757575),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
                         }
+                    }
 
-                        // TAB ROW
-                        LazyRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(52.dp)
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.Bottom,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(EditorTab.entries) { tab ->
-                                val isSelected = activeTab == tab
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                                        .background(if (isSelected) Color.White else Color.Transparent)
-                                        .clickable { activeTab = tab }
-                                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = tab.label,
-                                        style = JasnifyTheme.typography.labelLarge,
-                                        color = if (isSelected) Color(0xFF005D5D) else Color(0xFF757575),
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                                    )
-                                }
-                            }
-                        }
-
-                        // TAB CONTENT CONTAINER
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                                .padding(24.dp)
-                                .verticalScroll(rememberScrollState())
-                        ) {
-                            when (activeTab) {
-                                EditorTab.THEME -> ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
-                                EditorTab.TEXT -> {
-                                    if (selectedElement != null) {
-                                        Box(
+                    // TAB CONTENT CONTAINER
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.weight(1f))
+                            .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        when (activeTab) {
+                            EditorTab.THEME -> ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
+                            EditorTab.TEXT -> {
+                                if (selectedElement != null) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(Color(0xFFE5E5E5))
+                                            .padding(16.dp)
+                                    ) {
+                                        BasicTextField(
+                                            value = selectedElement.text,
+                                            onValueChange = { updateElement(selectedElement.copy(text = it)) },
+                                            textStyle = JasnifyTheme.typography.bodyLarge.copy(color = Color.Black),
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clip(RoundedCornerShape(16.dp))
-                                                .background(Color(0xFFE5E5E5))
-                                                .padding(16.dp)
-                                        ) {
-                                            BasicTextField(
-                                                value = selectedElement.text,
-                                                onValueChange = { updateElement(selectedElement.copy(text = it)) },
-                                                textStyle = JasnifyTheme.typography.bodyLarge.copy(color = Color.Black),
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .focusRequester(focusRequester)
-                                                    .onFocusChanged { isTextFieldFocused = it.isFocused },
-                                                minLines = 3
-                                            )
-                                        }
-                                    } else Text("Tap any text on the card to edit", color = ContentSecondary)
-                                }
-                                EditorTab.FONT -> {
-                                    if (selectedElement != null) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            Text("Font Family", style = JasnifyTheme.typography.labelMedium, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                                items(FontStyleType.entries) { fontType ->
-                                                    val isSelected = selectedElement.fontStyle == fontType
-                                                    Surface(
-                                                        shape = RoundedCornerShape(12.dp),
-                                                        color = if (isSelected) Color(0xFF005D5D) else Color(0xFFF5F5F5),
-                                                        modifier = Modifier.clickable { updateElement(selectedElement.copy(fontStyle = fontType)) }
-                                                    ) {
-                                                        Text(
-                                                            text = fontType.label,
-                                                            fontFamily = fontType.fontFamily,
-                                                            color = if (isSelected) Color.White else Color.Black,
-                                                            style = JasnifyTheme.typography.bodyMedium,
-                                                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                                                        )
-                                                    }
+                                                .focusRequester(focusRequester)
+                                                .onFocusChanged { isTextFieldFocused = it.isFocused },
+                                            minLines = 2
+                                        )
+                                    }
+                                } else Text("Tap any text on the card to edit", color = ContentSecondary)
+                            }
+                            EditorTab.FONT -> {
+                                if (selectedElement != null) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Text("Font Family", style = JasnifyTheme.typography.labelMedium, color = Color.Gray, fontWeight = FontWeight.Bold)
+                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                            items(FontStyleType.entries) { fontType ->
+                                                val isSelected = selectedElement.fontStyle == fontType
+                                                Surface(
+                                                    shape = RoundedCornerShape(12.dp),
+                                                    color = if (isSelected) Color(0xFF005D5D) else Color(0xFFF5F5F5),
+                                                    modifier = Modifier.clickable { updateElement(selectedElement.copy(fontStyle = fontType)) }
+                                                ) {
+                                                    Text(
+                                                        text = fontType.label,
+                                                        fontFamily = fontType.fontFamily,
+                                                        color = if (isSelected) Color.White else Color.Black,
+                                                        style = JasnifyTheme.typography.bodyMedium,
+                                                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                                                    )
                                                 }
                                             }
                                         }
                                     }
                                 }
-                                EditorTab.SIZE -> {
-                                    if (selectedElement != null) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            SliderWithLabel("Font Size", selectedElement.fontSizeSp, { updateElement(selectedElement.copy(fontSizeSp = it)) }, 8f..72f, "px", Icons.Default.FormatSize)
-                                            SliderWithLabel("Vertical Padding", selectedElement.verticalPaddingSp, { updateElement(selectedElement.copy(verticalPaddingSp = it)) }, 0f..100f, "px", Icons.Default.Height)
-                                            SliderWithLabel("Line Height", selectedElement.lineHeightSp, { updateElement(selectedElement.copy(lineHeightSp = it)) }, 0f..100f, "px", Icons.Default.FormatLineSpacing)
-                                            SliderWithLabel("Letter Spacing", selectedElement.letterSpacingSp, { updateElement(selectedElement.copy(letterSpacingSp = it)) }, -2f..10f, "px", Icons.Default.FormatLineSpacing)
+                            }
+                            EditorTab.SIZE -> {
+                                if (selectedElement != null) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        SliderWithLabel("Font Size", selectedElement.fontSizeSp, { updateElement(selectedElement.copy(fontSizeSp = it)) }, 8f..72f, "px", Icons.Default.FormatSize)
+                                        SliderWithLabel("Vertical Padding", selectedElement.verticalPaddingSp, { updateElement(selectedElement.copy(verticalPaddingSp = it)) }, 0f..100f, "px", Icons.Default.Height)
+                                        SliderWithLabel("Line Height", selectedElement.lineHeightSp, { updateElement(selectedElement.copy(lineHeightSp = it)) }, 0f..100f, "px", Icons.Default.FormatLineSpacing)
+                                        SliderWithLabel("Letter Spacing", selectedElement.letterSpacingSp, { updateElement(selectedElement.copy(letterSpacingSp = it)) }, -2f..10f, "px", Icons.Default.FormatLineSpacing)
+                                    }
+                                }
+                            }
+                            EditorTab.COLOR -> {
+                                if (selectedElement != null) {
+                                    val palette = listOf(0xFF000000L, 0xFFFFFFFFL, 0xFF444444L, 0xFF8E8E8EL, 0xFFA6852FL, 0xFF536E6DL, 0xFFB23B3BL, 0xFF2B5B84L, 0xFF6B4226L)
+                                    LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        items(palette) { hex ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color(hex))
+                                                    .border(
+                                                        width = if (selectedElement.colorHex == hex) 3.dp else 1.dp,
+                                                        color = if (selectedElement.colorHex == hex) Color(0xFF005D5D) else Color.LightGray,
+                                                        shape = CircleShape
+                                                    )
+                                                    .clickable { updateElement(selectedElement.copy(colorHex = hex)) }
+                                            )
                                         }
                                     }
                                 }
-                                EditorTab.COLOR -> {
-                                    if (selectedElement != null) {
-                                        val palette = listOf(0xFF000000L, 0xFFFFFFFFL, 0xFF444444L, 0xFF8E8E8EL, 0xFFA6852FL, 0xFF536E6DL, 0xFFB23B3BL, 0xFF2B5B84L, 0xFF6B4226L)
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            items(palette) { hex ->
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(44.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color(hex))
-                                                        .border(
-                                                            width = if (selectedElement.colorHex == hex) 3.dp else 1.dp,
-                                                            color = if (selectedElement.colorHex == hex) Color(0xFF005D5D) else Color.LightGray,
-                                                            shape = CircleShape
-                                                        )
-                                                        .clickable { updateElement(selectedElement.copy(colorHex = hex)) }
-                                                )
-                                            }
+                            }
+                            EditorTab.FORMAT -> {
+                                if (selectedElement != null) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            FormatToggleButton(Icons.Default.FormatBold, selectedElement.isBold) { updateElement(selectedElement.copy(isBold = !selectedElement.isBold)) }
+                                            FormatToggleButton(Icons.Default.FormatItalic, selectedElement.isItalic) { updateElement(selectedElement.copy(isItalic = !selectedElement.isItalic)) }
+                                            FormatToggleButton(Icons.Default.FormatUnderlined, selectedElement.isUnderline) { updateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline)) }
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                            FormatToggleButton(Icons.Default.FormatAlignLeft, selectedElement.textAlign == TextAlign.Left) { updateElement(selectedElement.copy(textAlign = TextAlign.Left)) }
+                                            FormatToggleButton(Icons.Default.FormatAlignCenter, selectedElement.textAlign == TextAlign.Center) { updateElement(selectedElement.copy(textAlign = TextAlign.Center)) }
+                                            FormatToggleButton(Icons.Default.FormatAlignRight, selectedElement.textAlign == TextAlign.Right) { updateElement(selectedElement.copy(textAlign = TextAlign.Right)) }
                                         }
                                     }
                                 }
-                                EditorTab.FORMAT -> {
-                                    if (selectedElement != null) {
-                                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                FormatToggleButton(Icons.Default.FormatBold, selectedElement.isBold) { updateElement(selectedElement.copy(isBold = !selectedElement.isBold)) }
-                                                FormatToggleButton(Icons.Default.FormatItalic, selectedElement.isItalic) { updateElement(selectedElement.copy(isItalic = !selectedElement.isItalic)) }
-                                                FormatToggleButton(Icons.Default.FormatUnderlined, selectedElement.isUnderline) { updateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline)) }
-                                            }
-                                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                                FormatToggleButton(Icons.Default.FormatAlignLeft, selectedElement.textAlign == TextAlign.Left) { updateElement(selectedElement.copy(textAlign = TextAlign.Left)) }
-                                                FormatToggleButton(Icons.Default.FormatAlignCenter, selectedElement.textAlign == TextAlign.Center) { updateElement(selectedElement.copy(textAlign = TextAlign.Center)) }
-                                                FormatToggleButton(Icons.Default.FormatAlignRight, selectedElement.textAlign == TextAlign.Right) { updateElement(selectedElement.copy(textAlign = TextAlign.Right)) }
-                                            }
-                                        }
-                                    }
-                                }
-                                EditorTab.ADD_ROW -> {
-                                    Button(
-                                        onClick = {
-                                            val newElement = TextElement(text = "New Text", yRatio = 0.5f)
-                                            updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                            selectedElementId = newElement.id
-                                            activeTab = EditorTab.TEXT
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF005D5D))
-                                    ) { Text("Add New Text Row") }
-                                }
+                            }
+                            EditorTab.ADD_ROW -> {
+                                Button(
+                                    onClick = {
+                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f)
+                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                        selectedElementId = newElement.id
+                                        activeTab = EditorTab.TEXT
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF005D5D))
+                                ) { Text("Add New Text Row") }
                             }
                         }
                     }

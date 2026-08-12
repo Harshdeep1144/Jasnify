@@ -135,7 +135,6 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.GalleryCategoryUiModel
 import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
@@ -148,8 +147,10 @@ import com.harshdeep.jasnify.presentation.components.sections.ReviewDetailPostSc
 import com.harshdeep.jasnify.presentation.components.sections.ReviewUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsDataUiModel
 import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary

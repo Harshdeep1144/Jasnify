@@ -1,12 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,14 +11,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -44,10 +38,9 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
-import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.*
-import com.harshdeep.jasnify.util.ShareUtils
+import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat

@@ -34,7 +34,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -44,16 +43,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
@@ -61,75 +54,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Custom 360-degree drop shadow modifier.
- * Native Android `Modifier.shadow` uses a top-down light source that only casts shadows downward.
- * This custom draw method renders both an ambient halo (all 4 sides) and a directional spot shadow.
- */
-fun Modifier.pill360Shadow(
-    ambientColor: Color = Color.Black.copy(alpha = 0.08f),
-    ambientBlur: Dp = 12.dp,
-    ambientSpread: Dp = 0.dp,
-    spotColor: Color = Color.Black.copy(alpha = 0.14f),
-    spotBlur: Dp = 16.dp,
-    spotOffsetY: Dp = 4.dp
-) = this.drawBehind {
-    drawIntoCanvas { canvas ->
-        val cornerRadius = size.height / 2f
-
-        // 1. Ambient 360-degree halo shadow (casts evenly on top, bottom, left, right)
-        val ambientPaint = Paint()
-        val frameworkAmbientPaint = ambientPaint.asFrameworkPaint()
-        if (ambientBlur.toPx() > 0) {
-            frameworkAmbientPaint.maskFilter = android.graphics.BlurMaskFilter(
-                ambientBlur.toPx(),
-                android.graphics.BlurMaskFilter.Blur.NORMAL
-            )
-        }
-        frameworkAmbientPaint.color = ambientColor.toArgb()
-
-        canvas.drawRoundRect(
-            left = -ambientSpread.toPx(),
-            top = -ambientSpread.toPx(),
-            right = size.width + ambientSpread.toPx(),
-            bottom = size.height + ambientSpread.toPx(),
-            radiusX = cornerRadius,
-            radiusY = cornerRadius,
-            paint = ambientPaint
-        )
-
-        // 2. Directional spot shadow (adds downward depth)
-        val spotPaint = Paint()
-        val frameworkSpotPaint = spotPaint.asFrameworkPaint()
-        if (spotBlur.toPx() > 0) {
-            frameworkSpotPaint.maskFilter = android.graphics.BlurMaskFilter(
-                spotBlur.toPx(),
-                android.graphics.BlurMaskFilter.Blur.NORMAL
-            )
-        }
-        frameworkSpotPaint.color = spotColor.toArgb()
-
-        canvas.drawRoundRect(
-            left = 0f,
-            top = spotOffsetY.toPx(),
-            right = size.width,
-            bottom = size.height + spotOffsetY.toPx(),
-            radiusX = cornerRadius,
-            radiusY = cornerRadius,
-            paint = spotPaint
-        )
-    }
-}
 
 @Composable
 fun BottomNavBar(
@@ -300,15 +233,7 @@ fun PillBottomNavBar(
                 if (applyPadding) {
                     Modifier
                         .background(
-                            brush = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.00f to Color.Transparent,
-                                    0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                    0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                    1.00f to BackgroundPrimary
-                                )
-                            )
+                            brush = BottomGradientBrush
                         )
                         .navigationBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 12.dp)
