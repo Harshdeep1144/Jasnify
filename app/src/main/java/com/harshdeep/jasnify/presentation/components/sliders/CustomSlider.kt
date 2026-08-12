@@ -114,7 +114,7 @@ fun CustomSliderHeader(
     icon: ImageVector? = null,
     iconTint: Color = ContentSecondary,
     labelColor: Color = ContentSecondary,
-    badgeTextColor: Color = ContentPrimary,
+    badgeTextColor: Color = ContentBrandDark,
     valueFormatter: ((Float) -> String)? = null,
 ) {
     val formattedValue = valueFormatter?.invoke(value) ?: "${value.toInt()} $unit"

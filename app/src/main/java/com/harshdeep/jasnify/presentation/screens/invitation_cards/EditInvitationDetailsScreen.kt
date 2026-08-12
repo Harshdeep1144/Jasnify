@@ -1,29 +1,18 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.*
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,7 +23,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -64,9 +55,8 @@ import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.sliders.CustomSlider
+import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
-import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderHeader
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.utils.drawScrollbar
 import com.harshdeep.jasnify.theme.*
@@ -74,14 +64,20 @@ import sv.lib.squircleshape.SquircleShape
 import kotlin.math.abs
 
 enum class EditorTab(val label: String) {
-    THEME("Theme"),
     TEXT("Text"),
+    THEME("Theme"),
     FONT("Font"),
     SIZE("Size"),
     COLOR("Color"),
-    FORMAT("Format"),
-    ADD_ROW("+ Add Row")
+    FORMAT("Format")
 }
+
+@Composable
+fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = this.clickable(
+    interactionSource = remember { MutableInteractionSource() },
+    indication = null,
+    onClick = onClick
+)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -111,6 +107,35 @@ fun EditInvitationDetailsScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
+
+    val tabIndicatorShape = remember(density) {
+        GenericShape { size, _ ->
+            val radius = with(density) { 24.dp.toPx() }
+            val baseCurveSize = with(density) { 16.dp.toPx() }
+
+            moveTo(-baseCurveSize, size.height)
+            // Left Concave Curve
+            cubicTo(
+                -baseCurveSize / 2f, size.height,
+                0f, size.height,
+                0f, size.height - baseCurveSize
+            )
+            lineTo(0f, radius)
+            // Top Left
+            arcTo(Rect(0f, 0f, radius * 2f, radius * 2f), 180f, 90f, false)
+            lineTo(size.width - radius, 0f)
+            // Top Right
+            arcTo(Rect(size.width - radius * 2f, 0f, size.width, radius * 2f), 270f, 90f, false)
+            lineTo(size.width, size.height - baseCurveSize)
+            // Right Concave Curve
+            cubicTo(
+                size.width, size.height,
+                size.width + baseCurveSize / 2f, size.height,
+                size.width + baseCurveSize, size.height
+            )
+            close()
+        }
+    }
 
     // IME Keyboard Visibility
     val isImeVisible = WindowInsets.isImeVisible
@@ -307,9 +332,9 @@ fun EditInvitationDetailsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight()),
-                shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
-                color = Color(0xFFE5E5E5), // Light Gray Header Background
-                shadowElevation = 24.dp
+                shape = SquircleShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
+                color = SurfaceSecondary,
+                shadowElevation = 40.dp
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth()
@@ -328,15 +353,15 @@ fun EditInvitationDetailsScreen(
                                     }
                                 }
                             }
-                            .padding(vertical = 10.dp),
+                            .padding(vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(40.dp)
+                                .width(56.dp)
                                 .height(4.dp)
                                 .clip(CircleShape)
-                                .background(Color.Gray.copy(alpha = 0.4f))
+                                .background(ContentTertiary)
                         )
                     }
 
@@ -344,88 +369,107 @@ fun EditInvitationDetailsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
+                            .padding(16.dp, 0.dp, 16.dp, 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.Top
                     ) {
                         Text(
                             text = when (activeTab) {
-                                EditorTab.THEME -> "Select Theme"
                                 EditorTab.TEXT -> "Edit Text"
+                                EditorTab.THEME -> "Select Theme"
                                 EditorTab.FONT -> "Edit Font"
                                 EditorTab.SIZE -> "Edit Size"
                                 EditorTab.COLOR -> "Select Text Color"
                                 EditorTab.FORMAT -> "Edit Text Format"
-                                EditorTab.ADD_ROW -> "Add Row"
                             },
-                            style = JasnifyTheme.typography.headingMedium,
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold
+                            style = JasnifyTheme.typography.headingXLarge,
+                            color = ContentPrimary,
+                            lineHeight = 40.sp,
+                            fontWeight = FontWeight.Medium
                         )
 
-                        Surface(
-                            modifier = Modifier.size(40.dp),
-                            shape = CircleShape,
-                            color = Color.White,
-                            onClick = {
-                                val newElement = TextElement(text = "New Text", yRatio = 0.5f)
-                                updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                selectedElementId = newElement.id
-                                activeTab = EditorTab.TEXT
-                            },
-                            shadowElevation = 2.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Default.Add, contentDescription = "Add", tint = Color.Black, modifier = Modifier.size(24.dp))
-                            }
+                        if (activeTab == EditorTab.TEXT) {
+                            Spacer(Modifier.width(12.dp))
+                            CustomIconButton(
+                                onClick = {
+                                    val newElement = TextElement(text = "New Text", yRatio = 0.5f)
+                                    updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                    selectedElementId = newElement.id
+                                    activeTab = EditorTab.TEXT
+                                },
+                                icon = painterResource(R.drawable.ic_plus),
+                                contentColor = ContentPrimary,
+                                containerColor = SurfacePrimary,
+                                size = ButtonSize.Small,
+                                modifier = Modifier.width(56.dp)
+                                    .height(40.dp)
+                                    .align(Alignment.Top)
+                            )
                         }
                     }
 
                     // TAB ROW
-                    LazyRow(
+                    val tabScrollState = rememberScrollState()
+                    val tabPositions = remember { mutableStateListOf<Float>() }
+                    val tabWidths = remember { mutableStateListOf<Float>() }
+                    var containerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.Start
+                            .horizontalScroll(tabScrollState)
+                            .onGloballyPositioned { containerCords = it }
                     ) {
-                        items(EditorTab.entries.filter { it != EditorTab.ADD_ROW }) { tab ->
-                            val isSelected = activeTab == tab
+                        // Animated Sliding Indicator
+                        if (tabPositions.size == EditorTab.entries.size) {
+                            val targetIndex = EditorTab.entries.indexOf(activeTab)
+                            val indicatorOffset by animateFloatAsState(
+                                targetValue = tabPositions[targetIndex],
+                                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                label = "TabIndicatorOffset"
+                            )
+                            val indicatorWidth by animateFloatAsState(
+                                targetValue = tabWidths[targetIndex],
+                                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                label = "TabIndicatorWidth"
+                            )
+
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                                    .background(if (isSelected) Color.White else Color.Transparent)
-                                    .clickable { activeTab = tab }
-                                    .padding(horizontal = 24.dp, vertical = 14.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = tab.label,
-                                    style = JasnifyTheme.typography.labelLarge,
-                                    color = if (isSelected) Color(0xFF005D5D) else Color(0xFF757575),
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                                )
-                            }
+                                    .offset(x = indicatorOffset.dp)
+                                    .width(indicatorWidth.dp)
+                                    .height(48.dp)
+                                    .background(SurfacePrimary, tabIndicatorShape)
+                            )
                         }
-                        // Add Row Tab
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .clickable {
-                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f)
-                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                        selectedElementId = newElement.id
-                                        activeTab = EditorTab.TEXT
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color(0xFF757575))
+
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.Bottom
+                        ) {
+                            EditorTab.entries.forEachIndexed { index, tab ->
+                                val isSelected = activeTab == tab
+                                Box(
+                                    modifier = Modifier
+                                        .onGloballyPositioned { cords ->
+                                            if (tabPositions.size <= index) {
+                                                tabPositions.add(0f)
+                                                tabWidths.add(0f)
+                                            }
+                                            containerCords?.let { parent ->
+                                                val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
+                                                tabPositions[index] = (pos / density.density)
+                                                tabWidths[index] = (cords.size.width / density.density)
+                                            }
+                                        }
+                                        .noRippleClickable { activeTab = tab }
+                                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
                                     Text(
-                                        text = "Add Row",
-                                        style = JasnifyTheme.typography.labelLarge,
-                                        color = Color(0xFF757575),
+                                        text = tab.label,
+                                        style = JasnifyTheme.typography.labelXLarge,
+                                        color = if (isSelected) ContentBrandDark else ContentSecondary,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
@@ -438,60 +482,55 @@ fun EditInvitationDetailsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.weight(1f))
-                            .background(ContentInvPrimary)
+                            .background(SurfacePrimary)
                             .then(
                                 if (activeTab != EditorTab.SIZE) Modifier.verticalScroll(rememberScrollState())
                                 else Modifier
                             )
                     ) {
                         when (activeTab) {
-                            EditorTab.THEME -> ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
                             EditorTab.TEXT -> {
                                 if (selectedElement != null) {
-                                    Box(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .clip(RoundedCornerShape(20.dp))
-                                            .background(Color(0xFFE5E5E5))
                                             .padding(16.dp)
                                     ) {
-                                        BasicTextField(
+                                        PrimaryInput(
                                             value = selectedElement.text,
-                                            onValueChange = { updateElement(selectedElement.copy(text = it)) },
-                                            textStyle = JasnifyTheme.typography.bodyLarge.copy(color = Color.Black),
+                                            placeholder = "New Text",
+                                            onValueChange = {
+                                                updateElement(selectedElement.copy(text = it))
+                                            },
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .focusRequester(focusRequester)
-                                                .onFocusChanged { isTextFieldFocused = it.isFocused },
-                                            minLines = 2
+                                                .onFocusChanged { isTextFieldFocused = it.isFocused }
                                         )
                                     }
                                 } else {
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.TouchApp,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = Color.LightGray
-                                        )
-                                        Text(
-                                            text = "Tap on any text from the card",
-                                            style = JasnifyTheme.typography.bodyLarge,
-                                            color = Color.Gray,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
+                                    NoSelectionPlaceholder()
+                                }
+                            }
+                            EditorTab.THEME -> {
+                                Box(modifier = Modifier.padding(vertical = 16.dp)) {
+                                    ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
                                 }
                             }
                             EditorTab.FONT -> {
                                 if (selectedElement != null) {
-                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        Text("Font Family", style = JasnifyTheme.typography.labelMedium, color = Color.Gray, fontWeight = FontWeight.Bold)
-                                        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Column(
+                                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        Text(
+                                            text = "Font Family",
+                                            style = JasnifyTheme.typography.labelMedium,
+                                            color = Color.Gray,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                        LazyRow(
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
                                             items(FontStyleType.entries) { fontType ->
                                                 val isSelected = selectedElement.fontStyle == fontType
                                                 Surface(
@@ -510,46 +549,56 @@ fun EditInvitationDetailsScreen(
                                             }
                                         }
                                     }
+                                } else {
+                                    NoSelectionPlaceholder()
                                 }
                             }
                             EditorTab.SIZE -> {
-                                selectedElement?.let { element ->
+                                if (selectedElement != null) {
                                     val sliders = listOf(
-                                        Triple("Font Size", element.fontSizeSp, Icons.Default.FormatSize) to { v: Float -> updateElement(element.copy(fontSizeSp = v)) },
-                                        Triple("Line Height", element.lineHeightSp, Icons.Default.FormatLineSpacing) to { v: Float -> updateElement(element.copy(lineHeightSp = v)) },
-                                        Triple("Vertical Padding", element.verticalPaddingSp, Icons.Default.Height) to { v: Float -> updateElement(element.copy(verticalPaddingSp = v)) }
+                                        Triple("Font Size", selectedElement.fontSizeSp, Icons.Default.FormatSize) to { v: Float -> updateElement(selectedElement.copy(fontSizeSp = v)) },
+                                        Triple("Line Height", selectedElement.lineHeightSp, Icons.Default.FormatLineSpacing) to { v: Float -> updateElement(selectedElement.copy(lineHeightSp = v)) },
+                                        Triple("Vertical Padding", selectedElement.verticalPaddingSp, Icons.Default.Height) to { v: Float -> updateElement(selectedElement.copy(verticalPaddingSp = v)) }
                                     )
 
                                     val sizeScrollState = rememberScrollState()
 
-                                    Column(
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .drawScrollbar(sizeScrollState)
-                                            .verticalScroll(sizeScrollState)
-                                            .padding(16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                                            .padding(vertical = 16.dp)
                                     ) {
-                                        sliders.forEachIndexed { index, (data, onValueChange) ->
-                                            val (label, value, icon) = data
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .drawScrollbar(sizeScrollState)
+                                                .verticalScroll(sizeScrollState)
+                                                .padding(horizontal = 16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                        ) {
+                                            sliders.forEachIndexed { index, (data, onValueChange) ->
+                                                val (label, value, icon) = data
 
-                                            val itemShape = when (index) {
-                                                0 -> SquircleShape(topStart = CornerLargeIncrease, topEnd = CornerLargeIncrease, bottomStart = CornerExtraSmall, bottomEnd = CornerExtraSmall)
-                                                sliders.lastIndex -> SquircleShape(topStart = CornerExtraSmall, topEnd = CornerExtraSmall, bottomStart = CornerLargeIncrease, bottomEnd = CornerLargeIncrease)
-                                                else -> SquircleShape(CornerExtraSmall)
+                                                val itemShape = when (index) {
+                                                    0 -> SquircleShape(topStart = CornerLargeIncrease, topEnd = CornerLargeIncrease, bottomStart = CornerExtraSmall, bottomEnd = CornerExtraSmall)
+                                                    sliders.lastIndex -> SquircleShape(topStart = CornerExtraSmall, topEnd = CornerExtraSmall, bottomStart = CornerLargeIncrease, bottomEnd = CornerLargeIncrease)
+                                                    else -> SquircleShape(CornerExtraSmall)
+                                                }
+
+                                                CustomSliderCard(
+                                                    label = label,
+                                                    value = value,
+                                                    onValueChange = onValueChange,
+                                                    valueRange = 8f..100f,
+                                                    unit = "px",
+                                                    icon = icon,
+                                                    shape = itemShape
+                                                )
                                             }
-
-                                            CustomSliderCard(
-                                                label = label,
-                                                value = value,
-                                                onValueChange = onValueChange,
-                                                valueRange = 8f..100f,
-                                                unit = "px",
-                                                icon = icon,
-                                                shape = itemShape
-                                            )
                                         }
                                     }
+                                } else {
+                                    NoSelectionPlaceholder()
                                 }
                             }
                             EditorTab.COLOR -> {
@@ -596,6 +645,8 @@ fun EditInvitationDetailsScreen(
                                             }
                                         }
                                     }
+                                } else {
+                                    NoSelectionPlaceholder()
                                 }
                             }
                             EditorTab.FORMAT -> {
@@ -630,9 +681,10 @@ fun EditInvitationDetailsScreen(
                                             AlignmentToggleButton(Icons.Default.FormatAlignJustify, selectedElement.textAlign == TextAlign.Justify) { updateElement(selectedElement.copy(textAlign = TextAlign.Justify)) }
                                         }
                                     }
+                                } else {
+                                    NoSelectionPlaceholder()
                                 }
                             }
-                            else -> {}
                         }
                     }
                 }
@@ -642,7 +694,32 @@ fun EditInvitationDetailsScreen(
 }
 
 @Composable
-fun FormatToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+fun NoSelectionPlaceholder() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_click_hand),
+            contentDescription = null,
+            modifier = Modifier.size(64.dp),
+            tint = Color.LightGray
+        )
+        Text(
+            text = "Tap on any text from the card",
+            style = JasnifyTheme.typography.bodyLarge,
+            color = Color.LightGray,
+            textAlign = TextAlign.Center,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun FormatToggleButton(icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.size(64.dp),
         shape = RoundedCornerShape(16.dp),
@@ -656,7 +733,7 @@ fun FormatToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, is
 }
 
 @Composable
-fun AlignmentToggleButton(icon: androidx.compose.ui.graphics.vector.ImageVector, isSelected: Boolean, onClick: () -> Unit) {
+fun AlignmentToggleButton(icon: ImageVector, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
         modifier = Modifier.size(56.dp),
         shape = RoundedCornerShape(12.dp),
@@ -923,24 +1000,38 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
         R.drawable.bg_invitation_card_05
     )
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(bottom = 8.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
         item {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(110.dp, 150.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .border(1.dp, Color.LightGray, RoundedCornerShape(16.dp))
-                        .background(Color.White)
+                        .size(width = 120.dp, height = 160.dp)
+                        .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .border(width = 1.dp, ContentSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .background(Color.Transparent)
                         .clickable { /* Handle Upload */ },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Dashed border effect would need a custom modifier, using solid for now
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Upload, contentDescription = null, tint = Color.Gray)
-                        Text("Upload\nImage", textAlign = TextAlign.Center, color = Color.Gray, style = JasnifyTheme.typography.labelSmall)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_upload),
+                            contentDescription = null,
+                            tint = ContentSecondary
+                        )
+                        Text(
+                            text = "Upload\nImage",
+                            textAlign = TextAlign.Center,
+                            color = ContentSecondary,
+                            style = JasnifyTheme.typography.labelXLarge,
+                            lineHeight = 24.sp
+                        )
                     }
                 }
             }
@@ -948,24 +1039,44 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
 
         items(themes) { bgRes ->
             val isSelected = currentRes == bgRes
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
                 Box(
                     modifier = Modifier
-                        .size(110.dp, 150.dp)
-                        .clip(RoundedCornerShape(16.dp))
+                        .size(width = 120.dp, height = 160.dp)
+                        .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
                         .border(
-                            width = if (isSelected) 3.dp else 0.dp,
-                            color = if (isSelected) Color(0xFF005D5D) else Color.Transparent,
-                            shape = RoundedCornerShape(16.dp)
+                            width = if (isSelected) 4.dp else 0.dp,
+                            color = if (isSelected) ContentBrandDark else Color.Transparent,
+                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                         )
                         .clickable { onSelectTheme(bgRes) }
                 ) {
-                    Image(painter = painterResource(id = bgRes), contentDescription = null, modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                    Image(
+                        painter = painterResource(id = bgRes),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
                     if (isSelected) {
-                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF005D5D).copy(0.2f)), contentAlignment = Alignment.Center) {
-                            Surface(shape = CircleShape, color = Color(0xFF005D5D), modifier = Modifier.size(36.dp)) {
+                        Box(
+                            modifier = Modifier.fillMaxSize()
+                                .background(Color.Transparent),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = ContentBrandDark,
+                                modifier = Modifier.size(56.dp)
+                            ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_check),
+                                        contentDescription = null,
+                                        tint = ContentInvPrimary,
+                                        modifier = Modifier.size(28.dp)
+                                    )
                                 }
                             }
                         }
@@ -975,6 +1086,7 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
         }
     }
 }
+
 
 @Preview(
     name = "Edit Invitation Details - Light Mode",
