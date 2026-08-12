@@ -24,10 +24,13 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -106,20 +109,26 @@ fun InvitationCardItem(
             // We use 280dp as the standard reference width
             val scaleFactor = canvasWidthDp / 284f
 
-            data.elements.sortedBy { it.zIndex }.forEach { element ->
-                RenderCardTextElement(
-                    element = element,
-                    canvasWidth = canvasWidthPx,
-                    canvasHeight = canvasHeightPx,
-                    scaleFactor = scaleFactor,
-                    isEditable = isEditable,
-                    onElementUpdate = { updatedElement ->
-                        val updatedElements = data.elements.map {
-                            if (it.id == updatedElement.id) updatedElement else it
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = (40 * scaleFactor).dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                data.elements.sortedBy { it.yRatio }.forEach { element ->
+                    RenderCardTextElement(
+                        element = element,
+                        scaleFactor = scaleFactor,
+                        isEditable = isEditable,
+                        onElementUpdate = { updatedElement ->
+                            val updatedElements = data.elements.map {
+                                if (it.id == updatedElement.id) updatedElement else it
+                            }
+                            onUpdate(data.copy(elements = updatedElements))
                         }
-                        onUpdate(data.copy(elements = updatedElements))
-                    }
-                )
+                    )
+                }
             }
 
             if (showControls) {
@@ -176,37 +185,34 @@ fun InvitationCardItem(
 @Composable
 private fun RenderCardTextElement(
     element: TextElement,
-    canvasWidth: Float,
-    canvasHeight: Float,
     scaleFactor: Float,
     isEditable: Boolean,
     onElementUpdate: (TextElement) -> Unit
 ) {
     val density = LocalDensity.current.density
-    val posX = element.xRatio * canvasWidth
-    val posY = element.yRatio * canvasHeight
 
     val textStyle = TextStyle(
         fontFamily = element.fontStyle.fontFamily,
         fontSize = (element.fontSizeSp * scaleFactor).sp,
         fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
         fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
+        textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
         color = Color(element.colorHex),
         textAlign = element.textAlign,
         letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
-        lineHeight = if (element.lineHeightSp > 0) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified
+        lineHeight = if (element.lineHeightSp > 0) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
+        lineHeightStyle = LineHeightStyle(
+            alignment = LineHeightStyle.Alignment.Center,
+            trim = LineHeightStyle.Trim.Both
+        ),
+        platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
     Box(
         modifier = Modifier
-            .offset(
-                x = (posX / density).dp,
-                y = (posY / density).dp
-            )
-            .graphicsLayer {
-                translationX = -size.width / 2f
-                translationY = -size.height / 2f
-            },
+            .fillMaxWidth()
+            .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp)
+            .padding(horizontal = (12 * scaleFactor).dp),
         contentAlignment = Alignment.Center
     ) {
         if (isEditable) {

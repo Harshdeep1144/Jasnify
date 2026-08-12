@@ -147,7 +147,7 @@ fun EditInvitationDetailsScreen(
     val targetCanvasOffsetY = remember(isImeVisible, selectedElement) {
         if (isImeVisible && selectedElement != null) {
             val ratio = selectedElement.yRatio.coerceIn(0f, 1f)
-            (-220 - (ratio * 260)).dp
+            (-120 - (ratio * 180)).dp // Adjusted for smoother transition
         } else {
             0.dp
         }
@@ -157,6 +157,12 @@ fun EditInvitationDetailsScreen(
         targetValue = targetCanvasOffsetY,
         animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
         label = "CanvasOffsetAnimation"
+    )
+
+    val animatedBottomPadding by animateDpAsState(
+        targetValue = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "BottomPaddingAnimation"
     )
 
     Box(
@@ -237,14 +243,14 @@ fun EditInvitationDetailsScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .zIndex(0f)
-                .padding(top = 64.dp, bottom = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp)
+                .padding(top = 64.dp, bottom = animatedBottomPadding)
                 .offset(y = animatedCanvasOffsetY),
             contentAlignment = Alignment.Center
         ) {
             BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 40.dp, vertical = 16.dp), // Extra horizontal padding gives space for handles
+                    .padding(horizontal = 40.dp, vertical = 8.dp), // Reduced vertical padding to match better
                 contentAlignment = Alignment.Center
             ) {
                 val cardWidth = minOf(
@@ -591,6 +597,11 @@ fun InteractiveCardCanvas(
         modifier = modifier
             .onGloballyPositioned { canvasSize = it.size }
     ) {
+        val density = LocalDensity.current.density
+        val canvasWidthPx = canvasSize.width.toFloat()
+        val canvasWidthDp = canvasWidthPx / density
+        val scaleFactor = if (canvasWidthDp > 0) canvasWidthDp / 284f else 1f
+
         // 1. Clipped background card layer
         Box(
             modifier = Modifier
@@ -598,12 +609,15 @@ fun InteractiveCardCanvas(
                 .shadow(16.dp, SquircleShape(CornerLargeIncrease))
                 .clip(SquircleShape(CornerLargeIncrease))
                 .background(Color(card.backgroundColorHex))
+                .pointerInput(Unit) {
+                    detectTapGestures { onSelectElement("") } // Deselect when tapping background
+                }
         ) {
             Image(
                 painter = painterResource(id = card.backgroundRes),
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
+                contentScale = ContentScale.FillBounds
             )
         }
 
@@ -611,7 +625,10 @@ fun InteractiveCardCanvas(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 40.dp),
+                .padding(vertical = (40 * scaleFactor).dp)
+                .pointerInput(Unit) {
+                    detectTapGestures { onSelectElement("") } // Deselect when tapping between rows
+                },
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -619,6 +636,7 @@ fun InteractiveCardCanvas(
                 InteractiveTextElementItem(
                     element = element,
                     canvasSize = canvasSize,
+                    scaleFactor = scaleFactor,
                     isSelected = element.id == selectedElementId,
                     otherElements = card.elements.filter { it.id != element.id },
                     onSelect = { onSelectElement(element.id) },
@@ -636,6 +654,7 @@ fun InteractiveCardCanvas(
 fun InteractiveTextElementItem(
     element: TextElement,
     canvasSize: IntSize,
+    scaleFactor: Float,
     isSelected: Boolean,
     otherElements: List<TextElement>,
     onSelect: () -> Unit,
@@ -710,13 +729,13 @@ fun InteractiveTextElementItem(
                         }
                     )
                 }
-                .heightIn(min = element.verticalPaddingSp.dp)
                 .then(
                     if (isSelected) Modifier
                         .border(2.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
                     else Modifier
                 )
-                .padding(horizontal = 12.dp),
+                .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp)
+                .padding(horizontal = (12 * scaleFactor).dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -724,14 +743,14 @@ fun InteractiveTextElementItem(
                 modifier = Modifier.wrapContentWidth(),
                 style = TextStyle(
                     fontFamily = element.fontStyle.fontFamily,
-                    fontSize = element.fontSizeSp.sp,
+                    fontSize = (element.fontSizeSp * scaleFactor).sp,
                     fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
                     fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
                     textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
                     color = Color(element.colorHex),
                     textAlign = element.textAlign,
-                    letterSpacing = element.letterSpacingSp.sp,
-                    lineHeight = if (element.lineHeightSp > 0) element.lineHeightSp.sp else TextUnit.Unspecified,
+                    letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
+                    lineHeight = if (element.lineHeightSp > 0) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
                     lineHeightStyle = LineHeightStyle(
                         alignment = LineHeightStyle.Alignment.Center,
                         trim = LineHeightStyle.Trim.Both
@@ -744,15 +763,15 @@ fun InteractiveTextElementItem(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset(x = 36.dp, y = (-28).dp)
-                        .size(24.dp),
+                        .offset(x = (36 * scaleFactor).dp, y = ((-28) * scaleFactor).dp)
+                        .size((24 * scaleFactor).dp),
                     shape = CircleShape,
                     color = Color(0xFFB3261E),
                     onClick = onDelete,
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size((18 * scaleFactor).dp))
                     }
                 }
 
@@ -760,9 +779,9 @@ fun InteractiveTextElementItem(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .offset(x = 24.dp)
-                        .height(16.dp)
-                        .width(24.dp)
+                        .offset(x = (24 * scaleFactor).dp)
+                        .height((16 * scaleFactor).dp)
+                        .width((24 * scaleFactor).dp)
                         .pointerInput(element.id) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
@@ -775,7 +794,7 @@ fun InteractiveTextElementItem(
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Code, contentDescription = "Width", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Code, contentDescription = "Width", tint = Color.White, modifier = Modifier.size((16 * scaleFactor).dp))
                     }
                 }
 
@@ -783,13 +802,14 @@ fun InteractiveTextElementItem(
                 Surface(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 36.dp, y = 28.dp)
-                        .size(24.dp)
+                        .offset(x = (36 * scaleFactor).dp, y = (28 * scaleFactor).dp)
+                        .size((24 * scaleFactor).dp)
                         .pointerInput(element.id) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
                                 val scaleChange = (dragAmount.x + dragAmount.y) * 0.15f
-                                currentOnUpdate(currentElement.copy(fontSizeSp = (currentElement.fontSizeSp + scaleChange).coerceIn(8f, 72f)))
+                                // We update the raw SP value, which then gets scaled by scaleFactor for display
+                                currentOnUpdate(currentElement.copy(fontSizeSp = (currentElement.fontSizeSp + (scaleChange / scaleFactor)).coerceIn(8f, 72f)))
                             }
                         },
                     shape = CircleShape,
@@ -797,7 +817,7 @@ fun InteractiveTextElementItem(
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.OpenInFull, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.OpenInFull, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size((16 * scaleFactor).dp))
                     }
                 }
             }
