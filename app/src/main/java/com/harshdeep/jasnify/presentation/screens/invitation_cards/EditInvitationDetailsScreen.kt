@@ -7,13 +7,16 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,18 +24,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -90,6 +92,12 @@ fun EditInvitationDetailsScreen(
     var activeTab by remember { mutableStateOf(EditorTab.TEXT) }
     var isTextFieldFocused by remember { mutableStateOf(false) }
 
+    // Dynamic Sheet Height & Weight Management
+    var bottomSheetWeight by remember { mutableFloatStateOf(0.42f) }
+    val minSheetWeight = 0.32f
+    val maxSheetWeight = 0.64f
+    var parentHeightPx by remember { mutableFloatStateOf(0f) }
+
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val haptic = LocalHapticFeedback.current
@@ -115,7 +123,7 @@ fun EditInvitationDetailsScreen(
     fun swapElements(id1: String, id2: String) {
         val e1 = currentCard.elements.find { it.id == id1 } ?: return
         val e2 = currentCard.elements.find { it.id == id2 } ?: return
-        
+
         val updatedElements = currentCard.elements.map {
             when (it.id) {
                 id1 -> it.copy(yRatio = e2.yRatio)
@@ -133,6 +141,9 @@ fun EditInvitationDetailsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(ContentPrimary)
+            .onGloballyPositioned { coordinates ->
+                parentHeightPx = coordinates.size.height.toFloat()
+            }
     ) {
         // ================================================================
         // MAIN CANVAS + BOTTOM SHEET LAYOUT (Extends into Status Bar space)
@@ -188,10 +199,10 @@ fun EditInvitationDetailsScreen(
                 )
             }
 
-            // 1. CANVAS AREA
+            // 1. CANVAS AREA (Dynamically resized via weight)
             Column(
                 modifier = Modifier
-                    .weight(0.6f)
+                    .weight((1f - bottomSheetWeight).coerceAtLeast(0.1f))
                     .padding(12.dp)
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.Center
@@ -230,17 +241,16 @@ fun EditInvitationDetailsScreen(
                 }
             }
 
-
-            // 2. BOTTOM SHEET EDITOR
+            // 2. RESIZABLE BOTTOM SHEET EDITOR
             Column(
                 modifier = Modifier
-                    .weight(0.4f)
+                    .weight(bottomSheetWeight)
                     .fillMaxWidth()
             ){
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.4f)
+                        .fillMaxHeight()
                         .zIndex(2f)
                         .layout { measurable, constraints ->
                             val overlapPx = 0.dp.roundToPx()
@@ -255,12 +265,50 @@ fun EditInvitationDetailsScreen(
                 ) {
                     Column(
                         modifier = Modifier
+                            .fillMaxSize()
                             .imePadding()
                     ) {
+                        // DRAG HANDLE & DRAG AREA
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        if (parentHeightPx > 0f) {
+                                            val deltaWeight = -dragAmount / parentHeightPx
+                                            bottomSheetWeight = (bottomSheetWeight + deltaWeight)
+                                                .coerceIn(minSheetWeight, maxSheetWeight)
+                                        }
+                                    }
+                                }
+                                .padding(vertical = 10.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(40.dp)
+                                    .height(5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Gray.copy(alpha = 0.4f))
+                            )
+                        }
+
+                        // HEADER TITLE + DONE BUTTON
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 24.dp, end = 24.dp, top = 20.dp, bottom = 8.dp),
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        if (parentHeightPx > 0f) {
+                                            val deltaWeight = -dragAmount / parentHeightPx
+                                            bottomSheetWeight = (bottomSheetWeight + deltaWeight)
+                                                .coerceIn(minSheetWeight, maxSheetWeight)
+                                        }
+                                    }
+                                }
+                                .padding(start = 24.dp, end = 24.dp, bottom = 8.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -294,10 +342,11 @@ fun EditInvitationDetailsScreen(
                             }
                         }
 
+                        // TAB ROW
                         LazyRow(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(56.dp)
+                                .height(52.dp)
                                 .padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.Bottom,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -322,12 +371,14 @@ fun EditInvitationDetailsScreen(
                             }
                         }
 
+                        // TAB CONTENT CONTAINER
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .weight(1f)
                                 .background(Color.White, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
                                 .padding(24.dp)
-                                .heightIn(min = 200.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
                             when (activeTab) {
                                 EditorTab.THEME -> ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
@@ -442,7 +493,6 @@ fun EditInvitationDetailsScreen(
                 }
             }
         }
-
     }
 }
 
@@ -489,7 +539,7 @@ fun SliderWithLabel(
             modifier = Modifier.height(24.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
-        Divider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+        HorizontalDivider(color = Color(0xFFEEEEEE), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
     }
 }
 
@@ -554,7 +604,7 @@ fun InteractiveTextElementItem(
     onDelete: () -> Unit
 ) {
     if (canvasSize.width == 0 || canvasSize.height == 0) return
-    val density = androidx.compose.ui.platform.LocalDensity.current
+    val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
 
     val currentElement by rememberUpdatedState(element)
