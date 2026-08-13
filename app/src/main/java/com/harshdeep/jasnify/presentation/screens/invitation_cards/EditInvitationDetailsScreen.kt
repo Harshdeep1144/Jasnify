@@ -11,17 +11,13 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignRight
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignJustify
-import androidx.compose.material.icons.rounded.FormatAlignLeft
-import androidx.compose.material.icons.rounded.FormatAlignRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,7 +30,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -68,10 +63,10 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.dashedBorder
 import com.harshdeep.jasnify.presentation.utils.drawScrollbar
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.abs
@@ -108,9 +103,6 @@ fun EditInvitationDetailsScreen(
     onDataChange: (InvitationCardData) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
-    // ------------------------------------------------------------------------
-    // State & History Management (Undo / Redo)
-    // ------------------------------------------------------------------------
     val normalizedInitialData = remember(initialData) {
         initialData.copy(elements = initialData.elements.map { it.normalizeAlpha() })
     }
@@ -132,13 +124,14 @@ fun EditInvitationDetailsScreen(
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
 
     val tabIndicatorShape = remember(density) {
         GenericShape { size, _ ->
             val radius = with(density) { 24.dp.toPx() }
-            val baseCurveSize = with(density) { 16.dp.toPx() }
+            val baseCurveSize = with(density) { 32.dp.toPx() }
 
             moveTo(-baseCurveSize, size.height)
             cubicTo(
@@ -205,17 +198,7 @@ fun EditInvitationDetailsScreen(
         }
     }
 
-    val animatedCanvasOffsetY by animateDpAsState(
-        targetValue = targetCanvasOffsetY,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "CanvasOffsetAnimation"
-    )
-
-    val animatedBottomPadding by animateDpAsState(
-        targetValue = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-        label = "BottomPaddingAnimation"
-    )
+    val bottomPadding = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp
 
     Box(
         modifier = Modifier
@@ -288,8 +271,8 @@ fun EditInvitationDetailsScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .zIndex(0f)
-                .padding(top = 64.dp, bottom = animatedBottomPadding)
-                .offset(y = animatedCanvasOffsetY),
+                .padding(top = 64.dp, bottom = bottomPadding)
+                .offset(y = targetCanvasOffsetY),
             contentAlignment = Alignment.Center
         ) {
             BoxWithConstraints(
@@ -399,12 +382,17 @@ fun EditInvitationDetailsScreen(
                             Spacer(Modifier.width(12.dp))
                             CustomIconButton(
                                 onClick = {
-                                    val newElement = TextElement(text = "New Text", yRatio = 0.5f).normalizeAlpha()
-                                    updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                    selectedElementId = newElement.id
-                                    activeTab = EditorTab.TEXT
+                                    if (isImeVisible) {
+                                        keyboardController?.hide()
+                                        focusManager.clearFocus()
+                                    } else {
+                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f).normalizeAlpha()
+                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                        selectedElementId = newElement.id
+                                        activeTab = EditorTab.TEXT
+                                    }
                                 },
-                                icon = painterResource(R.drawable.ic_plus),
+                                icon = if (isImeVisible) painterResource(R.drawable.ic_check) else painterResource(R.drawable.ic_plus),
                                 contentColor = ContentPrimary,
                                 containerColor = SurfacePrimary,
                                 size = ButtonSize.Small,
@@ -425,14 +413,12 @@ fun EditInvitationDetailsScreen(
                                     hasPlayedTabLaunchAnimation = true
                                     delay(200.milliseconds)
 
-                                    // 1. Scroll to the rightmost end
                                     tabScrollState.animateScrollTo(
                                         value = maxScroll,
                                         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
                                     )
-                                    delay(150.milliseconds) // Pause briefly at the right edge
+                                    delay(150.milliseconds)
 
-                                    // 2. Scroll back to default (start)
                                     tabScrollState.animateScrollTo(
                                         value = 0,
                                         animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
@@ -506,6 +492,7 @@ fun EditInvitationDetailsScreen(
                             }
                         }
                     }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -550,259 +537,11 @@ fun EditInvitationDetailsScreen(
                             EditorTab.FONT -> {
                                 if (selectedElement != null) {
                                     key(selectedElement.id) {
-                                        // 1. Sync state to current element's font index on load to avoid jumping back to 0
-                                        val initialFontIndex = remember(selectedElement.id) {
-                                            FontStyleType.entries.indexOf(selectedElement.fontStyle).coerceAtLeast(0)
-                                        }
-                                        val fontLazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialFontIndex)
-                                        val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = fontLazyListState)
-
-                                        val currentSelectedElement by rememberUpdatedState(selectedElement)
-                                        val currentUpdateElement by rememberUpdatedState(::updateElement)
-                                        val coroutineScope = rememberCoroutineScope()
-
-                                        // 2. Always select the first visible font item at the left edge
-                                        LaunchedEffect(fontLazyListState) {
-                                            snapshotFlow { fontLazyListState.firstVisibleItemIndex }
-                                                .distinctUntilChanged()
-                                                .collect { firstIndex ->
-                                                    val fontType = FontStyleType.entries.getOrNull(firstIndex) ?: return@collect
-                                                    if (currentSelectedElement.fontStyle != fontType) {
-                                                        currentUpdateElement(currentSelectedElement.copy(fontStyle = fontType))
-                                                    }
-                                                }
-                                        }
-
-                                        val isSheetScaleIncreased = bottomSheetWeight > 0.48f
-
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            LazyRow(
-                                                state = fontLazyListState,
-                                                flingBehavior = snapFlingBehavior,
-                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                                // Large end padding allows the last item to scroll all the way to the first position
-                                                contentPadding = PaddingValues(start = 16.dp, end = 300.dp)
-                                            ) {
-                                                itemsIndexed(FontStyleType.entries) { index, fontType ->
-                                                    val isSelected = selectedElement.fontStyle == fontType
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = if (isSelected) SurfaceBrandSecondary else SurfaceSecondary,
-                                                        border = if (isSelected) BorderStroke(2.dp, ContentBrandDark) else null,
-                                                        modifier = Modifier.noRippleClickable {
-                                                            updateElement(selectedElement.copy(fontStyle = fontType))
-                                                            coroutineScope.launch {
-                                                                fontLazyListState.animateScrollToItem(index)
-                                                            }
-                                                        }
-                                                    ) {
-                                                        Text(
-                                                            text = fontType.label,
-                                                            fontFamily = fontType.fontFamily,
-                                                            color = if (isSelected) ContentBrandDark else ContentPrimary,
-                                                            style = JasnifyTheme.typography.bodyLarge,
-                                                            fontWeight = FontWeight.Medium,
-                                                            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            // Format Controls Container
-                                            Box(
-                                                modifier = Modifier
-                                                    .padding(horizontal = 16.dp)
-                                                    .fillMaxWidth()
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
-                                                    )
-                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                    .background(SurfacePrimary)
-                                            ) {
-                                                val alignmentOptions = remember {
-                                                    listOf(
-                                                        TextAlign.Left to Icons.AutoMirrored.Rounded.FormatAlignLeft,
-                                                        TextAlign.Center to Icons.Rounded.FormatAlignCenter,
-                                                        TextAlign.Right to Icons.AutoMirrored.Rounded.FormatAlignRight,
-                                                        TextAlign.Justify to Icons.Rounded.FormatAlignJustify
-                                                    )
-                                                }
-                                                val currentAlignIndex = remember(selectedElement.textAlign) {
-                                                    alignmentOptions.indexOfFirst { it.first == selectedElement.textAlign }.coerceAtLeast(0)
-                                                }
-
-                                                val alignPositions = remember { mutableStateListOf<Float>() }
-                                                val alignWidths = remember { mutableStateListOf<Float>() }
-                                                var alignContainerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-
-                                                @Composable
-                                                fun AlignmentSelectorPill() {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                                            .background(color = SurfaceSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                                            .padding(4.dp)
-                                                            .onGloballyPositioned { alignContainerCords = it }
-                                                    ) {
-                                                        if (alignPositions.size == alignmentOptions.size) {
-                                                            val indicatorOffset by animateFloatAsState(
-                                                                targetValue = alignPositions[currentAlignIndex],
-                                                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                                                label = "AlignIndicatorOffset"
-                                                            )
-                                                            val indicatorWidth by animateFloatAsState(
-                                                                targetValue = alignWidths[currentAlignIndex],
-                                                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                                                label = "AlignIndicatorWidth"
-                                                            )
-
-                                                            Box(
-                                                                modifier = Modifier
-                                                                    .offset(x = indicatorOffset.dp)
-                                                                    .width(indicatorWidth.dp)
-                                                                    .height(48.dp)
-                                                                    .background(
-                                                                        color = SurfaceBrandPrimary,
-                                                                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                                                                    )
-                                                            )
-                                                        }
-
-                                                        Row(
-                                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            alignmentOptions.forEachIndexed { index, (align, icon) ->
-                                                                val isSelected = selectedElement.textAlign == align
-                                                                val animateIconColor by animateColorAsState(
-                                                                    targetValue = if (isSelected) ContentInvPrimary else ContentSecondary,
-                                                                    animationSpec = tween(durationMillis = 200),
-                                                                    label = "IconColorAnimation"
-                                                                )
-
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .onGloballyPositioned { cords ->
-                                                                            if (alignPositions.size <= index) {
-                                                                                alignPositions.add(0f)
-                                                                                alignWidths.add(0f)
-                                                                            }
-                                                                            alignContainerCords?.let { parent ->
-                                                                                val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
-                                                                                alignPositions[index] = (pos / density.density)
-                                                                                alignWidths[index] = (cords.size.width / density.density)
-                                                                            }
-                                                                        }
-                                                                        .size(48.dp)
-                                                                        .noRippleClickable {
-                                                                            updateElement(selectedElement.copy(textAlign = align))
-                                                                        },
-                                                                    contentAlignment = Alignment.Center
-                                                                ) {
-                                                                    Icon(
-                                                                        imageVector = icon,
-                                                                        contentDescription = null,
-                                                                        tint = animateIconColor,
-                                                                        modifier = Modifier.size(24.dp)
-                                                                    )
-                                                                }
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                if (isSheetScaleIncreased) {
-                                                    Column(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(16.dp),
-                                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                                                    ) {
-                                                        Row(
-                                                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_bold),
-                                                                isSelected = selectedElement.isBold
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isBold = !selectedElement.isBold))
-                                                            }
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_italic),
-                                                                isSelected = selectedElement.isItalic
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
-                                                            }
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_underline),
-                                                                isSelected = selectedElement.isUnderline
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
-                                                            }
-                                                        }
-
-                                                        HorizontalDivider(
-                                                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                                                            thickness = 1.dp
-                                                        )
-
-                                                        AlignmentSelectorPill()
-                                                    }
-                                                } else {
-                                                    val formatContainerScrollState = rememberScrollState()
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .horizontalScroll(formatContainerScrollState)
-                                                            .padding(12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        Row(
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_bold),
-                                                                isSelected = selectedElement.isBold
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isBold = !selectedElement.isBold))
-                                                            }
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_italic),
-                                                                isSelected = selectedElement.isItalic
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
-                                                            }
-                                                            FormatToggleButton(
-                                                                icon = painterResource(R.drawable.ic_underline),
-                                                                isSelected = selectedElement.isUnderline
-                                                            ) {
-                                                                updateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
-                                                            }
-                                                        }
-
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .height(36.dp)
-                                                                .width(1.dp)
-                                                                .background(MaterialTheme.colorScheme.outline.copy(0.16f))
-                                                        )
-
-                                                        AlignmentSelectorPill()
-                                                    }
-                                                }
-                                            }
-                                        }
+                                        ProfessionalFontSelector(
+                                            selectedElement = selectedElement,
+                                            bottomSheetWeight = bottomSheetWeight,
+                                            onUpdateElement = ::updateElement
+                                        )
                                     }
                                 } else {
                                     NoSelectionPlaceholder()
@@ -890,7 +629,6 @@ fun EditInvitationDetailsScreen(
                                         )
                                     }
 
-                                    // Auto scroll to active swatch when changing element selection
                                     LaunchedEffect(selectedElement.id) {
                                         val activeRgb = currentSelectedElement.colorHex and 0x00FFFFFFL
                                         val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
@@ -1003,7 +741,6 @@ fun EditInvitationDetailsScreen(
                                                 value = currentOpacity,
                                                 onValueChange = { newOpacity ->
                                                     val latestTarget = currentCard.elements.find { it.id == currentSelectedElement.id } ?: currentSelectedElement
-                                                    // Use round to prevent float truncation when reaching 0% or 100%
                                                     val alphaByte = round((newOpacity / 100f) * 255f).toLong().coerceIn(0L, 255L)
                                                     val currentRgb = latestTarget.colorHex and 0x00FFFFFFL
                                                     val updatedColorHex = (alphaByte shl 24) or currentRgb
@@ -1022,6 +759,349 @@ fun EditInvitationDetailsScreen(
                             }
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+fun ProfessionalFontSelector(
+    selectedElement: TextElement,
+    bottomSheetWeight: Float,
+    onUpdateElement: (TextElement) -> Unit
+) {
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+
+    val fontTypes = remember { FontStyleType.entries }
+    val initialFontIndex = remember(selectedElement.id) {
+        fontTypes.indexOf(selectedElement.fontStyle).coerceAtLeast(0)
+    }
+
+    val fontLazyListState = rememberLazyListState(initialFirstVisibleItemIndex = initialFontIndex)
+    val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = fontLazyListState)
+
+    var containerWidthPx by remember { mutableFloatStateOf(0f) }
+    val cardWidthDp = 130.dp
+    val cardWidthPx = with(density) { cardWidthDp.toPx() }
+
+    // Dynamically calculate horizontal padding so the centered item is perfectly in the middle
+    val horizontalPaddingDp = remember(containerWidthPx, cardWidthPx) {
+        if (containerWidthPx > 0f) {
+            with(density) { ((containerWidthPx - cardWidthPx) / 2f).coerceAtLeast(16.dp.toPx()).toDp() }
+        } else {
+            120.dp
+        }
+    }
+
+    // Centered item index derived immediately from real-time scroll offset
+    val centerItemIndex by remember {
+        derivedStateOf {
+            val layoutInfo = fontLazyListState.layoutInfo
+            val visibleItems = layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) initialFontIndex
+            else {
+                val viewportCenter = (layoutInfo.viewportStartOffset + layoutInfo.viewportEndOffset) / 2
+                visibleItems.minByOrNull { item ->
+                    val itemCenter = item.offset + (item.size / 2)
+                    abs(itemCenter - viewportCenter)
+                }?.index ?: initialFontIndex
+            }
+        }
+    }
+
+    val currentSelectedElement by rememberUpdatedState(selectedElement)
+    val currentUpdateElement by rememberUpdatedState(onUpdateElement)
+
+    // Immediately update font selection on the element whenever the center item index changes
+    LaunchedEffect(centerItemIndex) {
+        val currentFont = fontTypes.getOrNull(centerItemIndex)
+        if (currentFont != null && currentSelectedElement.fontStyle != currentFont) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            currentUpdateElement(currentSelectedElement.copy(fontStyle = currentFont))
+        }
+    }
+
+    // Auto-scroll to selected font if changed externally
+    LaunchedEffect(selectedElement.fontStyle) {
+        val targetIndex = fontTypes.indexOf(selectedElement.fontStyle)
+        if (targetIndex >= 0 && centerItemIndex != targetIndex && !fontLazyListState.isScrollInProgress) {
+            fontLazyListState.animateScrollToItem(targetIndex)
+        }
+    }
+
+    val isSheetScaleIncreased = bottomSheetWeight > 0.48f
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    containerWidthPx = coordinates.size.width.toFloat()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            // Fixed center focus background indicator
+            Box(
+                modifier = Modifier
+                    .width(cardWidthDp)
+                    .height(64.dp)
+                    .background(
+                        color = SurfaceBrandSecondary,
+                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+                    .border(
+                        border = BorderStroke(2.dp, ContentBrandDark),
+                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+            )
+
+            LazyRow(
+                state = fontLazyListState,
+                flingBehavior = snapFlingBehavior,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(horizontal = horizontalPaddingDp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                itemsIndexed(fontTypes) { index, fontType ->
+                    val isCentered = centerItemIndex == index
+
+                    Box(
+                        modifier = Modifier
+                            .width(cardWidthDp)
+                            .height(64.dp)
+                            .noRippleClickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentUpdateElement(selectedElement.copy(fontStyle = fontType))
+                                coroutineScope.launch {
+                                    fontLazyListState.animateScrollToItem(index)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "Aa",
+                                fontFamily = fontType.fontFamily,
+                                color = if (isCentered) ContentBrandDark else ContentPrimary,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = fontType.label,
+                                fontFamily = fontType.fontFamily,
+                                color = if (isCentered) ContentBrandDark else ContentSecondary,
+                                style = JasnifyTheme.typography.labelMedium,
+                                maxLines = 1,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                    shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                )
+                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                .background(SurfacePrimary)
+        ) {
+            val alignmentOptions = remember {
+                listOf(
+                    TextAlign.Left to Icons.AutoMirrored.Rounded.FormatAlignLeft,
+                    TextAlign.Center to Icons.Rounded.FormatAlignCenter,
+                    TextAlign.Right to Icons.AutoMirrored.Rounded.FormatAlignRight,
+                    TextAlign.Justify to Icons.Rounded.FormatAlignJustify
+                )
+            }
+            val currentAlignIndex = remember(selectedElement.textAlign) {
+                alignmentOptions.indexOfFirst { it.first == selectedElement.textAlign }.coerceAtLeast(0)
+            }
+
+            val alignPositions = remember { mutableStateListOf<Float>() }
+            val alignWidths = remember { mutableStateListOf<Float>() }
+            var alignContainerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+            @Composable
+            fun AlignmentSelectorPill() {
+                Box(
+                    modifier = Modifier
+                        .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .background(color = SurfaceSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .padding(4.dp)
+                        .onGloballyPositioned { alignContainerCords = it }
+                ) {
+                    if (alignPositions.size == alignmentOptions.size) {
+                        val indicatorOffset by animateFloatAsState(
+                            targetValue = alignPositions[currentAlignIndex],
+                            animationSpec = spring(stiffness = Spring.StiffnessLow),
+                            label = "AlignIndicatorOffset"
+                        )
+                        val indicatorWidth by animateFloatAsState(
+                            targetValue = alignWidths[currentAlignIndex],
+                            animationSpec = spring(stiffness = Spring.StiffnessLow),
+                            label = "AlignIndicatorWidth"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .offset(x = indicatorOffset.dp)
+                                .width(indicatorWidth.dp)
+                                .height(48.dp)
+                                .background(
+                                    color = SurfaceBrandPrimary,
+                                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                                )
+                        )
+                    }
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        alignmentOptions.forEachIndexed { index, (align, icon) ->
+                            val isSelected = selectedElement.textAlign == align
+                            val animateIconColor by animateColorAsState(
+                                targetValue = if (isSelected) ContentInvPrimary else ContentSecondary,
+                                animationSpec = tween(durationMillis = 200),
+                                label = "IconColorAnimation"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .onGloballyPositioned { cords ->
+                                        if (alignPositions.size <= index) {
+                                            alignPositions.add(0f)
+                                            alignWidths.add(0f)
+                                        }
+                                        alignContainerCords?.let { parent ->
+                                            val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
+                                            alignPositions[index] = (pos / density.density)
+                                            alignWidths[index] = (cords.size.width / density.density)
+                                        }
+                                    }
+                                    .size(48.dp)
+                                    .noRippleClickable {
+                                        onUpdateElement(selectedElement.copy(textAlign = align))
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    tint = animateIconColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (isSheetScaleIncreased) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_bold),
+                            isSelected = selectedElement.isBold
+                        ) {
+                            onUpdateElement(selectedElement.copy(isBold = !selectedElement.isBold))
+                        }
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_italic),
+                            isSelected = selectedElement.isItalic
+                        ) {
+                            onUpdateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
+                        }
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_underline),
+                            isSelected = selectedElement.isUnderline
+                        ) {
+                            onUpdateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
+                        }
+                    }
+
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                        thickness = 1.dp
+                    )
+
+                    AlignmentSelectorPill()
+                }
+            } else {
+                val formatContainerScrollState = rememberScrollState()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(formatContainerScrollState)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_bold),
+                            isSelected = selectedElement.isBold
+                        ) {
+                            onUpdateElement(selectedElement.copy(isBold = !selectedElement.isBold))
+                        }
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_italic),
+                            isSelected = selectedElement.isItalic
+                        ) {
+                            onUpdateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
+                        }
+                        FormatToggleButton(
+                            icon = painterResource(R.drawable.ic_underline),
+                            isSelected = selectedElement.isUnderline
+                        ) {
+                            onUpdateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .height(36.dp)
+                            .width(1.dp)
+                            .background(MaterialTheme.colorScheme.outline.copy(0.16f))
+                    )
+
+                    AlignmentSelectorPill()
                 }
             }
         }
@@ -1337,7 +1417,13 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                     modifier = Modifier
                         .size(width = 120.dp, height = 160.dp)
                         .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                        .border(width = 1.dp, ContentSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .dashedBorder(
+                            color = ContentSecondary,
+                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+                            strokeWidth = 1.dp,
+                            dashLength = 6.dp,
+                            gapLength = 4.dp
+                        )
                         .background(Color.Transparent)
                         .clickable { /* Upload handler */ },
                     contentAlignment = Alignment.Center

@@ -7,8 +7,8 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.Dp
@@ -125,5 +125,40 @@ fun Modifier.drawScrollbar(
         topLeft = Offset(xOffset, thumbOffsetY),
         size = Size(widthPx, thumbHeight),
         cornerRadius = CornerRadius(cornerRadiusPx, cornerRadiusPx)
+    )
+}
+
+fun Modifier.dashedBorder(
+    color: Color,
+    shape: Shape,
+    strokeWidth: Dp = 1.dp,
+    dashLength: Dp = 4.dp,
+    gapLength: Dp = 4.dp,
+    cap: StrokeCap = StrokeCap.Round
+) = this.drawBehind {
+    val strokeWidthPx = strokeWidth.toPx()
+    val dashLengthPx = dashLength.toPx()
+    val gapLengthPx = gapLength.toPx()
+
+    val outline = shape.createOutline(size, layoutDirection, this)
+    val path = Path()
+
+    when (outline) {
+        is Outline.Rectangle -> path.addRect(outline.rect)
+        is Outline.Rounded -> path.addRoundRect(outline.roundRect)
+        is Outline.Generic -> path.addPath(outline.path)
+    }
+
+    drawPath(
+        path = path,
+        color = color,
+        style = Stroke(
+            width = strokeWidthPx,
+            cap = cap,
+            pathEffect = PathEffect.dashPathEffect(
+                intervals = floatArrayOf(dashLengthPx, gapLengthPx),
+                phase = 0f
+            )
+        )
     )
 }
