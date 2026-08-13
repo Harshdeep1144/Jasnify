@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,14 +92,18 @@ fun CustomSliderCard(
             valueFormatter = valueFormatter
         )
 
-        CustomSlider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            trackHeight = trackHeight,
-            thumbSize = thumbSize,
-            modifier = Modifier.height(44.dp)
-        )
+        Box(
+            modifier = Modifier.padding(vertical = 14.dp)
+        ){
+            CustomSlider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = valueRange,
+                trackHeight = trackHeight,
+                thumbSize = thumbSize,
+                modifier = Modifier.height(44.dp)
+            )
+        }
     }
 }
 
@@ -173,8 +178,8 @@ fun CustomSlider(
     val thumbRadiusPx = with(density) { (thumbSize / 2).toPx() }
 
     fun updateValueFromX(xPx: Float) {
-        if (trackWidthPx > 0f) {
-            val newNormalized = (xPx / trackWidthPx).coerceIn(0f, 1f)
+        if (trackWidthPx > thumbRadiusPx * 2) {
+            val newNormalized = ((xPx - thumbRadiusPx) / (trackWidthPx - 2 * thumbRadiusPx)).coerceIn(0f, 1f)
             val newValue = valueRange.start + newNormalized * (valueRange.endInclusive - valueRange.start)
             onValueChange(newValue)
         }
@@ -230,7 +235,7 @@ fun CustomSlider(
             modifier = Modifier
                 .offset {
                     IntOffset(
-                        x = (trackWidthPx * normalizedValue - thumbRadiusPx).toInt(),
+                        x = ((trackWidthPx - 2 * thumbRadiusPx) * normalizedValue).toInt(),
                         y = 0
                     )
                 }
