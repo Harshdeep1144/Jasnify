@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -51,6 +52,8 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -90,7 +93,6 @@ data class CardThemeItem(
     val resId: Int
 )
 
-// Helper to normalize 24-bit hex colors (e.g. 0x005D5D) to 32-bit ARGB (0xFF005D5D) on initial load
 private fun TextElement.normalizeAlpha(): TextElement {
     val hex = this.colorHex
     return if ((hex and 0xFF000000L) == 0L && hex > 0L) {
@@ -112,7 +114,7 @@ fun EditInvitationDetailsScreen(
     onDataChange: (InvitationCardData) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
-    val normalizedInitialData = remember(initialData) {
+    val normalizedInitialData = remember(initialData.id) {
         initialData.copy(elements = initialData.elements.map { it.normalizeAlpha() })
     }
     val history = remember { mutableStateListOf(normalizedInitialData) }
@@ -120,10 +122,10 @@ fun EditInvitationDetailsScreen(
     val currentCard = history.getOrElse(historyIndex) { normalizedInitialData }
 
     var selectedElementId by remember { mutableStateOf<String?>(null) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(EditorTab.TEXT) }
     var isTextFieldFocused by remember { mutableStateOf(false) }
 
-    // Dynamic Sheet Height & Weight Management
     var bottomSheetWeight by remember { mutableFloatStateOf(0.42f) }
     val minSheetWeight = 0.32f
     val maxSheetWeight = 0.64f
@@ -165,7 +167,8 @@ fun EditInvitationDetailsScreen(
     val isImeVisible = WindowInsets.isImeVisible
 
     fun updateCardState(newCard: InvitationCardData) {
-        if (newCard == currentCard) return
+        val latest = history.getOrNull(historyIndex) ?: normalizedInitialData
+        if (newCard == latest) return
         while (history.size - 1 > historyIndex) {
             history.removeAt(history.size - 1)
         }
@@ -176,14 +179,20 @@ fun EditInvitationDetailsScreen(
     fun undo() { if (historyIndex > 0) historyIndex-- }
     fun redo() { if (historyIndex < history.size - 1) historyIndex++ }
 
-    fun updateElement(updated: TextElement) {
-        val newElements = currentCard.elements.map { if (it.id == updated.id) updated else it }
-        updateCardState(currentCard.copy(elements = newElements))
+    fun updateElement(elementId: String, transform: (TextElement) -> TextElement) {
+        val latest = history.getOrNull(historyIndex) ?: normalizedInitialData
+        val existing = latest.elements.find { it.id == elementId && it.isEditable } ?: return
+        val updated = transform(existing)
+        if (updated == existing) return
+        val newElements = latest.elements.map { if (it.id == elementId) updated else it }
+        updateCardState(latest.copy(elements = newElements))
     }
 
     fun swapElements(id1: String, id2: String) {
         val e1 = currentCard.elements.find { it.id == id1 } ?: return
         val e2 = currentCard.elements.find { it.id == id2 } ?: return
+
+        if (!e1.isEditable || !e2.isEditable) return
 
         val updatedElements = currentCard.elements.map {
             when (it.id) {
@@ -196,7 +205,7 @@ fun EditInvitationDetailsScreen(
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
     }
 
-    val selectedElement = currentCard.elements.find { it.id == selectedElementId }
+    val selectedElement = currentCard.elements.find { it.id == selectedElementId && it.isEditable }
 
     val targetCanvasOffsetY = remember(isImeVisible, selectedElement) {
         if (isImeVisible && selectedElement != null) {
@@ -261,17 +270,74 @@ fun EditInvitationDetailsScreen(
                     )
                 }
 
-                CustomTextButton(
-                    text = "Save",
-                    onClick = {
-                        onDataChange(currentCard)
-                        onBackClick()
-                    },
-                    leadingIcon = painterResource(R.drawable.ic_check),
-                    size = ButtonSize.Small,
-                    contentColor = ContentPrimary,
-                    containerColor = ContentInvPrimary
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CustomTextButton(
+                        text = "Save",
+                        onClick = {
+                            onDataChange(currentCard)
+                            onBackClick()
+                        },
+                        leadingIcon = painterResource(R.drawable.ic_check),
+                        size = ButtonSize.Small,
+                        contentColor = ContentPrimary,
+                        containerColor = ContentInvPrimary
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Box {
+                        CustomIconButton(
+                            icon = rememberVectorPainter(image = Icons.Default.MoreVert),
+                            onClick = { isMenuExpanded = !isMenuExpanded },
+                            size = ButtonSize.Small,
+                            contentColor = ContentInvPrimary,
+                            containerColor = Color(0xE53D3D3D)
+                        )
+
+                        if (isMenuExpanded) {
+                            androidx.compose.ui.window.Popup(
+                                onDismissRequest = { isMenuExpanded = false },
+                                offset = IntOffset(0, with(LocalDensity.current) { 48.dp.roundToPx() }),
+                                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+                                alignment = Alignment.TopEnd
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .width(220.dp)
+                                        .shadow(8.dp, SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                        .background(Color(0xFF2C2C2C)),
+                                    color = Color(0xFF2C2C2C)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(56.dp)
+                                            .clickable {
+                                                isMenuExpanded = false
+                                                updateCardState(normalizedInitialData)
+                                                selectedElementId = null
+                                            }
+                                            .padding(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Sync,
+                                            contentDescription = null,
+                                            tint = ContentInvPrimary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+
+                                        Text(
+                                            text = "Reset to Defaults",
+                                            style = JasnifyTheme.typography.labelXLarge,
+                                            color = ContentInvPrimary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -524,8 +590,8 @@ fun EditInvitationDetailsScreen(
                                             PrimaryInput(
                                                 value = selectedElement.text,
                                                 placeholder = "New Text",
-                                                onValueChange = {
-                                                    updateElement(selectedElement.copy(text = it))
+                                                onValueChange = { newText ->
+                                                    updateElement(selectedElement.id) { it.copy(text = newText) }
                                                 },
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -586,11 +652,11 @@ fun EditInvitationDetailsScreen(
                                                 icon = Icons.Default.FormatSize,
                                                 isAuto = false,
                                                 onValueChange = { v ->
-                                                    updateElement(selectedElement.copy(fontSizeSp = v))
+                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = v) }
                                                 },
                                                 onReset = {
                                                     val savedFontSize = initialElement?.fontSizeSp ?: 24f
-                                                    updateElement(selectedElement.copy(fontSizeSp = savedFontSize))
+                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = savedFontSize) }
                                                 }
                                             ),
                                             SliderConfigData(
@@ -599,11 +665,11 @@ fun EditInvitationDetailsScreen(
                                                 icon = Icons.Default.FormatLineSpacing,
                                                 isAuto = isLineHeightAuto,
                                                 onValueChange = { v ->
-                                                    updateElement(selectedElement.copy(lineHeightSp = v))
+                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = v) }
                                                 },
                                                 onReset = {
                                                     val savedLineHeight = initialElement?.lineHeightSp ?: 0f
-                                                    updateElement(selectedElement.copy(lineHeightSp = savedLineHeight))
+                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = savedLineHeight) }
                                                 }
                                             ),
                                             SliderConfigData(
@@ -612,11 +678,11 @@ fun EditInvitationDetailsScreen(
                                                 icon = Icons.Default.TextFields,
                                                 isAuto = false,
                                                 onValueChange = { v ->
-                                                    updateElement(selectedElement.copy(letterSpacingSp = v))
+                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = v) }
                                                 },
                                                 onReset = {
                                                     val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
-                                                    updateElement(selectedElement.copy(letterSpacingSp = savedLetterSpacing))
+                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = savedLetterSpacing) }
                                                 }
                                             ),
                                             SliderConfigData(
@@ -625,11 +691,11 @@ fun EditInvitationDetailsScreen(
                                                 icon = Icons.Default.Height,
                                                 isAuto = false,
                                                 onValueChange = { v ->
-                                                    updateElement(selectedElement.copy(verticalPaddingSp = v))
+                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = v) }
                                                 },
                                                 onReset = {
                                                     val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
-                                                    updateElement(selectedElement.copy(verticalPaddingSp = savedVerticalPadding))
+                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = savedVerticalPadding) }
                                                 }
                                             )
                                         )
@@ -691,161 +757,165 @@ fun EditInvitationDetailsScreen(
                             }
                             EditorTab.COLOR -> {
                                 if (selectedElement != null) {
-                                    val currentSelectedElement by rememberUpdatedState(selectedElement)
-                                    val initialElement = remember(selectedElement.id, normalizedInitialData) {
-                                        normalizedInitialData.elements.find { it.id == selectedElement.id }
-                                    }
-
-                                    val palette = remember {
-                                        listOf(
-                                            0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
-                                            0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
-                                            0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
-                                            0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
-                                            0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
-                                            0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
-                                            0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
-                                            0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
-                                        )
-                                    }
-
-                                    LaunchedEffect(selectedElement.id) {
-                                        val activeRgb = currentSelectedElement.colorHex and 0x00FFFFFFL
-                                        val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
-                                        if (matchIndex >= 0) {
-                                            colorRowLazyListState.animateScrollToItem(matchIndex + 2)
+                                    key(selectedElement.id) {
+                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
                                         }
-                                    }
 
-                                    val currentAlpha = (currentSelectedElement.colorHex shr 24) and 0xFFL
-                                    val currentOpacity = (currentAlpha.toFloat() / 255f) * 100f
+                                        val palette = remember {
+                                            listOf(
+                                                0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
+                                                0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
+                                                0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
+                                                0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
+                                                0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
+                                                0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
+                                                0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
+                                                0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
+                                            )
+                                        }
 
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 16.dp),
-                                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                                    ) {
-                                        LazyRow(
-                                            state = colorRowLazyListState,
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            contentPadding = PaddingValues(horizontal = 16.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(56.dp)
-                                                        .clip(CircleShape)
-                                                        .noRippleClickable { /* Eyedropper action */ },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Default.Colorize,
-                                                        contentDescription = "Eyedropper",
-                                                        tint = ContentPrimary,
-                                                        modifier = Modifier.size(32.dp)
-                                                    )
-                                                }
+                                        LaunchedEffect(selectedElement.id) {
+                                            val activeRgb = selectedElement.colorHex and 0x00FFFFFFL
+                                            val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
+                                            if (matchIndex >= 0) {
+                                                colorRowLazyListState.animateScrollToItem(matchIndex + 2)
                                             }
+                                        }
 
-                                            item {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(56.dp)
-                                                        .clip(CircleShape)
-                                                        .background(
-                                                            brush = androidx.compose.ui.graphics.Brush.sweepGradient(
-                                                                listOf(
-                                                                    Color.Red,
-                                                                    Color.Yellow,
-                                                                    Color.Green,
-                                                                    Color.Cyan,
-                                                                    Color.Blue,
-                                                                    Color.Magenta,
-                                                                    Color.Red
-                                                                )
-                                                            )
-                                                        )
-                                                        .noRippleClickable { /* Color wheel dialog */ },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
+                                        val currentAlpha = (selectedElement.colorHex shr 24) and 0xFFL
+                                        val currentOpacity = (currentAlpha.toFloat() / 255f) * 100f
+
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(vertical = 16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                        ) {
+                                            LazyRow(
+                                                state = colorRowLazyListState,
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                item {
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(24.dp)
+                                                            .size(56.dp)
                                                             .clip(CircleShape)
-                                                            .background(SurfacePrimary)
-                                                    )
-                                                }
-                                            }
-
-                                            items(palette) { hex ->
-                                                val isSelected = (currentSelectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
-                                                val swatchColor = Color(hex)
-
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(56.dp)
-                                                        .clip(CircleShape)
-                                                        .background(swatchColor)
-                                                        .border(1.dp, Color(0x26000000), CircleShape)
-                                                        .clickable {
-                                                            val latestTarget = currentCard.elements.find { it.id == currentSelectedElement.id } ?: currentSelectedElement
-                                                            val activeAlpha = (latestTarget.colorHex shr 24) and 0xFFL
-                                                            val swatchRgb = hex and 0x00FFFFFFL
-                                                            val updatedColorHex = (activeAlpha shl 24) or swatchRgb
-                                                            updateElement(latestTarget.copy(colorHex = updatedColorHex))
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    if (isSelected) {
+                                                            .noRippleClickable { },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
                                                         Icon(
-                                                            painter = painterResource(R.drawable.ic_check),
-                                                            contentDescription = "Selected",
-                                                            tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
+                                                            imageVector = Icons.Default.Colorize,
+                                                            contentDescription = "Eyedropper",
+                                                            tint = ContentPrimary,
                                                             modifier = Modifier.size(32.dp)
                                                         )
                                                     }
                                                 }
-                                            }
-                                        }
 
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp)
-                                                .border(
-                                                    width = 1.dp,
-                                                    color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                item {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(56.dp)
+                                                            .clip(CircleShape)
+                                                            .background(
+                                                                brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                                                    listOf(
+                                                                        Color.Red,
+                                                                        Color.Yellow,
+                                                                        Color.Green,
+                                                                        Color.Cyan,
+                                                                        Color.Blue,
+                                                                        Color.Magenta,
+                                                                        Color.Red
+                                                                    )
+                                                                )
+                                                            )
+                                                            .noRippleClickable { },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(24.dp)
+                                                                .clip(CircleShape)
+                                                                .background(SurfacePrimary)
+                                                        )
+                                                    }
+                                                }
+
+                                                items(palette) { hex ->
+                                                    val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
+                                                    val swatchColor = Color(hex)
+
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .size(56.dp)
+                                                            .clip(CircleShape)
+                                                            .background(swatchColor)
+                                                            .border(1.dp, Color(0x26000000), CircleShape)
+                                                            .clickable {
+                                                                val swatchRgb = hex and 0x00FFFFFFL
+                                                                updateElement(selectedElement.id) { target ->
+                                                                    val activeAlpha = (target.colorHex shr 24) and 0xFFL
+                                                                    val updatedColorHex = (activeAlpha shl 24) or swatchRgb
+                                                                    target.copy(colorHex = updatedColorHex)
+                                                                }
+                                                            },
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        if (isSelected) {
+                                                            Icon(
+                                                                painter = painterResource(R.drawable.ic_check),
+                                                                contentDescription = "Selected",
+                                                                tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
+                                                                modifier = Modifier.size(32.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp)
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                    )
+                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                    .background(SurfaceSecondary)
+                                            ) {
+                                                CustomSliderCard(
+                                                    label = "Opacity",
+                                                    value = currentOpacity,
+                                                    onValueChange = { newOpacity ->
+                                                        val alphaByte = round((newOpacity / 100f) * 255f).toLong().coerceIn(0L, 255L)
+                                                        updateElement(selectedElement.id) { target ->
+                                                            val currentRgb = target.colorHex and 0x00FFFFFFL
+                                                            val updatedColorHex = (alphaByte shl 24) or currentRgb
+                                                            target.copy(colorHex = updatedColorHex)
+                                                        }
+                                                    },
+                                                    valueRange = 0f..100f,
+                                                    unit = "%",
+                                                    icon = Icons.Default.WbSunny,
+                                                    onReset = {
+                                                        val initialHex = initialElement?.colorHex ?: 0xFF000000L
+                                                        val savedAlpha = (initialHex shr 24) and 0xFFL
+                                                        updateElement(selectedElement.id) { target ->
+                                                            val currentRgb = target.colorHex and 0x00FFFFFFL
+                                                            val updatedColorHex = (savedAlpha shl 24) or currentRgb
+                                                            target.copy(colorHex = updatedColorHex)
+                                                        }
+                                                    },
                                                     shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
                                                 )
-                                                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                .background(SurfaceSecondary)
-                                        ) {
-                                            CustomSliderCard(
-                                                label = "Opacity",
-                                                value = currentOpacity,
-                                                onValueChange = { newOpacity ->
-                                                    val latestTarget = currentCard.elements.find { it.id == currentSelectedElement.id } ?: currentSelectedElement
-                                                    val alphaByte = round((newOpacity / 100f) * 255f).toLong().coerceIn(0L, 255L)
-                                                    val currentRgb = latestTarget.colorHex and 0x00FFFFFFL
-                                                    val updatedColorHex = (alphaByte shl 24) or currentRgb
-                                                    updateElement(latestTarget.copy(colorHex = updatedColorHex))
-                                                },
-                                                valueRange = 0f..100f,
-                                                unit = "%",
-                                                icon = Icons.Default.WbSunny,
-                                                onReset = {
-                                                    val latestTarget = currentCard.elements.find { it.id == currentSelectedElement.id } ?: currentSelectedElement
-                                                    val currentRgb = latestTarget.colorHex and 0x00FFFFFFL
-                                                    val savedColorHex = initialElement?.colorHex ?: (0xFF000000L or currentRgb)
-                                                    val savedAlpha = (savedColorHex shr 24) and 0xFFL
-                                                    val updatedColorHex = (savedAlpha shl 24) or currentRgb
-                                                    updateElement(latestTarget.copy(colorHex = updatedColorHex))
-                                                },
-                                                shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
-                                            )
+                                            }
                                         }
                                     }
                                 } else {
@@ -865,7 +935,7 @@ fun EditInvitationDetailsScreen(
 fun ProfessionalFontSelector(
     selectedElement: TextElement,
     bottomSheetWeight: Float,
-    onUpdateElement: (TextElement) -> Unit
+    onUpdateElement: (String, (TextElement) -> TextElement) -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -881,7 +951,6 @@ fun ProfessionalFontSelector(
 
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
 
-    // Dynamically calculate horizontal padding so items can snap directly to the center of the container
     val horizontalPaddingDp = remember(containerWidthPx) {
         if (containerWidthPx > 0f) {
             with(density) { ((containerWidthPx / 2f) - 40.dp.toPx()).coerceAtLeast(16.dp.toPx()).toDp() }
@@ -905,14 +974,16 @@ fun ProfessionalFontSelector(
         }
     }
 
-    val currentSelectedElement by rememberUpdatedState(selectedElement)
-    val currentUpdateElement by rememberUpdatedState(onUpdateElement)
+    val currentElementId by rememberUpdatedState(selectedElement.id)
 
+    // Synchronize font selection when user explicitly drags/scrolls font carousel
     LaunchedEffect(centerItemIndex) {
-        val currentFont = fontTypes.getOrNull(centerItemIndex)
-        if (currentFont != null && currentSelectedElement.fontStyle != currentFont) {
-            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            currentUpdateElement(currentSelectedElement.copy(fontStyle = currentFont))
+        if (fontLazyListState.isScrollInProgress) {
+            val currentFont = fontTypes.getOrNull(centerItemIndex)
+            if (currentFont != null && selectedElement.fontStyle != currentFont) {
+                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                onUpdateElement(currentElementId) { it.copy(fontStyle = currentFont) }
+            }
         }
     }
 
@@ -974,7 +1045,7 @@ fun ProfessionalFontSelector(
                             .wrapContentWidth()
                             .noRippleClickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                currentUpdateElement(selectedElement.copy(fontStyle = fontType))
+                                onUpdateElement(selectedElement.id) { it.copy(fontStyle = fontType) }
                                 coroutineScope.launch {
                                     fontLazyListState.animateScrollToItem(index)
                                 }
@@ -1100,7 +1171,7 @@ fun ProfessionalFontSelector(
                                     }
                                     .size(48.dp)
                                     .noRippleClickable {
-                                        onUpdateElement(selectedElement.copy(textAlign = align))
+                                        onUpdateElement(selectedElement.id) { it.copy(textAlign = align) }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -1132,19 +1203,19 @@ fun ProfessionalFontSelector(
                             icon = painterResource(R.drawable.ic_bold),
                             isSelected = selectedElement.isBold
                         ) {
-                            onUpdateElement(selectedElement.copy(isBold = !selectedElement.isBold))
+                            onUpdateElement(selectedElement.id) { it.copy(isBold = !it.isBold) }
                         }
                         FormatToggleButton(
                             icon = painterResource(R.drawable.ic_italic),
                             isSelected = selectedElement.isItalic
                         ) {
-                            onUpdateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
+                            onUpdateElement(selectedElement.id) { it.copy(isItalic = !it.isItalic) }
                         }
                         FormatToggleButton(
                             icon = painterResource(R.drawable.ic_underline),
                             isSelected = selectedElement.isUnderline
                         ) {
-                            onUpdateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
+                            onUpdateElement(selectedElement.id) { it.copy(isUnderline = !it.isUnderline) }
                         }
                     }
 
@@ -1173,19 +1244,19 @@ fun ProfessionalFontSelector(
                             icon = painterResource(R.drawable.ic_bold),
                             isSelected = selectedElement.isBold
                         ) {
-                            onUpdateElement(selectedElement.copy(isBold = !selectedElement.isBold))
+                            onUpdateElement(selectedElement.id) { it.copy(isBold = !it.isBold) }
                         }
                         FormatToggleButton(
                             icon = painterResource(R.drawable.ic_italic),
                             isSelected = selectedElement.isItalic
                         ) {
-                            onUpdateElement(selectedElement.copy(isItalic = !selectedElement.isItalic))
+                            onUpdateElement(selectedElement.id) { it.copy(isItalic = !it.isItalic) }
                         }
                         FormatToggleButton(
                             icon = painterResource(R.drawable.ic_underline),
                             isSelected = selectedElement.isUnderline
                         ) {
-                            onUpdateElement(selectedElement.copy(isUnderline = !selectedElement.isUnderline))
+                            onUpdateElement(selectedElement.id) { it.copy(isUnderline = !it.isUnderline) }
                         }
                     }
 
@@ -1260,7 +1331,7 @@ fun InteractiveCardCanvas(
     selectedElementId: String?,
     onSelectElement: (String) -> Unit,
     onDoubleTapElement: (String) -> Unit,
-    onUpdateElement: (TextElement) -> Unit,
+    onUpdateElement: (String, (TextElement) -> TextElement) -> Unit,
     onSwapElements: (String, String) -> Unit,
     onDeleteElement: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -1293,29 +1364,71 @@ fun InteractiveCardCanvas(
             )
         }
 
+        val editableElements = card.elements.filter { it.isEditable }.sortedBy { it.yRatio }
+        val uneditableElements = card.elements.filter { !it.isEditable }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = (40 * scaleFactor).dp)
+                .padding(horizontal = (20 * scaleFactor).dp, vertical = (40 * scaleFactor).dp)
                 .pointerInput(Unit) {
                     detectTapGestures { onSelectElement("") }
                 },
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            card.elements.sortedBy { it.yRatio }.forEach { element ->
-                InteractiveTextElementItem(
-                    element = element,
-                    canvasSize = canvasSize,
-                    scaleFactor = scaleFactor,
-                    isSelected = element.id == selectedElementId,
-                    otherElements = card.elements.filter { it.id != element.id },
-                    onSelect = { onSelectElement(element.id) },
-                    onDoubleTap = { onDoubleTapElement(element.id) },
-                    onUpdate = onUpdateElement,
-                    onSwap = onSwapElements,
-                    onDelete = { onDeleteElement(element.id) }
-                )
+            editableElements.forEach { element ->
+                key(element.id) {
+                    InteractiveTextElementItem(
+                        element = element,
+                        canvasSize = canvasSize,
+                        scaleFactor = scaleFactor,
+                        isSelected = element.id == selectedElementId && element.isEditable,
+                        otherElements = editableElements.filter { it.id != element.id },
+                        onSelect = {
+                            if (element.isEditable) onSelectElement(element.id)
+                            else onSelectElement("")
+                        },
+                        onDoubleTap = {
+                            if (element.isEditable) onDoubleTapElement(element.id)
+                        },
+                        onUpdate = onUpdateElement,
+                        onSwap = onSwapElements,
+                        onDelete = {
+                            if (element.isEditable) onDeleteElement(element.id)
+                        }
+                    )
+                }
+            }
+        }
+
+        uneditableElements.forEach { element ->
+            if (canvasSize.height > 0) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    val yPosDp = (canvasSize.height * element.yRatio / density).dp
+                    Box(
+                        modifier = Modifier
+                            .offset(y = yPosDp)
+                            .wrapContentSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        InteractiveTextElementItem(
+                            element = element,
+                            canvasSize = canvasSize,
+                            scaleFactor = scaleFactor,
+                            isSelected = false,
+                            otherElements = emptyList(),
+                            onSelect = { onSelectElement("") },
+                            onDoubleTap = {},
+                            onUpdate = { _, _ -> },
+                            onSwap = { _, _ -> },
+                            onDelete = {}
+                        )
+                    }
+                }
             }
         }
     }
@@ -1330,7 +1443,7 @@ fun InteractiveTextElementItem(
     otherElements: List<TextElement>,
     onSelect: () -> Unit,
     onDoubleTap: () -> Unit,
-    onUpdate: (TextElement) -> Unit,
+    onUpdate: (String, (TextElement) -> TextElement) -> Unit,
     onSwap: (String, String) -> Unit,
     onDelete: () -> Unit
 ) {
@@ -1338,7 +1451,7 @@ fun InteractiveTextElementItem(
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
 
-    val currentElement by rememberUpdatedState(element)
+    val currentElementId by rememberUpdatedState(element.id)
     val currentOtherElements by rememberUpdatedState(otherElements)
     val currentOnUpdate by rememberUpdatedState(onUpdate)
     val currentOnSwap by rememberUpdatedState(onSwap)
@@ -1357,159 +1470,181 @@ fun InteractiveTextElementItem(
     ) {
         Box(
             modifier = Modifier
-                .widthIn(max = (canvasWidthPx * element.widthRatio / density.density).dp)
+                .widthIn(max = (canvasWidthPx * element.widthRatio / density.density).dp + 120.dp)
                 .wrapContentWidth()
-                .pointerInput(element.id) {
-                    detectTapGestures(
-                        onTap = { onSelect() },
-                        onDoubleTap = { onDoubleTap() }
-                    )
-                }
-                .pointerInput(element.id) {
-                    detectDragGesturesAfterLongPress(
-                        onDragStart = {
-                            isDragging = true
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            dragOffsetY += dragAmount.y
-
-                            val threshold = 30f * density.density
-                            if (abs(dragOffsetY) > threshold) {
-                                val direction = if (dragOffsetY > 0) 1 else -1
-                                val sorted = (currentOtherElements + currentElement).sortedBy { it.yRatio }
-                                val currentIndex = sorted.indexOfFirst { it.id == currentElement.id }
-                                val targetIndex = currentIndex + direction
-
-                                if (targetIndex in sorted.indices) {
-                                    val target = sorted[targetIndex]
-                                    currentOnSwap(currentElement.id, target.id)
-                                    dragOffsetY = 0f
-                                }
-                            }
-                        },
-                        onDragEnd = {
-                            isDragging = false
-                            dragOffsetY = 0f
-                        },
-                        onDragCancel = {
-                            isDragging = false
-                            dragOffsetY = 0f
-                        }
-                    )
-                }
                 .then(
-                    if (isSelected) Modifier
-                        .border(2.dp, Color(0xFF6750A4), SquircleShape(CornerExtraSmall))
-                    else Modifier
-                )
-                .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp)
-                .padding(horizontal = (12 * scaleFactor).dp),
+                    if (element.isEditable) {
+                        Modifier
+                            .pointerInput(element.id) {
+                                detectTapGestures(
+                                    onTap = { onSelect() },
+                                    onDoubleTap = { onDoubleTap() }
+                                )
+                            }
+                            .pointerInput(element.id) {
+                                detectDragGesturesAfterLongPress(
+                                    onDragStart = {
+                                        isDragging = true
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    },
+                                    onDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragOffsetY += dragAmount.y
+
+                                        val threshold = 30f * density.density
+                                        if (abs(dragOffsetY) > threshold) {
+                                            val direction = if (dragOffsetY > 0) 1 else -1
+                                            val sorted = (currentOtherElements + element).sortedBy { it.yRatio }
+                                            val currentIndex = sorted.indexOfFirst { it.id == element.id }
+                                            val targetIndex = currentIndex + direction
+
+                                            if (targetIndex in sorted.indices) {
+                                                val target = sorted[targetIndex]
+                                                if (target.isEditable) {
+                                                    currentOnSwap(element.id, target.id)
+                                                    dragOffsetY = 0f
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        isDragging = false
+                                        dragOffsetY = 0f
+                                    },
+                                    onDragCancel = {
+                                        isDragging = false
+                                        dragOffsetY = 0f
+                                    }
+                                )
+                            }
+                    } else Modifier
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = element.text,
-                modifier = Modifier.wrapContentWidth(),
-                style = TextStyle(
-                    fontFamily = element.fontStyle.fontFamily,
-                    fontSize = (element.fontSizeSp * scaleFactor).sp,
-                    fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
-                    fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
-                    textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
-                    color = Color(element.colorHex),
-                    textAlign = element.textAlign,
-                    letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
-                    lineHeight = if (element.lineHeightSp > 0f) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
-                    lineHeightStyle = LineHeightStyle(
-                        alignment = LineHeightStyle.Alignment.Center,
-                        trim = LineHeightStyle.Trim.Both
+            // Text box: Border tightly hugs text + scaled vertical padding
+            Box(
+                modifier = Modifier
+                    .wrapContentSize()
+                    .padding(vertical = (element.verticalPaddingSp * scaleFactor).dp)
+                    .then(
+                        if (isSelected && element.isEditable) Modifier
+                            .border(2.dp, Color(0xFF6750A4), SquircleShape(CornerExtraSmall))
+                        else Modifier
                     ),
-                    platformStyle = PlatformTextStyle(includeFontPadding = false)
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = element.text,
+                    modifier = Modifier.wrapContentWidth(),
+                    style = TextStyle(
+                        fontFamily = element.fontStyle.fontFamily,
+                        fontSize = (element.fontSizeSp * scaleFactor).sp,
+                        fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
+                        fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
+                        textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
+                        color = Color(element.colorHex),
+                        textAlign = element.textAlign,
+                        letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
+                        lineHeight = if (element.lineHeightSp > 0f) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
+                        lineHeightStyle = LineHeightStyle(
+                            alignment = LineHeightStyle.Alignment.Center,
+                            trim = LineHeightStyle.Trim.Both
+                        ),
+                        platformStyle = PlatformTextStyle(includeFontPadding = false)
+                    )
                 )
-            )
-            if (isSelected) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = (36 * scaleFactor).dp, y = ((-28) * scaleFactor).dp)
-                        .size((24 * scaleFactor).dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.error,
-                    onClick = onDelete,
-                    shadowElevation = 4.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = "Delete",
-                            tint = ContentInvPrimary,
-                            modifier = Modifier.size((18 * scaleFactor).dp)
-                        )
-                    }
-                }
+            }
 
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .offset(x = (24 * scaleFactor).dp)
-                        .height((16 * scaleFactor).dp)
-                        .width((24 * scaleFactor).dp)
-                        .pointerInput(element.id) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                val deltaWidthRatio = (dragAmount.x / canvasWidthPx) * 2f
-                                currentOnUpdate(currentElement.copy(widthRatio = (currentElement.widthRatio + deltaWidthRatio).coerceIn(0.2f, 1f)))
-                            }
-                        },
-                    shape = CircleShape,
-                    color = Color(0xFF6750A4),
-                    shadowElevation = 4.dp
+            if (isSelected && element.isEditable) {
+                Box(
+                    modifier = Modifier.matchParentSize()
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Code,
-                            contentDescription = "Width",
-                            tint = ContentInvPrimary,
-                            modifier = Modifier.size((16 * scaleFactor).dp)
-                        )
-                    }
-                }
+                    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+                        val handleSize = 24.dp
+                        val iconSize = 16.dp
 
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .offset(x = (36 * scaleFactor).dp, y = (28 * scaleFactor).dp)
-                        .size((24 * scaleFactor).dp)
-                        .pointerInput(element.id) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                val scaleChange = (dragAmount.x + dragAmount.y) * 0.15f
-                                currentOnUpdate(currentElement.copy(fontSizeSp = (currentElement.fontSizeSp + (scaleChange / scaleFactor)).coerceIn(8f, 72f)))
-                            }
-                        },
-                    shape = CircleShape,
-                    color = ContentSecondary,
-                    shadowElevation = 4.dp
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.OpenInFull,
-                            contentDescription = "Mirror",
-                            tint = ContentInvPrimary,
+                        // 1. Delete / Cross handle (Top-Right Corner: offset +12dp X, -12dp Y)
+                        Box(
                             modifier = Modifier
-                                .size((16 * scaleFactor).dp)
-                                .graphicsLayer {
-                                    scaleX = -1f
-                                }
-                        )
+                                .align(Alignment.TopEnd)
+                                .offset(x = 24.dp, y = (-24).dp)
+                                .requiredSize(handleSize)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error)
+                                .clickable(onClick = onDelete),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = "Delete",
+                                tint = ContentInvPrimary,
+                                modifier = Modifier.requiredSize(iconSize)
+                            )
+                        }
+
+                        // 2. Width handle (Centered Vertically)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .offset(x = 6.dp)
+                                .requiredSize(width = 24.dp, height = 16.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF6750A4))
+                                .pointerInput(element.id) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        val deltaWidthRatio = (dragAmount.x / canvasWidthPx) * 2f
+                                        currentOnUpdate(currentElementId) { target ->
+                                            target.copy(widthRatio = (target.widthRatio + deltaWidthRatio).coerceIn(0.2f, 1f))
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Code,
+                                contentDescription = "Width",
+                                tint = ContentInvPrimary,
+                                modifier = Modifier.requiredSize(iconSize)
+                            )
+                        }
+
+                        // 3. Resize handle (Bottom-Right Corner: offset +12dp X, +12dp Y)
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .offset(x = 24.dp, y = 24.dp)
+                                .requiredSize(handleSize)
+                                .clip(CircleShape)
+                                .background(ContentSecondary)
+                                .pointerInput(element.id) {
+                                    detectDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        val scaleChange = (dragAmount.x + dragAmount.y) * 0.15f
+                                        currentOnUpdate(currentElementId) { target ->
+                                            target.copy(fontSizeSp = (target.fontSizeSp + (scaleChange / scaleFactor)).coerceIn(8f, 72f))
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.OpenInFull,
+                                contentDescription = "Resize",
+                                tint = ContentInvPrimary,
+                                modifier = Modifier
+                                    .requiredSize(iconSize)
+                                    .graphicsLayer {
+                                        scaleX = -1f
+                                    }
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
     val themes = remember {
@@ -1543,7 +1678,7 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                             gapLength = 4.dp
                         )
                         .background(Color.Transparent)
-                        .clickable { /* Upload handler */ },
+                        .clickable { },
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -1633,49 +1768,12 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
     }
 }
 
-@Preview(
-    name = "Edit Invitation Details - Light Mode",
-    showBackground = true,
-    showSystemUi = true
-)
+@Preview(name = "Edit Invitation Details - Light Mode", showBackground = true, showSystemUi = true)
 @Composable
 fun EditInvitationDetailsScreenPreview() {
-    val sampleData = InvitationCardData(
-        backgroundRes = R.drawable.bg_invitation_card_01,
-        backgroundColorHex = 0xFFFFFFFFL,
-        elements = listOf(
-            TextElement(
-                id = "1",
-                text = "SAVE THE DATE",
-                fontSizeSp = 18f,
-                isBold = true,
-                colorHex = 0xFF005D5DL,
-                yRatio = 0.22f,
-                letterSpacingSp = 3f
-            ),
-            TextElement(
-                id = "2",
-                text = "Taylor & Travis",
-                fontSizeSp = 36f,
-                isBold = true,
-                fontStyle = FontStyleType.PATTAYA,
-                colorHex = 0xFFA6852FL,
-                yRatio = 0.42f
-            ),
-            TextElement(
-                id = "3",
-                text = "Are getting married",
-                fontSizeSp = 14f,
-                isItalic = true,
-                colorHex = 0xFF444444L,
-                yRatio = 0.52f
-            )
-        )
-    )
-
     JasnifyTheme {
         EditInvitationDetailsScreen(
-            initialData = sampleData,
+            initialData = InvitationCardData(),
             onDataChange = {},
             onBackClick = {}
         )

@@ -98,7 +98,8 @@ data class TextElement(
     val letterSpacingSp: Float = 0f,
     val lineHeightSp: Float = 0f, // 0 means default
     val verticalPaddingSp: Float = 0f,
-    val zIndex: Int = 0
+    val zIndex: Int = 0,
+    val isEditable: Boolean = true // If false, element cannot be selected, moved, or edited
 )
 
 data class InvitationCardData(
@@ -114,65 +115,126 @@ fun defaultElements(): List<TextElement> = listOf(
         xRatio = 0.5f,
         yRatio = 0.16f,
         fontSizeSp = 10f,
-        colorHex = 0xFF444444L,
-        fontStyle = FontStyleType.DEFAULT,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
         letterSpacingSp = 1.2f,
+        verticalPaddingSp = 2f,
         zIndex = 0
     ),
     TextElement(
         text = "Taylor & Travis",
         xRatio = 0.5f,
-        yRatio = 0.28f,
-        fontSizeSp = 36f,
-        colorHex = 0xFFA6852FL,
+        yRatio = 0.25f,
+        fontSizeSp = 38f,
+        colorHex = 0xFF9E7118L,
         fontStyle = FontStyleType.PATTAYA,
+        isBold = true,
+        verticalPaddingSp = 4f,
         zIndex = 1
     ),
     TextElement(
-        text = "WE REQUEST YOUR PRESENCE AT THE CEREMONY OF THEIR WEDDING",
+        text = "WE REQUEST YOUR PRESENCE ON",
         xRatio = 0.5f,
-        yRatio = 0.42f,
-        fontSizeSp = 9f,
-        colorHex = 0xFF8E8E8EL,
-        fontStyle = FontStyleType.DEFAULT,
-        letterSpacingSp = 0.5f,
+        yRatio = 0.33f,
+        fontSizeSp = 10f,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
+        letterSpacingSp = 1.2f,
+        verticalPaddingSp = 2f,
         zIndex = 2
     ),
     TextElement(
-        text = "SAT • 14 SEPT • 2026",
+        text = "SEPTEMBER",
         xRatio = 0.5f,
-        yRatio = 0.56f,
-        fontSizeSp = 14f,
-        colorHex = 0xFF444444L,
+        yRatio = 0.40f,
+        fontSizeSp = 13f,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
+        isBold = true,
+        letterSpacingSp = 1.5f,
+        verticalPaddingSp = 1f,
+        zIndex = 3
+    ),
+    TextElement(
+        text = "14TH",
+        xRatio = 0.5f,
+        yRatio = 0.47f,
+        fontSizeSp = 32f,
+        colorHex = 0xFF111111L,
         fontStyle = FontStyleType.SERIF,
         isBold = true,
         letterSpacingSp = 1.0f,
-        zIndex = 3
+        verticalPaddingSp = 2f,
+        zIndex = 4
+    ),
+    TextElement(
+        text = "2026",
+        xRatio = 0.5f,
+        yRatio = 0.52f,
+        fontSizeSp = 12f,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
+        letterSpacingSp = 1.0f,
+        verticalPaddingSp = 1f,
+        zIndex = 5
+    ),
+    TextElement(
+        text = "SATURDAY",
+        xRatio = 0.5f,
+        yRatio = 0.56f,
+        fontSizeSp = 12f,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
+        isBold = true,
+        letterSpacingSp = 1.5f,
+        verticalPaddingSp = 2f,
+        zIndex = 6
     ),
     TextElement(
         text = "CEREMONY & RECEPTION",
         xRatio = 0.5f,
-        yRatio = 0.68f,
-        fontSizeSp = 10f,
-        colorHex = 0xFF444444L,
+        yRatio = 0.65f,
+        fontSizeSp = 13f,
+        colorHex = 0xFF111111L,
+        fontStyle = FontStyleType.SERIF,
         isBold = true,
-        zIndex = 4
+        letterSpacingSp = 1.2f,
+        verticalPaddingSp = 2f,
+        zIndex = 7
     ),
     TextElement(
-        text = "05:00 PM • TAJ HOTEL, MUMBAI",
+        text = "05:00 PM  •  TAJ HOTEL, MUMBAI",
         xRatio = 0.5f,
-        yRatio = 0.74f,
-        fontSizeSp = 9f,
-        colorHex = 0xFF8E8E8EL,
-        zIndex = 5
+        yRatio = 0.70f,
+        fontSizeSp = 11f,
+        colorHex = 0xFF333333L,
+        fontStyle = FontStyleType.SERIF,
+        letterSpacingSp = 0.8f,
+        verticalPaddingSp = 2f,
+        zIndex = 8
     ),
     TextElement(
-        text = "RSVP : ANAND K.",
+        text = "RSVP : ANAND  K.",
         xRatio = 0.5f,
-        yRatio = 0.86f,
+        yRatio = 0.80f,
         fontSizeSp = 10f,
-        colorHex = 0xFF444444L,
+        colorHex = 0xFF2C2C2CL,
+        fontStyle = FontStyleType.SERIF,
         isBold = true,
-        zIndex = 6
+        letterSpacingSp = 1.0f,
+        verticalPaddingSp = 2f,
+        zIndex = 9
+    ),
+    // Uneditable Jasnify Branding Watermark anchored independently
+    TextElement(
+        text = "Jasnify",
+        xRatio = 0.5f,
+        yRatio = 0.85f,
+        fontSizeSp = 18f,
+        colorHex = 0x559E9E9EL,
+        fontStyle = FontStyleType.PATTAYA,
+        verticalPaddingSp = 0f,
+        zIndex = 10,
+        isEditable = false
     )
 )

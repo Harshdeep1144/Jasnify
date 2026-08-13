@@ -100,23 +100,23 @@ fun InvitationCardItem(
         if (canvasSize.width > 0 && canvasSize.height > 0) {
             val density = LocalDensity.current.density
             val canvasWidthPx = canvasSize.width.toFloat()
-            val canvasHeightPx = canvasSize.height.toFloat()
-            
-            // Convert pixels to DP for scale calculation
             val canvasWidthDp = canvasWidthPx / density
 
-            // Baseline width for scaling text relative to canvas size
-            // We use 280dp as the standard reference width
             val scaleFactor = canvasWidthDp / 284f
 
+            // Separate editable vs uneditable elements to preserve true Y positioning
+            val editableElements = data.elements.filter { it.isEditable }.sortedBy { it.yRatio }
+            val uneditableElements = data.elements.filter { !it.isEditable }
+
+            // 1. Center Editable Card Elements
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = (40 * scaleFactor).dp),
+                    .padding(horizontal = (20 * scaleFactor).dp, vertical = (40 * scaleFactor).dp),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                data.elements.sortedBy { it.yRatio }.forEach { element ->
+                editableElements.forEach { element ->
                     RenderCardTextElement(
                         element = element,
                         scaleFactor = scaleFactor,
@@ -131,6 +131,30 @@ fun InvitationCardItem(
                 }
             }
 
+            // 2. Position Uneditable Elements (like "Jasnify" watermark) at absolute yRatio
+            uneditableElements.forEach { element ->
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    val yPosDp = (canvasSize.height * element.yRatio / density).dp
+                    Box(
+                        modifier = Modifier
+                            .offset(y = yPosDp)
+                            .wrapContentSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        RenderCardTextElement(
+                            element = element,
+                            scaleFactor = scaleFactor,
+                            isEditable = false,
+                            onElementUpdate = {}
+                        )
+                    }
+                }
+            }
+
+            // 3. Floating Overlay Controls
             if (showControls) {
                 Row(
                     modifier = Modifier
@@ -211,8 +235,7 @@ private fun RenderCardTextElement(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp)
-            .padding(horizontal = (12 * scaleFactor).dp),
+            .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp),
         contentAlignment = Alignment.Center
     ) {
         if (isEditable) {
