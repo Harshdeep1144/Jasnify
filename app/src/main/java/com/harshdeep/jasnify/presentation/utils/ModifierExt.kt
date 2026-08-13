@@ -83,7 +83,7 @@ fun Modifier.drawScrollbar(
     width: Dp = 4.dp,
     trackColor: Color = Color(0xFFCCCCCC),
     thumbColor: Color = ContentTertiary,
-    paddingRight: Dp = 2.dp
+    paddingRight: Dp = 0.dp
 ): Modifier = this.drawWithContent {
     drawContent()
 

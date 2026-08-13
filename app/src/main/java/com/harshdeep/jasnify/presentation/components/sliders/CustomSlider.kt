@@ -65,7 +65,7 @@ fun CustomSliderCard(
     icon: ImageVector? = null,
     iconTint: Color = ContentSecondary,
     labelColor: Color = ContentSecondary,
-    badgeTextColor: Color = ContentPrimary,
+    badgeTextColor: Color = ContentBrandDark,
     valueFormatter: ((Float) -> String)? = null,
     trackHeight: Dp = 4.dp,
     thumbSize: Dp = 28.dp,
@@ -93,7 +93,7 @@ fun CustomSliderCard(
         )
 
         Box(
-            modifier = Modifier.padding(vertical = 14.dp)
+            modifier = Modifier.padding(horizontal = 14.dp)
         ){
             CustomSlider(
                 value = value,
@@ -214,7 +214,7 @@ fun CustomSlider(
 
             // Inactive track
             drawRoundRect(
-                color = Color.White.copy(0.9f),
+                color = Color.Black.copy(0.1f),
                 topLeft = Offset(0f, 0f),
                 size = Size(size.width, size.height),
                 cornerRadius = cornerRadius
