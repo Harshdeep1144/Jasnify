@@ -9,9 +9,77 @@ import java.util.UUID
 enum class FontStyleType(val label: String, val fontFamily: FontFamily) {
     DEFAULT("Sans Serif", FontFamily.Default),
     SERIF("Classic Serif", FontFamily.Serif),
-    CURSIVE("Script / Cursive", FontFamily.Cursive),
-    MONOSPACE("Monospace", FontFamily.Monospace),
-    PATTAYA("Pattaya (Header)", Pattaya)
+    PATTAYA("Pattaya", Pattaya),
+
+    // Modern Sans
+    ROBOTO("Roboto", getGoogleFontFamily("Roboto")),
+    OPEN_SANS("Open Sans", getGoogleFontFamily("Open Sans")),
+    LATO("Lato", getGoogleFontFamily("Lato")),
+    MONTSERRAT("Montserrat", getGoogleFontFamily("Montserrat")),
+    OSWALD("Oswald", getGoogleFontFamily("Oswald")),
+    RALWAY("Raleway", getGoogleFontFamily("Raleway")),
+    QUICKSAND("Quicksand", getGoogleFontFamily("Quicksand")),
+    VARELA_ROUND("Varela Round", getGoogleFontFamily("Varela Round")),
+    JOSEFIN_SANS("Josefin Sans", getGoogleFontFamily("Josefin Sans")),
+
+    // Serif
+    MERRIWEATHER("Merriweather", getGoogleFontFamily("Merriweather")),
+    ROBOTO_SLAB("Roboto Slab", getGoogleFontFamily("Roboto Slab")),
+    PLAYFAIR_DISPLAY("Playfair Display", getGoogleFontFamily("Playfair Display")),
+    ARVO("Arvo", getGoogleFontFamily("Arvo")),
+    CINZEL("Cinzel", getGoogleFontFamily("Cinzel")),
+
+    // Script / Cursive
+    LOBSTER("Lobster", getGoogleFontFamily("Lobster")),
+    PACIFICO("Pacifico", getGoogleFontFamily("Pacifico")),
+    DANCING_SCRIPT("Dancing Script", getGoogleFontFamily("Dancing Script")),
+    CAVEAT("Caveat", getGoogleFontFamily("Caveat")),
+    GREAT_VIBES("Great Vibes", getGoogleFontFamily("Great Vibes")),
+    SACRAMENTO("Sacramento", getGoogleFontFamily("Sacramento")),
+    SATISFY("Satisfy", getGoogleFontFamily("Satisfy")),
+    COOKIE("Cookie", getGoogleFontFamily("Cookie")),
+    COURGETTE("Courgette", getGoogleFontFamily("Courgette")),
+    TANGERINE("Tangerine", getGoogleFontFamily("Tangerine")),
+    PARISIENNE("Parisienne", getGoogleFontFamily("Parisienne")),
+    ALEX_BRUSH("Alex Brush", getGoogleFontFamily("Alex Brush")),
+    KAUSHAN_SCRIPT("Kaushan Script", getGoogleFontFamily("Kaushan Script")),
+    YELLOWTAIL("Yellowtail", getGoogleFontFamily("Yellowtail")),
+    ALLURA("Allura", getGoogleFontFamily("Allura")),
+    PINYON_SCRIPT("Pinyon Script", getGoogleFontFamily("Pinyon Script")),
+    ARIZONIA("Arizonia", getGoogleFontFamily("Arizonia")),
+    CLICKER_SCRIPT("Clicker Script", getGoogleFontFamily("Clicker Script")),
+
+    // Handwritten
+    SHADOWS_INTO_LIGHT("Shadows Into Light", getGoogleFontFamily("Shadows Into Light")),
+    ARCHITECTS_DAUGHTER("Architects Daughter", getGoogleFontFamily("Architects Daughter")),
+    INDIE_FLOWER("Indie Flower", getGoogleFontFamily("Indie Flower")),
+    COMING_SOON("Coming Soon", getGoogleFontFamily("Coming Soon")),
+    HANDLEE("Handlee", getGoogleFontFamily("Handlee")),
+    PATRICK_HAND("Patrick Hand", getGoogleFontFamily("Patrick Hand")),
+    KALAM("Kalam", getGoogleFontFamily("Kalam")),
+    GLORIA_HALLELUJAH("Gloria Hallelujah", getGoogleFontFamily("Gloria Hallelujah")),
+    PERMANENT_MARKER("Permanent Marker", getGoogleFontFamily("Permanent Marker")),
+
+    // Display / Decorative
+    ABRIL_FATFACE("Abril Fatface", getGoogleFontFamily("Abril Fatface")),
+    ANTON("Anton", getGoogleFontFamily("Anton")),
+    BEBAS_NEUE("Bebas Neue", getGoogleFontFamily("Bebas Neue")),
+    RIGHTEOUS("Righteous", getGoogleFontFamily("Righteous")),
+    BANGERS("Bangers", getGoogleFontFamily("Bangers")),
+    SPECIAL_ELITE("Special Elite", getGoogleFontFamily("Special Elite")),
+    PRESS_START_2P("Press Start 2P", getGoogleFontFamily("Press Start 2P")),
+    MONOTON("Monoton", getGoogleFontFamily("Monoton")),
+    BUNGEE("Bungee", getGoogleFontFamily("Bungee")),
+    MEGRIM("Megrim", getGoogleFontFamily("Megrim")),
+    FASTER_ONE("Faster One", getGoogleFontFamily("Faster One")),
+    LONDRINA_SHADOW("Londrina Shadow", getGoogleFontFamily("Londrina Shadow")),
+    FINGER_PAINT("Finger Paint", getGoogleFontFamily("Finger Paint")),
+    CREEPSTER("Creepster", getGoogleFontFamily("Creepster")),
+    METAL_MANIA("Metal Mania", getGoogleFontFamily("Metal Mania")),
+    TRADE_WINDS("Trade Winds", getGoogleFontFamily("Trade Winds")),
+    RYE("Rye", getGoogleFontFamily("Rye")),
+    FRIJOLE("Frijole", getGoogleFontFamily("Frijole")),
+    JOLLY_LODGER("Jolly Lodger", getGoogleFontFamily("Jolly Lodger"))
 }
 
 data class TextElement(

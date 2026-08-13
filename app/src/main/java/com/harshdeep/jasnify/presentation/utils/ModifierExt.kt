@@ -81,7 +81,7 @@ fun Modifier.pill360Shadow(
 fun Modifier.drawScrollbar(
     scrollState: ScrollState,
     width: Dp = 4.dp,
-    trackColor: Color = Color(0xFFCCCCCC),
+    trackColor: Color = Color.Transparent,
     thumbColor: Color = ContentTertiary,
     paddingRight: Dp = 0.dp
 ): Modifier = this.drawWithContent {

@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.components.sliders
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -16,13 +17,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.RotateLeft
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,16 +44,14 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
-import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 /**
- * A full composite card containing the header (icon, title, value) and the interactive slider track.
+ * A full composite card containing the header (icon, title, reset button, value) and the interactive slider track.
  */
 @Composable
 fun CustomSliderCard(
@@ -67,6 +66,8 @@ fun CustomSliderCard(
     labelColor: Color = ContentSecondary,
     badgeTextColor: Color = ContentBrandDark,
     valueFormatter: ((Float) -> String)? = null,
+    isAuto: Boolean = false,
+    onReset: (() -> Unit)? = null,
     trackHeight: Dp = 4.dp,
     thumbSize: Dp = 28.dp,
     verticalSpacing: Dp = 8.dp,
@@ -89,12 +90,14 @@ fun CustomSliderCard(
             iconTint = iconTint,
             labelColor = labelColor,
             badgeTextColor = badgeTextColor,
-            valueFormatter = valueFormatter
+            valueFormatter = valueFormatter,
+            isAuto = isAuto,
+            onReset = onReset
         )
 
         Box(
             modifier = Modifier.padding(horizontal = 14.dp)
-        ){
+        ) {
             CustomSlider(
                 value = value,
                 onValueChange = onValueChange,
@@ -108,7 +111,7 @@ fun CustomSliderCard(
 }
 
 /**
- * Standalone Header component containing Icon, Label, and Value Badge display.
+ * Standalone Header component containing Icon, Label, Reset Button, and Value Badge display.
  */
 @Composable
 fun CustomSliderHeader(
@@ -121,8 +124,14 @@ fun CustomSliderHeader(
     labelColor: Color = ContentSecondary,
     badgeTextColor: Color = ContentBrandDark,
     valueFormatter: ((Float) -> String)? = null,
+    isAuto: Boolean = false,
+    onReset: (() -> Unit)? = null
 ) {
-    val formattedValue = valueFormatter?.invoke(value) ?: "${value.toInt()} $unit"
+    val formattedValue = when {
+        isAuto -> "Auto"
+        valueFormatter != null -> valueFormatter(value)
+        else -> "${value.toInt()} $unit"
+    }
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -131,7 +140,7 @@ fun CustomSliderHeader(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             if (icon != null) {
                 Icon(
@@ -146,6 +155,24 @@ fun CustomSliderHeader(
                 color = labelColor,
                 style = JasnifyTheme.typography.headingMedium
             )
+
+            // Reset Button placed directly after the label text
+            if (onReset != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .clickable { onReset() }
+                        .padding(4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.RotateLeft,
+                        contentDescription = "Reset $label to last saved value",
+                        tint = ContentSecondary.copy(alpha = 0.7f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
         }
 
         Text(
@@ -246,8 +273,6 @@ fun CustomSlider(
     }
 }
 
-
-
 @Preview(showBackground = true)
 @Composable
 fun CustomSliderCardPreview() {
@@ -260,7 +285,8 @@ fun CustomSliderCardPreview() {
             onValueChange = { sliderValue = it },
             valueRange = 0f..100f,
             unit = "px",
-            icon = Icons.Default.FormatSize
+            icon = Icons.Default.FormatSize,
+            onReset = { sliderValue = 40f }
         )
     }
 }

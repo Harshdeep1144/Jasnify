@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
+import android.R.attr.scaleX
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -16,8 +17,10 @@ import androidx.compose.material.icons.automirrored.rounded.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignJustify
+import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -29,6 +32,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -80,6 +84,11 @@ enum class EditorTab(val label: String) {
     SIZE("Size"),
     COLOR("Color")
 }
+
+data class CardThemeItem(
+    val name: String,
+    val resId: Int
+)
 
 // Helper to normalize 24-bit hex colors (e.g. 0x005D5D) to 32-bit ARGB (0xFF005D5D) on initial load
 private fun TextElement.normalizeAlpha(): TextElement {
@@ -550,11 +559,79 @@ fun EditInvitationDetailsScreen(
                             EditorTab.SIZE -> {
                                 if (selectedElement != null) {
                                     key(selectedElement.id) {
+                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
+                                        }
+
+                                        val isLineHeightAuto = selectedElement.lineHeightSp <= 0f
+                                        val displayLineHeightValue = if (isLineHeightAuto) {
+                                            (selectedElement.fontSizeSp * 1.2f).coerceIn(0f, 100f)
+                                        } else {
+                                            selectedElement.lineHeightSp
+                                        }
+
+                                        data class SliderConfigData(
+                                            val label: String,
+                                            val value: Float,
+                                            val icon: androidx.compose.ui.graphics.vector.ImageVector,
+                                            val isAuto: Boolean,
+                                            val onValueChange: (Float) -> Unit,
+                                            val onReset: () -> Unit
+                                        )
+
                                         val sliders = listOf(
-                                            Triple("Font Size", selectedElement.fontSizeSp, Icons.Default.FormatSize) to { v: Float -> updateElement(selectedElement.copy(fontSizeSp = v)) },
-                                            Triple("Line Height", selectedElement.lineHeightSp, Icons.Default.FormatLineSpacing) to { v: Float -> updateElement(selectedElement.copy(lineHeightSp = v)) },
-                                            Triple("Letter Spacing", selectedElement.letterSpacingSp, Icons.Default.TextFields) to { v: Float -> updateElement(selectedElement.copy(letterSpacingSp = v)) },
-                                            Triple("Vertical Padding", selectedElement.verticalPaddingSp, Icons.Default.Height) to { v: Float -> updateElement(selectedElement.copy(verticalPaddingSp = v)) }
+                                            SliderConfigData(
+                                                label = "Font Size",
+                                                value = selectedElement.fontSizeSp,
+                                                icon = Icons.Default.FormatSize,
+                                                isAuto = false,
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.copy(fontSizeSp = v))
+                                                },
+                                                onReset = {
+                                                    val savedFontSize = initialElement?.fontSizeSp ?: 24f
+                                                    updateElement(selectedElement.copy(fontSizeSp = savedFontSize))
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Line Height",
+                                                value = displayLineHeightValue,
+                                                icon = Icons.Default.FormatLineSpacing,
+                                                isAuto = isLineHeightAuto,
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.copy(lineHeightSp = v))
+                                                },
+                                                onReset = {
+                                                    val savedLineHeight = initialElement?.lineHeightSp ?: 0f
+                                                    updateElement(selectedElement.copy(lineHeightSp = savedLineHeight))
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Letter Spacing",
+                                                value = selectedElement.letterSpacingSp,
+                                                icon = Icons.Default.TextFields,
+                                                isAuto = false,
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.copy(letterSpacingSp = v))
+                                                },
+                                                onReset = {
+                                                    val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
+                                                    updateElement(selectedElement.copy(letterSpacingSp = savedLetterSpacing))
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Vertical Padding",
+                                                value = selectedElement.verticalPaddingSp,
+                                                icon = Icons.Default.Height,
+                                                isAuto = false,
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.copy(verticalPaddingSp = v))
+                                                },
+                                                onReset = {
+                                                    val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
+                                                    updateElement(selectedElement.copy(verticalPaddingSp = savedVerticalPadding))
+                                                }
+                                            )
                                         )
 
                                         val sizeScrollState = rememberScrollState()
@@ -584,16 +661,16 @@ fun EditInvitationDetailsScreen(
                                                         .fillMaxWidth()
                                                         .wrapContentHeight()
                                                 ) {
-                                                    sliders.forEachIndexed { index, (data, onValueChange) ->
-                                                        val (label, value, icon) = data
-
+                                                    sliders.forEachIndexed { index, config ->
                                                         CustomSliderCard(
-                                                            label = label,
-                                                            value = value,
-                                                            onValueChange = onValueChange,
+                                                            label = config.label,
+                                                            value = config.value,
+                                                            onValueChange = config.onValueChange,
                                                             valueRange = 0f..100f,
                                                             unit = "px",
-                                                            icon = icon,
+                                                            icon = config.icon,
+                                                            isAuto = config.isAuto,
+                                                            onReset = config.onReset,
                                                             shape = SquircleShape(0.dp)
                                                         )
 
@@ -615,6 +692,9 @@ fun EditInvitationDetailsScreen(
                             EditorTab.COLOR -> {
                                 if (selectedElement != null) {
                                     val currentSelectedElement by rememberUpdatedState(selectedElement)
+                                    val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                        normalizedInitialData.elements.find { it.id == selectedElement.id }
+                                    }
 
                                     val palette = remember {
                                         listOf(
@@ -735,6 +815,13 @@ fun EditInvitationDetailsScreen(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 16.dp)
+                                                .border(
+                                                    width = 1.dp,
+                                                    color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                    shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                )
+                                                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                .background(SurfaceSecondary)
                                         ) {
                                             CustomSliderCard(
                                                 label = "Opacity",
@@ -749,6 +836,14 @@ fun EditInvitationDetailsScreen(
                                                 valueRange = 0f..100f,
                                                 unit = "%",
                                                 icon = Icons.Default.WbSunny,
+                                                onReset = {
+                                                    val latestTarget = currentCard.elements.find { it.id == currentSelectedElement.id } ?: currentSelectedElement
+                                                    val currentRgb = latestTarget.colorHex and 0x00FFFFFFL
+                                                    val savedColorHex = initialElement?.colorHex ?: (0xFF000000L or currentRgb)
+                                                    val savedAlpha = (savedColorHex shr 24) and 0xFFL
+                                                    val updatedColorHex = (savedAlpha shl 24) or currentRgb
+                                                    updateElement(latestTarget.copy(colorHex = updatedColorHex))
+                                                },
                                                 shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
                                             )
                                         }
@@ -785,19 +880,16 @@ fun ProfessionalFontSelector(
     val snapFlingBehavior = rememberSnapFlingBehavior(lazyListState = fontLazyListState)
 
     var containerWidthPx by remember { mutableFloatStateOf(0f) }
-    val cardWidthDp = 130.dp
-    val cardWidthPx = with(density) { cardWidthDp.toPx() }
 
-    // Dynamically calculate horizontal padding so the centered item is perfectly in the middle
-    val horizontalPaddingDp = remember(containerWidthPx, cardWidthPx) {
+    // Dynamically calculate horizontal padding so items can snap directly to the center of the container
+    val horizontalPaddingDp = remember(containerWidthPx) {
         if (containerWidthPx > 0f) {
-            with(density) { ((containerWidthPx - cardWidthPx) / 2f).coerceAtLeast(16.dp.toPx()).toDp() }
+            with(density) { ((containerWidthPx / 2f) - 40.dp.toPx()).coerceAtLeast(16.dp.toPx()).toDp() }
         } else {
             120.dp
         }
     }
 
-    // Centered item index derived immediately from real-time scroll offset
     val centerItemIndex by remember {
         derivedStateOf {
             val layoutInfo = fontLazyListState.layoutInfo
@@ -816,7 +908,6 @@ fun ProfessionalFontSelector(
     val currentSelectedElement by rememberUpdatedState(selectedElement)
     val currentUpdateElement by rememberUpdatedState(onUpdateElement)
 
-    // Immediately update font selection on the element whenever the center item index changes
     LaunchedEffect(centerItemIndex) {
         val currentFont = fontTypes.getOrNull(centerItemIndex)
         if (currentFont != null && currentSelectedElement.fontStyle != currentFont) {
@@ -825,7 +916,6 @@ fun ProfessionalFontSelector(
         }
     }
 
-    // Auto-scroll to selected font if changed externally
     LaunchedEffect(selectedElement.fontStyle) {
         val targetIndex = fontTypes.indexOf(selectedElement.fontStyle)
         if (targetIndex >= 0 && centerItemIndex != targetIndex && !fontLazyListState.isScrollInProgress) {
@@ -849,21 +939,6 @@ fun ProfessionalFontSelector(
                 },
             contentAlignment = Alignment.Center
         ) {
-            // Fixed center focus background indicator
-            Box(
-                modifier = Modifier
-                    .width(cardWidthDp)
-                    .height(64.dp)
-                    .background(
-                        color = SurfaceBrandSecondary,
-                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                    )
-                    .border(
-                        border = BorderStroke(2.dp, ContentBrandDark),
-                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                    )
-            )
-
             LazyRow(
                 state = fontLazyListState,
                 flingBehavior = snapFlingBehavior,
@@ -875,10 +950,28 @@ fun ProfessionalFontSelector(
                 itemsIndexed(fontTypes) { index, fontType ->
                     val isCentered = centerItemIndex == index
 
+                    val fontBgColor by animateColorAsState(
+                        targetValue = if (isCentered) SurfaceBrandSecondary else SurfaceSecondary,
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "FontBgColorAnimation"
+                    )
+
+                    val fontBorderColor by animateColorAsState(
+                        targetValue = if (isCentered) ContentBrandDark else Color.Transparent,
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "FontBorderColorAnimation"
+                    )
+
+                    val fontTextColor by animateColorAsState(
+                        targetValue = if (isCentered) ContentBrandDark else ContentSecondary,
+                        animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                        label = "FontTextColorAnimation"
+                    )
+
                     Box(
                         modifier = Modifier
-                            .width(cardWidthDp)
-                            .height(64.dp)
+                            .height(56.dp)
+                            .wrapContentWidth()
                             .noRippleClickable {
                                 haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 currentUpdateElement(selectedElement.copy(fontStyle = fontType))
@@ -888,29 +981,31 @@ fun ProfessionalFontSelector(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
+                        Surface(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 12.dp, vertical = 4.dp)
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .align(Alignment.Center),
+                            color = fontBgColor,
+                            shape = RoundedCornerShape(100),
+                            border = BorderStroke(2.dp, fontBorderColor)
                         ) {
-                            Text(
-                                text = "Aa",
-                                fontFamily = fontType.fontFamily,
-                                color = if (isCentered) ContentBrandDark else ContentPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = fontType.label,
-                                fontFamily = fontType.fontFamily,
-                                color = if (isCentered) ContentBrandDark else ContentSecondary,
-                                style = JasnifyTheme.typography.labelMedium,
-                                maxLines = 1,
-                                textAlign = TextAlign.Center
-                            )
+                            Box(
+                                contentAlignment = Alignment.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(56.dp)
+                                    .padding(horizontal = 24.dp)
+                            ) {
+                                Text(
+                                    text = fontType.label,
+                                    fontFamily = fontType.fontFamily,
+                                    color = fontTextColor,
+                                    style = JasnifyTheme.typography.displaySmall,
+                                    maxLines = 1,
+                                    textAlign = TextAlign.Center
+                                )
+                            }
                         }
                     }
                 }
@@ -1306,7 +1401,7 @@ fun InteractiveTextElementItem(
                 }
                 .then(
                     if (isSelected) Modifier
-                        .border(2.dp, Color(0xFF6750A4), RoundedCornerShape(8.dp))
+                        .border(2.dp, Color(0xFF6750A4), SquircleShape(CornerExtraSmall))
                     else Modifier
                 )
                 .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp)
@@ -1325,7 +1420,7 @@ fun InteractiveTextElementItem(
                     color = Color(element.colorHex),
                     textAlign = element.textAlign,
                     letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
-                    lineHeight = if (element.lineHeightSp > 0) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
+                    lineHeight = if (element.lineHeightSp > 0f) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
                     lineHeightStyle = LineHeightStyle(
                         alignment = LineHeightStyle.Alignment.Center,
                         trim = LineHeightStyle.Trim.Both
@@ -1340,12 +1435,17 @@ fun InteractiveTextElementItem(
                         .offset(x = (36 * scaleFactor).dp, y = ((-28) * scaleFactor).dp)
                         .size((24 * scaleFactor).dp),
                     shape = CircleShape,
-                    color = Color(0xFFB3261E),
+                    color = MaterialTheme.colorScheme.error,
                     onClick = onDelete,
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Close, contentDescription = "Delete", tint = Color.White, modifier = Modifier.size((18 * scaleFactor).dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Delete",
+                            tint = ContentInvPrimary,
+                            modifier = Modifier.size((18 * scaleFactor).dp)
+                        )
                     }
                 }
 
@@ -1367,7 +1467,12 @@ fun InteractiveTextElementItem(
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Code, contentDescription = "Width", tint = Color.White, modifier = Modifier.size((16 * scaleFactor).dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Code,
+                            contentDescription = "Width",
+                            tint = ContentInvPrimary,
+                            modifier = Modifier.size((16 * scaleFactor).dp)
+                        )
                     }
                 }
 
@@ -1384,11 +1489,20 @@ fun InteractiveTextElementItem(
                             }
                         },
                     shape = CircleShape,
-                    color = Color(0xFF79747E),
+                    color = ContentSecondary,
                     shadowElevation = 4.dp
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.OpenInFull, contentDescription = "Resize", tint = Color.White, modifier = Modifier.size((16 * scaleFactor).dp))
+                        Icon(
+                            imageVector = Icons.Rounded.OpenInFull,
+                            contentDescription = "Mirror",
+                            tint = ContentInvPrimary,
+                            modifier = Modifier
+                                .size((16 * scaleFactor).dp)
+                                .graphicsLayer {
+                                    scaleX = -1f
+                                }
+                        )
                     }
                 }
             }
@@ -1398,20 +1512,24 @@ fun InteractiveTextElementItem(
 
 @Composable
 fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
-    val themes = listOf(
-        R.drawable.bg_invitation_card_01,
-        R.drawable.bg_invitation_card_02,
-        R.drawable.bg_invitation_card_03,
-        R.drawable.bg_invitation_card_04,
-        R.drawable.bg_invitation_card_05
-    )
+    val themes = remember {
+        listOf(
+            CardThemeItem("Classic Elegance", R.drawable.bg_invitation_card_01),
+            CardThemeItem("Floral Romance", R.drawable.bg_invitation_card_02),
+            CardThemeItem("Golden Glamour", R.drawable.bg_invitation_card_03),
+            CardThemeItem("Modern Minimalist", R.drawable.bg_invitation_card_04),
+            CardThemeItem("Vintage Botanical", R.drawable.bg_invitation_card_05)
+        )
+    }
+
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
         item {
             Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -1420,7 +1538,7 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                         .dashedBorder(
                             color = ContentSecondary,
                             shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
-                            strokeWidth = 1.dp,
+                            strokeWidth = 2.dp,
                             dashLength = 6.dp,
                             gapLength = 4.dp
                         )
@@ -1446,13 +1564,20 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                         )
                     }
                 }
+                Text(
+                    text = "Custom",
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = ContentSecondary,
+                    textAlign = TextAlign.Center
+                )
             }
         }
 
-        items(themes) { bgRes ->
-            val isSelected = currentRes == bgRes
+        items(themes) { theme ->
+            val isSelected = currentRes == theme.resId
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -1463,11 +1588,11 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                             color = if (isSelected) ContentBrandDark else Color.Transparent,
                             shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                         )
-                        .clickable { onSelectTheme(bgRes) }
+                        .clickable { onSelectTheme(theme.resId) }
                 ) {
                     Image(
-                        painter = painterResource(id = bgRes),
-                        contentDescription = null,
+                        painter = painterResource(id = theme.resId),
+                        contentDescription = theme.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
@@ -1495,6 +1620,14 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                         }
                     }
                 }
+                Text(
+                    text = theme.name,
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = if (isSelected) ContentBrandDark else ContentSecondary,
+                    fontWeight = FontWeight.Normal,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1
+                )
             }
         }
     }
