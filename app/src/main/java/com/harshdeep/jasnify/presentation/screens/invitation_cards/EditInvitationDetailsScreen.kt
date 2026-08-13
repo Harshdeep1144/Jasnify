@@ -24,22 +24,27 @@ import androidx.compose.material.icons.rounded.OpenInFull
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalIndirectPointerApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -207,13 +212,41 @@ fun EditInvitationDetailsScreen(
 
     val selectedElement = currentCard.elements.find { it.id == selectedElementId && it.isEditable }
 
-    val targetCanvasOffsetY = remember(isImeVisible, selectedElement) {
-        if (isImeVisible && selectedElement != null) {
-            val ratio = selectedElement.yRatio.coerceIn(0f, 1f)
-            (-120 - (ratio * 180)).dp
+    // Screen area measurements for dynamic positioning when IME opens
+    var topBarBottomPx by remember { mutableFloatStateOf(0f) }
+    var sheetTopPx by remember { mutableFloatStateOf(0f) }
+    var selectedElementCenterYPx by remember { mutableFloatStateOf(0f) }
+    var currentCanvasOffsetYPx by remember { mutableFloatStateOf(0f) }
+
+    // Pinch Zoom and Pan states
+    var zoomScale by remember { mutableFloatStateOf(1f) }
+    var panOffset by remember { mutableStateOf(Offset.Zero) }
+
+    val targetCanvasOffsetY = remember(
+        isImeVisible,
+        selectedElementId,
+        selectedElementCenterYPx,
+        topBarBottomPx,
+        sheetTopPx
+    ) {
+        if (isImeVisible && selectedElement != null && sheetTopPx > topBarBottomPx && selectedElementCenterYPx > 0f) {
+            val targetCenterY = (topBarBottomPx + sheetTopPx) / 2f
+            val unoffsetElementCenterY = selectedElementCenterYPx - currentCanvasOffsetYPx
+            val requiredOffsetYPx = targetCenterY - unoffsetElementCenterY
+            (requiredOffsetYPx / density.density).dp
         } else {
             0.dp
         }
+    }
+
+    val animatedCanvasOffsetY by animateDpAsState(
+        targetValue = targetCanvasOffsetY,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "CanvasOffsetYAnimation"
+    )
+
+    SideEffect {
+        currentCanvasOffsetYPx = with(density) { animatedCanvasOffsetY.toPx() }
     }
 
     val bottomPadding = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp
@@ -234,7 +267,10 @@ fun EditInvitationDetailsScreen(
                 .background(brush = TopGradientBrush)
                 .statusBarsPadding()
                 .zIndex(10f)
-                .padding(12.dp),
+                .padding(12.dp)
+                .onGloballyPositioned { coordinates ->
+                    topBarBottomPx = coordinates.positionInRoot().y + coordinates.size.height.toFloat()
+                },
             contentAlignment = Alignment.BottomCenter
         ) {
             Row(
@@ -315,6 +351,8 @@ fun EditInvitationDetailsScreen(
                                                 isMenuExpanded = false
                                                 updateCardState(normalizedInitialData)
                                                 selectedElementId = null
+                                                zoomScale = 1f
+                                                panOffset = Offset.Zero
                                             }
                                             .padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically,
@@ -347,7 +385,7 @@ fun EditInvitationDetailsScreen(
                 .statusBarsPadding()
                 .zIndex(0f)
                 .padding(top = 64.dp, bottom = bottomPadding)
-                .offset(y = targetCanvasOffsetY),
+                .offset(y = animatedCanvasOffsetY),
             contentAlignment = Alignment.Center
         ) {
             BoxWithConstraints(
@@ -364,7 +402,9 @@ fun EditInvitationDetailsScreen(
                 InteractiveCardCanvas(
                     card = currentCard,
                     selectedElementId = selectedElementId,
-                    onSelectElement = { id -> selectedElementId = id },
+                    onSelectElement = { id ->
+                        selectedElementId = id
+                    },
                     onDoubleTapElement = { id ->
                         selectedElementId = id
                         activeTab = EditorTab.TEXT
@@ -378,9 +418,52 @@ fun EditInvitationDetailsScreen(
                         updateCardState(currentCard.copy(elements = remaining))
                         if (selectedElementId == id) selectedElementId = null
                     },
+                    onSelectedElementCenterYChanged = { y -> selectedElementCenterYPx = y },
+                    zoomScale = zoomScale,
                     modifier = Modifier
                         .width(cardWidth)
                         .aspectRatio(3f / 4f)
+                        .pointerInput(Unit) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+                                val isDownConsumed = down.isConsumed
+
+                                do {
+                                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                                    val pressedPointers = event.changes.filter { it.pressed }
+
+                                    if (pressedPointers.size >= 2) {
+                                        val zoomChange = event.calculateZoom()
+                                        val panChange = event.calculatePan()
+
+                                        if (zoomChange != 1f || panChange != Offset.Zero) {
+                                            zoomScale = (zoomScale * zoomChange).coerceIn(1f, 4f)
+                                            if (zoomScale > 1f) {
+                                                panOffset += panChange
+                                            } else {
+                                                panOffset = Offset.Zero
+                                            }
+                                            event.changes.forEach { it.consume() }
+                                        }
+                                    } else if (pressedPointers.size == 1 && zoomScale > 1f && !isDownConsumed) {
+                                        val change = event.changes.firstOrNull { it.pressed }
+                                        if (change != null && !change.isConsumed) {
+                                            val panChange = event.calculatePan()
+                                            if (panChange != Offset.Zero) {
+                                                panOffset += panChange
+                                                change.consume()
+                                            }
+                                        }
+                                    }
+                                } while (currentEvent.changes.any { it.pressed })
+                            }
+                        }
+                        .graphicsLayer {
+                            scaleX = zoomScale
+                            scaleY = zoomScale
+                            translationX = panOffset.x
+                            translationY = panOffset.y
+                        }
                 )
             }
         }
@@ -399,7 +482,10 @@ fun EditInvitationDetailsScreen(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight()),
+                    .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight())
+                    .onGloballyPositioned { coordinates ->
+                        sheetTopPx = coordinates.positionInRoot().y
+                    },
                 shape = SquircleShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
                 color = SurfaceSecondary,
                 shadowElevation = 40.dp
@@ -976,7 +1062,6 @@ fun ProfessionalFontSelector(
 
     val currentElementId by rememberUpdatedState(selectedElement.id)
 
-    // Synchronize font selection when user explicitly drags/scrolls font carousel
     LaunchedEffect(centerItemIndex) {
         if (fontLazyListState.isScrollInProgress) {
             val currentFont = fontTypes.getOrNull(centerItemIndex)
@@ -1334,6 +1419,8 @@ fun InteractiveCardCanvas(
     onUpdateElement: (String, (TextElement) -> TextElement) -> Unit,
     onSwapElements: (String, String) -> Unit,
     onDeleteElement: (String) -> Unit,
+    onSelectedElementCenterYChanged: (Float) -> Unit = {},
+    zoomScale: Float = 1f,
     modifier: Modifier = Modifier
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
@@ -1396,7 +1483,9 @@ fun InteractiveCardCanvas(
                         onSwap = onSwapElements,
                         onDelete = {
                             if (element.isEditable) onDeleteElement(element.id)
-                        }
+                        },
+                        onSelectedElementCenterYChanged = onSelectedElementCenterYChanged,
+                        zoomScale = zoomScale
                     )
                 }
             }
@@ -1425,7 +1514,9 @@ fun InteractiveCardCanvas(
                             onDoubleTap = {},
                             onUpdate = { _, _ -> },
                             onSwap = { _, _ -> },
-                            onDelete = {}
+                            onDelete = {},
+                            onSelectedElementCenterYChanged = {},
+                            zoomScale = zoomScale
                         )
                     }
                 }
@@ -1434,6 +1525,7 @@ fun InteractiveCardCanvas(
     }
 }
 
+@OptIn(ExperimentalIndirectPointerApi::class)
 @Composable
 fun InteractiveTextElementItem(
     element: TextElement,
@@ -1445,7 +1537,9 @@ fun InteractiveTextElementItem(
     onDoubleTap: () -> Unit,
     onUpdate: (String, (TextElement) -> TextElement) -> Unit,
     onSwap: (String, String) -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onSelectedElementCenterYChanged: (Float) -> Unit = {},
+    zoomScale: Float = 1f
 ) {
     if (canvasSize.width == 0 || canvasSize.height == 0) return
     val density = LocalDensity.current
@@ -1521,11 +1615,16 @@ fun InteractiveTextElementItem(
                 ),
             contentAlignment = Alignment.Center
         ) {
-            // Text box: Border tightly hugs text + scaled vertical padding
             Box(
                 modifier = Modifier
                     .wrapContentSize()
                     .padding(vertical = (element.verticalPaddingSp * scaleFactor).dp)
+                    .onGloballyPositioned { coordinates ->
+                        if (isSelected) {
+                            val yCenter = coordinates.positionInRoot().y + (coordinates.size.height / 2f)
+                            onSelectedElementCenterYChanged(yCenter)
+                        }
+                    }
                     .then(
                         if (isSelected && element.isEditable) Modifier
                             .border(2.dp, Color(0xFF6750A4), SquircleShape(CornerExtraSmall))
@@ -1563,7 +1662,7 @@ fun InteractiveTextElementItem(
                         val handleSize = 24.dp
                         val iconSize = 16.dp
 
-                        // 1. Delete / Cross handle (Top-Right Corner: offset +12dp X, -12dp Y)
+                        // 1. Delete / Cross handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -1571,7 +1670,17 @@ fun InteractiveTextElementItem(
                                 .requiredSize(handleSize)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.error)
-                                .clickable(onClick = onDelete),
+                                .pointerInput(element.id) {
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        down.consume()
+                                        val up = waitForUpOrCancellation()
+                                        if (up != null) {
+                                            up.consume()
+                                            onDelete()
+                                        }
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1582,7 +1691,7 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 2. Width handle (Centered Vertically)
+                        // 2. Width handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
@@ -1590,12 +1699,26 @@ fun InteractiveTextElementItem(
                                 .requiredSize(width = 24.dp, height = 16.dp)
                                 .clip(CircleShape)
                                 .background(Color(0xFF6750A4))
-                                .pointerInput(element.id) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        val deltaWidthRatio = (dragAmount.x / canvasWidthPx) * 2f
-                                        currentOnUpdate(currentElementId) { target ->
-                                            target.copy(widthRatio = (target.widthRatio + deltaWidthRatio).coerceIn(0.2f, 1f))
+                                .pointerInput(element.id, zoomScale) {
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        down.consume()
+                                        val pointerId = down.id
+
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                            if (!change.pressed) break
+
+                                            val dragAmount = change.positionChange()
+                                            if (dragAmount != Offset.Zero) {
+                                                change.consume()
+                                                val adjustedDragX = dragAmount.x / zoomScale
+                                                val deltaWidthRatio = (adjustedDragX / canvasWidthPx) * 2f
+                                                currentOnUpdate(currentElementId) { target ->
+                                                    target.copy(widthRatio = (target.widthRatio + deltaWidthRatio).coerceIn(0.2f, 1f))
+                                                }
+                                            }
                                         }
                                     }
                                 },
@@ -1609,7 +1732,7 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 3. Resize handle (Bottom-Right Corner: offset +12dp X, +12dp Y)
+                        // 3. Resize handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -1617,12 +1740,27 @@ fun InteractiveTextElementItem(
                                 .requiredSize(handleSize)
                                 .clip(CircleShape)
                                 .background(ContentSecondary)
-                                .pointerInput(element.id) {
-                                    detectDragGestures { change, dragAmount ->
-                                        change.consume()
-                                        val scaleChange = (dragAmount.x + dragAmount.y) * 0.15f
-                                        currentOnUpdate(currentElementId) { target ->
-                                            target.copy(fontSizeSp = (target.fontSizeSp + (scaleChange / scaleFactor)).coerceIn(8f, 72f))
+                                .pointerInput(element.id, zoomScale) {
+                                    awaitEachGesture {
+                                        val down = awaitFirstDown(requireUnconsumed = false)
+                                        down.consume()
+                                        val pointerId = down.id
+
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                                            if (!change.pressed) break
+
+                                            val dragAmount = change.positionChange()
+                                            if (dragAmount != Offset.Zero) {
+                                                change.consume()
+                                                val adjustedDragX = dragAmount.x / zoomScale
+                                                val adjustedDragY = dragAmount.y / zoomScale
+                                                val scaleChange = (adjustedDragX + adjustedDragY) * 0.15f
+                                                currentOnUpdate(currentElementId) { target ->
+                                                    target.copy(fontSizeSp = (target.fontSizeSp + (scaleChange / scaleFactor)).coerceIn(8f, 72f))
+                                                }
+                                            }
                                         }
                                     }
                                 },
@@ -1645,6 +1783,7 @@ fun InteractiveTextElementItem(
         }
     }
 }
+
 @Composable
 fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
     val themes = remember {
