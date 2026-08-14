@@ -44,6 +44,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -68,8 +69,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.FontStyleType
-import com.harshdeep.jasnify.domain.model.InvitationCardData
+import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.domain.model.CardTextAlign
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ColorPickerWheel
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -118,9 +120,9 @@ fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = this.clickable(
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun EditInvitationDetailsScreen(
-    initialData: InvitationCardData = InvitationCardData(),
-    onDataChange: (InvitationCardData) -> Unit = {},
+fun EditCardDetailsScreen(
+    initialData: CardData = CardData(),
+    onDataChange: (CardData) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
     val normalizedInitialData = remember(initialData.id) {
@@ -178,7 +180,7 @@ fun EditInvitationDetailsScreen(
 
     val isImeVisible = WindowInsets.isImeVisible
 
-    fun updateCardState(newCard: InvitationCardData) {
+    fun updateCardState(newCard: CardData) {
         val latest = history.getOrNull(historyIndex) ?: normalizedInitialData
         if (newCard == latest) return
         while (history.size - 1 > historyIndex) {
@@ -1072,7 +1074,7 @@ fun EditInvitationDetailsScreen(
                             target.copy(colorHex = (alphaToUse shl 24) or newRgb)
                         }
                         showEyeDropper = false
-                    }
+                    },
                 )
             }
         }
@@ -1245,10 +1247,10 @@ fun ProfessionalFontSelector(
         ) {
             val alignmentOptions = remember {
                 listOf(
-                    TextAlign.Left to Icons.AutoMirrored.Rounded.FormatAlignLeft,
-                    TextAlign.Center to Icons.Rounded.FormatAlignCenter,
-                    TextAlign.Right to Icons.AutoMirrored.Rounded.FormatAlignRight,
-                    TextAlign.Justify to Icons.Rounded.FormatAlignJustify
+                    CardTextAlign.LEFT to Icons.AutoMirrored.Rounded.FormatAlignLeft,
+                    CardTextAlign.CENTER to Icons.Rounded.FormatAlignCenter,
+                    CardTextAlign.RIGHT to Icons.AutoMirrored.Rounded.FormatAlignRight,
+                    CardTextAlign.JUSTIFY to Icons.Rounded.FormatAlignJustify
                 )
             }
             val currentAlignIndex = remember(selectedElement.textAlign) {
@@ -1475,7 +1477,7 @@ fun FormatToggleButton(
 
 @Composable
 fun InteractiveCardCanvas(
-    card: InvitationCardData,
+    card: CardData,
     selectedElementId: String?,
     onSelectElement: (String) -> Unit,
     onDoubleTapElement: (String) -> Unit,
@@ -1705,7 +1707,7 @@ fun InteractiveTextElementItem(
                         fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
                         textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
                         color = Color(element.colorHex.toInt()),
-                        textAlign = element.textAlign,
+                        textAlign = element.textAlign.toComposeTextAlign(),
                         letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
                         lineHeight = if (element.lineHeightSp > 0f) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
                         lineHeightStyle = LineHeightStyle(
@@ -1722,15 +1724,25 @@ fun InteractiveTextElementItem(
                     modifier = Modifier.matchParentSize()
                 ) {
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
-                        val handleSize = 24.dp
-                        val iconSize = 16.dp
+                        val zoomFactor = zoomScale.coerceAtLeast(1f)
 
-                        // Delete / Cross handle
+                        // Slightly increased base sizes + strict min/max constraints
+                        val reducedHandleSize = (22.dp / zoomFactor).coerceIn(14.dp, 24.dp)
+                        val reducedIconSize = (14.dp / zoomFactor).coerceIn(9.dp, 15.dp)
+
+                        val widthHandleWidth = (26.dp / zoomFactor).coerceIn(16.dp, 28.dp)
+                        val widthHandleHeight = (18.dp / zoomFactor).coerceIn(12.dp, 20.dp)
+                        val widthIconSize = (16.dp / zoomFactor).coerceIn(10.dp, 17.dp)
+
+                        // Dynamic offsets based on handle bounds
+                        val cornerOffset = reducedHandleSize
+
+                        // 1. Delete / Cross handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
-                                .offset(x = 24.dp, y = (-24).dp)
-                                .requiredSize(handleSize)
+                                .offset(x = cornerOffset, y = -cornerOffset)
+                                .requiredSize(reducedHandleSize)
                                 .clip(CircleShape)
                                 .background(MaterialTheme.colorScheme.error)
                                 .pointerInput(element.id) {
@@ -1750,16 +1762,16 @@ fun InteractiveTextElementItem(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = "Delete",
                                 tint = ContentInvPrimary,
-                                modifier = Modifier.requiredSize(iconSize)
+                                modifier = Modifier.requiredSize(reducedIconSize)
                             )
                         }
 
-                        // Width handle
+                        // 2. Width handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
-                                .offset(x = 6.dp)
-                                .requiredSize(width = 24.dp, height = 16.dp)
+                                .offset(x = (6.dp / zoomFactor).coerceIn(4.dp, 8.dp))
+                                .requiredSize(width = widthHandleWidth, height = widthHandleHeight)
                                 .clip(CircleShape)
                                 .background(Color(0xFF6750A4))
                                 .pointerInput(element.id, zoomScale) {
@@ -1791,16 +1803,16 @@ fun InteractiveTextElementItem(
                                 imageVector = Icons.Rounded.Code,
                                 contentDescription = "Width",
                                 tint = ContentInvPrimary,
-                                modifier = Modifier.requiredSize(iconSize)
+                                modifier = Modifier.requiredSize(widthIconSize)
                             )
                         }
 
-                        // Resize handle
+                        // 3. Resize handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .offset(x = 24.dp, y = 24.dp)
-                                .requiredSize(handleSize)
+                                .offset(x = cornerOffset, y = cornerOffset)
+                                .requiredSize(reducedHandleSize)
                                 .clip(CircleShape)
                                 .background(ContentSecondary)
                                 .pointerInput(element.id, zoomScale) {
@@ -1834,7 +1846,7 @@ fun InteractiveTextElementItem(
                                 contentDescription = "Resize",
                                 tint = ContentInvPrimary,
                                 modifier = Modifier
-                                    .requiredSize(iconSize)
+                                    .requiredSize(reducedIconSize)
                                     .graphicsLayer {
                                         scaleX = -1f
                                     }
@@ -1970,12 +1982,12 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
     }
 }
 
-@Preview(name = "Edit Invitation Details - Light Mode", showBackground = true, showSystemUi = true)
+@Preview(name = "Edit Card Details - Light Mode", showBackground = true, showSystemUi = true)
 @Composable
-fun EditInvitationDetailsScreenPreview() {
+fun EditCardDetailsScreenPreview() {
     JasnifyTheme {
-        EditInvitationDetailsScreen(
-            initialData = InvitationCardData(),
+        EditCardDetailsScreen(
+            initialData = CardData(),
             onDataChange = {},
             onBackClick = {}
         )

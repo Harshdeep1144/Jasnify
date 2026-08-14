@@ -1,9 +1,14 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,22 +28,37 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.InvitationCardData
+import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.InvitationCardItem
-import com.harshdeep.jasnify.presentation.components.carousels.InvitationCardCarousel
+import com.harshdeep.jasnify.presentation.components.cards.CardItem
+import com.harshdeep.jasnify.presentation.components.carousels.CardCarousel
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.*
 import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
@@ -47,12 +67,13 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
 
-enum class InvitationCardsView {
+enum class CardsView {
     MAIN,
-    EDIT_DETAILS
+    EDIT_DETAILS,
+    ROOM
 }
 
-enum class InvitationCardsTab {
+enum class CardsTab {
     EXPLORE,
     SAVED
 }
@@ -60,73 +81,256 @@ enum class InvitationCardsTab {
 @Composable
 fun CardsScreen(
     onBackClick: () -> Unit = {},
-    eventViewModel: EventViewModel = hiltViewModel()
+    eventViewModel: EventViewModel = hiltViewModel(),
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    cardViewModel: CardViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
-    var currentView by remember { mutableStateOf(InvitationCardsView.MAIN) }
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+    val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    val cloudCardData by cardViewModel.cardData.collectAsStateWithLifecycle()
 
-    // Unified state for invitation card data using domain model
-    var cardData by remember { mutableStateOf(InvitationCardData()) }
+    var currentView by remember { mutableStateOf(CardsView.MAIN) }
+    var cardData by remember { mutableStateOf(CardData()) }
+    var isInitialized by remember { mutableStateOf(false) }
 
-    // Sync state with active event once loaded by mapping values into the card's TextElement list
-    LaunchedEffect(activeEvent) {
-        activeEvent?.let { event ->
-            val date = event.date?.let { Date(it) } ?: Date()
-            val day = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
-            val dayOfMonth = SimpleDateFormat("dd", Locale.getDefault()).format(date)
-            val month = SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase()
-            val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
-            val formattedDateString = "$day • $dayOfMonth $month • $year"
+    var showMenuSheet by remember { mutableStateOf(false) }
+    var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
+    var showLeaveConfirmation by remember { mutableStateOf(false) }
+    var toastData by remember { mutableStateOf(ToastData()) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-            // Update specific TextElement items inside the card data
-            val updatedElements = cardData.elements.mapIndexed { index, element ->
-                when (index) {
-                    1 -> element.copy(text = event.name.ifBlank { element.text }) // Event Name / Title
-                    3 -> element.copy(text = formattedDateString)               // Event Date
-                    else -> element
-                }
-            }
-
-            cardData = cardData.copy(elements = updatedElements)
+    LaunchedEffect(activeEventId) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+        if (activeEventId != null) {
+            roomViewModel.verifyAccess(activeEventId!!, "Cards", uid)
+            roomViewModel.loadRoomUsers(activeEventId!!, "Cards")
+            cardViewModel.setEventId(activeEventId!!)
+        } else {
+            roomViewModel.setAccessState(true)
         }
     }
 
-    AnimatedContent(
-        targetState = currentView,
-        transitionSpec = {
-            fadeIn() togetherWith fadeOut()
-        },
-        label = "InvitationCardsViewContent"
-    ) { view ->
-        when (view) {
-            InvitationCardsView.MAIN -> {
-                InvitationCardsMainContent(
-                    cardData = cardData,
-                    onBackClick = onBackClick,
-                    onEditDetailsClick = { currentView = InvitationCardsView.EDIT_DETAILS }
-                )
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
+
+    // Sync state with cloud data or initialize from active event
+    LaunchedEffect(cloudCardData) {
+        cloudCardData?.let {
+            cardData = it
+            isInitialized = true
+        }
+    }
+
+    LaunchedEffect(activeEvent) {
+        if (!isInitialized) {
+            activeEvent?.let { event ->
+                val date = event.date?.let { Date(it) } ?: Date()
+                val day = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
+                val dayOfMonth = SimpleDateFormat("dd", Locale.getDefault()).format(date)
+                val month = SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase()
+                val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
+                val formattedDateString = "$day • $dayOfMonth $month • $year"
+
+                val updatedElements = cardData.elements.mapIndexed { index, element ->
+                    when (index) {
+                        1 -> element.copy(text = event.name.ifBlank { element.text })
+                        3 -> element.copy(text = formattedDateString)
+                        else -> element
+                    }
+                }
+                cardData = cardData.copy(elements = updatedElements)
             }
-            InvitationCardsView.EDIT_DETAILS -> {
-                EditInvitationDetailsScreen(
-                    initialData = cardData,
-                    onDataChange = { cardData = it },
-                    onBackClick = { currentView = InvitationCardsView.MAIN }
-                )
+        }
+    }
+
+    BackHandler {
+        when {
+            showMenuSheet -> showMenuSheet = false
+            showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
+            currentView != CardsView.MAIN -> currentView = CardsView.MAIN
+            else -> onBackClick()
+        }
+    }
+
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation
+    
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        RoomAccessGuardian(
+            hasAccess = hasAccess,
+            roomName = "Cards",
+            onBackClick = onBackClick
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(BackgroundPrimary)
+            ) {
+                AnimatedContent(
+                    targetState = currentView,
+                    transitionSpec = {
+                        fadeIn() togetherWith fadeOut()
+                    },
+                    label = "CardsViewContent"
+                ) { view ->
+                    when (view) {
+                        CardsView.MAIN -> {
+                            CardsMainContent(
+                                cardData = cardData,
+                                onBackClick = onBackClick,
+                                onMenuClick = { showMenuSheet = true },
+                                onEditDetailsClick = { currentView = CardsView.EDIT_DETAILS }
+                            )
+                        }
+                        CardsView.EDIT_DETAILS -> {
+                            EditCardDetailsScreen(
+                                initialData = cardData,
+                                onDataChange = {
+                                    cardData = it
+                                    cardViewModel.saveCardData(it)
+                                },
+                                onBackClick = { currentView = CardsView.MAIN }
+                            )
+                        }
+                        CardsView.ROOM -> {
+                            activeEvent?.let { event ->
+                                CardRoomContent(
+                                    eventId = event.id,
+                                    roomViewModel = roomViewModel,
+                                    onBackClick = { currentView = CardsView.MAIN },
+                                    onMenuClick = { showRoomMenuBottomSheet = true },
+                                    onRemove = { userToRemove = it },
+                                    onLeave = { showLeaveConfirmation = true },
+                                    onShowToast = { toastData = it }
+                                )
+                            }
+                        }
+                    }
+                }
             }
+        }
+
+        // Toasts and Overlays
+        AnimatedVisibility(
+            visible = toastData.message != null && !isAnySheetVisible,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(100f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(message = toastData.message ?: "", type = toastData.type)
+        }
+
+        if (showMenuSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Edit Details",
+                            icon = painterResource(R.drawable.ic_edit),
+                            onClick = {
+                                showMenuSheet = false
+                                currentView = CardsView.EDIT_DETAILS
+                            }
+                        )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Manage Room Access",
+                            icon = painterResource(R.drawable.ic_user_default),
+                            onClick = {
+                                showMenuSheet = false
+                                currentView = CardsView.ROOM
+                            }
+                        )
+                    )
+                ),
+                onCancelClick = { showMenuSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showRoomMenuBottomSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Room",
+                            icon = painterResource(R.drawable.ic_logout),
+                            contentColor = MaterialTheme.colorScheme.error,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                showLeaveConfirmation = true
+                            }
+                        )
+                    )
+                ),
+                onCancelClick = { showRoomMenuBottomSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        userToRemove?.let {
+            ConfirmationBottomSheet(
+                heading = "Remove ${it.name}?",
+                subHeading = "They will not be able to access this room anymore.",
+                confirmButtonText = "Remove",
+                onDismiss = { userToRemove = null },
+                onConfirm = {
+                    if (activeEventId != null) {
+                        roomViewModel.removeAccess(activeEventId!!, "Cards", it.uid)
+                        toastData = ToastData("${it.name} removed", ToastType.SUCCESS)
+                    }
+                    userToRemove = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showLeaveConfirmation) {
+            ConfirmationBottomSheet(
+                heading = "Leave Room?",
+                subHeading = "You will lose access to this room.",
+                confirmButtonText = "Leave",
+                onDismiss = { showLeaveConfirmation = false },
+                onConfirm = {
+                    activeEventId?.let { eventId ->
+                        roomViewModel.removeAccess(eventId, "Cards", FirebaseAuth.getInstance().currentUser?.uid ?: "")
+                    }
+                    toastData = ToastData("You left the room", ToastType.DEFAULT)
+                    currentView = CardsView.MAIN
+                    showLeaveConfirmation = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
         }
     }
 }
 
 @Composable
-fun InvitationCardsMainContent(
-    cardData: InvitationCardData,
+fun CardsMainContent(
+    cardData: CardData,
     onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
     onEditDetailsClick: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
-    var selectedTab by remember { mutableStateOf(InvitationCardsTab.EXPLORE) }
+    var selectedTab by remember { mutableStateOf(CardsTab.EXPLORE) }
 
     val backgrounds = listOf(
         R.drawable.bg_invitation_card_01,
@@ -141,7 +345,7 @@ fun InvitationCardsMainContent(
         pageCount = { Int.MAX_VALUE }
     )
 
-    var cardToCapture by remember { mutableStateOf<InvitationCardData?>(null) }
+    var cardToCapture by remember { mutableStateOf<CardData?>(null) }
     var likedCardRes by remember { mutableStateOf(setOf<Int>()) }
 
     val onLikeToggle = { resId: Int ->
@@ -152,7 +356,7 @@ fun InvitationCardsMainContent(
         }
     }
 
-    val onShareTrigger = { data: InvitationCardData, whatsappOnly: Boolean ->
+    val onShareTrigger = { data: CardData, whatsappOnly: Boolean ->
         coroutineScope.launch {
             cardToCapture = data
             delay(100.milliseconds)
@@ -178,7 +382,7 @@ fun InvitationCardsMainContent(
             val currentCarouselCard = cardData.copy(
                 backgroundRes = backgrounds[pagerState.currentPage % backgrounds.size]
             )
-            InvitationCardItem(
+            CardItem(
                 data = cardToCapture ?: currentCarouselCard,
                 forCapture = true,
                 modifier = Modifier.fillMaxSize()
@@ -194,7 +398,7 @@ fun InvitationCardsMainContent(
                         title = "Cards",
                         isLargeTitle = true,
                         onBackClick = onBackClick,
-                        onMenuClick = { },
+                        onMenuClick = onMenuClick,
                         menuIcon = TopIcon.Predefined.MENU_VERTICAL
                     )
                 }
@@ -212,21 +416,21 @@ fun InvitationCardsMainContent(
                     transitionSpec = {
                         fadeIn() togetherWith fadeOut()
                     },
-                    label = "InvitationCardsTabContent"
+                    label = "CardsTabContent"
                 ) { tab ->
                     when (tab) {
-                        InvitationCardsTab.EXPLORE -> {
+                        CardsTab.EXPLORE -> {
                             ExploreCardsContent(
                                 cardData = cardData,
                                 backgrounds = backgrounds,
                                 likedCardRes = likedCardRes,
                                 onLikeToggle = onLikeToggle,
                                 pagerState = pagerState,
-                                onEditDetailsClick = onEditDetailsClick,
-                                onShareTrigger = onShareTrigger
+                                onShareTrigger = onShareTrigger,
+                                onEditDetailsClick = onEditDetailsClick
                             )
                         }
-                        InvitationCardsTab.SAVED -> {
+                        CardsTab.SAVED -> {
                             SavedCardsContent(
                                 cardData = cardData,
                                 backgrounds = backgrounds,
@@ -248,12 +452,12 @@ fun InvitationCardsMainContent(
             items = listOf(
                 TabItem(
                     label = "Explore",
-                    value = InvitationCardsTab.EXPLORE,
+                    value = CardsTab.EXPLORE,
                     icon = painterResource(R.drawable.ic_notes)
                 ),
                 TabItem(
                     label = "Saved",
-                    value = InvitationCardsTab.SAVED,
+                    value = CardsTab.SAVED,
                     icon = painterResource(R.drawable.ic_heart)
                 )
             ),
@@ -266,13 +470,13 @@ fun InvitationCardsMainContent(
 
 @Composable
 fun ExploreCardsContent(
-    cardData: InvitationCardData,
+    cardData: CardData,
     backgrounds: List<Int>,
     likedCardRes: Set<Int>,
     onLikeToggle: (Int) -> Unit,
     pagerState: androidx.compose.foundation.pager.PagerState,
-    onEditDetailsClick: () -> Unit,
-    onShareTrigger: (InvitationCardData, Boolean) -> Unit
+    onShareTrigger: (CardData, Boolean) -> Unit,
+    onEditDetailsClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -283,7 +487,7 @@ fun ExploreCardsContent(
                 modifier = Modifier.padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                InvitationCardCarousel(
+                CardCarousel(
                     cardData = cardData,
                     cardWidth = 280.dp,
                     cardHeight = 373.dp,
@@ -356,7 +560,7 @@ fun ExploreCardsContent(
 
         items(backgrounds) { bgRes ->
             val card = cardData.copy(backgroundRes = bgRes)
-            InvitationCardItem(
+            CardItem(
                 data = card,
                 showControls = true,
                 isLiked = likedCardRes.contains(bgRes),
@@ -377,11 +581,11 @@ fun ExploreCardsContent(
 
 @Composable
 fun SavedCardsContent(
-    cardData: InvitationCardData,
+    cardData: CardData,
     backgrounds: List<Int>,
     likedCardRes: Set<Int>,
     onLikeToggle: (Int) -> Unit,
-    onShareClick: (InvitationCardData) -> Unit
+    onShareClick: (CardData) -> Unit
 ) {
     val likedBackgrounds = backgrounds.filter { likedCardRes.contains(it) }
 
@@ -406,7 +610,7 @@ fun SavedCardsContent(
         ) {
             items(likedBackgrounds) { bgRes ->
                 val card = cardData.copy(backgroundRes = bgRes)
-                InvitationCardItem(
+                CardItem(
                     data = card,
                     showControls = true,
                     isLiked = true,
@@ -423,4 +627,60 @@ fun SavedCardsContent(
             }
         }
     }
+}
+
+@Composable
+fun CardRoomContent(
+    eventId: String,
+    roomViewModel: RoomViewModel,
+    onBackClick: () -> Unit,
+    onMenuClick: () -> Unit,
+    onRemove: (User) -> Unit,
+    onLeave: () -> Unit,
+    onShowToast: (ToastData) -> Unit
+) {
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val currentUser = FirebaseAuth.getInstance().currentUser
+
+    val currentUserRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
+
+    val displayUsers = remember(roomUsers, currentUser) {
+        if (currentUser == null) return@remember roomUsers
+
+        val self = User(
+            uid = currentUser.uid,
+            name = currentUser.displayName ?: "Me",
+            email = currentUser.email ?: "",
+            role = roomUsers.find { it.uid == currentUser.uid }?.role ?: currentUserRole,
+            username = currentUser.email?.substringBefore("@") ?: "me"
+        )
+
+        val baseList = if (roomUsers.any { it.uid == currentUser.uid }) {
+            roomUsers.map { if (it.uid == currentUser.uid) self.copy(role = it.role) else it }
+        } else {
+            listOf(self) + roomUsers
+        }
+        baseList.distinctBy { it.uid }
+    }
+
+    RoomScreen(
+        allUsers = displayUsers,
+        currentUserRole = currentUserRole,
+        isSelf = { it.uid == currentUser?.uid },
+        onBackClick = onBackClick,
+        onMenuClick = onMenuClick,
+        onRoleChange = { user, newRole ->
+            roomViewModel.updateRole(eventId, "Cards", user, newRole)
+        },
+        onRemove = onRemove,
+        onReport = { user -> onShowToast(ToastData("${user.name} reported", ToastType.DEFAULT)) },
+        onLeave = onLeave,
+        searchResults = searchResults,
+        onSearch = { query -> roomViewModel.searchUsers(query) },
+        onGrantAccess = { email, role ->
+            roomViewModel.grantAccess(eventId, "Cards", email, role)
+            onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
+        }
+    )
 }

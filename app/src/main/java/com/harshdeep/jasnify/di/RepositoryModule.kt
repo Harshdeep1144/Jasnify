@@ -64,4 +64,10 @@ abstract class RepositoryModule {
     abstract fun bindGuestRepository(
         guestRepositoryImpl: GuestRepositoryImpl
     ): GuestRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCardRepository(
+        cardRepositoryImpl: com.harshdeep.jasnify.data.repository.CardRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.CardRepository
 }

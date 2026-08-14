@@ -36,15 +36,15 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
-import com.harshdeep.jasnify.domain.model.InvitationCardData
+import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
 @Composable
-fun InvitationCardItem(
+fun CardItem(
     modifier: Modifier = Modifier,
-    data: InvitationCardData = InvitationCardData(),
+    data: CardData = CardData(),
     pageOffset: Float = 0f,
     isEditable: Boolean = false,
     showControls: Boolean = false,
@@ -52,7 +52,7 @@ fun InvitationCardItem(
     isLiked: Boolean = false,
     onLikeClick: () -> Unit = {},
     onShareClick: () -> Unit = {},
-    onUpdate: (InvitationCardData) -> Unit = {}
+    onUpdate: (CardData) -> Unit = {}
 ) {
     val scale = lerp(
         start = 0.9f,
@@ -87,7 +87,7 @@ fun InvitationCardItem(
                         )
                 } else Modifier
             )
-            .background(Color(data.backgroundColorHex))
+            .background(Color(data.backgroundColorHex.toInt()))
     ) {
         // Background Image
         Image(
@@ -221,8 +221,8 @@ private fun RenderCardTextElement(
         fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
         fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
         textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
-        color = Color(element.colorHex),
-        textAlign = element.textAlign,
+        color = Color(element.colorHex.toInt()),
+        textAlign = element.textAlign.toComposeTextAlign(),
         letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
         lineHeight = if (element.lineHeightSp > 0) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
         lineHeightStyle = LineHeightStyle(

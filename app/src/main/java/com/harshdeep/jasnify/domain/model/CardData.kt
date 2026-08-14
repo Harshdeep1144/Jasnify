@@ -82,31 +82,52 @@ enum class FontStyleType(val label: String, val fontFamily: FontFamily) {
     JOLLY_LODGER("Jolly Lodger", getGoogleFontFamily("Jolly Lodger"))
 }
 
+enum class CardTextAlign {
+    LEFT, CENTER, RIGHT, JUSTIFY;
+
+    fun toComposeTextAlign(): TextAlign = when (this) {
+        LEFT -> TextAlign.Left
+        CENTER -> TextAlign.Center
+        RIGHT -> TextAlign.Right
+        JUSTIFY -> TextAlign.Justify
+    }
+
+    companion object {
+        fun fromComposeTextAlign(textAlign: TextAlign): CardTextAlign = when (textAlign) {
+            TextAlign.Left -> LEFT
+            TextAlign.Center -> CENTER
+            TextAlign.Right -> RIGHT
+            TextAlign.Justify -> JUSTIFY
+            else -> CENTER
+        }
+    }
+}
+
 data class TextElement(
-    val id: String = UUID.randomUUID().toString(),
-    val text: String = "Sample Text",
-    val xRatio: Float = 0.5f,
-    val yRatio: Float = 0.5f,
-    val widthRatio: Float = 1.0f,
-    val fontSizeSp: Float = 16f,
-    val colorHex: Long = 0xFF444444L,
-    val fontStyle: FontStyleType = FontStyleType.DEFAULT,
-    val isBold: Boolean = false,
-    val isItalic: Boolean = false,
-    val isUnderline: Boolean = false,
-    val textAlign: TextAlign = TextAlign.Center,
-    val letterSpacingSp: Float = 0f,
-    val lineHeightSp: Float = 0f, // 0 means default
-    val verticalPaddingSp: Float = 0f,
-    val zIndex: Int = 0,
-    val isEditable: Boolean = true // If false, element cannot be selected, moved, or edited
+    var id: String = UUID.randomUUID().toString(),
+    var text: String = "Sample Text",
+    var xRatio: Float = 0.5f,
+    var yRatio: Float = 0.5f,
+    var widthRatio: Float = 1.0f,
+    var fontSizeSp: Float = 16f,
+    var colorHex: Long = 0xFF444444L,
+    var fontStyle: FontStyleType = FontStyleType.DEFAULT,
+    var isBold: Boolean = false,
+    var isItalic: Boolean = false,
+    var isUnderline: Boolean = false,
+    var textAlign: CardTextAlign = CardTextAlign.CENTER,
+    var letterSpacingSp: Float = 0f,
+    var lineHeightSp: Float = 0f, // 0 means default
+    var verticalPaddingSp: Float = 0f,
+    var zIndex: Int = 0,
+    var isEditable: Boolean = true // If false, element cannot be selected, moved, or edited
 )
 
-data class InvitationCardData(
-    val id: String = UUID.randomUUID().toString(),
-    val backgroundRes: Int = R.drawable.bg_invitation_card_01,
-    val backgroundColorHex: Long = 0xFFFFFDF9L,
-    val elements: List<TextElement> = defaultElements()
+data class CardData(
+    var id: String = UUID.randomUUID().toString(),
+    var backgroundRes: Int = R.drawable.bg_invitation_card_01,
+    var backgroundColorHex: Long = 0xFFFFFDF9L,
+    var elements: List<TextElement> = defaultElements()
 )
 
 fun defaultElements(): List<TextElement> = listOf(

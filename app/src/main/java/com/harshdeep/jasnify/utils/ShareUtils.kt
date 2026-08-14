@@ -13,7 +13,7 @@ object ShareUtils {
         try {
             val cachePath = File(context.cacheDir, "shared_images")
             cachePath.mkdirs()
-            val imageFile = File(cachePath, "invitation_card.png")
+            val imageFile = File(cachePath, "card.png")
             val stream = FileOutputStream(imageFile)
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
             stream.close()

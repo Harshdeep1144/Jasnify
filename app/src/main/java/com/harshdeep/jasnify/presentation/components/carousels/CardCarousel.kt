@@ -18,22 +18,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.InvitationCardData
-import com.harshdeep.jasnify.presentation.components.cards.InvitationCardItem
+import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.theme.*
 import kotlin.math.absoluteValue
 
 @SuppressLint("FrequentlyChangingValue")
 @Composable
-fun InvitationCardCarousel(
+fun CardCarousel(
     modifier: Modifier = Modifier,
-    cardData: InvitationCardData = InvitationCardData(),
+    cardData: CardData = CardData(),
     cardWidth: Dp = 280.dp,
     cardHeight: Dp = 373.dp,
     showControls: Boolean = true,
     isLiked: (Int) -> Boolean = { false },
-    onLikeClick: (InvitationCardData) -> Unit = {},
-    onShareClick: (InvitationCardData) -> Unit = {},
+    onLikeClick: (CardData) -> Unit = {},
+    onShareClick: (CardData) -> Unit = {},
     pagerState: PagerState = rememberPagerState(
         initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
         pageCount = { Int.MAX_VALUE }
@@ -69,7 +69,7 @@ fun InvitationCardCarousel(
                 contentAlignment = Alignment.Center
             ) {
                 val currentCard = cardData.copy(backgroundRes = backgrounds[actualIndex])
-                InvitationCardItem(
+                CardItem(
                     data = currentCard,
                     pageOffset = pageOffset,
                     showControls = showControls,
@@ -111,13 +111,13 @@ fun InvitationCardCarousel(
 
 @Preview(showBackground = true)
 @Composable
-fun InvitationCardCarouselPreview() {
+fun CardCarouselPreview() {
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = BackgroundPrimary
     ) {
         Box(contentAlignment = Alignment.Center) {
-            InvitationCardCarousel()
+            CardCarousel()
         }
     }
 }
