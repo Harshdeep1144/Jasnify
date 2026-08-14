@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import android.R.attr.scaleX
+import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -36,13 +37,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -57,17 +58,20 @@ import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.InvitationCardData
 import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ColorPickerWheel
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -130,6 +134,9 @@ fun EditInvitationDetailsScreen(
     var isMenuExpanded by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(EditorTab.TEXT) }
     var isTextFieldFocused by remember { mutableStateOf(false) }
+
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showEyeDropper by remember { mutableStateOf(false) }
 
     var bottomSheetWeight by remember { mutableFloatStateOf(0.42f) }
     val minSheetWeight = 0.32f
@@ -250,6 +257,37 @@ fun EditInvitationDetailsScreen(
     }
 
     val bottomPadding = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp
+
+    // Color Picker Dialog Overlay Popup
+    if (showColorPicker && selectedElement != null) {
+        Dialog(
+            onDismissRequest = { showColorPicker = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .noRippleClickable { showColorPicker = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(modifier = Modifier.noRippleClickable { }) {
+                    ColorPickerWheel(
+                        initialColor = Color(selectedElement.colorHex.toInt()),
+                        onColorSelected = { newColor ->
+                            updateElement(selectedElement.id) { target ->
+                                val currentAlpha = (target.colorHex shr 24) and 0xFFL
+                                val alphaToUse = if (currentAlpha == 0L) 0xFFL else currentAlpha
+                                val newRgb = newColor.toArgb().toLong() and 0x00FFFFFFL
+                                target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                            }
+                        },
+                        onDismiss = { showColorPicker = false }
+                    )
+                }
+            }
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -890,7 +928,9 @@ fun EditInvitationDetailsScreen(
                                                         modifier = Modifier
                                                             .size(56.dp)
                                                             .clip(CircleShape)
-                                                            .noRippleClickable { },
+                                                            .noRippleClickable {
+                                                                showEyeDropper = true
+                                                            },
                                                         contentAlignment = Alignment.Center
                                                     ) {
                                                         Icon(
@@ -920,7 +960,9 @@ fun EditInvitationDetailsScreen(
                                                                     )
                                                                 )
                                                             )
-                                                            .noRippleClickable { },
+                                                            .noRippleClickable {
+                                                                showColorPicker = true
+                                                            },
                                                         contentAlignment = Alignment.Center
                                                     ) {
                                                         Box(
@@ -934,7 +976,7 @@ fun EditInvitationDetailsScreen(
 
                                                 items(palette) { hex ->
                                                     val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
-                                                    val swatchColor = Color(hex)
+                                                    val swatchColor = Color(hex.toInt())
 
                                                     Box(
                                                         modifier = Modifier
@@ -1011,6 +1053,27 @@ fun EditInvitationDetailsScreen(
                         }
                     }
                 }
+            }
+        }
+
+        // Interactive Eyedropper Overlay (Rendered last in Box with highest zIndex)
+        if (showEyeDropper && selectedElement != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(100f)
+            ) {
+                EyeDropperOverlay(
+                    onColorPicked = { pickedColor ->
+                        updateElement(selectedElement.id) { target ->
+                            val alpha = (target.colorHex shr 24) and 0xFFL
+                            val alphaToUse = if (alpha == 0L) 0xFFL else alpha
+                            val newRgb = pickedColor.toArgb().toLong() and 0x00FFFFFFL
+                            target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                        }
+                        showEyeDropper = false
+                    }
+                )
             }
         }
     }
@@ -1438,7 +1501,7 @@ fun InteractiveCardCanvas(
                 .fillMaxSize()
                 .shadow(16.dp, SquircleShape(CornerLargeIncrease))
                 .clip(SquircleShape(CornerLargeIncrease))
-                .background(Color(card.backgroundColorHex))
+                .background(Color(card.backgroundColorHex.toInt()))
                 .pointerInput(Unit) {
                     detectTapGestures { onSelectElement("") }
                 }
@@ -1641,7 +1704,7 @@ fun InteractiveTextElementItem(
                         fontWeight = if (element.isBold) FontWeight.Bold else FontWeight.Normal,
                         fontStyle = if (element.isItalic) FontStyle.Italic else FontStyle.Normal,
                         textDecoration = if (element.isUnderline) TextDecoration.Underline else TextDecoration.None,
-                        color = Color(element.colorHex),
+                        color = Color(element.colorHex.toInt()),
                         textAlign = element.textAlign,
                         letterSpacing = (element.letterSpacingSp * scaleFactor).sp,
                         lineHeight = if (element.lineHeightSp > 0f) (element.lineHeightSp * scaleFactor).sp else TextUnit.Unspecified,
@@ -1662,7 +1725,7 @@ fun InteractiveTextElementItem(
                         val handleSize = 24.dp
                         val iconSize = 16.dp
 
-                        // 1. Delete / Cross handle
+                        // Delete / Cross handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -1691,7 +1754,7 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 2. Width handle
+                        // Width handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
@@ -1732,7 +1795,7 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 3. Resize handle
+                        // Resize handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
