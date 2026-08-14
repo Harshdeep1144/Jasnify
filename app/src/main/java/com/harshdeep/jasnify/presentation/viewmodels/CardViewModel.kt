@@ -21,19 +21,38 @@ class CardViewModel @Inject constructor(
 
     private val _eventId = MutableStateFlow<String?>(null)
 
-    val cardData: StateFlow<CardData?> = _eventId.flatMapLatest { id ->
-        if (id == null) MutableStateFlow(null)
-        else repository.getCardData(id)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    val myCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
+        if (id == null) MutableStateFlow(emptyList())
+        else repository.getMyCards(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val likedCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
+        if (id == null) MutableStateFlow(emptyList())
+        else repository.getLikedCards(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setEventId(eventId: String) {
         _eventId.value = eventId
     }
 
-    fun saveCardData(data: CardData) {
+    fun saveMyCard(data: CardData) {
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
-            repository.saveCardData(eventId, data)
+            repository.saveMyCard(eventId, data)
+        }
+    }
+
+    fun deleteMyCard(cardId: String) {
+        val eventId = _eventId.value ?: return
+        viewModelScope.launch {
+            repository.deleteMyCard(eventId, cardId)
+        }
+    }
+
+    fun toggleLikedCard(data: CardData) {
+        val eventId = _eventId.value ?: return
+        viewModelScope.launch {
+            repository.toggleLikedCard(eventId, data)
         }
     }
 }

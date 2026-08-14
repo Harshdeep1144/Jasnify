@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.components.carousels
 import android.annotation.SuppressLint
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
@@ -34,6 +35,7 @@ fun CardCarousel(
     isLiked: (Int) -> Boolean = { false },
     onLikeClick: (CardData) -> Unit = {},
     onShareClick: (CardData) -> Unit = {},
+    onCardClick: (CardData) -> Unit = {},
     pagerState: PagerState = rememberPagerState(
         initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
         pageCount = { Int.MAX_VALUE }
@@ -63,12 +65,14 @@ fun CardCarousel(
         ) { page ->
             val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction).absoluteValue
             val actualIndex = page % itemCount
+            val currentCard = cardData.copy(backgroundRes = backgrounds[actualIndex])
 
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onCardClick(currentCard) },
                 contentAlignment = Alignment.Center
             ) {
-                val currentCard = cardData.copy(backgroundRes = backgrounds[actualIndex])
                 CardItem(
                     data = currentCard,
                     pageOffset = pageOffset,

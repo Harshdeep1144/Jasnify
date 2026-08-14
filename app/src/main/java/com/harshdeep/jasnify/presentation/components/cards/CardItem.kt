@@ -50,8 +50,8 @@ fun CardItem(
     showControls: Boolean = false,
     forCapture: Boolean = false,
     isLiked: Boolean = false,
-    onLikeClick: () -> Unit = {},
-    onShareClick: () -> Unit = {},
+    onLikeClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null,
     onUpdate: (CardData) -> Unit = {}
 ) {
     val scale = lerp(
@@ -164,40 +164,44 @@ fun CardItem(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Like Button
-                    Surface(
-                        modifier = Modifier
-                            .size((36 * scaleFactor).dp)
-                            .clickable { onLikeClick() },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.5f),
-                        shadowElevation = 0.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart),
-                                contentDescription = "Like",
-                                tint = if (isLiked) Color.Red else Color.White,
-                                modifier = Modifier.size((18 * scaleFactor).dp)
-                            )
+                    if (onLikeClick != null) {
+                        Surface(
+                            modifier = Modifier
+                                .size((36 * scaleFactor).dp)
+                                .clickable { onLikeClick() },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.5f),
+                            shadowElevation = 0.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart),
+                                    contentDescription = "Like",
+                                    tint = if (isLiked) Color.Red else Color.White,
+                                    modifier = Modifier.size((18 * scaleFactor).dp)
+                                )
+                            }
                         }
                     }
 
                     // Share Button
-                    Surface(
-                        modifier = Modifier
-                            .size((36 * scaleFactor).dp)
-                            .clickable { onShareClick() },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.5f),
-                        shadowElevation = 0.dp
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_share),
-                                contentDescription = "Share",
-                                tint = Color.White,
-                                modifier = Modifier.size((18 * scaleFactor).dp)
-                            )
+                    if (onShareClick != null) {
+                        Surface(
+                            modifier = Modifier
+                                .size((36 * scaleFactor).dp)
+                                .clickable { onShareClick() },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.5f),
+                            shadowElevation = 0.dp
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_share),
+                                    contentDescription = "Share",
+                                    tint = Color.White,
+                                    modifier = Modifier.size((18 * scaleFactor).dp)
+                                )
+                            }
                         }
                     }
                 }

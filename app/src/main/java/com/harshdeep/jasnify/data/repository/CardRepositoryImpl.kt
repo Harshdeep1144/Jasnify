@@ -13,9 +13,9 @@ class CardRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : CardRepository {
 
-    override fun getCardData(eventId: String): Flow<CardData?> = callbackFlow {
+    override fun getMyCards(eventId: String): Flow<List<CardData>> = callbackFlow {
         if (eventId.isEmpty()) {
-            trySend(null)
+            trySend(emptyList())
             close()
             return@callbackFlow
         }
@@ -24,23 +24,78 @@ class CardRepositoryImpl @Inject constructor(
             .document(eventId)
             .collection("rooms")
             .document("Cards")
+            .collection("my_cards")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) return@addSnapshotListener
-                val data = snapshot?.toObject(CardData::class.java)
-                trySend(data)
+                val cards = snapshot?.toObjects(CardData::class.java) ?: emptyList()
+                trySend(cards)
             }
 
         awaitClose { listener.remove() }
     }
 
-    override suspend fun saveCardData(eventId: String, data: CardData) {
-        if (eventId.isEmpty()) return
+    override suspend fun saveMyCard(eventId: String, data: CardData) {
+        if (eventId.isEmpty() || data.id.isEmpty()) return
         
         firestore.collection("events")
             .document(eventId)
             .collection("rooms")
             .document("Cards")
+            .collection("my_cards")
+            .document(data.id)
             .set(data)
             .await()
+    }
+
+    override suspend fun deleteMyCard(eventId: String, cardId: String) {
+        if (eventId.isEmpty() || cardId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+            .collection("my_cards")
+            .document(cardId)
+            .delete()
+            .await()
+    }
+
+    override fun getLikedCards(eventId: String): Flow<List<CardData>> = callbackFlow {
+        if (eventId.isEmpty()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val listener = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+            .collection("liked_cards")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val cards = snapshot?.toObjects(CardData::class.java) ?: emptyList()
+                trySend(cards)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun toggleLikedCard(eventId: String, data: CardData) {
+        if (eventId.isEmpty() || data.id.isEmpty()) return
+        
+        val docRef = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+            .collection("liked_cards")
+            .document(data.id)
+
+        val doc = docRef.get().await()
+        if (doc.exists()) {
+            docRef.delete().await()
+        } else {
+            docRef.set(data).await()
+        }
     }
 }

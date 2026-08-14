@@ -26,7 +26,12 @@ import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import sv.lib.squircleshape.SquircleShape
 import kotlin.math.*
 
 @Composable
@@ -55,14 +60,14 @@ fun ColorPickerWheel(
 
     Surface(
         modifier = Modifier
-            .width(340.dp)
+            .width(360.dp)
             .wrapContentHeight(),
-        shape = RoundedCornerShape(36.dp),
-        color = Color(0xFFF3F3F3)
+        shape = SquircleShape(CornerExtraLarge),
+        color = SurfacePrimary
     ) {
         Column(
             modifier = Modifier
-                .padding(20.dp)
+                .padding(16.dp)
                 .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -84,6 +89,8 @@ fun ColorPickerWheel(
                         tint = Color.Black
                     )
                 }
+
+
 
                 Surface(
                     onClick = {
@@ -110,7 +117,7 @@ fun ColorPickerWheel(
 
             // Color Picker Wheel Area
             Box(
-                modifier = Modifier.size(260.dp),
+                modifier = Modifier.size(300.dp),
                 contentAlignment = Alignment.Center
             ) {
                 HueRing(
@@ -135,8 +142,8 @@ fun ColorPickerWheel(
             // Preset Swatches
             LazyVerticalGrid(
                 columns = GridCells.Fixed(6),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 180.dp)
