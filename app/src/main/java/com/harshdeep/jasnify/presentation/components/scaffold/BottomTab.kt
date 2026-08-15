@@ -1,6 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.scaffold
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
@@ -19,8 +21,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BackgroundPrimary
@@ -30,6 +38,7 @@ import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import kotlin.math.roundToInt
 import sv.lib.squircleshape.SquircleShape
 
 enum class BottomTabStyle {
@@ -42,6 +51,11 @@ data class TabItem<T>(
     val value: T,
     val badgeCount: Int? = null,
     val icon: Painter? = null
+)
+
+private data class TabBounds(
+    val left: Dp = 0.dp,
+    val width: Dp = 165.dp
 )
 
 @Composable
@@ -83,7 +97,6 @@ private fun <T> StandardBottomTab(
     Box(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Top shadow casting upwards using graphicsLayer
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -197,59 +210,67 @@ private fun <T> FloatingBottomTab(
     modifier: Modifier = Modifier,
     activeColor: Color = ContentBrandDark
 ) {
+    val density = LocalDensity.current
+    var tabBoundsMap by remember { mutableStateOf(mapOf<Int, TabBounds>()) }
+
+    val selectedIndex = remember(items, selectedValue) {
+        items.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
+    }
+
+    // Current target bounds for the indicator
+    val targetBounds = tabBoundsMap[selectedIndex] ?: TabBounds()
+
+    // Smooth spring animation for offset and width
+    val animatedLeft by animateDpAsState(
+        targetValue = targetBounds.left,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "FloatingIndicatorLeft"
+    )
+
+    val animatedWidth by animateDpAsState(
+        targetValue = targetBounds.width,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioLowBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "FloatingIndicatorWidth"
+    )
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(
-                brush = BottomGradientBrush
-            )
+            .background(brush = BottomGradientBrush)
             .navigationBarsPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
-            modifier = Modifier
-                .pill360Shadow(
-                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                    ambientBlur = 12.dp,
-                    ambientSpread = 2.dp,
-                    spotColor = Color.Black.copy(alpha = 0.15f),
-                    spotBlur = 18.dp,
-                    spotOffsetY = 4.dp
-                ),
+            modifier = Modifier.pill360Shadow(
+                ambientColor = Color.Black.copy(alpha = 0.10f),
+                ambientBlur = 12.dp,
+                ambientSpread = 2.dp,
+                spotColor = Color.Black.copy(alpha = 0.15f),
+                spotBlur = 18.dp,
+                spotOffsetY = 4.dp
+            ),
             color = SurfacePrimary,
             shape = CircleShape
         ) {
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .padding(4.dp)
-                    .wrapContentWidth()
+                    .wrapContentSize()
             ) {
-                val tabCount = items.size
-                val availableWidth = maxWidth
-                val itemWidth = (availableWidth / tabCount).coerceAtMost(142.dp)
-                val totalWidth = itemWidth * tabCount
-
-                if (tabCount > 0) {
-                    val selectedIndex = items
-                        .indexOfFirst { it.value == selectedValue }
-                        .coerceAtLeast(0)
-
-                    val animatedIndex by animateFloatAsState(
-                        targetValue = selectedIndex.toFloat(),
-                        animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 380f
-                        ),
-                        label = "FloatingIndicatorAnimation"
-                    )
-
-                    // Sliding Pill Highlight Background behind Active Tab
+                // Sliding Pill Background
+                if (tabBoundsMap.isNotEmpty()) {
                     Box(
                         modifier = Modifier
-                            .width(itemWidth)
+                            .offset(x = animatedLeft)
+                            .width(animatedWidth)
                             .height(56.dp)
-                            .offset(x = itemWidth * animatedIndex)
                             .background(
                                 color = activeColor.copy(alpha = 0.12f),
                                 shape = CircleShape
@@ -257,23 +278,37 @@ private fun <T> FloatingBottomTab(
                     )
                 }
 
+                // Row of Tabs
                 Row(
-                    modifier = Modifier.width(totalWidth),
+                    modifier = Modifier.wrapContentSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items.forEach { item ->
+                    items.forEachIndexed { index, item ->
                         val isSelected = item.value == selectedValue
 
                         Box(
                             modifier = Modifier
-                                .width(itemWidth)
+                                .defaultMinSize(minWidth = 165.dp)
                                 .height(56.dp)
+                                .onGloballyPositioned { coordinates ->
+                                    with(density) {
+                                        val left = coordinates.positionInParent().x.toDp()
+                                        val width = coordinates.size.width.toDp()
+
+                                        // Update bounds only when measurements actually change
+                                        val current = tabBoundsMap[index]
+                                        if (current == null || current.left != left || current.width != width) {
+                                            tabBoundsMap = tabBoundsMap + (index to TabBounds(left, width))
+                                        }
+                                    }
+                                }
                                 .clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null
                                 ) {
                                     onItemSelected(item.value)
-                                },
+                                }
+                                .padding(horizontal = 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             BottomNavItemContent(
@@ -308,9 +343,10 @@ private fun <T> BottomNavItemContent(
             Icon(
                 painter = item.icon,
                 contentDescription = null,
-                tint = contentColor
+                tint = contentColor,
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
         }
 
         if (item.badgeCount != null) {
@@ -336,7 +372,7 @@ private fun <T> BottomNavItemContent(
         Text(
             text = item.label,
             color = contentColor,
-            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+            fontWeight = FontWeight.Medium,
             style = JasnifyTheme.typography.displaySmall
         )
     }
@@ -347,7 +383,7 @@ private fun <T> BottomNavItemContent(
 @Preview(showBackground = true)
 @Composable
 fun PreviewStandardBottomTab() {
-    var selectedValue by remember { mutableStateOf(1) }
+    var selectedValue by remember { mutableIntStateOf(1) }
 
     val items = listOf(
         TabItem("Home", 1, badgeCount = 24),
@@ -364,11 +400,11 @@ fun PreviewStandardBottomTab() {
 @Preview(showBackground = true)
 @Composable
 fun PreviewFloatingBottomTab() {
-    var selectedValue by remember { mutableStateOf(1) }
+    var selectedValue by remember { mutableIntStateOf(1) }
 
     val items = listOf(
-        TabItem("Explore", 1),
-        TabItem("Saved", 2),
+        TabItem("Explore Content", 1),
+        TabItem("Saved Items & Collections", 2),
     )
     BottomTab(
         items = items,

@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.bottomdrawer
+package com.harshdeep.jasnify.presentation.components.dialogs
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -11,10 +11,6 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,7 +21,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -33,6 +28,13 @@ import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 import kotlin.math.*
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.theme.ContentPrimary
 
 @Composable
 fun ColorPickerWheel(
@@ -77,40 +79,26 @@ fun ColorPickerWheel(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
+                TopBarIconButton(
+                    icon = TopIcon.Predefined.CLOSE,
                     onClick = onDismiss,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(Color.White, CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Close",
-                        tint = Color.Black
-                    )
-                }
+                    backgroundStyle = ButtonBackground.OPAQUE,
+                    iconSize = 18.dp
+                )
 
-
-
-                Surface(
+                CustomIconButton(
                     onClick = {
                         onColorSelected(currentColor)
                         onDismiss()
                     },
-                    shape = RoundedCornerShape(100),
-                    color = Color.Black,
+                    icon = painterResource(R.drawable.ic_check),
+                    contentColor = SurfacePrimary,
+                    containerColor = ContentPrimary,
+                    size = ButtonSize.Small,
                     modifier = Modifier
+                        .width(56.dp)
                         .height(40.dp)
-                        .width(68.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = "Done",
-                            tint = Color.White
-                        )
-                    }
-                }
+                )
             }
 
             Spacer(modifier = Modifier.height(28.dp))
@@ -151,20 +139,19 @@ fun ColorPickerWheel(
                 items(presetColors) { color ->
                     Box(
                         modifier = Modifier
+                            .size(56.dp)
                             .aspectRatio(1f)
                             .clip(CircleShape)
                             .background(color)
-                            .border(
-                                width = 1.dp,
-                                color = Color.Black.copy(alpha = 0.08f),
-                                shape = CircleShape
-                            )
+                            .border(1.dp, Color(0x26000000), CircleShape)
                             .clickable {
                                 val hsvArr = FloatArray(3)
                                 android.graphics.Color.colorToHSV(color.toArgb(), hsvArr)
                                 hsv = Triple(hsvArr[0], hsvArr[1], hsvArr[2])
                             }
                     )
+
+
                 }
             }
 
@@ -203,7 +190,7 @@ fun HueRing(
             }
     ) {
         val radius = size.minDimension / 2
-        val strokeWidth = 32.dp.toPx()
+        val strokeWidth = 30.dp.toPx()
         val ringRadius = radius - strokeWidth / 2
 
         val sweepGradient = Brush.sweepGradient(
@@ -251,7 +238,7 @@ fun SaturationValuePicker(
 ) {
     Box(
         modifier = Modifier
-            .size(150.dp)
+            .size(175.69.dp)
             .clip(CircleShape)
             .pointerInput(hue) {
                 detectDragGestures { change, _ ->

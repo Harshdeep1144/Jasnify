@@ -1,7 +1,10 @@
 package com.harshdeep.jasnify.data.repository
 
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.CardRoomData
+import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.repository.CardRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -97,5 +100,70 @@ class CardRepositoryImpl @Inject constructor(
         } else {
             docRef.set(data).await()
         }
+    }
+
+    override fun getCardRoomData(eventId: String): Flow<CardRoomData?> = callbackFlow {
+        if (eventId.isEmpty()) {
+            trySend(null)
+            close()
+            return@callbackFlow
+        }
+
+        val listener = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val data = snapshot?.toObject(CardRoomData::class.java)
+                trySend(data)
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun initializeCardRoom(eventId: String, defaultThemes: List<CardTheme>) {
+        if (eventId.isEmpty()) return
+        
+        val docRef = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+        
+        val doc = docRef.get().await()
+        if (!doc.exists()) {
+            docRef.set(CardRoomData(themes = defaultThemes)).await()
+        }
+    }
+
+    override suspend fun saveCardTheme(eventId: String, theme: CardTheme) {
+        if (eventId.isEmpty()) return
+        
+        firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+            .update("themes", FieldValue.arrayUnion(theme))
+            .await()
+    }
+
+    override suspend fun updateCardThemeName(eventId: String, themeId: String, newName: String) {
+        if (eventId.isEmpty()) return
+        
+        val docRef = firestore.collection("events")
+            .document(eventId)
+            .collection("rooms")
+            .document("Cards")
+
+        firestore.runTransaction { transaction ->
+            val snapshot = transaction.get(docRef)
+            val roomData = snapshot.toObject(CardRoomData::class.java)
+            if (roomData != null) {
+                val updatedThemes = roomData.themes.map {
+                    if (it.id == themeId) it.copy(name = newName) else it
+                }
+                transaction.update(docRef, "themes", updatedThemes)
+            }
+        }.await()
     }
 }

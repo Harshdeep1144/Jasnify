@@ -53,13 +53,6 @@ fun LazyItemScope.EmptyState(
     }
 }
 
-/**
- * A specialized empty state for "Saved" lists.
- */
-@Composable
-fun LazyItemScope.EmptySavedState() {
-    EmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
-}
 
 @Composable
 fun StandaloneEmptyState(

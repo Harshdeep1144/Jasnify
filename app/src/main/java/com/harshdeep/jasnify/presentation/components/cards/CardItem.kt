@@ -36,8 +36,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
+import coil.compose.AsyncImage
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
@@ -67,6 +71,16 @@ fun CardItem(
     )
 
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
+    val density = LocalDensity.current.density
+    val cardWidthDp = if (canvasSize.width > 0) canvasSize.width / density else 0f
+
+    // Determine corner size based on width thresholds
+    val cornerRadius = when {
+        cardWidthDp >= 390f -> CornerExtraLarge
+        cardWidthDp in 1f..180f -> CornerMedium
+        else -> CornerLargeIncrease // Covers <= 280dp as well as fallback between 180dp and 390dp
+    }
+    val cardShape = SquircleShape(cornerRadius)
 
     Box(
         modifier = modifier
@@ -79,26 +93,34 @@ fun CardItem(
             .then(
                 if (!forCapture) {
                     Modifier
-                        .clip(SquircleShape(CornerLargeIncrease))
+                        .clip(cardShape)
                         .border(
                             1.dp,
                             MaterialTheme.colorScheme.outline.copy(0.16f),
-                            SquircleShape(CornerLargeIncrease)
+                            cardShape
                         )
                 } else Modifier
             )
             .background(Color(data.backgroundColorHex.toInt()))
     ) {
         // Background Image
-        Image(
-            painter = painterResource(id = data.backgroundRes),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.FillBounds
-        )
+        if (data.backgroundUrl != null) {
+            AsyncImage(
+                model = data.backgroundUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Image(
+                painter = painterResource(id = data.backgroundRes),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        }
 
         if (canvasSize.width > 0 && canvasSize.height > 0) {
-            val density = LocalDensity.current.density
             val canvasWidthPx = canvasSize.width.toFloat()
             val canvasWidthDp = canvasWidthPx / density
 
@@ -159,26 +181,26 @@ fun CardItem(
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding((16 * scaleFactor).dp),
-                    horizontalArrangement = Arrangement.spacedBy((8 * scaleFactor).dp),
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Like Button
                     if (onLikeClick != null) {
                         Surface(
                             modifier = Modifier
-                                .size((36 * scaleFactor).dp)
-                                .clickable { onLikeClick() },
+                                .size(40.dp)
+                                .noRippleClickable(onLikeClick),
                             shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.5f),
+                            color = Color(0x99000000),
                             shadowElevation = 0.dp
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_heart),
+                                    painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_top_bar_heart),
                                     contentDescription = "Like",
-                                    tint = if (isLiked) Color.Red else Color.White,
-                                    modifier = Modifier.size((18 * scaleFactor).dp)
+                                    tint = if (isLiked) Color.Unspecified else Color.White,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -186,23 +208,13 @@ fun CardItem(
 
                     // Share Button
                     if (onShareClick != null) {
-                        Surface(
-                            modifier = Modifier
-                                .size((36 * scaleFactor).dp)
-                                .clickable { onShareClick() },
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.5f),
-                            shadowElevation = 0.dp
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_share),
-                                    contentDescription = "Share",
-                                    tint = Color.White,
-                                    modifier = Modifier.size((18 * scaleFactor).dp)
-                                )
-                            }
-                        }
+                        CustomIconButton(
+                            onClick = onShareClick,
+                            icon = painterResource(R.drawable.ic_share),
+                            size = ButtonSize.Small,
+                            contentColor = ContentInvPrimary,
+                            containerColor = Color(0x99000000)
+                        )
                     }
                 }
             }

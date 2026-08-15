@@ -123,11 +123,26 @@ data class TextElement(
     var isEditable: Boolean = true // If false, element cannot be selected, moved, or edited
 )
 
+data class CardTheme(
+    var id: String = UUID.randomUUID().toString(),
+    var name: String = "",
+    var resId: Int = 0,
+    var url: String? = null,
+    var isDefault: Boolean = false
+)
+
+data class CardRoomData(
+    var themes: List<CardTheme> = emptyList()
+)
+
 data class CardData(
     var id: String = UUID.randomUUID().toString(),
+    var bgName: String = "",
     var backgroundRes: Int = R.drawable.bg_invitation_card_01,
+    var backgroundUrl: String? = null,
     var backgroundColorHex: Long = 0xFFFFFDF9L,
-    var elements: List<TextElement> = defaultElements()
+    var elements: List<TextElement> = defaultElements(),
+    var lastEdited: Long = System.currentTimeMillis()
 )
 
 fun defaultElements(): List<TextElement> = listOf(

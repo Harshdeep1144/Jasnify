@@ -3,21 +3,37 @@ package com.harshdeep.jasnify.presentation.screens.invitation_cards
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -26,13 +42,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,13 +59,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -60,15 +81,18 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
-import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.*
 import com.harshdeep.jasnify.utils.ShareUtils
+import com.harshdeep.jasnify.utils.TimeUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.time.Duration.Companion.milliseconds
@@ -86,6 +110,7 @@ enum class CardsTab {
     MY_CARDS
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CardsScreen(
     onBackClick: () -> Unit = {},
@@ -98,11 +123,22 @@ fun CardsScreen(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val myCards by cardViewModel.myCards.collectAsStateWithLifecycle()
     val likedCards by cardViewModel.likedCards.collectAsStateWithLifecycle()
+    val cardRoomData by cardViewModel.cardRoomData.collectAsStateWithLifecycle()
 
     var currentView by remember { mutableStateOf(CardsView.MAIN) }
     var selectedCard by remember { mutableStateOf<CardData?>(null) }
     var editingCard by remember { mutableStateOf<CardData?>(null) }
+
+    // Remembered tab state across screen transitions
     var selectedTab by remember { mutableStateOf(CardsTab.EXPLORE) }
+
+    // Persistent scroll & pager states across navigation
+    val exploreLazyListState = rememberLazyListState()
+    val myCardsGridState = rememberLazyGridState()
+    val explorePagerState = rememberPagerState(
+        initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
+        pageCount = { Int.MAX_VALUE }
+    )
 
     var showMenuSheet by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
@@ -110,6 +146,21 @@ fun CardsScreen(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var toastData by remember { mutableStateOf(ToastData()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+
+    var selectedCardIds by remember { mutableStateOf(setOf<String>()) }
+
+    LaunchedEffect(activeEventId, cardRoomData) {
+        if (activeEventId != null && cardRoomData == null) {
+            val defaultThemes = listOf(
+                CardTheme(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
+                CardTheme(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
+                CardTheme(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
+                CardTheme(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
+                CardTheme(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+            )
+            cardViewModel.initializeRoom(defaultThemes)
+        }
+    }
 
     LaunchedEffect(activeEventId) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
@@ -133,6 +184,7 @@ fun CardsScreen(
         when {
             showMenuSheet -> showMenuSheet = false
             showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
+            selectedCardIds.isNotEmpty() -> selectedCardIds = emptySet()
             currentView == CardsView.LIKED_CARDS -> currentView = CardsView.MAIN
             currentView == CardsView.FULL_VIEW -> currentView = CardsView.MAIN
             currentView == CardsView.EDIT_DETAILS -> currentView = CardsView.MAIN
@@ -142,7 +194,7 @@ fun CardsScreen(
     }
 
     val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation
-    
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -158,90 +210,144 @@ fun CardsScreen(
                     .fillMaxSize()
                     .background(BackgroundPrimary)
             ) {
-                AnimatedContent(
-                    targetState = currentView,
-                    transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
-                    },
-                    label = "CardsViewContent"
-                ) { view ->
-                    when (view) {
-                        CardsView.MAIN -> {
-                            CardsMainContent(
-                                selectedTab = selectedTab,
-                                onTabSelected = { selectedTab = it },
-                                myCards = myCards,
-                                likedCards = likedCards,
-                                activeEvent = activeEvent,
-                                onBackClick = onBackClick,
-                                onMenuClick = { 
-                                    if (selectedTab == CardsTab.EXPLORE) showMenuSheet = true 
-                                    else currentView = CardsView.LIKED_CARDS 
-                                },
-                                onCardClick = { card ->
-                                    selectedCard = card
-                                    currentView = CardsView.FULL_VIEW
-                                },
-                                onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) },
-                                onEditDetailsClick = { card ->
-                                    editingCard = card
-                                    currentView = CardsView.EDIT_DETAILS
-                                }
-                            )
-                        }
-                        CardsView.FULL_VIEW -> {
-                            selectedCard?.let { card ->
-                                val isCardLiked = likedCards.any { it.backgroundRes == card.backgroundRes }
-                                CardFullView(
-                                    card = card,
-                                    isLiked = isCardLiked,
-                                    onBackClick = { currentView = CardsView.MAIN },
-                                    onEditDetailsClick = {
-                                        editingCard = card
+                SharedTransitionLayout {
+                    AnimatedContent(
+                        targetState = currentView,
+                        transitionSpec = {
+                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                        },
+                        label = "CardsViewContent"
+                    ) { view ->
+                        when (view) {
+                            CardsView.MAIN -> {
+                                CardsMainContent(
+                                    selectedTab = selectedTab,
+                                    onTabSelected = {
+                                        selectedTab = it
+                                        selectedCardIds = emptySet()
+                                    },
+                                    myCards = myCards,
+                                    likedCards = likedCards,
+                                    activeEvent = activeEvent,
+                                    selectedCardIds = selectedCardIds,
+                                    exploreLazyListState = exploreLazyListState,
+                                    myCardsGridState = myCardsGridState,
+                                    explorePagerState = explorePagerState,
+                                    animatedVisibilityScope = this@AnimatedContent,
+                                    sharedTransitionScope = this@SharedTransitionLayout,
+                                    onToggleCardSelection = { id ->
+                                        selectedCardIds = if (selectedCardIds.contains(id)) {
+                                            selectedCardIds - id
+                                        } else {
+                                            selectedCardIds + id
+                                        }
+                                    },
+                                    onDeleteSelectedCards = {
+                                        selectedCardIds.forEach { id ->
+                                            cardViewModel.deleteMyCard(id)
+                                        }
+                                        selectedCardIds = emptySet()
+                                        toastData = ToastData("Cards deleted", ToastType.DEFAULT)
+                                    },
+                                    onBackClick = {
+                                        if (selectedCardIds.isNotEmpty()) {
+                                            selectedCardIds = emptySet()
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
+                                    onMenuClick = {
+                                        if (selectedCardIds.isNotEmpty()) {
+                                            selectedCardIds.forEach { id ->
+                                                cardViewModel.deleteMyCard(id)
+                                            }
+                                            selectedCardIds = emptySet()
+                                            toastData = ToastData("Cards deleted", ToastType.DEFAULT)
+                                        } else if (selectedTab == CardsTab.EXPLORE) {
+                                            showMenuSheet = true
+                                        } else {
+                                            currentView = CardsView.LIKED_CARDS
+                                        }
+                                    },
+                                    onCardClick = { card ->
+                                        selectedCard = card
+                                        currentView = CardsView.FULL_VIEW
+                                    },
+                                    onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) },
+                                    onEditDetailsClick = { card ->
+                                        editingCard = if (card.id.startsWith("template_")) {
+                                            card.copy(id = UUID.randomUUID().toString())
+                                        } else {
+                                            card
+                                        }
                                         currentView = CardsView.EDIT_DETAILS
                                     }
                                 )
                             }
-                        }
-                        CardsView.LIKED_CARDS -> {
-                            LikedCardsContent(
-                                cards = likedCards,
-                                onBackClick = { currentView = CardsView.MAIN },
-                                onCardClick = { card ->
-                                    selectedCard = card
-                                    currentView = CardsView.FULL_VIEW
-                                },
-                                onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) }
-                            )
-                        }
-                        CardsView.EDIT_DETAILS -> {
-                            editingCard?.let { card ->
-                                EditCardDetailsScreen(
-                                    initialData = card,
-                                    onDataChange = { updated ->
-                                        val cardToSave = if (updated.id.startsWith("template_")) {
-                                            updated.copy(id = UUID.randomUUID().toString())
-                                        } else {
-                                            updated
+                            CardsView.FULL_VIEW -> {
+                                selectedCard?.let { card ->
+                                    CardFullView(
+                                        card = card,
+                                        animatedVisibilityScope = this@AnimatedContent,
+                                        sharedTransitionScope = this@SharedTransitionLayout,
+                                        onBackClick = { currentView = CardsView.MAIN },
+                                        onEditDetailsClick = {
+                                            editingCard = if (card.id.startsWith("template_")) {
+                                                card.copy(id = UUID.randomUUID().toString())
+                                            } else {
+                                                card
+                                            }
+                                            currentView = CardsView.EDIT_DETAILS
                                         }
-                                        cardViewModel.saveMyCard(cardToSave)
-                                        selectedCard = cardToSave
+                                    )
+                                }
+                            }
+                            CardsView.LIKED_CARDS -> {
+                                LikedCardsContent(
+                                    cards = likedCards,
+                                    animatedVisibilityScope = this@AnimatedContent,
+                                    sharedTransitionScope = this@SharedTransitionLayout,
+                                    onBackClick = { currentView = CardsView.MAIN },
+                                    onCardClick = { card ->
+                                        selectedCard = card
+                                        currentView = CardsView.FULL_VIEW
                                     },
-                                    onBackClick = { currentView = CardsView.MAIN }
+                                    onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) }
                                 )
                             }
-                        }
-                        CardsView.ROOM -> {
-                            activeEvent?.let { event ->
-                                CardRoomContent(
-                                    eventId = event.id,
-                                    roomViewModel = roomViewModel,
-                                    onBackClick = { currentView = CardsView.MAIN },
-                                    onMenuClick = { showRoomMenuBottomSheet = true },
-                                    onRemove = { userToRemove = it },
-                                    onLeave = { showLeaveConfirmation = true },
-                                    onShowToast = { toastData = it }
-                                )
+                            CardsView.EDIT_DETAILS -> {
+                                editingCard?.let { card ->
+                                    EditCardDetailsScreen(
+                                        initialData = card,
+                                        allCards = myCards,
+                                        cardRoomData = cardRoomData,
+                                        onDataChange = { updated ->
+                                            cardViewModel.saveMyCard(updated)
+                                            selectedCard = updated
+                                            editingCard = updated
+                                        },
+                                        onBackClick = { currentView = CardsView.MAIN },
+                                        onUploadImage = { uri, onSuccess, onError ->
+                                            cardViewModel.uploadThemeImage(uri, onSuccess, onError)
+                                        },
+                                        onUpdateThemeName = { id, name ->
+                                            cardViewModel.updateThemeName(id, name)
+                                        }
+                                    )
+                                }
+                            }
+                            CardsView.ROOM -> {
+                                activeEvent?.let { event ->
+                                    CardRoomContent(
+                                        eventId = event.id,
+                                        roomViewModel = roomViewModel,
+                                        onBackClick = { currentView = CardsView.MAIN },
+                                        onMenuClick = { showRoomMenuBottomSheet = true },
+                                        onRemove = { userToRemove = it },
+                                        onLeave = { showLeaveConfirmation = true },
+                                        onShowToast = { toastData = it }
+                                    )
+                                }
                             }
                         }
                     }
@@ -340,6 +446,7 @@ fun CardsScreen(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CardsMainContent(
     selectedTab: CardsTab,
@@ -347,6 +454,14 @@ fun CardsMainContent(
     myCards: List<CardData>,
     likedCards: List<CardData>,
     activeEvent: com.harshdeep.jasnify.domain.model.Event?,
+    selectedCardIds: Set<String>,
+    exploreLazyListState: LazyListState,
+    myCardsGridState: LazyGridState,
+    explorePagerState: PagerState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope,
+    onToggleCardSelection: (String) -> Unit,
+    onDeleteSelectedCards: () -> Unit,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onCardClick: (CardData) -> Unit,
@@ -367,7 +482,7 @@ fun CardsMainContent(
 
     val templates = remember(activeEvent, templateBackgrounds) {
         templateBackgrounds.mapIndexed { index, resId ->
-            val baseCard = CardData(id = "template_$index", backgroundRes = resId)
+            val baseCard = CardData(id = "template_$index", backgroundRes = resId, bgName = "")
             activeEvent?.let { event ->
                 val date = event.date?.let { Date(it) } ?: Date()
                 val day = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
@@ -401,6 +516,8 @@ fun CardsMainContent(
         Unit
     }
 
+    val isSelectionMode = selectedCardIds.isNotEmpty()
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Hidden Capture Area
         Box(
@@ -428,11 +545,15 @@ fun CardsMainContent(
                     modifier = Modifier.statusBarsPadding()
                 ) {
                     CustomTopBar(
-                        title = "Cards",
-                        isLargeTitle = true,
+                        title = if (isSelectionMode) "${selectedCardIds.size} Selected" else "Cards",
+                        isLargeTitle = if (isSelectionMode) false else true,
                         onBackClick = onBackClick,
                         onMenuClick = onMenuClick,
-                        menuIcon = if (selectedTab == CardsTab.EXPLORE) TopIcon.Predefined.MENU_HORIZONTAL else TopIcon.CustomPainter(painterResource(R.drawable.ic_heart))
+                        menuIcon = when {
+                            isSelectionMode -> TopIcon.CustomPainter(painterResource(R.drawable.ic_delete))
+                            selectedTab == CardsTab.EXPLORE -> TopIcon.Predefined.MENU_VERTICAL
+                            else -> TopIcon.CustomPainter(painterResource(R.drawable.ic_top_bar_heart))
+                        }
                     )
                 }
             },
@@ -444,18 +565,41 @@ fun CardsMainContent(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
+                // Horizontal Slide Animation between Tabs
                 AnimatedContent(
                     targetState = selectedTab,
                     transitionSpec = {
-                        fadeIn() togetherWith fadeOut()
+                        if (targetState == CardsTab.MY_CARDS) {
+                            (slideInHorizontally(
+                                initialOffsetX = { fullWidth -> fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))) togetherWith
+                                    (slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> -fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300)))
+                        } else {
+                            (slideInHorizontally(
+                                initialOffsetX = { fullWidth -> -fullWidth },
+                                animationSpec = tween(300)
+                            ) + fadeIn(animationSpec = tween(300))) togetherWith
+                                    (slideOutHorizontally(
+                                        targetOffsetX = { fullWidth -> fullWidth },
+                                        animationSpec = tween(300)
+                                    ) + fadeOut(animationSpec = tween(300)))
+                        }
                     },
-                    label = "CardsTabContent"
+                    label = "CardsTabContentHorizontalSlide"
                 ) { tab ->
                     when (tab) {
                         CardsTab.EXPLORE -> {
                             ExploreTabContent(
                                 templates = templates,
                                 likedCards = likedCards,
+                                lazyListState = exploreLazyListState,
+                                pagerState = explorePagerState,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                sharedTransitionScope = sharedTransitionScope,
                                 onCardClick = onCardClick,
                                 onLikeToggle = onLikeToggle,
                                 onShareTrigger = { onShareTrigger(it, false) },
@@ -466,20 +610,27 @@ fun CardsMainContent(
                         CardsTab.MY_CARDS -> {
                             MyCardsGrid(
                                 cards = myCards,
+                                templates = templates,
+                                gridState = myCardsGridState,
+                                animatedVisibilityScope = animatedVisibilityScope,
+                                sharedTransitionScope = sharedTransitionScope,
+                                onStartEditing = { onTabSelected(CardsTab.EXPLORE) },
+                                selectedCardIds = selectedCardIds,
+                                onToggleSelection = onToggleCardSelection,
                                 onCardClick = onCardClick,
                                 onShareClick = { onShareTrigger(it, false) }
                             )
                         }
                     }
                 }
-
             }
         }
 
-        // Floating Tab anchored to the bottom center
+        // Floating Tab anchored to the bottom ONLY on the Main Content Screen
         BottomTab(
             modifier = Modifier
-                .align(Alignment.BottomCenter),
+                .align(Alignment.BottomCenter)
+                .zIndex(10f),
             items = listOf(
                 TabItem(
                     label = "Explore",
@@ -487,9 +638,9 @@ fun CardsMainContent(
                     icon = painterResource(R.drawable.ic_file)
                 ),
                 TabItem(
-                    label = "My Cards",
+                    label = "My Edits",
                     value = CardsTab.MY_CARDS,
-                    icon = painterResource(R.drawable.ic_heart)
+                    icon = painterResource(R.drawable.ic_edit)
                 )
             ),
             selectedValue = selectedTab,
@@ -499,23 +650,25 @@ fun CardsMainContent(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExploreTabContent(
     templates: List<CardData>,
     likedCards: List<CardData>,
+    lazyListState: LazyListState,
+    pagerState: PagerState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope,
     onCardClick: (CardData) -> Unit,
     onLikeToggle: (CardData) -> Unit,
     onShareTrigger: (CardData) -> Unit,
     onEditDetailsClick: (CardData) -> Unit,
     onWhatsappShare: (CardData) -> Unit
 ) {
-    val pagerState = rememberPagerState(
-        initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % templates.size),
-        pageCount = { Int.MAX_VALUE }
-    )
-
     LazyColumn(
+        state = lazyListState,
         modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 90.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
@@ -523,16 +676,26 @@ fun ExploreTabContent(
                 modifier = Modifier.padding(vertical = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                CardCarousel(
-                    cardData = templates[pagerState.currentPage % templates.size],
-                    cardWidth = 280.dp,
-                    cardHeight = 373.dp,
-                    pagerState = pagerState,
-                    isLiked = { resId -> likedCards.any { it.backgroundRes == resId } },
-                    onLikeClick = onLikeToggle,
-                    onShareClick = onShareTrigger,
-                    onCardClick = onCardClick
-                )
+                val currentCarouselCard = templates[pagerState.currentPage % templates.size]
+
+                with(sharedTransitionScope) {
+                    Box(
+                        modifier = Modifier.sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = "card_${currentCarouselCard.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                        )
+                    ) {
+                        CardCarousel(
+                            cardData = currentCarouselCard,
+                            pagerState = pagerState,
+                            isLiked = { resId -> likedCards.any { it.backgroundRes == resId } },
+                            onLikeClick = onLikeToggle,
+                            onShareClick = onShareTrigger,
+                            onCardClick = onCardClick
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -543,23 +706,26 @@ fun ExploreTabContent(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
+                    val currentTemplate = templates[pagerState.currentPage % templates.size]
+
                     CustomIconButton(
                         icon = painterResource(id = R.drawable.ic_edit),
-                        onClick = { onEditDetailsClick(templates[pagerState.currentPage % templates.size]) },
-                        containerColor = SurfaceSecondary,
-                        contentColor = ContentPrimary
+                        onClick = { onEditDetailsClick(currentTemplate) },
+                        type = ButtonType.Secondary
                     )
+
                     CustomTextButton(
                         text = "Share Card",
-                        onClick = { onShareTrigger(templates[pagerState.currentPage % templates.size]) },
+                        onClick = { onShareTrigger(currentTemplate) },
                         modifier = Modifier.weight(1f),
                         containerColor = ContentPrimary,
                         contentColor = ContentInvPrimary,
                         trailingIcon = painterResource(id = R.drawable.ic_share)
                     )
+
                     CustomIconButton(
                         icon = painterResource(id = R.drawable.ic_whatsapp),
-                        onClick = { onWhatsappShare(templates[pagerState.currentPage % templates.size]) },
+                        onClick = { onWhatsappShare(currentTemplate) },
                         containerColor = Color(0xFF1BA911),
                         contentColor = ContentInvPrimary
                     )
@@ -569,110 +735,268 @@ fun ExploreTabContent(
 
         item {
             DashedDivider()
+            Spacer(Modifier.height(24.dp))
         }
 
         item {
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 24.dp)
+                    .padding(horizontal = 12.dp)
             ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_trend_up),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp)
+                )
                 Text(
                     text = "Trending Templates",
                     style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
                     color = ContentPrimary
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // Grid within LazyColumn
         val chunkedTemplates = templates.chunked(2)
         items(chunkedTemplates) { rowItems ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 rowItems.forEach { template ->
                     val isLiked = likedCards.any { it.backgroundRes == template.backgroundRes }
-                    Box(modifier = Modifier.weight(1f).aspectRatio(280f / 373f)) {
-                        CardItem(
-                            data = template,
-                            showControls = true,
-                            isLiked = isLiked,
-                            onLikeClick = { onLikeToggle(template) },
-                            onShareClick = null,
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        label = "scale"
+                    )
+
+                    with(sharedTransitionScope) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { onCardClick(template) }
-                        )
+                                .weight(1f)
+                                .aspectRatio(280f / 373f)
+                                .sharedBounds(
+                                    sharedContentState = rememberSharedContentState(key = "card_${template.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                )
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                                .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = null
+                                ) { onCardClick(template) }
+                        ) {
+                            CardItem(
+                                data = template,
+                                showControls = true,
+                                isLiked = isLiked,
+                                onLikeClick = { onLikeToggle(template) },
+                                onShareClick = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
                 if (rowItems.size == 1) {
                     Spacer(modifier = Modifier.weight(1f))
                 }
             }
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
         item {
-            Spacer(modifier = Modifier.height(100.dp))
+            FooterJansify()
         }
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun MyCardsGrid(
     cards: List<CardData>,
+    templates: List<CardData>,
+    gridState: LazyGridState,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope,
+    onStartEditing: () -> Unit,
+    selectedCardIds: Set<String>,
+    onToggleSelection: (String) -> Unit,
     onCardClick: (CardData) -> Unit,
     onShareClick: (CardData) -> Unit,
 ) {
-    var selectedCardIdForDelete by remember { mutableStateOf<String?>(null) }
-
     if (cards.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = "No cards created yet.", style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
+        val pagerState = rememberPagerState(
+            initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % templates.size),
+            pageCount = { Int.MAX_VALUE }
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 100.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            CardCarousel(
+                cardData = templates[pagerState.currentPage % templates.size],
+                showControls = false,
+                pagerState = pagerState,
+                onCardClick = { onStartEditing() }
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            CustomTextButton(
+                text = "Start Editing",
+                onClick = onStartEditing,
+                modifier = Modifier
+                    .width(200.dp)
+                    .height(56.dp),
+                containerColor = Color.Black,
+                contentColor = Color.White,
+                shapeStyle = ButtonShapeStyle.Round
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Make your edits right on your\nfavorite template.",
+                style = JasnifyTheme.typography.bodyMedium,
+                color = ContentSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 40.dp)
+            )
         }
     } else {
+        val isSelectionMode = selectedCardIds.isNotEmpty()
+
         LazyVerticalGrid(
+            state = gridState,
             columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(12.dp, 12.dp, 12.dp, 100.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(12.dp, 12.dp, 12.dp, 120.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            items(cards) { card ->
-                val isSelectedForDelete = selectedCardIdForDelete == card.id
-                Box(modifier = Modifier
-                    .aspectRatio(280f / 373f)
-                    .combinedClickable(
-                        onClick = {
-                            if (isSelectedForDelete) selectedCardIdForDelete = null
-                            else onCardClick(card)
-                        },
-                        onLongClick = {
-                            selectedCardIdForDelete = if (isSelectedForDelete) null else card.id
-                        }
-                    )
+            items(cards, key = { it.id }) { card ->
+                val isSelected = selectedCardIds.contains(card.id)
+                val interactionSource = remember { MutableInteractionSource() }
+                val isPressed by interactionSource.collectIsPressedAsState()
+                val scale by animateFloatAsState(
+                    targetValue = if (isPressed) 0.96f else 1f,
+                    label = "scale"
+                )
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.Start
                 ) {
-                    CardItem(
-                        data = card,
-                        showControls = true,
-                        onShareClick = if (isSelectedForDelete) null else { { onShareClick(card) } },
-                        onLikeClick = null,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    with(sharedTransitionScope) {
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(280f / 373f)
+                                .sharedBounds(
+                                    sharedContentState = rememberSharedContentState(key = "card_${card.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                )
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                                .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                .combinedClickable(
+                                    interactionSource = interactionSource,
+                                    indication = null,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            onToggleSelection(card.id)
+                                        } else {
+                                            onCardClick(card)
+                                        }
+                                    },
+                                    onLongClick = {
+                                        onToggleSelection(card.id)
+                                    }
+                                )
+                                .then(
+                                    if (isSelected) Modifier.border(2.dp, ContentBrand, SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                    else Modifier
+                                )
+                        ) {
+                            CardItem(
+                                data = card,
+                                showControls = !isSelectionMode,
+                                onShareClick = { onShareClick(card) },
+                                onLikeClick = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            if (isSelectionMode) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(8.dp)
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.align(Alignment.TopEnd),
+                                        shape = CircleShape,
+                                        color = if (isSelected) SurfacePrimary else Color.Black.copy(0.3f)
+                                    ) {
+                                        CustomChecker(
+                                            checked = isSelected,
+                                            onCheckedChange = {
+                                                onToggleSelection(card.id)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_edit_pen),
+                            contentDescription = null,
+                            tint = ContentSecondary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Edited ${TimeUtils.getTimeAgo(card.lastEdited)}",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = if (isSelected) ContentBrand else ContentSecondary,
+                            maxLines = 1,
+                            textAlign = TextAlign.Start
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun LikedCardsContent(
     cards: List<CardData>,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope,
     onBackClick: () -> Unit,
     onCardClick: (CardData) -> Unit,
     onLikeToggle: (CardData) -> Unit
@@ -690,29 +1014,60 @@ fun LikedCardsContent(
         containerColor = BackgroundPrimary
     ) { innerPadding ->
         if (cards.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(innerPadding), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(text = "No liked cards yet.", style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
             }
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Fixed(2),
                 contentPadding = PaddingValues(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize().padding(innerPadding)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
             ) {
-                items(cards) { card ->
-                    Box(modifier = Modifier.aspectRatio(280f / 373f)) {
-                        CardItem(
-                            data = card,
-                            showControls = true,
-                            isLiked = true,
-                            onLikeClick = { onLikeToggle(card) },
-                            onShareClick = null,
+                items(cards, key = { it.id }) { card ->
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val isPressed by interactionSource.collectIsPressedAsState()
+                    val scale by animateFloatAsState(
+                        targetValue = if (isPressed) 0.96f else 1f,
+                        label = "scale"
+                    )
+
+                    with(sharedTransitionScope) {
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { onCardClick(card) }
-                        )
+                                .aspectRatio(280f / 373f)
+                                .sharedBounds(
+                                    sharedContentState = rememberSharedContentState(key = "card_${card.id}"),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                )
+                                .graphicsLayer {
+                                    scaleX = scale
+                                    scaleY = scale
+                                }
+                                .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                .clickable(
+                                    interactionSource = interactionSource,
+                                    indication = null
+                                ) { onCardClick(card) }
+                        ) {
+                            CardItem(
+                                data = card,
+                                showControls = true,
+                                isLiked = true,
+                                onLikeClick = { onLikeToggle(card) },
+                                onShareClick = null,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
@@ -720,10 +1075,12 @@ fun LikedCardsContent(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CardFullView(
     card: CardData,
-    isLiked: Boolean,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    sharedTransitionScope: SharedTransitionScope,
     onBackClick: () -> Unit,
     onEditDetailsClick: () -> Unit
 ) {
@@ -746,7 +1103,7 @@ fun CardFullView(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundPrimary)
+            .background(ContentPrimary)
     ) {
         // Hidden Capture Area
         Box(
@@ -780,14 +1137,14 @@ fun CardFullView(
             Surface(
                 onClick = onBackClick,
                 shape = CircleShape,
-                color = SurfaceSecondary,
+                color = Color(0xFF2C2C2C),
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                         contentDescription = "Back",
-                        tint = ContentPrimary,
+                        tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -796,45 +1153,62 @@ fun CardFullView(
             Surface(
                 onClick = { onShareTrigger(card) },
                 shape = CircleShape,
-                color = SurfaceSecondary,
+                color = Color(0xFF2C2C2C),
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         painter = painterResource(R.drawable.ic_share),
                         contentDescription = "Share",
-                        tint = ContentPrimary,
+                        tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
         }
 
-        // Card
+        // Card Container with sharedBounds
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 100.dp, bottom = 120.dp, start = 24.dp, end = 24.dp),
+                .padding(top = 80.dp, bottom = 120.dp, start = 24.dp, end = 24.dp),
             contentAlignment = Alignment.Center
         ) {
-            CardItem(
-                data = card,
-                modifier = Modifier.fillMaxHeight().aspectRatio(280f/373f)
-            )
+            with(sharedTransitionScope) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(280f / 373f)
+                        .sharedBounds(
+                            sharedContentState = rememberSharedContentState(key = "card_${card.id}"),
+                            animatedVisibilityScope = animatedVisibilityScope,
+                            clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                        )
+                        .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                ) {
+                    CardItem(
+                        data = card,
+                        forCapture = false,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
         }
 
-        // Bottom Button
+        // Bottom Action Button
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp, start = 24.dp, end = 24.dp)
+                .padding(bottom = 32.dp, start = 24.dp, end = 24.dp)
         ) {
             CustomTextButton(
                 text = "Edit Details",
                 onClick = onEditDetailsClick,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                containerColor = ContentPrimary,
-                contentColor = ContentInvPrimary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(64.dp),
+                containerColor = Color.White,
+                contentColor = Color.Black,
                 leadingIcon = painterResource(R.drawable.ic_edit),
                 shapeStyle = ButtonShapeStyle.Round
             )

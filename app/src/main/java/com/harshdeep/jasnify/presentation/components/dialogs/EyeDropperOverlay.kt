@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.bottomdrawer
+package com.harshdeep.jasnify.presentation.components.dialogs
 
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -130,13 +130,22 @@ fun EyeDropperToolUI(color: Color) {
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val ringThickness = 22.dp.toPx()
-            val outerRadius = size.minDimension / 2f - (ringThickness / 2f)
-            val innerRadius = outerRadius - (ringThickness / 2f)
-            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+            val centerOffset = Offset(
+                size.width / 2f,
+                size.height / 2f
+            )
 
-            val displayColor = if (color == Color.Transparent) Color.LightGray else color
+            val outerRadius =
+                size.minDimension / 2f - ringThickness / 2f
 
-            // Color Preview Ring
+            val displayColor =
+                if (color == Color.Transparent) {
+                    Color.LightGray
+                } else {
+                    color
+                }
+
+            // Donut
             drawCircle(
                 color = displayColor,
                 radius = outerRadius,
@@ -144,36 +153,56 @@ fun EyeDropperToolUI(color: Color) {
                 style = Stroke(width = ringThickness)
             )
 
-            // Outer & Inner Accent Borders
+            // OUTER border
             drawCircle(
-                color = Color.White.copy(alpha = 0.8f),
-                radius = outerRadius + (ringThickness / 2f),
+                color = Color.Black.copy(alpha = 0.3f),
+                radius = outerRadius + ringThickness / 2f,
                 center = centerOffset,
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
 
+            // INNER border
             drawCircle(
-                color = Color.Black.copy(alpha = 0.2f),
-                radius = innerRadius,
+                color = Color.Black.copy(alpha = 0.3f),
+                radius = outerRadius - ringThickness / 2f,
                 center = centerOffset,
-                style = Stroke(width = 1.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
 
             // Target Crosshair (+)
             val reticleSize = 14.dp.toPx()
             val strokeW = 2.dp.toPx()
-            val crosshairColor = if (displayColor.luminance() < 0.5f) Color.White else Color.Black
+
+            val crosshairColor =
+                if (displayColor.luminance() < 0.5f) {
+                    Color.White
+                } else {
+                    Color(0xCC000000)
+                }
 
             drawLine(
                 color = crosshairColor,
-                start = Offset(centerOffset.x - reticleSize, centerOffset.y),
-                end = Offset(centerOffset.x + reticleSize, centerOffset.y),
+                start = Offset(
+                    centerOffset.x - reticleSize,
+                    centerOffset.y
+                ),
+                end = Offset(
+                    centerOffset.x + reticleSize,
+                    centerOffset.y
+                ),
                 strokeWidth = strokeW
             )
+
             drawLine(
                 color = crosshairColor,
-                start = Offset(centerOffset.x, centerOffset.y + reticleSize),
-                end = Offset(centerOffset.x, centerOffset.y - reticleSize),
+                start = Offset(
+                    centerOffset.x,
+                    centerOffset.y + reticleSize
+                ),
+                end = Offset(
+                    centerOffset.x,
+                    centerOffset.y - reticleSize
+                ),
                 strokeWidth = strokeW
             )
         }

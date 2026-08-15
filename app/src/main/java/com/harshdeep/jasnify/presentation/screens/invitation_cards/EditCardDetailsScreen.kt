@@ -1,29 +1,109 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
-import android.R.attr.scaleX
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignRight
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Colorize
+import androidx.compose.material.icons.filled.FormatLineSpacing
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material.icons.filled.TextFields
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignJustify
 import androidx.compose.material.icons.rounded.OpenInFull
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalIndirectPointerApi
 import androidx.compose.ui.Modifier
@@ -44,7 +124,6 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
@@ -67,23 +146,42 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.CardData
-import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTextAlign
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ColorPickerWheel
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EyeDropperOverlay
+import com.harshdeep.jasnify.domain.model.FontStyleType
+import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.presentation.components.dialogs.ColorPickerWheel
+import com.harshdeep.jasnify.presentation.components.dialogs.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.utils.dashedBorder
 import com.harshdeep.jasnify.presentation.utils.drawScrollbar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.theme.TopGradientBrush
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
@@ -100,8 +198,11 @@ enum class EditorTab(val label: String) {
 }
 
 data class CardThemeItem(
+    val id: String,
     val name: String,
-    val resId: Int
+    val resId: Int = 0,
+    val url: String? = null,
+    val isDefault: Boolean = false
 )
 
 private fun TextElement.normalizeAlpha(): TextElement {
@@ -122,8 +223,12 @@ fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = this.clickable(
 @Composable
 fun EditCardDetailsScreen(
     initialData: CardData = CardData(),
+    allCards: List<CardData> = emptyList(),
+    cardRoomData: CardRoomData? = null,
     onDataChange: (CardData) -> Unit = {},
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onUploadImage: (Uri, (String) -> Unit, (String) -> Unit) -> Unit = { _, _, _ -> },
+    onUpdateThemeName: (String, String) -> Unit = { _, _ -> }
 ) {
     val normalizedInitialData = remember(initialData.id) {
         initialData.copy(elements = initialData.elements.map { it.normalizeAlpha() })
@@ -140,44 +245,15 @@ fun EditCardDetailsScreen(
     var showColorPicker by remember { mutableStateOf(false) }
     var showEyeDropper by remember { mutableStateOf(false) }
 
-    var bottomSheetWeight by remember { mutableFloatStateOf(0.42f) }
-    val minSheetWeight = 0.32f
-    val maxSheetWeight = 0.64f
-    var parentHeightPx by remember { mutableFloatStateOf(0f) }
-
-    val colorRowLazyListState = rememberLazyListState()
+    var isUploading by remember { mutableStateOf(false) }
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
-
-    val tabIndicatorShape = remember(density) {
-        GenericShape { size, _ ->
-            val radius = with(density) { 24.dp.toPx() }
-            val baseCurveSize = with(density) { 32.dp.toPx() }
-
-            moveTo(-baseCurveSize, size.height)
-            cubicTo(
-                -baseCurveSize / 2f, size.height,
-                0f, size.height,
-                0f, size.height - baseCurveSize
-            )
-            lineTo(0f, radius)
-            arcTo(Rect(0f, 0f, radius * 2f, radius * 2f), 180f, 90f, false)
-            lineTo(size.width - radius, 0f)
-            arcTo(Rect(size.width - radius * 2f, 0f, size.width, radius * 2f), 270f, 90f, false)
-            lineTo(size.width, size.height - baseCurveSize)
-            cubicTo(
-                size.width, size.height,
-                size.width + baseCurveSize / 2f, size.height,
-                size.width + baseCurveSize, size.height
-            )
-            close()
-        }
-    }
-
     val isImeVisible = WindowInsets.isImeVisible
 
     fun updateCardState(newCard: CardData) {
@@ -217,6 +293,54 @@ fun EditCardDetailsScreen(
         }
         updateCardState(currentCard.copy(elements = updatedElements))
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
+    val imageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            pendingImageUri = it
+            updateCardState(currentCard.copy(backgroundUrl = it.toString(), backgroundRes = 0))
+        }
+    }
+
+    LaunchedEffect(toastData) {
+        if (toastData != null) {
+            delay(3000.milliseconds)
+            toastData = null
+        }
+    }
+
+    var bottomSheetWeight by remember { mutableFloatStateOf(0.42f) }
+    val minSheetWeight = 0.32f
+    val maxSheetWeight = 0.64f
+    var parentHeightPx by remember { mutableFloatStateOf(0f) }
+
+    val colorRowLazyListState = rememberLazyListState()
+
+    val tabIndicatorShape = remember(density) {
+        GenericShape { size, _ ->
+            val radius = with(density) { 24.dp.toPx() }
+            val baseCurveSize = with(density) { 32.dp.toPx() }
+
+            moveTo(-baseCurveSize, size.height)
+            cubicTo(
+                -baseCurveSize / 2f, size.height,
+                0f, size.height,
+                0f, size.height - baseCurveSize
+            )
+            lineTo(0f, radius)
+            arcTo(Rect(0f, 0f, radius * 2f, radius * 2f), 180f, 90f, false)
+            lineTo(size.width - radius, 0f)
+            arcTo(Rect(size.width - radius * 2f, 0f, size.width, radius * 2f), 270f, 90f, false)
+            lineTo(size.width, size.height - baseCurveSize)
+            cubicTo(
+                size.width, size.height,
+                size.width + baseCurveSize / 2f, size.height,
+                size.width + baseCurveSize, size.height
+            )
+            close()
+        }
     }
 
     val selectedElement = currentCard.elements.find { it.id == selectedElementId && it.isEditable }
@@ -298,6 +422,7 @@ fun EditCardDetailsScreen(
             .onGloballyPositioned { coordinates ->
                 parentHeightPx = coordinates.size.height.toFloat()
             }
+            .noRippleClickable { focusManager.clearFocus() }
     ) {
         SetStatusBarTheme(useDarkIcons = false)
 
@@ -348,15 +473,37 @@ fun EditCardDetailsScreen(
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CustomTextButton(
-                        text = "Save",
+                        text = if (isUploading) "Uploading..." else "Save",
                         onClick = {
-                            onDataChange(currentCard)
-                            onBackClick()
+                            if (isUploading) return@CustomTextButton
+
+                            val uriToUpload = pendingImageUri
+                            val isUsingCustomImage = currentCard.backgroundRes == 0 && 
+                                    currentCard.backgroundUrl != null && 
+                                    currentCard.backgroundUrl == uriToUpload?.toString()
+
+                            if (uriToUpload != null && isUsingCustomImage) {
+                                isUploading = true
+                                onUploadImage(uriToUpload, { url ->
+                                    isUploading = false
+                                    pendingImageUri = null
+                                    val finalCard = currentCard.copy(backgroundUrl = url)
+                                    onDataChange(finalCard)
+                                    onBackClick()
+                                }, { error ->
+                                    isUploading = false
+                                    toastData = ToastData(error, ToastType.ERROR)
+                                })
+                            } else {
+                                onDataChange(currentCard)
+                                onBackClick()
+                            }
                         },
-                        leadingIcon = painterResource(R.drawable.ic_check),
+                        leadingIcon = if (isUploading) null else painterResource(R.drawable.ic_check),
                         size = ButtonSize.Small,
                         contentColor = ContentPrimary,
-                        containerColor = ContentInvPrimary
+                        containerColor = ContentInvPrimary,
+                        enabled = !isUploading
                     )
                     Spacer(Modifier.width(8.dp))
                     Box {
@@ -458,6 +605,7 @@ fun EditCardDetailsScreen(
                         updateCardState(currentCard.copy(elements = remaining))
                         if (selectedElementId == id) selectedElementId = null
                     },
+                    onUpdateCardBgName = { updateCardState(currentCard.copy(bgName = it)) },
                     onSelectedElementCenterYChanged = { y -> selectedElementCenterYPx = y },
                     zoomScale = zoomScale,
                     modifier = Modifier
@@ -731,8 +879,32 @@ fun EditCardDetailsScreen(
                                 }
                             }
                             EditorTab.THEME -> {
-                                Box(modifier = Modifier.padding(vertical = 16.dp)) {
-                                    ThemeSelectorSection(currentCard.backgroundRes) { updateCardState(currentCard.copy(backgroundRes = it)) }
+                                Box(
+                                    modifier = Modifier
+                                        .padding(vertical = 16.dp)
+                                        .noRippleClickable { focusManager.clearFocus() }
+                                ) {
+                                    ThemeSelectorSection(
+                                        currentCard = currentCard,
+                                        cardRoomData = cardRoomData,
+                                        isUploading = isUploading,
+                                        onSelectTheme = { resId, url, defaultName ->
+                                            val updated = currentCard.copy(
+                                                backgroundRes = resId,
+                                                backgroundUrl = url,
+                                                bgName = if (currentCard.bgName.isBlank()) "" else currentCard.bgName
+                                            )
+                                            updateCardState(updated)
+                                            onDataChange(updated)
+                                        },
+                                        onUpdateThemeName = onUpdateThemeName,
+                                        onUpdateCardBgName = { newName ->
+                                            val updated = currentCard.copy(bgName = newName)
+                                            updateCardState(updated)
+                                            onDataChange(updated)
+                                        },
+                                        onUploadClick = { imageLauncher.launch("image/*") }
+                                    )
                                 }
                             }
                             EditorTab.FONT -> {
@@ -1484,10 +1656,12 @@ fun InteractiveCardCanvas(
     onUpdateElement: (String, (TextElement) -> TextElement) -> Unit,
     onSwapElements: (String, String) -> Unit,
     onDeleteElement: (String) -> Unit,
+    onUpdateCardBgName: (String) -> Unit = {},
     onSelectedElementCenterYChanged: (Float) -> Unit = {},
     zoomScale: Float = 1f,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier = modifier
@@ -1505,15 +1679,27 @@ fun InteractiveCardCanvas(
                 .clip(SquircleShape(CornerLargeIncrease))
                 .background(Color(card.backgroundColorHex.toInt()))
                 .pointerInput(Unit) {
-                    detectTapGestures { onSelectElement("") }
+                    detectTapGestures {
+                        onSelectElement("")
+                        focusManager.clearFocus()
+                    }
                 }
         ) {
-            Image(
-                painter = painterResource(id = card.backgroundRes),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.FillBounds
-            )
+            if (card.backgroundUrl != null) {
+                AsyncImage(
+                    model = card.backgroundUrl,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = card.backgroundRes),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            }
         }
 
         val editableElements = card.elements.filter { it.isEditable }.sortedBy { it.yRatio }
@@ -1524,7 +1710,10 @@ fun InteractiveCardCanvas(
                 .fillMaxSize()
                 .padding(horizontal = (20 * scaleFactor).dp, vertical = (40 * scaleFactor).dp)
                 .pointerInput(Unit) {
-                    detectTapGestures { onSelectElement("") }
+                    detectTapGestures {
+                        onSelectElement("")
+                        focusManager.clearFocus()
+                    }
                 },
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
@@ -1860,15 +2049,36 @@ fun InteractiveTextElementItem(
 }
 
 @Composable
-fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
-    val themes = remember {
-        listOf(
-            CardThemeItem("Classic Elegance", R.drawable.bg_invitation_card_01),
-            CardThemeItem("Floral Romance", R.drawable.bg_invitation_card_02),
-            CardThemeItem("Golden Glamour", R.drawable.bg_invitation_card_03),
-            CardThemeItem("Modern Minimalist", R.drawable.bg_invitation_card_04),
-            CardThemeItem("Vintage Botanical", R.drawable.bg_invitation_card_05)
-        )
+fun ThemeSelectorSection(
+    currentCard: CardData,
+    cardRoomData: CardRoomData?,
+    isUploading: Boolean,
+    onSelectTheme: (Int, String?, String) -> Unit,
+    onUpdateThemeName: (String, String) -> Unit,
+    onUpdateCardBgName: (String) -> Unit,
+    onUploadClick: () -> Unit
+) {
+    val themes = remember(cardRoomData) {
+        if (cardRoomData != null && cardRoomData.themes.isNotEmpty()) {
+            cardRoomData.themes.map {
+                CardThemeItem(
+                    id = it.id,
+                    name = it.name,
+                    resId = it.resId,
+                    url = it.url,
+                    isDefault = it.isDefault
+                )
+            }
+        } else {
+            // Fallback to local defaults if room data is not yet loaded or empty
+            listOf(
+                CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
+                CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
+                CardThemeItem(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
+                CardThemeItem(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
+                CardThemeItem(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+            )
+        }
     }
 
     LazyRow(
@@ -1892,25 +2102,33 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
                             gapLength = 4.dp
                         )
                         .background(Color.Transparent)
-                        .clickable { },
+                        .clickable(enabled = !isUploading) { onUploadClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_upload),
-                            contentDescription = null,
-                            tint = ContentSecondary
-                        )
-                        Text(
-                            text = "Upload\nImage",
-                            textAlign = TextAlign.Center,
+                    if (isUploading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(32.dp),
                             color = ContentSecondary,
-                            style = JasnifyTheme.typography.labelXLarge,
-                            lineHeight = 24.sp
+                            strokeWidth = 3.dp
                         )
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_upload),
+                                contentDescription = null,
+                                tint = ContentSecondary
+                            )
+                            Text(
+                                text = "Upload\nImage",
+                                textAlign = TextAlign.Center,
+                                color = ContentSecondary,
+                                style = JasnifyTheme.typography.labelXLarge,
+                                lineHeight = 24.sp
+                            )
+                        }
                     }
                 }
                 Text(
@@ -1923,61 +2141,126 @@ fun ThemeSelectorSection(currentRes: Int, onSelectTheme: (Int) -> Unit) {
         }
 
         items(themes) { theme ->
-            val isSelected = currentRes == theme.resId
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 120.dp, height = 160.dp)
-                        .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                        .border(
-                            width = if (isSelected) 4.dp else 0.dp,
-                            color = if (isSelected) ContentBrandDark else Color.Transparent,
-                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                        )
-                        .clickable { onSelectTheme(theme.resId) }
-                ) {
-                    Image(
-                        painter = painterResource(id = theme.resId),
-                        contentDescription = theme.name,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Transparent),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = ContentBrandDark,
-                                modifier = Modifier.size(56.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_check),
-                                        contentDescription = null,
-                                        tint = ContentInvPrimary,
-                                        modifier = Modifier.size(28.dp)
-                                    )
-                                }
-                            }
+            val isSelected = if (theme.isDefault) {
+                currentCard.backgroundRes == theme.resId
+            } else {
+                currentCard.backgroundRes == 0 && currentCard.backgroundUrl == theme.url
+            }
+
+            ThemeItem(
+                theme = theme,
+                isSelected = isSelected,
+                cardBgName = currentCard.bgName,
+                onSelect = { onSelectTheme(theme.resId, theme.url, theme.name) },
+                onUpdateName = { newName ->
+                    if (!theme.isDefault) {
+                        onUpdateThemeName(theme.id, newName)
+                        if (isSelected) {
+                            onUpdateCardBgName(newName)
                         }
                     }
                 }
-                Text(
-                    text = theme.name,
-                    style = JasnifyTheme.typography.labelMedium,
-                    color = if (isSelected) ContentBrandDark else ContentSecondary,
-                    fontWeight = FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+fun ThemeItem(
+    theme: CardThemeItem,
+    isSelected: Boolean,
+    cardBgName: String,
+    onSelect: () -> Unit,
+    onUpdateName: (String) -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 120.dp, height = 160.dp)
+                .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+                .border(
+                    width = if (isSelected) 4.dp else 0.dp,
+                    color = if (isSelected) ContentBrandDark else Color.Transparent,
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                )
+                .clickable { onSelect() }
+        ) {
+            if (theme.url != null) {
+                AsyncImage(
+                    model = theme.url,
+                    contentDescription = theme.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(id = theme.resId),
+                    contentDescription = theme.name,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
                 )
             }
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Transparent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = ContentBrandDark,
+                        modifier = Modifier.size(56.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_check),
+                                contentDescription = null,
+                                tint = ContentInvPrimary,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (isSelected && !theme.isDefault) {
+            BasicTextField(
+                value = cardBgName,
+                onValueChange = onUpdateName,
+                textStyle = JasnifyTheme.typography.labelMedium.copy(
+                    color = ContentBrandDark,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
+                ),
+                modifier = Modifier.width(120.dp),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.Center) {
+                        if (cardBgName.isBlank()) {
+                            Text(
+                                text = "Untitled",
+                                style = JasnifyTheme.typography.labelMedium,
+                                color = ContentBrandDark.copy(alpha = 0.5f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                        innerTextField()
+                    }
+                }
+            )
+        } else {
+            Text(
+                text = theme.name.ifBlank { "Untitled" },
+                style = JasnifyTheme.typography.labelMedium,
+                color = if (isSelected) ContentBrandDark else ContentSecondary,
+                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                textAlign = TextAlign.Center,
+                maxLines = 1
+            )
         }
     }
 }
