@@ -2,8 +2,10 @@ package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -11,6 +13,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -71,6 +75,7 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignJustify
 import androidx.compose.material.icons.rounded.OpenInFull
@@ -102,6 +107,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalIndirectPointerApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -109,8 +115,10 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -120,6 +128,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -139,6 +148,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
@@ -148,13 +158,19 @@ import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTextAlign
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.TextElement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.dialogs.ColorPickerWheel
+import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.dialogs.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
@@ -178,6 +194,7 @@ import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.theme.TopGradientBrush
+import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
@@ -240,11 +257,53 @@ fun EditCardDetailsScreen(
 
     var showColorPicker by remember { mutableStateOf(false) }
     var showEyeDropper by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
     var isUploading by remember { mutableStateOf(false) }
+    var showSuccessSheet by remember { mutableStateOf(false) }
+    var showDownloadSuccessSheet by remember { mutableStateOf(false) }
     var toastData by remember { mutableStateOf<ToastData?>(null) }
     var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
+    var cardToDownload by remember { mutableStateOf<CardData?>(null) }
 
+    val hasUnsavedChanges by remember(currentCard, normalizedInitialData, pendingImageUri) {
+        derivedStateOf {
+            currentCard != normalizedInitialData || pendingImageUri != null
+        }
+    }
+
+    BackHandler(enabled = hasUnsavedChanges) {
+        showDiscardDialog = true
+    }
+
+    fun handleExit() {
+        if (hasUnsavedChanges) {
+            showDiscardDialog = true
+        } else {
+            onBackClick()
+        }
+    }
+
+    var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
+    val isAnySheetVisible = showSuccessSheet || showDownloadSuccessSheet
+
+    val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
+
+    val backdropScaleState = animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadiusState = animateDpAsState(
+        targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
+
+    val graphicsLayer = rememberGraphicsLayer()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
@@ -341,13 +400,11 @@ fun EditCardDetailsScreen(
 
     val selectedElement = currentCard.elements.find { it.id == selectedElementId && it.isEditable }
 
-    // Screen area measurements for dynamic positioning when IME opens
     var topBarBottomPx by remember { mutableFloatStateOf(0f) }
     var sheetTopPx by remember { mutableFloatStateOf(0f) }
     var selectedElementCenterYPx by remember { mutableFloatStateOf(0f) }
     var currentCanvasOffsetYPx by remember { mutableFloatStateOf(0f) }
 
-    // Pinch Zoom and Pan states
     var zoomScale by remember { mutableFloatStateOf(1f) }
     var panOffset by remember { mutableStateOf(Offset.Zero) }
 
@@ -380,7 +437,21 @@ fun EditCardDetailsScreen(
 
     val bottomPadding = if (isImeVisible) 0.dp else (parentHeightPx * bottomSheetWeight / density.density).dp
 
-    // Color Picker Dialog Overlay Popup
+    if (showDiscardDialog) {
+        ConfirmationDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            onConfirm = {
+                showDiscardDialog = false
+                onBackClick()
+            },
+            title = "Discard changes?",
+            description = "All the changes you made will be lost.",
+            confirmButtonText = "Discard",
+            dismissButtonText = "Cancel",
+            isDestructive = true
+        )
+    }
+
     if (showColorPicker && selectedElement != null) {
         Dialog(
             onDismissRequest = { showColorPicker = false },
@@ -414,850 +485,890 @@ fun EditCardDetailsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ContentPrimary)
-            .onGloballyPositioned { coordinates ->
-                parentHeightPx = coordinates.size.height.toFloat()
-            }
-            .noRippleClickable { focusManager.clearFocus() }
+            .background(Color.Black)
     ) {
-        SetStatusBarTheme(useDarkIcons = false)
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(brush = TopGradientBrush)
-                .statusBarsPadding()
-                .zIndex(10f)
-                .padding(12.dp)
-                .onGloballyPositioned { coordinates ->
-                    topBarBottomPx = coordinates.positionInRoot().y + coordinates.size.height.toFloat()
-                },
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(10f),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                CustomIconButton(
-                    icon = rememberVectorPainter(image = Icons.Rounded.Close),
-                    onClick = onBackClick,
-                    size = ButtonSize.Small,
-                    contentColor = ContentInvPrimary,
-                    containerColor = Color(0xE53D3D3D)
-                )
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CustomIconButton(
-                        icon = painterResource(R.drawable.ic_undo),
-                        onClick = ::undo,
-                        size = ButtonSize.Small,
-                        contentColor = if (historyIndex > 0) ContentInvPrimary else ContentSecondary,
-                        containerColor = Color(0xE53D3D3D)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    CustomIconButton(
-                        icon = painterResource(R.drawable.ic_redo),
-                        onClick = ::redo,
-                        size = ButtonSize.Small,
-                        contentColor = if (historyIndex < history.size - 1) ContentInvPrimary else ContentSecondary,
-                        containerColor = Color(0xE53D3D3D)
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CustomTextButton(
-                        text = if (isUploading) "Uploading..." else "Save",
-                        onClick = {
-                            if (isUploading) return@CustomTextButton
-
-                            val uriToUpload = pendingImageUri
-                            val isUsingCustomImage = currentCard.backgroundRes == 0 &&
-                                    currentCard.backgroundUrl != null &&
-                                    currentCard.backgroundUrl == uriToUpload?.toString()
-
-                            if (uriToUpload != null && isUsingCustomImage) {
-                                isUploading = true
-                                onUploadImage(uriToUpload, { url ->
-                                    isUploading = false
-                                    pendingImageUri = null
-                                    val finalCard = currentCard.copy(backgroundUrl = url)
-                                    onDataChange(finalCard)
-                                    onBackClick()
-                                }, { error ->
-                                    isUploading = false
-                                    toastData = ToastData(error, ToastType.ERROR)
-                                })
-                            } else {
-                                onDataChange(currentCard)
-                                onBackClick()
-                            }
-                        },
-                        leadingIcon = if (isUploading) null else painterResource(R.drawable.ic_check),
-                        size = ButtonSize.Small,
-                        contentColor = ContentPrimary,
-                        containerColor = ContentInvPrimary,
-                        enabled = !isUploading
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Box {
-                        CustomIconButton(
-                            icon = rememberVectorPainter(image = Icons.Default.MoreVert),
-                            onClick = { isMenuExpanded = !isMenuExpanded },
-                            size = ButtonSize.Small,
-                            contentColor = ContentInvPrimary,
-                            containerColor = Color(0xE53D3D3D)
-                        )
-
-                        if (isMenuExpanded) {
-                            androidx.compose.ui.window.Popup(
-                                onDismissRequest = { isMenuExpanded = false },
-                                offset = IntOffset(0, with(LocalDensity.current) { 48.dp.roundToPx() }),
-                                properties = androidx.compose.ui.window.PopupProperties(focusable = true),
-                                alignment = Alignment.TopEnd
-                            ) {
-                                Surface(
-                                    modifier = Modifier
-                                        .width(220.dp)
-                                        .shadow(8.dp, SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                        .background(Color(0xFF2C2C2C)),
-                                    color = Color(0xFF2C2C2C)
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .height(56.dp)
-                                            .clickable {
-                                                isMenuExpanded = false
-                                                updateCardState(normalizedInitialData)
-                                                selectedElementId = null
-                                                zoomScale = 1f
-                                                panOffset = Offset.Zero
-                                            }
-                                            .padding(16.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Sync,
-                                            contentDescription = null,
-                                            tint = ContentInvPrimary,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-
-                                        Text(
-                                            text = "Reset to Defaults",
-                                            style = JasnifyTheme.typography.labelXLarge,
-                                            color = ContentInvPrimary
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .zIndex(0f)
-                .padding(top = 64.dp, bottom = bottomPadding)
-                .offset(y = animatedCanvasOffsetY),
-            contentAlignment = Alignment.Center
+                .graphicsLayer {
+                    scaleX = backdropScaleState.value
+                    scaleY = backdropScaleState.value
+                    val radius = backdropCornerRadiusState.value
+                    clip = isAnySheetVisible || radius > 0.dp
+                    shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                }
+                .background(ContentPrimary)
+                .onGloballyPositioned { coordinates ->
+                    parentHeightPx = coordinates.size.height.toFloat()
+                }
+                .noRippleClickable { focusManager.clearFocus() }
         ) {
-            BoxWithConstraints(
+            SetStatusBarTheme(useDarkIcons = false)
+
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 40.dp, vertical = 8.dp),
-                contentAlignment = Alignment.Center
+                    .size(280.dp, 373.dp)
+                    .offset(x = (-2000).dp)
+                    .drawWithContent {
+                        graphicsLayer.record {
+                            this@drawWithContent.drawContent()
+                        }
+                    }
             ) {
-                val cardWidth = minOf(
-                    maxWidth,
-                    maxHeight * (3f / 4f)
-                )
-
-                InteractiveCardCanvas(
-                    card = currentCard,
-                    selectedElementId = selectedElementId,
-                    onSelectElement = { id ->
-                        selectedElementId = id
-                    },
-                    onDoubleTapElement = { id ->
-                        selectedElementId = id
-                        activeTab = EditorTab.TEXT
-                        focusRequester.requestFocus()
-                        keyboardController?.show()
-                    },
-                    onUpdateElement = ::updateElement,
-                    onSwapElements = ::swapElements,
-                    onDeleteElement = { id ->
-                        val remaining = currentCard.elements.filter { it.id != id }
-                        updateCardState(currentCard.copy(elements = remaining))
-                        if (selectedElementId == id) selectedElementId = null
-                    },
-                    onUpdateCardBgName = { updateCardState(currentCard.copy(bgName = it)) },
-                    onSelectedElementCenterYChanged = { y -> selectedElementCenterYPx = y },
-                    zoomScale = zoomScale,
-                    modifier = Modifier
-                        .width(cardWidth)
-                        .aspectRatio(3f / 4f)
-                        .pointerInput(Unit) {
-                            awaitEachGesture {
-                                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
-                                val isDownConsumed = down.isConsumed
-
-                                do {
-                                    val event = awaitPointerEvent(pass = PointerEventPass.Initial)
-                                    val pressedPointers = event.changes.filter { it.pressed }
-
-                                    if (pressedPointers.size >= 2) {
-                                        val zoomChange = event.calculateZoom()
-                                        val panChange = event.calculatePan()
-
-                                        if (zoomChange != 1f || panChange != Offset.Zero) {
-                                            zoomScale = (zoomScale * zoomChange).coerceIn(1f, 4f)
-                                            if (zoomScale > 1f) {
-                                                panOffset += panChange
-                                            } else {
-                                                panOffset = Offset.Zero
-                                            }
-                                            event.changes.forEach { it.consume() }
-                                        }
-                                    } else if (pressedPointers.size == 1 && zoomScale > 1f && !isDownConsumed) {
-                                        val change = event.changes.firstOrNull { it.pressed }
-                                        if (change != null && !change.isConsumed) {
-                                            val panChange = event.calculatePan()
-                                            if (panChange != Offset.Zero) {
-                                                panOffset += panChange
-                                                change.consume()
-                                            }
-                                        }
-                                    }
-                                } while (currentEvent.changes.any { it.pressed })
-                            }
-                        }
-                        .graphicsLayer {
-                            scaleX = zoomScale
-                            scaleY = zoomScale
-                            translationX = panOffset.x
-                            translationY = panOffset.y
-                        }
-                )
+                cardToDownload?.let {
+                    CardItem(
+                        data = it,
+                        forCapture = true,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .then(
-                    if (isImeVisible) Modifier.wrapContentHeight()
-                    else Modifier.fillMaxHeight(bottomSheetWeight)
-                )
-                .imePadding()
-                .zIndex(5f)
-        ) {
-            Surface(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight())
+                    .background(brush = TopGradientBrush)
+                    .statusBarsPadding()
+                    .zIndex(10f)
+                    .padding(12.dp)
                     .onGloballyPositioned { coordinates ->
-                        sheetTopPx = coordinates.positionInRoot().y
+                        topBarBottomPx = coordinates.positionInRoot().y + coordinates.size.height.toFloat()
                     },
-                shape = SquircleShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
-                color = SurfaceSecondary,
-                shadowElevation = 40.dp
+                contentAlignment = Alignment.BottomCenter
             ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .zIndex(10f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .pointerInput(Unit) {
-                                detectVerticalDragGestures { change, dragAmount ->
-                                    change.consume()
-                                    if (parentHeightPx > 0f) {
-                                        val deltaWeight = -dragAmount / parentHeightPx
-                                        bottomSheetWeight = (bottomSheetWeight + deltaWeight)
-                                            .coerceIn(minSheetWeight, maxSheetWeight)
-                                    }
-                                }
-                            }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(56.dp)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(ContentTertiary)
+                    CustomIconButton(
+                        icon = rememberVectorPainter(image = Icons.Rounded.Close),
+                        onClick = ::handleExit,
+                        size = ButtonSize.Small,
+                        contentColor = ContentInvPrimary,
+                        containerColor = Color(0xE53D3D3D)
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CustomIconButton(
+                            icon = painterResource(R.drawable.ic_undo),
+                            onClick = ::undo,
+                            size = ButtonSize.Small,
+                            contentColor = if (historyIndex > 0) ContentInvPrimary else ContentSecondary,
+                            containerColor = Color(0xE53D3D3D)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        CustomIconButton(
+                            icon = painterResource(R.drawable.ic_redo),
+                            onClick = ::redo,
+                            size = ButtonSize.Small,
+                            contentColor = if (historyIndex < history.size - 1) ContentInvPrimary else ContentSecondary,
+                            containerColor = Color(0xE53D3D3D)
                         )
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp, 0.dp, 16.dp, 12.dp)
-                            .height(40.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = when (activeTab) {
-                                EditorTab.TEXT -> "Edit Text"
-                                EditorTab.THEME -> "Select Theme"
-                                EditorTab.FONT -> "Edit Font"
-                                EditorTab.COLOR -> "Select Text Color"
-                                EditorTab.SIZE -> "Edit Size"
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CustomTextButton(
+                            text = if (isUploading) "Uploading..." else "Save",
+                            onClick = {
+                                if (isUploading) return@CustomTextButton
+
+                                val uriToUpload = pendingImageUri
+                                val isUsingCustomImage = currentCard.backgroundRes == 0 &&
+                                        currentCard.backgroundUrl != null &&
+                                        currentCard.backgroundUrl == uriToUpload?.toString()
+
+                                if (uriToUpload != null && isUsingCustomImage) {
+                                    isUploading = true
+                                    onUploadImage(uriToUpload, { url ->
+                                        isUploading = false
+                                        pendingImageUri = null
+                                        val finalCard = currentCard.copy(backgroundUrl = url)
+                                        onDataChange(finalCard)
+                                        showSuccessSheet = true
+                                    }, { error ->
+                                        isUploading = false
+                                        toastData = ToastData(error, ToastType.ERROR)
+                                    })
+                                } else {
+                                    onDataChange(currentCard)
+                                    showSuccessSheet = true
+                                }
                             },
-                            style = JasnifyTheme.typography.headingXLarge,
-                            color = ContentPrimary,
-                            fontWeight = FontWeight.Medium
+                            leadingIcon = if (isUploading) null else painterResource(R.drawable.ic_check),
+                            size = ButtonSize.Small,
+                            contentColor = ContentPrimary,
+                            containerColor = ContentInvPrimary,
+                            enabled = !isUploading
                         )
-
-                        if (activeTab == EditorTab.TEXT) {
-                            Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Box {
                             CustomIconButton(
-                                onClick = {
-                                    if (isImeVisible) {
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                    } else {
-                                        val newElement = TextElement(text = "New Text", yRatio = 0.5f).normalizeAlpha()
-                                        updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
-                                        selectedElementId = newElement.id
-                                        activeTab = EditorTab.TEXT
-                                    }
-                                },
-                                icon = if (isImeVisible) painterResource(R.drawable.ic_check) else painterResource(R.drawable.ic_plus),
-                                contentColor = ContentPrimary,
-                                containerColor = SurfacePrimary,
+                                icon = rememberVectorPainter(image = Icons.Default.MoreVert),
+                                onClick = { isMenuExpanded = !isMenuExpanded },
                                 size = ButtonSize.Small,
-                                modifier = Modifier
-                                    .width(56.dp)
-                                    .height(40.dp)
-                            )
-                        }
-                    }
-
-                    val tabScrollState = rememberScrollState()
-                    var hasPlayedTabLaunchAnimation by remember { mutableStateOf(false) }
-
-                    LaunchedEffect(Unit) {
-                        snapshotFlow { tabScrollState.maxValue }
-                            .collect { maxScroll ->
-                                if (maxScroll > 0 && !hasPlayedTabLaunchAnimation) {
-                                    hasPlayedTabLaunchAnimation = true
-                                    delay(200.milliseconds)
-
-                                    tabScrollState.animateScrollTo(
-                                        value = maxScroll,
-                                        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
-                                    )
-                                    delay(150.milliseconds)
-
-                                    tabScrollState.animateScrollTo(
-                                        value = 0,
-                                        animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
-                                    )
-                                }
-                            }
-                    }
-
-                    val tabPositions = remember { mutableStateListOf<Float>() }
-                    val tabWidths = remember { mutableStateListOf<Float>() }
-                    var containerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(tabScrollState)
-                            .onGloballyPositioned { containerCords = it }
-                    ) {
-                        if (tabPositions.size == EditorTab.entries.size) {
-                            val targetIndex = EditorTab.entries.indexOf(activeTab)
-                            val indicatorOffset by animateFloatAsState(
-                                targetValue = tabPositions[targetIndex],
-                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                label = "TabIndicatorOffset"
-                            )
-                            val indicatorWidth by animateFloatAsState(
-                                targetValue = tabWidths[targetIndex],
-                                animationSpec = spring(stiffness = Spring.StiffnessLow),
-                                label = "TabIndicatorWidth"
+                                contentColor = ContentInvPrimary,
+                                containerColor = Color(0xE53D3D3D)
                             )
 
-                            Box(
-                                modifier = Modifier
-                                    .offset(x = indicatorOffset.dp)
-                                    .width(indicatorWidth.dp)
-                                    .height(48.dp)
-                                    .background(SurfacePrimary, tabIndicatorShape)
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.Bottom
-                        ) {
-                            EditorTab.entries.forEachIndexed { index, tab ->
-                                val isSelected = activeTab == tab
-                                Box(
-                                    modifier = Modifier
-                                        .onGloballyPositioned { cords ->
-                                            if (tabPositions.size <= index) {
-                                                tabPositions.add(0f)
-                                                tabWidths.add(0f)
-                                            }
-                                            containerCords?.let { parent ->
-                                                val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
-                                                tabPositions[index] = (pos / density.density)
-                                                tabWidths[index] = (cords.size.width / density.density)
-                                            }
-                                        }
-                                        .noRippleClickable { activeTab = tab }
-                                        .padding(horizontal = 24.dp, vertical = 12.dp),
-                                    contentAlignment = Alignment.Center
+                            if (isMenuExpanded) {
+                                Popup(
+                                    onDismissRequest = { isMenuExpanded = false },
+                                    offset = IntOffset(0, with(LocalDensity.current) { 48.dp.roundToPx() }),
+                                    properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+                                    alignment = Alignment.TopEnd
                                 ) {
-                                    Text(
-                                        text = tab.label,
-                                        style = JasnifyTheme.typography.labelXLarge,
-                                        color = if (isSelected) ContentBrandDark else ContentSecondary,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.weight(1f))
-                            .background(SurfacePrimary)
-                            .then(
-                                if (activeTab != EditorTab.SIZE && activeTab != EditorTab.COLOR) Modifier.verticalScroll(rememberScrollState())
-                                else Modifier
-                            )
-                    ) {
-                        when (activeTab) {
-                            EditorTab.TEXT -> {
-                                if (selectedElement != null) {
-                                    key(selectedElement.id) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .width(220.dp)
+                                            .shadow(8.dp, SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .background(Color(0xFF2C2C2C)),
+                                        color = Color(0xFF2C2C2C)
+                                    ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(16.dp)
+                                                .padding(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
                                         ) {
-                                            PrimaryInput(
-                                                value = selectedElement.text,
-                                                placeholder = "New Text",
-                                                onValueChange = { newText ->
-                                                    updateElement(selectedElement.id) { it.copy(text = newText) }
-                                                },
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .focusRequester(focusRequester)
-                                                    .onFocusChanged { isTextFieldFocused = it.isFocused }
-                                            )
-                                        }
-                                    }
-                                } else {
-                                    NoSelectionPlaceholder()
-                                }
-                            }
-                            EditorTab.THEME -> {
-                                Box(
-                                    modifier = Modifier
-                                        .padding(vertical = 16.dp)
-                                        .noRippleClickable { focusManager.clearFocus() }
-                                ) {
-                                    ThemeSelectorSection(
-                                        currentCard = currentCard,
-                                        cardRoomData = cardRoomData,
-                                        isUploading = isUploading,
-                                        onSelectTheme = { resId, url, defaultName ->
-                                            val updated = currentCard.copy(
-                                                backgroundRes = resId,
-                                                backgroundUrl = url,
-                                                bgName = if (currentCard.bgName.isBlank()) "" else currentCard.bgName
-                                            )
-                                            updateCardState(updated)
-                                            onDataChange(updated)
-                                        },
-                                        onUpdateThemeName = onUpdateThemeName,
-                                        onUpdateCardBgName = { newName ->
-                                            val updated = currentCard.copy(bgName = newName)
-                                            updateCardState(updated)
-                                            onDataChange(updated)
-                                        },
-                                        onUploadClick = { imageLauncher.launch("image/*") }
-                                    )
-                                }
-                            }
-                            EditorTab.FONT -> {
-                                if (selectedElement != null) {
-                                    key(selectedElement.id) {
-                                        ProfessionalFontSelector(
-                                            selectedElement = selectedElement,
-                                            bottomSheetWeight = bottomSheetWeight,
-                                            onUpdateElement = ::updateElement
-                                        )
-                                    }
-                                } else {
-                                    NoSelectionPlaceholder()
-                                }
-                            }
-                            EditorTab.COLOR -> {
-                                if (selectedElement != null) {
-                                    key(selectedElement.id) {
-                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
-                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
-                                        }
-
-                                        val palette = remember {
-                                            listOf(
-                                                0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
-                                                0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
-                                                0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
-                                                0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
-                                                0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
-                                                0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
-                                                0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
-                                                0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
-                                            )
-                                        }
-
-                                        LaunchedEffect(selectedElement.id) {
-                                            val activeRgb = selectedElement.colorHex and 0x00FFFFFFL
-                                            val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
-                                            if (matchIndex >= 0) {
-                                                colorRowLazyListState.animateScrollToItem(matchIndex + 2)
-                                            }
-                                        }
-
-                                        val currentAlpha = (selectedElement.colorHex shr 24) and 0xFFL
-                                        val currentOpacity = (currentAlpha.toFloat() / 255f) * 100f
-
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
-                                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                                        ) {
-                                            LazyRow(
-                                                state = colorRowLazyListState,
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                    .height(48.dp)
+                                                    .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                                    .clickable {
+                                                        isMenuExpanded = false
+                                                        updateCardState(normalizedInitialData)
+                                                        selectedElementId = null
+                                                        zoomScale = 1f
+                                                        panOffset = Offset.Zero
+                                                    }
+                                                    .padding(horizontal = 16.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                                             ) {
-                                                item {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(56.dp)
-                                                            .clip(CircleShape)
-                                                            .noRippleClickable {
-                                                                showEyeDropper = true
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            painter = painterResource(R.drawable.ic_color_picker),
-                                                            contentDescription = "Eyedropper",
-                                                            tint = ContentPrimary,
-                                                            modifier = Modifier.size(32.dp)
-                                                        )
-                                                    }
-                                                }
+                                                Icon(
+                                                    imageVector = Icons.Default.Sync,
+                                                    contentDescription = null,
+                                                    tint = ContentInvPrimary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
 
-                                                item {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(56.dp)
-                                                            .clip(CircleShape)
-                                                            .background(
-                                                                brush = androidx.compose.ui.graphics.Brush.sweepGradient(
-                                                                    listOf(
-                                                                        Color.Red,
-                                                                        Color.Yellow,
-                                                                        Color.Green,
-                                                                        Color.Cyan,
-                                                                        Color.Blue,
-                                                                        Color.Magenta,
-                                                                        Color.Red
-                                                                    )
-                                                                )
-                                                            )
-                                                            .noRippleClickable {
-                                                                showColorPicker = true
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(24.dp)
-                                                                .clip(CircleShape)
-                                                                .background(SurfacePrimary)
-                                                        )
-                                                    }
-                                                }
-
-                                                items(palette) { hex ->
-                                                    val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
-                                                    val swatchColor = Color(hex.toInt())
-
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(56.dp)
-                                                            .clip(CircleShape)
-                                                            .background(swatchColor)
-                                                            .border(1.dp, Color(0x26000000), CircleShape)
-                                                            .clickable {
-                                                                val swatchRgb = hex and 0x00FFFFFFL
-                                                                updateElement(selectedElement.id) { target ->
-                                                                    val activeAlpha = (target.colorHex shr 24) and 0xFFL
-                                                                    val updatedColorHex = (activeAlpha shl 24) or swatchRgb
-                                                                    target.copy(colorHex = updatedColorHex)
-                                                                }
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        if (isSelected) {
-                                                            Icon(
-                                                                painter = painterResource(R.drawable.ic_check),
-                                                                contentDescription = "Selected",
-                                                                tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
-                                                                modifier = Modifier.size(32.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp)
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
-                                                    )
-                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                    .background(SurfaceSecondary)
-                                            ) {
-                                                val initialOpacity = remember(initialElement) {
-                                                    ((initialElement?.colorHex?.shr(24)?.and(0xFFL)?.toFloat() ?: 255f) / 255f * 100f)
-                                                }
-
-                                                CustomSliderCard(
-                                                    label = "Opacity",
-                                                    value = currentOpacity,
-                                                    onValueChange = { newOpacity ->
-                                                        val alphaByte = round((newOpacity / 100f) * 255f).toLong().coerceIn(0L, 255L)
-                                                        updateElement(selectedElement.id) { target ->
-                                                            val currentRgb = target.colorHex and 0x00FFFFFFL
-                                                            val updatedColorHex = (alphaByte shl 24) or currentRgb
-                                                            target.copy(colorHex = updatedColorHex)
-                                                        }
-                                                    },
-                                                    valueRange = 0f..100f,
-                                                    unit = "%",
-                                                    icon = painterResource(R.drawable.ic_opacity),
-                                                    onReset = {
-                                                        val initialHex = initialElement?.colorHex ?: 0xFF000000L
-                                                        val savedAlpha = (initialHex shr 24) and 0xFFL
-                                                        updateElement(selectedElement.id) { target ->
-                                                            val currentRgb = target.colorHex and 0x00FFFFFFL
-                                                            val updatedColorHex = (savedAlpha shl 24) or currentRgb
-                                                            target.copy(colorHex = updatedColorHex)
-                                                        }
-                                                    },
-                                                    showReset = abs(currentOpacity - initialOpacity) > 0.1f,
-                                                    shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                Text(
+                                                    text = "Reset to Defaults",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentInvPrimary
                                                 )
                                             }
                                         }
                                     }
-                                } else {
-                                    NoSelectionPlaceholder()
                                 }
                             }
-                            EditorTab.SIZE -> {
-                                if (selectedElement != null) {
-                                    key(selectedElement.id) {
-                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
-                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
-                                        }
+                        }
+                    }
+                }
+            }
 
-                                        val isLineHeightAuto = selectedElement.lineHeightSp <= 0f
-                                        val displayLineHeightValue = if (isLineHeightAuto) {
-                                            (selectedElement.fontSizeSp * 1.2f).coerceIn(0f, 100f)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .zIndex(0f)
+                    .padding(top = 64.dp, bottom = bottomPadding)
+                    .offset(y = animatedCanvasOffsetY),
+                contentAlignment = Alignment.Center
+            ) {
+                BoxWithConstraints(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 40.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    val cardWidth = minOf(
+                        maxWidth,
+                        maxHeight * (3f / 4f)
+                    )
+
+                    InteractiveCardCanvas(
+                        card = currentCard,
+                        selectedElementId = selectedElementId,
+                        onSelectElement = { id ->
+                            selectedElementId = id
+                        },
+                        onDoubleTapElement = { id ->
+                            selectedElementId = id
+                            activeTab = EditorTab.TEXT
+                            focusRequester.requestFocus()
+                            keyboardController?.show()
+                        },
+                        onUpdateElement = ::updateElement,
+                        onSwapElements = ::swapElements,
+                        onDeleteElement = { id ->
+                            val remaining = currentCard.elements.filter { it.id != id }
+                            updateCardState(currentCard.copy(elements = remaining))
+                            if (selectedElementId == id) selectedElementId = null
+                        },
+                        onUpdateCardBgName = { updateCardState(currentCard.copy(bgName = it)) },
+                        onSelectedElementCenterYChanged = { y -> selectedElementCenterYPx = y },
+                        zoomScale = zoomScale,
+                        modifier = Modifier
+                            .width(cardWidth)
+                            .aspectRatio(3f / 4f)
+                            .pointerInput(Unit) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Main)
+                                    val isDownConsumed = down.isConsumed
+
+                                    do {
+                                        val event = awaitPointerEvent(pass = PointerEventPass.Initial)
+                                        val pressedPointers = event.changes.filter { it.pressed }
+
+                                        if (pressedPointers.size >= 2) {
+                                            val zoomChange = event.calculateZoom()
+                                            val panChange = event.calculatePan()
+
+                                            if (zoomChange != 1f || panChange != Offset.Zero) {
+                                                zoomScale = (zoomScale * zoomChange).coerceIn(1f, 4f)
+                                                if (zoomScale > 1f) {
+                                                    panOffset += panChange
+                                                } else {
+                                                    panOffset = Offset.Zero
+                                                }
+                                                event.changes.forEach { it.consume() }
+                                            }
+                                        } else if (pressedPointers.size == 1 && zoomScale > 1f && !isDownConsumed) {
+                                            val change = event.changes.firstOrNull { it.pressed }
+                                            if (change != null && !change.isConsumed) {
+                                                val panChange = event.calculatePan()
+                                                if (panChange != Offset.Zero) {
+                                                    panOffset += panChange
+                                                    change.consume()
+                                                }
+                                            }
+                                        }
+                                    } while (currentEvent.changes.any { it.pressed })
+                                }
+                            }
+                            .graphicsLayer {
+                                scaleX = zoomScale
+                                scaleY = zoomScale
+                                translationX = panOffset.x
+                                translationY = panOffset.y
+                            }
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .then(
+                        if (isImeVisible) Modifier.wrapContentHeight()
+                        else Modifier.fillMaxHeight(bottomSheetWeight)
+                    )
+                    .imePadding()
+                    .zIndex(5f)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.fillMaxHeight())
+                        .onGloballyPositioned { coordinates ->
+                            sheetTopPx = coordinates.positionInRoot().y
+                        },
+                    shape = SquircleShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge),
+                    color = SurfaceSecondary,
+                    shadowElevation = 40.dp
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .pointerInput(Unit) {
+                                    detectVerticalDragGestures { change, dragAmount ->
+                                        change.consume()
+                                        if (parentHeightPx > 0f) {
+                                            val deltaWeight = -dragAmount / parentHeightPx
+                                            bottomSheetWeight = (bottomSheetWeight + deltaWeight)
+                                                .coerceIn(minSheetWeight, maxSheetWeight)
+                                        }
+                                    }
+                                }
+                                .padding(vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .width(56.dp)
+                                    .height(4.dp)
+                                    .clip(CircleShape)
+                                    .background(ContentTertiary)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp, 0.dp, 16.dp, 12.dp)
+                                .height(40.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = when (activeTab) {
+                                    EditorTab.TEXT -> "Edit Text"
+                                    EditorTab.THEME -> "Select Theme"
+                                    EditorTab.FONT -> "Edit Font"
+                                    EditorTab.COLOR -> "Select Text Color"
+                                    EditorTab.SIZE -> "Edit Size"
+                                },
+                                style = JasnifyTheme.typography.headingXLarge,
+                                color = ContentPrimary,
+                                fontWeight = FontWeight.Medium
+                            )
+
+                            if (activeTab == EditorTab.TEXT) {
+                                Spacer(Modifier.width(12.dp))
+                                CustomIconButton(
+                                    onClick = {
+                                        if (isImeVisible) {
+                                            keyboardController?.hide()
+                                            focusManager.clearFocus()
                                         } else {
-                                            selectedElement.lineHeightSp
+                                            val newElement = TextElement(text = "New Text", yRatio = 0.5f).normalizeAlpha()
+                                            updateCardState(currentCard.copy(elements = currentCard.elements + newElement))
+                                            selectedElementId = newElement.id
+                                            activeTab = EditorTab.TEXT
                                         }
+                                    },
+                                    icon = if (isImeVisible) painterResource(R.drawable.ic_check) else painterResource(R.drawable.ic_plus),
+                                    contentColor = ContentPrimary,
+                                    containerColor = SurfacePrimary,
+                                    size = ButtonSize.Small,
+                                    modifier = Modifier
+                                        .width(56.dp)
+                                        .height(40.dp)
+                                )
+                            }
+                        }
 
-                                        data class SliderConfigData(
-                                            val label: String,
-                                            val value: Float,
-                                            val icon: Painter,
-                                            val isAuto: Boolean,
-                                            val showReset: Boolean,
-                                            val onValueChange: (Float) -> Unit,
-                                            val onReset: () -> Unit
+                        val tabScrollState = rememberScrollState()
+                        var hasPlayedTabLaunchAnimation by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(Unit) {
+                            snapshotFlow { tabScrollState.maxValue }
+                                .collect { maxScroll ->
+                                    if (maxScroll > 0 && !hasPlayedTabLaunchAnimation) {
+                                        hasPlayedTabLaunchAnimation = true
+                                        delay(200.milliseconds)
+
+                                        tabScrollState.animateScrollTo(
+                                            value = maxScroll,
+                                            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
                                         )
+                                        delay(150.milliseconds)
 
-                                        val sliders = listOf(
-                                            SliderConfigData(
-                                                label = "Font Size",
-                                                value = selectedElement.fontSizeSp,
-                                                icon = painterResource(R.drawable.ic_font_size),
-                                                isAuto = false,
-                                                showReset = selectedElement.fontSizeSp != (initialElement?.fontSizeSp ?: 24f),
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedFontSize = initialElement?.fontSizeSp ?: 24f
-                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = savedFontSize) }
+                                        tabScrollState.animateScrollTo(
+                                            value = 0,
+                                            animationSpec = tween(durationMillis = 700, easing = FastOutSlowInEasing)
+                                        )
+                                    }
+                                }
+                        }
+
+                        val tabPositions = remember { mutableStateListOf<Float>() }
+                        val tabWidths = remember { mutableStateListOf<Float>() }
+                        var containerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(tabScrollState)
+                                .onGloballyPositioned { containerCords = it }
+                        ) {
+                            if (tabPositions.size == EditorTab.entries.size) {
+                                val targetIndex = EditorTab.entries.indexOf(activeTab)
+                                val indicatorOffset by animateFloatAsState(
+                                    targetValue = tabPositions[targetIndex],
+                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                    label = "TabIndicatorOffset"
+                                )
+                                val indicatorWidth by animateFloatAsState(
+                                    targetValue = tabWidths[targetIndex],
+                                    animationSpec = spring(stiffness = Spring.StiffnessLow),
+                                    label = "TabIndicatorWidth"
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = indicatorOffset.dp)
+                                        .width(indicatorWidth.dp)
+                                        .height(48.dp)
+                                        .background(SurfacePrimary, tabIndicatorShape)
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp),
+                                verticalAlignment = Alignment.Bottom
+                            ) {
+                                EditorTab.entries.forEachIndexed { index, tab ->
+                                    val isSelected = activeTab == tab
+                                    Box(
+                                        modifier = Modifier
+                                            .onGloballyPositioned { cords ->
+                                                if (tabPositions.size <= index) {
+                                                    tabPositions.add(0f)
+                                                    tabWidths.add(0f)
                                                 }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Line Height",
-                                                value = displayLineHeightValue,
-                                                icon = painterResource(R.drawable.ic_line_height),
-                                                isAuto = isLineHeightAuto,
-                                                showReset = selectedElement.lineHeightSp != (initialElement?.lineHeightSp ?: 0f),
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedLineHeight = initialElement?.lineHeightSp ?: 0f
-                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = savedLineHeight) }
+                                                containerCords?.let { parent ->
+                                                    val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
+                                                    tabPositions[index] = (pos / density.density)
+                                                    tabWidths[index] = (cords.size.width / density.density)
                                                 }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Vertical Padding",
-                                                value = selectedElement.verticalPaddingSp,
-                                                icon = painterResource(R.drawable.ic_vertical_spacing),
-                                                isAuto = false,
-                                                showReset = selectedElement.verticalPaddingSp != (initialElement?.verticalPaddingSp ?: 0f) ||
-                                                        selectedElement.paddingMode != (initialElement?.paddingMode ?: CardPaddingMode.BOTH),
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
-                                                    val savedPaddingMode = initialElement?.paddingMode ?: CardPaddingMode.BOTH
-                                                    updateElement(selectedElement.id) {
-                                                        it.copy(
-                                                            verticalPaddingSp = savedVerticalPadding,
-                                                            paddingMode = savedPaddingMode
-                                                        )
+                                            }
+                                            .noRippleClickable { activeTab = tab }
+                                            .padding(horizontal = 24.dp, vertical = 12.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = tab.label,
+                                            style = JasnifyTheme.typography.labelXLarge,
+                                            color = if (isSelected) ContentBrandDark else ContentSecondary,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (isImeVisible) Modifier.wrapContentHeight() else Modifier.weight(1f))
+                                .background(SurfacePrimary)
+                                .then(
+                                    if (activeTab != EditorTab.SIZE && activeTab != EditorTab.COLOR) Modifier.verticalScroll(rememberScrollState())
+                                    else Modifier
+                                )
+                        ) {
+                            when (activeTab) {
+                                EditorTab.TEXT -> {
+                                    if (selectedElement != null) {
+                                        key(selectedElement.id) {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(16.dp)
+                                            ) {
+                                                PrimaryInput(
+                                                    value = selectedElement.text,
+                                                    placeholder = "New Text",
+                                                    onValueChange = { newText ->
+                                                        updateElement(selectedElement.id) { it.copy(text = newText) }
+                                                    },
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .focusRequester(focusRequester)
+                                                        .onFocusChanged { isTextFieldFocused = it.isFocused }
+                                                )
+                                            }
+                                        }
+                                    } else {
+                                        NoSelectionPlaceholder()
+                                    }
+                                }
+                                EditorTab.THEME -> {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(vertical = 16.dp)
+                                            .noRippleClickable { focusManager.clearFocus() }
+                                    ) {
+                                        ThemeSelectorSection(
+                                            currentCard = currentCard,
+                                            cardRoomData = cardRoomData,
+                                            isUploading = isUploading,
+                                            onSelectTheme = { resId, url, defaultName ->
+                                                val updated = currentCard.copy(
+                                                    backgroundRes = resId,
+                                                    backgroundUrl = url,
+                                                    bgName = if (currentCard.bgName.isBlank()) "" else currentCard.bgName
+                                                )
+                                                updateCardState(updated)
+                                                onDataChange(updated)
+                                            },
+                                            onUpdateThemeName = onUpdateThemeName,
+                                            onUpdateCardBgName = { newName ->
+                                                val updated = currentCard.copy(bgName = newName)
+                                                updateCardState(updated)
+                                                onDataChange(updated)
+                                            },
+                                            onUploadClick = { imageLauncher.launch("image/*") }
+                                        )
+                                    }
+                                }
+                                EditorTab.FONT -> {
+                                    if (selectedElement != null) {
+                                        key(selectedElement.id) {
+                                            ProfessionalFontSelector(
+                                                selectedElement = selectedElement,
+                                                bottomSheetWeight = bottomSheetWeight,
+                                                onUpdateElement = ::updateElement
+                                            )
+                                        }
+                                    } else {
+                                        NoSelectionPlaceholder()
+                                    }
+                                }
+                                EditorTab.COLOR -> {
+                                    if (selectedElement != null) {
+                                        key(selectedElement.id) {
+                                            val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                                normalizedInitialData.elements.find { it.id == selectedElement.id }
+                                            }
+
+                                            val palette = remember {
+                                                listOf(
+                                                    0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
+                                                    0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
+                                                    0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
+                                                    0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
+                                                    0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
+                                                    0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
+                                                    0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
+                                                    0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
+                                                )
+                                            }
+
+                                            LaunchedEffect(selectedElement.id) {
+                                                val activeRgb = selectedElement.colorHex and 0x00FFFFFFL
+                                                val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
+                                                if (matchIndex >= 0) {
+                                                    colorRowLazyListState.animateScrollToItem(matchIndex + 2)
+                                                }
+                                            }
+
+                                            val currentAlpha = (selectedElement.colorHex shr 24) and 0xFFL
+                                            val currentOpacity = (currentAlpha.toFloat() / 255f) * 100f
+
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(vertical = 16.dp),
+                                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                                            ) {
+                                                LazyRow(
+                                                    state = colorRowLazyListState,
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                    contentPadding = PaddingValues(horizontal = 16.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    item {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(56.dp)
+                                                                .clip(CircleShape)
+                                                                .noRippleClickable {
+                                                                    showEyeDropper = true
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                painter = painterResource(R.drawable.ic_color_picker),
+                                                                contentDescription = "Eyedropper",
+                                                                tint = ContentPrimary,
+                                                                modifier = Modifier.size(32.dp)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    item {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(56.dp)
+                                                                .clip(CircleShape)
+                                                                .background(
+                                                                    brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                                                        listOf(
+                                                                            Color.Red,
+                                                                            Color.Yellow,
+                                                                            Color.Green,
+                                                                            Color.Cyan,
+                                                                            Color.Blue,
+                                                                            Color.Magenta,
+                                                                            Color.Red
+                                                                        )
+                                                                    )
+                                                                )
+                                                                .noRippleClickable {
+                                                                    showColorPicker = true
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(SurfacePrimary)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    items(palette) { hex ->
+                                                        val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
+                                                        val swatchColor = Color(hex.toInt())
+
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(56.dp)
+                                                                .clip(CircleShape)
+                                                                .background(swatchColor)
+                                                                .border(1.dp, Color(0x26000000), CircleShape)
+                                                                .clickable {
+                                                                    val swatchRgb = hex and 0x00FFFFFFL
+                                                                    updateElement(selectedElement.id) { target ->
+                                                                        val activeAlpha = (target.colorHex shr 24) and 0xFFL
+                                                                        val updatedColorHex = (activeAlpha shl 24) or swatchRgb
+                                                                        target.copy(colorHex = updatedColorHex)
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            if (isSelected) {
+                                                                Icon(
+                                                                    painter = painterResource(R.drawable.ic_check),
+                                                                    contentDescription = "Selected",
+                                                                    tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
+                                                                    modifier = Modifier.size(32.dp)
+                                                                )
+                                                            }
+                                                        }
                                                     }
                                                 }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Letter Spacing",
-                                                value = selectedElement.letterSpacingSp,
-                                                icon = painterResource(R.drawable.ic_letter_spacing),
-                                                isAuto = false,
-                                                showReset = selectedElement.letterSpacingSp != (initialElement?.letterSpacingSp ?: 0f),
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
-                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = savedLetterSpacing) }
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 16.dp)
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                            shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                        )
+                                                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                        .background(SurfaceSecondary)
+                                                ) {
+                                                    val initialOpacity = remember(initialElement) {
+                                                        ((initialElement?.colorHex?.shr(24)?.and(0xFFL)?.toFloat() ?: 255f) / 255f * 100f)
+                                                    }
+
+                                                    CustomSliderCard(
+                                                        label = "Opacity",
+                                                        value = currentOpacity,
+                                                        onValueChange = { newOpacity ->
+                                                            val alphaByte = round((newOpacity / 100f) * 255f).toLong().coerceIn(0L, 255L)
+                                                            updateElement(selectedElement.id) { target ->
+                                                                val currentRgb = target.colorHex and 0x00FFFFFFL
+                                                                val updatedColorHex = (alphaByte shl 24) or currentRgb
+                                                                target.copy(colorHex = updatedColorHex)
+                                                            }
+                                                        },
+                                                        valueRange = 0f..100f,
+                                                        unit = "%",
+                                                        icon = painterResource(R.drawable.ic_opacity),
+                                                        onReset = {
+                                                            val initialHex = initialElement?.colorHex ?: 0xFF000000L
+                                                            val savedAlpha = (initialHex shr 24) and 0xFFL
+                                                            updateElement(selectedElement.id) { target ->
+                                                                val currentRgb = target.colorHex and 0x00FFFFFFL
+                                                                val updatedColorHex = (savedAlpha shl 24) or currentRgb
+                                                                target.copy(colorHex = updatedColorHex)
+                                                            }
+                                                        },
+                                                        showReset = abs(currentOpacity - initialOpacity) > 0.1f,
+                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                    )
                                                 }
-                                            ),
-                                        )
+                                            }
+                                        }
+                                    } else {
+                                        NoSelectionPlaceholder()
+                                    }
+                                }
+                                EditorTab.SIZE -> {
+                                    if (selectedElement != null) {
+                                        key(selectedElement.id) {
+                                            val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                                normalizedInitialData.elements.find { it.id == selectedElement.id }
+                                            }
 
-                                        val sizeScrollState = rememberScrollState()
+                                            val isLineHeightAuto = selectedElement.lineHeightSp <= 0f
+                                            val displayLineHeightValue = if (isLineHeightAuto) {
+                                                (selectedElement.fontSizeSp * 1.2f).coerceIn(0f, 100f)
+                                            } else {
+                                                selectedElement.lineHeightSp
+                                            }
 
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .wrapContentHeight()
-                                                .padding(16.dp)
-                                        ) {
+                                            data class SliderConfigData(
+                                                val label: String,
+                                                val value: Float,
+                                                val icon: Painter,
+                                                val isAuto: Boolean,
+                                                val showReset: Boolean,
+                                                val onValueChange: (Float) -> Unit,
+                                                val onReset: () -> Unit
+                                            )
+
+                                            val sliders = listOf(
+                                                SliderConfigData(
+                                                    label = "Font Size",
+                                                    value = selectedElement.fontSizeSp,
+                                                    icon = painterResource(R.drawable.ic_font_size),
+                                                    isAuto = false,
+                                                    showReset = selectedElement.fontSizeSp != (initialElement?.fontSizeSp ?: 24f),
+                                                    onValueChange = { v ->
+                                                        updateElement(selectedElement.id) { it.copy(fontSizeSp = v) }
+                                                    },
+                                                    onReset = {
+                                                        val savedFontSize = initialElement?.fontSizeSp ?: 24f
+                                                        updateElement(selectedElement.id) { it.copy(fontSizeSp = savedFontSize) }
+                                                    }
+                                                ),
+                                                SliderConfigData(
+                                                    label = "Line Height",
+                                                    value = displayLineHeightValue,
+                                                    icon = painterResource(R.drawable.ic_line_height),
+                                                    isAuto = isLineHeightAuto,
+                                                    showReset = selectedElement.lineHeightSp != (initialElement?.lineHeightSp ?: 0f),
+                                                    onValueChange = { v ->
+                                                        updateElement(selectedElement.id) { it.copy(lineHeightSp = v) }
+                                                    },
+                                                    onReset = {
+                                                        val savedLineHeight = initialElement?.lineHeightSp ?: 0f
+                                                        updateElement(selectedElement.id) { it.copy(lineHeightSp = savedLineHeight) }
+                                                    }
+                                                ),
+                                                SliderConfigData(
+                                                    label = "Vertical Padding",
+                                                    value = selectedElement.verticalPaddingSp,
+                                                    icon = painterResource(R.drawable.ic_vertical_spacing),
+                                                    isAuto = false,
+                                                    showReset = selectedElement.verticalPaddingSp != (initialElement?.verticalPaddingSp ?: 0f) ||
+                                                            selectedElement.paddingMode != (initialElement?.paddingMode ?: CardPaddingMode.BOTH),
+                                                    onValueChange = { v ->
+                                                        updateElement(selectedElement.id) { it.copy(verticalPaddingSp = v) }
+                                                    },
+                                                    onReset = {
+                                                        val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
+                                                        val savedPaddingMode = initialElement?.paddingMode ?: CardPaddingMode.BOTH
+                                                        updateElement(selectedElement.id) {
+                                                            it.copy(
+                                                                verticalPaddingSp = savedVerticalPadding,
+                                                                paddingMode = savedPaddingMode
+                                                            )
+                                                        }
+                                                    }
+                                                ),
+                                                SliderConfigData(
+                                                    label = "Letter Spacing",
+                                                    value = selectedElement.letterSpacingSp,
+                                                    icon = painterResource(R.drawable.ic_letter_spacing),
+                                                    isAuto = false,
+                                                    showReset = selectedElement.letterSpacingSp != (initialElement?.letterSpacingSp ?: 0f),
+                                                    onValueChange = { v ->
+                                                        updateElement(selectedElement.id) { it.copy(letterSpacingSp = v) }
+                                                    },
+                                                    onReset = {
+                                                        val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
+                                                        updateElement(selectedElement.id) { it.copy(letterSpacingSp = savedLetterSpacing) }
+                                                    }
+                                                ),
+                                            )
+
+                                            val sizeScrollState = rememberScrollState()
+
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
                                                     .wrapContentHeight()
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
-                                                    )
-                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                    .background(SurfaceSecondary)
-                                                    .drawScrollbar(sizeScrollState)
-                                                    .verticalScroll(sizeScrollState)
+                                                    .padding(16.dp)
                                             ) {
-                                                Column(
+                                                Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
                                                         .wrapContentHeight()
+                                                        .border(
+                                                            width = 1.dp,
+                                                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                            shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                        )
+                                                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                        .background(SurfaceSecondary)
+                                                        .drawScrollbar(sizeScrollState)
+                                                        .verticalScroll(sizeScrollState)
                                                 ) {
-                                                    sliders.forEachIndexed { index, config ->
-                                                        Column {
-                                                            CustomSliderCard(
-                                                                label = config.label,
-                                                                value = config.value,
-                                                                onValueChange = config.onValueChange,
-                                                                valueRange = 0f..100f,
-                                                                unit = "px",
-                                                                icon = config.icon,
-                                                                isAuto = config.isAuto,
-                                                                onReset = config.onReset,
-                                                                showReset = config.showReset,
-                                                                shape = SquircleShape(0.dp)
-                                                            )
+                                                    Column(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .wrapContentHeight()
+                                                    ) {
+                                                        sliders.forEachIndexed { index, config ->
+                                                            Column {
+                                                                CustomSliderCard(
+                                                                    label = config.label,
+                                                                    value = config.value,
+                                                                    onValueChange = config.onValueChange,
+                                                                    valueRange = 0f..100f,
+                                                                    unit = "px",
+                                                                    icon = config.icon,
+                                                                    isAuto = config.isAuto,
+                                                                    onReset = config.onReset,
+                                                                    showReset = config.showReset,
+                                                                    shape = SquircleShape(0.dp)
+                                                                )
 
-                                                            if (config.label == "Vertical Padding") {
-                                                                Box(
-                                                                    modifier = Modifier
-                                                                        .fillMaxWidth()
-                                                                        .padding(horizontal = 16.dp, vertical = 8.dp)
-                                                                        .padding(bottom = 8.dp)
-                                                                ) {
-                                                                    IosSegmentedControl(
-                                                                        options = CardPaddingMode.entries,
-                                                                        selectedOption = selectedElement.paddingMode,
-                                                                        onOptionSelected = { mode ->
-                                                                            updateElement(selectedElement.id) { it.copy(paddingMode = mode) }
-                                                                        },
-                                                                        labelProvider = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
-                                                                        modifier = Modifier.fillMaxWidth()
-                                                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f), RoundedCornerShape(100))
-                                                                    )
+                                                                if (config.label == "Vertical Padding") {
+                                                                    Box(
+                                                                        modifier = Modifier
+                                                                            .fillMaxWidth()
+                                                                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                                            .padding(bottom = 8.dp)
+                                                                    ) {
+                                                                        IosSegmentedControl(
+                                                                            options = CardPaddingMode.entries,
+                                                                            selectedOption = selectedElement.paddingMode,
+                                                                            onOptionSelected = { mode ->
+                                                                                updateElement(selectedElement.id) { it.copy(paddingMode = mode) }
+                                                                            },
+                                                                            labelProvider = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                                                                            modifier = Modifier.fillMaxWidth()
+                                                                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f), RoundedCornerShape(100))
+                                                                        )
+                                                                    }
                                                                 }
                                                             }
-                                                        }
 
-                                                        if (index < sliders.lastIndex) {
-                                                            HorizontalDivider(
-                                                                color = MaterialTheme.colorScheme.outline.copy(0.12f),
-                                                                thickness = 1.dp
-                                                            )
+                                                            if (index < sliders.lastIndex) {
+                                                                HorizontalDivider(
+                                                                    color = MaterialTheme.colorScheme.outline.copy(0.12f),
+                                                                    thickness = 1.dp
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }
                                             }
                                         }
+                                    } else {
+                                        NoSelectionPlaceholder()
                                     }
-                                } else {
-                                    NoSelectionPlaceholder()
                                 }
                             }
                         }
@@ -1266,7 +1377,6 @@ fun EditCardDetailsScreen(
             }
         }
 
-        // Interactive Eyedropper Overlay (Rendered last in Box with highest zIndex)
         if (showEyeDropper && selectedElement != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             Box(
                 modifier = Modifier
@@ -1285,6 +1395,119 @@ fun EditCardDetailsScreen(
                     },
                 )
             }
+        }
+
+        AnimatedVisibility(
+            visible = toastData != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(200f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            toastData?.let {
+                CustomToast(message = it.message ?: "", type = it.type)
+            }
+        }
+
+        if (showSuccessSheet) {
+            CustomBottomSheet(
+                isVisible = true,
+                onDismiss = { showSuccessSheet = false },
+                showCloseButton = false,
+                showDragHandle = false,
+                sheetHeight = 480.dp,
+                onProgress = { sheetMotionProgress = it }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Top & Center Content
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier.size(64.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_tick),
+                                contentDescription = "Success checkmark",
+                                modifier = Modifier.size(64.dp),
+                                tint = ContentBrandDark
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        Text(
+                            text = "Saved Successfully!",
+                            style = JasnifyTheme.typography.displaySmall,
+                            textAlign = TextAlign.Center,
+                            color = ContentBrandDark
+                        )
+                    }
+
+                    // Bottom Actions
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomTextButton(
+                            text = "Download",
+                            onClick = {
+                                showSuccessSheet = false
+                                coroutineScope.launch {
+                                    cardToDownload = currentCard
+                                    delay(100.milliseconds)
+                                    val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                                    val success = ShareUtils.downloadImage(context, bitmap)
+                                    cardToDownload = null
+                                    if (success) {
+                                        showDownloadSuccessSheet = true
+                                    } else {
+                                        toastData = ToastData("Failed to download", ToastType.ERROR)
+                                    }
+                                }
+                            },
+                            leadingIcon = painterResource(R.drawable.ic_download),
+                            type = ButtonType.Secondary,
+                            shapeStyle = ButtonShapeStyle.Square,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        CustomTextButton(
+                            text = "Done",
+                            onClick = {
+                                showSuccessSheet = false
+                                onBackClick()
+                            },
+                            modifier = Modifier.weight(1f),
+                            shapeStyle = ButtonShapeStyle.Square
+                        )
+                    }
+                }
+            }
+        }
+
+        if (showDownloadSuccessSheet) {
+            CustomSuccessBottomSheet(
+                message = "Image Downloaded!",
+                onDismiss = { showDownloadSuccessSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
         }
     }
 }
@@ -1971,7 +2194,6 @@ fun InteractiveTextElementItem(
 
                         val cornerOffset = reducedHandleSize
 
-                        // 1. Delete / Cross handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
@@ -2000,7 +2222,6 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 2. Width handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.CenterEnd)
@@ -2041,7 +2262,6 @@ fun InteractiveTextElementItem(
                             )
                         }
 
-                        // 3. Resize handle
                         Box(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
@@ -2104,25 +2324,25 @@ fun ThemeSelectorSection(
     onUploadClick: () -> Unit
 ) {
     val themes = remember(cardRoomData) {
-        if (cardRoomData != null && cardRoomData.themes.isNotEmpty()) {
-            cardRoomData.themes.map {
-                CardThemeItem(
-                    id = it.id,
-                    name = it.name,
-                    resId = it.resId,
-                    url = it.url,
-                    isDefault = it.isDefault
-                )
-            }
-        } else {
-            listOf(
-                CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
-                CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
-                CardThemeItem(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
-                CardThemeItem(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
-                CardThemeItem(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+        val defaults = listOf(
+            CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
+            CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
+            CardThemeItem(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
+            CardThemeItem(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
+            CardThemeItem(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+        )
+
+        val uploaded = cardRoomData?.themes?.filter { !it.isDefault }?.map {
+            CardThemeItem(
+                id = it.id,
+                name = it.name,
+                resId = it.resId,
+                url = it.url,
+                isDefault = it.isDefault
             )
-        }
+        } ?: emptyList()
+
+        uploaded + defaults
     }
 
     LazyRow(
