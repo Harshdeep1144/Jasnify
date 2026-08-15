@@ -88,7 +88,7 @@ fun TopBarIconButton(
 
     val painter: Painter = when (icon) {
         TopIcon.Predefined.BACK -> painterResource(R.drawable.ic_back)
-        TopIcon.Predefined.BACK_2 -> rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack)
+        TopIcon.Predefined.BACK_2 -> painterResource(R.drawable.ic_back_02)
         TopIcon.Predefined.DOWN -> painterResource(R.drawable.ic_down)
         TopIcon.Predefined.CLOSE -> painterResource(R.drawable.ic_cross)
         TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
