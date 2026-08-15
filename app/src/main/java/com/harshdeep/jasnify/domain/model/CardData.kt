@@ -103,6 +103,10 @@ enum class CardTextAlign {
     }
 }
 
+enum class CardPaddingMode {
+    BOTH, TOP, BOTTOM
+}
+
 data class TextElement(
     var id: String = UUID.randomUUID().toString(),
     var text: String = "Sample Text",
@@ -119,6 +123,7 @@ data class TextElement(
     var letterSpacingSp: Float = 0f,
     var lineHeightSp: Float = 0f, // 0 means default
     var verticalPaddingSp: Float = 0f,
+    var paddingMode: CardPaddingMode = CardPaddingMode.BOTH,
     var zIndex: Int = 0,
     var isEditable: Boolean = true // If false, element cannot be selected, moved, or edited
 )

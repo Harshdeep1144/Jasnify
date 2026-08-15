@@ -67,14 +67,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignLeft
 import androidx.compose.material.icons.automirrored.rounded.FormatAlignRight
-import androidx.compose.material.icons.filled.Colorize
-import androidx.compose.material.icons.filled.FormatLineSpacing
-import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material.icons.filled.TextFields
-import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.FormatAlignCenter
@@ -149,17 +143,19 @@ import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.CardPaddingMode
 import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTextAlign
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.TextElement
-import com.harshdeep.jasnify.presentation.components.dialogs.ColorPickerWheel
-import com.harshdeep.jasnify.presentation.components.dialogs.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.dialogs.ColorPickerWheel
+import com.harshdeep.jasnify.presentation.components.dialogs.EyeDropperOverlay
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
+import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
@@ -193,8 +189,8 @@ enum class EditorTab(val label: String) {
     TEXT("Text"),
     THEME("Theme"),
     FONT("Font"),
-    SIZE("Size"),
-    COLOR("Color")
+    COLOR("Color"),
+    SIZE("Size")
 }
 
 data class CardThemeItem(
@@ -478,8 +474,8 @@ fun EditCardDetailsScreen(
                             if (isUploading) return@CustomTextButton
 
                             val uriToUpload = pendingImageUri
-                            val isUsingCustomImage = currentCard.backgroundRes == 0 && 
-                                    currentCard.backgroundUrl != null && 
+                            val isUsingCustomImage = currentCard.backgroundRes == 0 &&
+                                    currentCard.backgroundUrl != null &&
                                     currentCard.backgroundUrl == uriToUpload?.toString()
 
                             if (uriToUpload != null && isUsingCustomImage) {
@@ -719,8 +715,8 @@ fun EditCardDetailsScreen(
                                 EditorTab.TEXT -> "Edit Text"
                                 EditorTab.THEME -> "Select Theme"
                                 EditorTab.FONT -> "Edit Font"
-                                EditorTab.SIZE -> "Edit Size"
                                 EditorTab.COLOR -> "Select Text Color"
+                                EditorTab.SIZE -> "Edit Size"
                             },
                             style = JasnifyTheme.typography.headingXLarge,
                             color = ContentPrimary,
@@ -920,139 +916,6 @@ fun EditCardDetailsScreen(
                                     NoSelectionPlaceholder()
                                 }
                             }
-                            EditorTab.SIZE -> {
-                                if (selectedElement != null) {
-                                    key(selectedElement.id) {
-                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
-                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
-                                        }
-
-                                        val isLineHeightAuto = selectedElement.lineHeightSp <= 0f
-                                        val displayLineHeightValue = if (isLineHeightAuto) {
-                                            (selectedElement.fontSizeSp * 1.2f).coerceIn(0f, 100f)
-                                        } else {
-                                            selectedElement.lineHeightSp
-                                        }
-
-                                        data class SliderConfigData(
-                                            val label: String,
-                                            val value: Float,
-                                            val icon: androidx.compose.ui.graphics.vector.ImageVector,
-                                            val isAuto: Boolean,
-                                            val onValueChange: (Float) -> Unit,
-                                            val onReset: () -> Unit
-                                        )
-
-                                        val sliders = listOf(
-                                            SliderConfigData(
-                                                label = "Font Size",
-                                                value = selectedElement.fontSizeSp,
-                                                icon = Icons.Default.FormatSize,
-                                                isAuto = false,
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedFontSize = initialElement?.fontSizeSp ?: 24f
-                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = savedFontSize) }
-                                                }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Line Height",
-                                                value = displayLineHeightValue,
-                                                icon = Icons.Default.FormatLineSpacing,
-                                                isAuto = isLineHeightAuto,
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedLineHeight = initialElement?.lineHeightSp ?: 0f
-                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = savedLineHeight) }
-                                                }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Letter Spacing",
-                                                value = selectedElement.letterSpacingSp,
-                                                icon = Icons.Default.TextFields,
-                                                isAuto = false,
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
-                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = savedLetterSpacing) }
-                                                }
-                                            ),
-                                            SliderConfigData(
-                                                label = "Vertical Padding",
-                                                value = selectedElement.verticalPaddingSp,
-                                                icon = Icons.Default.Height,
-                                                isAuto = false,
-                                                onValueChange = { v ->
-                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = v) }
-                                                },
-                                                onReset = {
-                                                    val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
-                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = savedVerticalPadding) }
-                                                }
-                                            )
-                                        )
-
-                                        val sizeScrollState = rememberScrollState()
-
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .wrapContentHeight()
-                                                .padding(16.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .wrapContentHeight()
-                                                    .border(
-                                                        width = 1.dp,
-                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
-                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
-                                                    )
-                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                    .background(SurfaceSecondary)
-                                                    .drawScrollbar(sizeScrollState)
-                                                    .verticalScroll(sizeScrollState)
-                                            ) {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .wrapContentHeight()
-                                                ) {
-                                                    sliders.forEachIndexed { index, config ->
-                                                        CustomSliderCard(
-                                                            label = config.label,
-                                                            value = config.value,
-                                                            onValueChange = config.onValueChange,
-                                                            valueRange = 0f..100f,
-                                                            unit = "px",
-                                                            icon = config.icon,
-                                                            isAuto = config.isAuto,
-                                                            onReset = config.onReset,
-                                                            shape = SquircleShape(0.dp)
-                                                        )
-
-                                                        if (index < sliders.lastIndex) {
-                                                            HorizontalDivider(
-                                                                color = MaterialTheme.colorScheme.outline.copy(0.12f),
-                                                                thickness = 1.dp
-                                                            )
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    NoSelectionPlaceholder()
-                                }
-                            }
                             EditorTab.COLOR -> {
                                 if (selectedElement != null) {
                                     key(selectedElement.id) {
@@ -1108,7 +971,7 @@ fun EditCardDetailsScreen(
                                                         contentAlignment = Alignment.Center
                                                     ) {
                                                         Icon(
-                                                            imageVector = Icons.Default.Colorize,
+                                                            painter = painterResource(R.drawable.ic_color_picker),
                                                             contentDescription = "Eyedropper",
                                                             tint = ContentPrimary,
                                                             modifier = Modifier.size(32.dp)
@@ -1192,6 +1055,10 @@ fun EditCardDetailsScreen(
                                                     .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                                     .background(SurfaceSecondary)
                                             ) {
+                                                val initialOpacity = remember(initialElement) {
+                                                    ((initialElement?.colorHex?.shr(24)?.and(0xFFL)?.toFloat() ?: 255f) / 255f * 100f)
+                                                }
+
                                                 CustomSliderCard(
                                                     label = "Opacity",
                                                     value = currentOpacity,
@@ -1205,7 +1072,7 @@ fun EditCardDetailsScreen(
                                                     },
                                                     valueRange = 0f..100f,
                                                     unit = "%",
-                                                    icon = Icons.Default.WbSunny,
+                                                    icon = painterResource(R.drawable.ic_opacity),
                                                     onReset = {
                                                         val initialHex = initialElement?.colorHex ?: 0xFF000000L
                                                         val savedAlpha = (initialHex shr 24) and 0xFFL
@@ -1215,8 +1082,177 @@ fun EditCardDetailsScreen(
                                                             target.copy(colorHex = updatedColorHex)
                                                         }
                                                     },
+                                                    showReset = abs(currentOpacity - initialOpacity) > 0.1f,
                                                     shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
                                                 )
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    NoSelectionPlaceholder()
+                                }
+                            }
+                            EditorTab.SIZE -> {
+                                if (selectedElement != null) {
+                                    key(selectedElement.id) {
+                                        val initialElement = remember(selectedElement.id, normalizedInitialData) {
+                                            normalizedInitialData.elements.find { it.id == selectedElement.id }
+                                        }
+
+                                        val isLineHeightAuto = selectedElement.lineHeightSp <= 0f
+                                        val displayLineHeightValue = if (isLineHeightAuto) {
+                                            (selectedElement.fontSizeSp * 1.2f).coerceIn(0f, 100f)
+                                        } else {
+                                            selectedElement.lineHeightSp
+                                        }
+
+                                        data class SliderConfigData(
+                                            val label: String,
+                                            val value: Float,
+                                            val icon: Painter,
+                                            val isAuto: Boolean,
+                                            val showReset: Boolean,
+                                            val onValueChange: (Float) -> Unit,
+                                            val onReset: () -> Unit
+                                        )
+
+                                        val sliders = listOf(
+                                            SliderConfigData(
+                                                label = "Font Size",
+                                                value = selectedElement.fontSizeSp,
+                                                icon = painterResource(R.drawable.ic_font_size),
+                                                isAuto = false,
+                                                showReset = selectedElement.fontSizeSp != (initialElement?.fontSizeSp ?: 24f),
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = v) }
+                                                },
+                                                onReset = {
+                                                    val savedFontSize = initialElement?.fontSizeSp ?: 24f
+                                                    updateElement(selectedElement.id) { it.copy(fontSizeSp = savedFontSize) }
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Line Height",
+                                                value = displayLineHeightValue,
+                                                icon = painterResource(R.drawable.ic_line_height),
+                                                isAuto = isLineHeightAuto,
+                                                showReset = selectedElement.lineHeightSp != (initialElement?.lineHeightSp ?: 0f),
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = v) }
+                                                },
+                                                onReset = {
+                                                    val savedLineHeight = initialElement?.lineHeightSp ?: 0f
+                                                    updateElement(selectedElement.id) { it.copy(lineHeightSp = savedLineHeight) }
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Vertical Padding",
+                                                value = selectedElement.verticalPaddingSp,
+                                                icon = painterResource(R.drawable.ic_vertical_spacing),
+                                                isAuto = false,
+                                                showReset = selectedElement.verticalPaddingSp != (initialElement?.verticalPaddingSp ?: 0f) ||
+                                                        selectedElement.paddingMode != (initialElement?.paddingMode ?: CardPaddingMode.BOTH),
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.id) { it.copy(verticalPaddingSp = v) }
+                                                },
+                                                onReset = {
+                                                    val savedVerticalPadding = initialElement?.verticalPaddingSp ?: 0f
+                                                    val savedPaddingMode = initialElement?.paddingMode ?: CardPaddingMode.BOTH
+                                                    updateElement(selectedElement.id) {
+                                                        it.copy(
+                                                            verticalPaddingSp = savedVerticalPadding,
+                                                            paddingMode = savedPaddingMode
+                                                        )
+                                                    }
+                                                }
+                                            ),
+                                            SliderConfigData(
+                                                label = "Letter Spacing",
+                                                value = selectedElement.letterSpacingSp,
+                                                icon = painterResource(R.drawable.ic_letter_spacing),
+                                                isAuto = false,
+                                                showReset = selectedElement.letterSpacingSp != (initialElement?.letterSpacingSp ?: 0f),
+                                                onValueChange = { v ->
+                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = v) }
+                                                },
+                                                onReset = {
+                                                    val savedLetterSpacing = initialElement?.letterSpacingSp ?: 0f
+                                                    updateElement(selectedElement.id) { it.copy(letterSpacingSp = savedLetterSpacing) }
+                                                }
+                                            ),
+                                        )
+
+                                        val sizeScrollState = rememberScrollState()
+
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .wrapContentHeight()
+                                                .padding(16.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .wrapContentHeight()
+                                                    .border(
+                                                        width = 1.dp,
+                                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                                                    )
+                                                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                    .background(SurfaceSecondary)
+                                                    .drawScrollbar(sizeScrollState)
+                                                    .verticalScroll(sizeScrollState)
+                                            ) {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .wrapContentHeight()
+                                                ) {
+                                                    sliders.forEachIndexed { index, config ->
+                                                        Column {
+                                                            CustomSliderCard(
+                                                                label = config.label,
+                                                                value = config.value,
+                                                                onValueChange = config.onValueChange,
+                                                                valueRange = 0f..100f,
+                                                                unit = "px",
+                                                                icon = config.icon,
+                                                                isAuto = config.isAuto,
+                                                                onReset = config.onReset,
+                                                                showReset = config.showReset,
+                                                                shape = SquircleShape(0.dp)
+                                                            )
+
+                                                            if (config.label == "Vertical Padding") {
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .fillMaxWidth()
+                                                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                                                        .padding(bottom = 8.dp)
+                                                                ) {
+                                                                    IosSegmentedControl(
+                                                                        options = CardPaddingMode.entries,
+                                                                        selectedOption = selectedElement.paddingMode,
+                                                                        onOptionSelected = { mode ->
+                                                                            updateElement(selectedElement.id) { it.copy(paddingMode = mode) }
+                                                                        },
+                                                                        labelProvider = { it.name.lowercase().replaceFirstChar { c -> c.uppercase() } },
+                                                                        modifier = Modifier.fillMaxWidth()
+                                                                            .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f), RoundedCornerShape(100))
+                                                                    )
+                                                                }
+                                                            }
+                                                        }
+
+                                                        if (index < sliders.lastIndex) {
+                                                            HorizontalDivider(
+                                                                color = MaterialTheme.colorScheme.outline.copy(0.12f),
+                                                                thickness = 1.dp
+                                                            )
+                                                        }
+                                                    }
+                                                }
                                             }
                                         }
                                     }
@@ -1869,10 +1905,21 @@ fun InteractiveTextElementItem(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            val topPadding = when (element.paddingMode) {
+                CardPaddingMode.BOTH,
+                CardPaddingMode.TOP -> (element.verticalPaddingSp * scaleFactor / 2).dp
+                else -> 0.dp
+            }
+            val bottomPadding = when (element.paddingMode) {
+                CardPaddingMode.BOTH,
+                CardPaddingMode.BOTTOM -> (element.verticalPaddingSp * scaleFactor / 2).dp
+                else -> 0.dp
+            }
+
             Box(
                 modifier = Modifier
                     .wrapContentSize()
-                    .padding(vertical = (element.verticalPaddingSp * scaleFactor).dp)
+                    .padding(top = topPadding, bottom = bottomPadding)
                     .onGloballyPositioned { coordinates ->
                         if (isSelected) {
                             val yCenter = coordinates.positionInRoot().y + (coordinates.size.height / 2f)
@@ -1915,7 +1962,6 @@ fun InteractiveTextElementItem(
                     CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
                         val zoomFactor = zoomScale.coerceAtLeast(1f)
 
-                        // Slightly increased base sizes + strict min/max constraints
                         val reducedHandleSize = (22.dp / zoomFactor).coerceIn(14.dp, 24.dp)
                         val reducedIconSize = (14.dp / zoomFactor).coerceIn(9.dp, 15.dp)
 
@@ -1923,7 +1969,6 @@ fun InteractiveTextElementItem(
                         val widthHandleHeight = (18.dp / zoomFactor).coerceIn(12.dp, 20.dp)
                         val widthIconSize = (16.dp / zoomFactor).coerceIn(10.dp, 17.dp)
 
-                        // Dynamic offsets based on handle bounds
                         val cornerOffset = reducedHandleSize
 
                         // 1. Delete / Cross handle
@@ -2070,7 +2115,6 @@ fun ThemeSelectorSection(
                 )
             }
         } else {
-            // Fallback to local defaults if room data is not yet loaded or empty
             listOf(
                 CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
                 CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),

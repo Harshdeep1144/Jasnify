@@ -7,7 +7,10 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -37,6 +40,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.*
@@ -46,9 +50,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -157,9 +165,63 @@ fun CardsScreen(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     var toastData by remember { mutableStateOf(ToastData()) }
-    var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+    var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
     var selectedCardIds by remember { mutableStateOf(setOf<String>()) }
+
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation
+
+    val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
+
+    val backdropScaleState = animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+
+    val backdropCornerRadiusState = animateDpAsState(
+        targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
+
+    var isBottomTabVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember(selectedTab, exploreLazyListState, myCardsGridState, isAnySheetVisible) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (currentView != CardsView.MAIN || isAnySheetVisible || selectedCardIds.isNotEmpty()) return Offset.Zero
+
+                val delta = available.y
+                val canScroll = if (selectedTab == CardsTab.EXPLORE) exploreLazyListState.canScrollForward || exploreLazyListState.canScrollBackward
+                else myCardsGridState.canScrollForward || myCardsGridState.canScrollBackward
+
+                if (!canScroll) {
+                    isBottomTabVisible = true
+                    return Offset.Zero
+                }
+
+                if (delta > 0) { // Scrolling up (showing)
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) { // Scrolling down (hiding)
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomTabVisible) {
+                    isBottomTabVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomTabVisible) {
+                    isBottomTabVisible = false
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
 
     LaunchedEffect(activeEventId, cardRoomData) {
         if (activeEventId != null && cardRoomData == null) {
@@ -187,7 +249,7 @@ fun CardsScreen(
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
-            delay(3000.milliseconds)
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -208,8 +270,6 @@ fun CardsScreen(
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -223,6 +283,13 @@ fun CardsScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = backdropScaleState.value
+                        scaleY = backdropScaleState.value
+                        val radius = backdropCornerRadiusState.value
+                        clip = isAnySheetVisible || radius > 0.dp
+                        shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                    }
                     .background(BackgroundPrimary)
             ) {
                 SharedTransitionLayout {
@@ -251,6 +318,7 @@ fun CardsScreen(
                                     animatedVisibilityScope = this@AnimatedContent,
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     canEdit = canEdit,
+                                    nestedScrollConnection = nestedScrollConnection,
                                     onToggleCardSelection = { id ->
                                         selectedCardIds = if (selectedCardIds.contains(id)) {
                                             selectedCardIds - id
@@ -362,9 +430,9 @@ fun CardsScreen(
                     }
                 }
 
-                // Animated Bottom Tab: Hidden when in FULL_VIEW or Selection Mode
+                // Animated Bottom Tab: Hidden when in FULL_VIEW or Selection Mode or Scrolling
                 AnimatedVisibility(
-                    visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty(),
+                    visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
                     enter = slideInVertically(
                         initialOffsetY = { it },
                         animationSpec = tween(durationMillis = 260)
@@ -382,7 +450,7 @@ fun CardsScreen(
                             TabItem(
                                 label = "Explore",
                                 value = CardsTab.EXPLORE,
-                                icon = painterResource(R.drawable.ic_file)
+                                icon = painterResource(R.drawable.ic_share_card)
                             ),
                             TabItem(
                                 label = "My Edits",
@@ -408,7 +476,7 @@ fun CardsScreen(
                 .statusBarsPadding()
                 .fillMaxWidth()
                 .zIndex(100f)
-                .padding(horizontal = 12.dp, vertical = 16.dp)
+                .padding(12.dp)
         ) {
             CustomToast(message = toastData.message ?: "", type = toastData.type)
         }
@@ -416,6 +484,16 @@ fun CardsScreen(
         if (showMenuSheet) {
             MenuBottomSheet(
                 items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Saved Cards",
+                            icon = painterResource(R.drawable.ic_top_bar_heart),
+                            onClick = {
+                                showMenuSheet = false
+                                currentView = CardsView.LIKED_CARDS
+                            }
+                        )
+                    ),
                     listOf(
                         MenuSheetActionItem(
                             text = "Manage Room Access",
@@ -467,7 +545,7 @@ fun CardsScreen(
                     selectedCardIds = emptySet()
                     toastData = ToastData(
                         message = if (deletedCount == 1) "Card deleted" else "$deletedCount cards deleted",
-                        type = ToastType.DEFAULT
+                        type = ToastType.ERROR
                     )
                     showDeleteConfirmation = false
                 },
@@ -484,7 +562,7 @@ fun CardsScreen(
                 onConfirm = {
                     if (activeEventId != null) {
                         roomViewModel.removeAccess(activeEventId!!, "Cards", it.uid)
-                        toastData = ToastData("${it.name} removed", ToastType.SUCCESS)
+                        toastData = ToastData("${it.name} removed", ToastType.ERROR)
                     }
                     userToRemove = null
                 },
@@ -527,6 +605,7 @@ fun CardsMainContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
+    nestedScrollConnection: NestedScrollConnection,
     onToggleCardSelection: (String) -> Unit,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
@@ -612,13 +691,13 @@ fun CardsMainContent(
                 ) {
                     CustomTopBar(
                         title = if (isSelectionMode) "${selectedCardIds.size} Selected" else "Cards",
-                        isLargeTitle = if (isSelectionMode) false else true,
+                        isLargeTitle = !isSelectionMode,
                         onBackClick = onBackClick,
                         onMenuClick = onMenuClick,
                         menuIcon = when {
                             isSelectionMode -> TopIcon.CustomPainter(painterResource(R.drawable.ic_delete))
                             selectedTab == CardsTab.EXPLORE -> TopIcon.Predefined.MENU_VERTICAL
-                            else -> TopIcon.CustomPainter(painterResource(R.drawable.ic_top_bar_heart))
+                            else -> TopIcon.CustomPainter(painterResource(R.drawable.ic_top_bar_heart)) // Consider updating this icon to a 'saved' bookmark icon if available
                         }
                     )
                 }
@@ -667,6 +746,7 @@ fun CardsMainContent(
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedTransitionScope = sharedTransitionScope,
                                 canEdit = canEdit,
+                                nestedScrollConnection = nestedScrollConnection,
                                 onCardClick = onCardClick,
                                 onLikeToggle = onLikeToggle,
                                 onShareTrigger = { onShareTrigger(it, false) },
@@ -682,6 +762,7 @@ fun CardsMainContent(
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedTransitionScope = sharedTransitionScope,
                                 canEdit = canEdit,
+                                nestedScrollConnection = nestedScrollConnection,
                                 onStartEditing = { onTabSelected(CardsTab.EXPLORE) },
                                 selectedCardIds = selectedCardIds,
                                 onToggleSelection = onToggleCardSelection,
@@ -706,6 +787,7 @@ fun ExploreTabContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
+    nestedScrollConnection: NestedScrollConnection,
     onCardClick: (CardData, String) -> Unit,
     onLikeToggle: (CardData) -> Unit,
     onShareTrigger: (CardData) -> Unit,
@@ -714,7 +796,8 @@ fun ExploreTabContent(
 ) {
     LazyColumn(
         state = lazyListState,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize()
+            .nestedScroll(nestedScrollConnection),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         item {
@@ -878,6 +961,7 @@ fun MyCardsGrid(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
+    nestedScrollConnection: NestedScrollConnection,
     onStartEditing: () -> Unit,
     selectedCardIds: Set<String>,
     onToggleSelection: (String) -> Unit,
@@ -947,6 +1031,7 @@ fun MyCardsGrid(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize()
+                .nestedScroll(nestedScrollConnection)
         ) {
             items(cards, key = { it.id }) { card ->
                 val isSelected = selectedCardIds.contains(card.id)
@@ -1082,7 +1167,7 @@ fun LikedCardsContent(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "No liked cards yet.", style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
+                Text(text = "No Saved cards yet.", style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
             }
         } else {
             LazyVerticalGrid(
@@ -1197,7 +1282,6 @@ fun CardFullView(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(12.dp)
         ){
             CustomTopBar(
                 onBackClick = onBackClick,

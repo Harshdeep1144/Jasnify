@@ -155,18 +155,18 @@ fun EyeDropperToolUI(color: Color) {
 
             // OUTER border
             drawCircle(
-                color = Color.Black.copy(alpha = 0.3f),
+                color = Color(0xE53D3D3D),
                 radius = outerRadius + ringThickness / 2f,
                 center = centerOffset,
-                style = Stroke(width = 2.dp.toPx())
+                style = Stroke(width = 1.dp.toPx())
             )
 
             // INNER border
             drawCircle(
-                color = Color.Black.copy(alpha = 0.3f),
+                color = Color(0xE53D3D3D),
                 radius = outerRadius - ringThickness / 2f,
                 center = centerOffset,
-                style = Stroke(width = 2.dp.toPx())
+                style = Stroke(width = 1.dp.toPx())
             )
 
             // Target Crosshair (+)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerLarge
 
 @Composable
 fun ColorPickerWheel(
@@ -101,7 +103,18 @@ fun ColorPickerWheel(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Color Preview Bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .clip(SquircleShape(CornerLarge))
+                    .background(currentColor)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Color Picker Wheel Area
             Box(
@@ -150,8 +163,6 @@ fun ColorPickerWheel(
                                 hsv = Triple(hsvArr[0], hsvArr[1], hsvArr[2])
                             }
                     )
-
-
                 }
             }
 
@@ -236,9 +247,11 @@ fun SaturationValuePicker(
     value: Float,
     onSVChange: (Float, Float) -> Unit
 ) {
-    Box(
+    val pickerSize = 176.dp
+
+    Canvas(
         modifier = Modifier
-            .size(175.69.dp)
+            .size(pickerSize)
             .clip(CircleShape)
             .pointerInput(hue) {
                 detectDragGestures { change, _ ->
@@ -261,30 +274,48 @@ fun SaturationValuePicker(
                     val x = offset.x - r
                     val y = offset.y - r
 
-                    val s = ((x + r) / (2 * r)).coerceIn(0f, 1f)
-                    val v = (1f - (y + r) / (2 * r)).coerceIn(0f, 1f)
+                    val dist = sqrt(x * x + y * y)
+                    val constrainedX = if (dist > r) x * (r / dist) else x
+                    val constrainedY = if (dist > r) y * (r / dist) else y
+
+                    val s = ((constrainedX + r) / (2 * r)).coerceIn(0f, 1f)
+                    val v = (1f - (constrainedY + r) / (2 * r)).coerceIn(0f, 1f)
                     onSVChange(s, v)
                 }
             }
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val hueColor = Color.hsv(hue, 1f, 1f)
+        val hueColor = Color.hsv(hue, 1f, 1f)
 
-            drawRect(Color.White)
-            drawRect(brush = Brush.horizontalGradient(listOf(Color.White, hueColor)))
-            drawRect(brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
-        }
+        // Gradients for Saturation and Value
+        drawRect(Color.White)
+        drawRect(brush = Brush.horizontalGradient(listOf(Color.White, hueColor)))
+        drawRect(brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
 
-        val handleX = (saturation * 150.dp.value)
-        val handleY = ((1f - value) * 150.dp.value)
+        // Handle position mapped to actual canvas pixels
+        val handleX = saturation * size.width
+        val handleY = (1f - value) * size.height
+        val handleCenter = Offset(handleX, handleY)
 
-        Box(
-            modifier = Modifier
-                .offset(x = handleX.dp - 12.dp, y = handleY.dp - 12.dp)
-                .size(24.dp)
-                .shadow(4.dp, CircleShape)
-                .border(2.5.dp, Color.White, CircleShape)
-                .background(Color.Transparent, CircleShape)
+        // Shadow / Outer outline
+        drawCircle(
+            color = Color.Black.copy(alpha = 0.25f),
+            radius = 12.dp.toPx(),
+            center = handleCenter + Offset(0f, 2.dp.toPx())
+        )
+
+        // White border ring
+        drawCircle(
+            color = Color.White,
+            radius = 11.dp.toPx(),
+            center = handleCenter,
+            style = Stroke(width = 2.5.dp.toPx())
+        )
+
+        // Selected color preview inside the ring
+        drawCircle(
+            color = Color.hsv(hue, saturation, value),
+            radius = 9.dp.toPx(),
+            center = handleCenter
         )
     }
 }

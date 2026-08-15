@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.lerp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.CardPaddingMode
 import com.harshdeep.jasnify.domain.model.TextElement
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -248,10 +249,21 @@ private fun RenderCardTextElement(
         platformStyle = PlatformTextStyle(includeFontPadding = false)
     )
 
+    val topPadding = when (element.paddingMode) {
+        CardPaddingMode.BOTH,
+        CardPaddingMode.TOP -> (element.verticalPaddingSp * scaleFactor / 2).dp
+        else -> 0.dp
+    }
+    val bottomPadding = when (element.paddingMode) {
+        CardPaddingMode.BOTH,
+        CardPaddingMode.BOTTOM -> (element.verticalPaddingSp * scaleFactor / 2).dp
+        else -> 0.dp
+    }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = (element.verticalPaddingSp * scaleFactor / 2).dp),
+            .padding(top = topPadding, bottom = bottomPadding),
         contentAlignment = Alignment.Center
     ) {
         if (isEditable) {
