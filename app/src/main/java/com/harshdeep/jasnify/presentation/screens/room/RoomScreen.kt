@@ -47,7 +47,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBot
 import com.harshdeep.jasnify.presentation.components.cards.UserListItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.util.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme

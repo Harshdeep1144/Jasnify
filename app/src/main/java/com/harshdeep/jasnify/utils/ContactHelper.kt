@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.util
+package com.harshdeep.jasnify.utils
 
 import android.content.Context
 import android.provider.ContactsContract

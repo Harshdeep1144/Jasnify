@@ -122,16 +122,17 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundBrand
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -637,15 +638,7 @@ fun CateringMenuScreen(
                                         .fillMaxWidth()
                                         .align(Alignment.BottomCenter)
                                         .background(
-                                            brush = Brush.verticalGradient(
-                                                colorStops = arrayOf(
-                                                    0.00f to Color.Transparent,
-                                                    0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                                    0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                                    1.00f to BackgroundPrimary
-                                                )
-                                            )
+                                            brush = BottomGradientBrush
                                         )
                                         .navigationBarsPadding()
                                         .padding(horizontal = 12.dp, vertical = 12.dp)

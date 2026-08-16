@@ -116,6 +116,7 @@ class UserRepositoryImpl @Inject constructor(
             "vendors" -> "vendors_room_users"
             "venue" -> "venue_room_users"
             "guest" -> "guest_room_users"
+            "cards" -> "card_room_users"
             else -> "room_users"
         }
         return name
@@ -156,13 +157,13 @@ class UserRepositoryImpl @Inject constructor(
                 "email" to cleanEmail
             )
 
-            android.util.Log.d("UserRepository", "Storing invitation in pending_access for $cleanEmail in $roomType")
+            android.util.Log.d("UserRepository", "Storing access request in pending_access for $cleanEmail in $roomType")
             firestore.collection("events").document(eventId)
                 .collection("rooms").document(roomType)
                 .collection("pending_access").document(cleanEmail)
                 .set(pendingData).await()
 
-            android.util.Log.d("UserRepository", "Successfully stored invitation for $cleanEmail")
+            android.util.Log.d("UserRepository", "Successfully stored access request for $cleanEmail")
         } catch (e: Exception) {
             android.util.Log.e("UserRepository", "CRITICAL: Failed to grant access for $cleanEmail", e)
             throw e
@@ -222,7 +223,7 @@ class UserRepositoryImpl @Inject constructor(
 
         val pendingByEvent = mutableMapOf<String, MutableList<com.google.firebase.firestore.DocumentSnapshot>>()
 
-        // 1. Collect invitations via Collection Group
+        // 1. Collect access requests via Collection Group
         try {
             val snapshot = firestore.collectionGroup("pending_access")
                 .whereEqualTo("email", cleanEmail)
@@ -247,7 +248,7 @@ class UserRepositoryImpl @Inject constructor(
 
         // 2. Fallback: Manual Room-by-Room Check (if no group results and eventId is provided)
         if (pendingByEvent.isEmpty() && eventId.isNotBlank()) {
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
             for (roomType in rooms) {
                 try {
                     // We check against the input eventId (Doc ID or Short Code)
@@ -262,7 +263,7 @@ class UserRepositoryImpl @Inject constructor(
             }
         }
 
-        // 3. Process grouped invitations efficiently
+        // 3. Process grouped access requests efficiently
         for ((targetEventId, docs) in pendingByEvent) {
             try {
                 val eventDoc = firestore.collection("events").document(targetEventId).get().await()
@@ -292,7 +293,7 @@ class UserRepositoryImpl @Inject constructor(
                         .collection(collectionName).document(uid)
                         .set(accessData).await()
 
-                    // Delete the pending invitation
+                    // Delete the pending access request
                     doc.reference.delete().await()
                 }
 
@@ -300,7 +301,7 @@ class UserRepositoryImpl @Inject constructor(
                 updateUserJoinedEvents(uid, UserEvent(targetEventId, eventName, adminId, roomRoles))
                 android.util.Log.d("UserRepository", "Promoted $cleanEmail for event $targetEventId with ${roomRoles.size} rooms")
             } catch (e: Exception) {
-                android.util.Log.e("UserRepository", "Error promoting invitations for event $targetEventId", e)
+                android.util.Log.e("UserRepository", "Error promoting access for event $targetEventId", e)
             }
         }
     }
@@ -388,7 +389,7 @@ class UserRepositoryImpl @Inject constructor(
                 .whereEqualTo("email", cleanEmail)
                 .get().await()
 
-            android.util.Log.d("UserRepository", "Found ${snapshot.size()} pending invitations for $cleanEmail")
+            android.util.Log.d("UserRepository", "Found ${snapshot.size()} pending access requests for $cleanEmail")
             snapshot.documents.map { doc ->
                 PendingAccess(
                     eventId = doc.getString("eventId") ?: "",
@@ -469,20 +470,20 @@ class UserRepositoryImpl @Inject constructor(
                 return true
             }
 
-            // 3. Check Pending Access (Invitations)
+            // 3. Check Pending Access (Requests)
             // Use the resolved actualDocId for consistency
             val pending = checkPendingAccess(cleanEmail)
-            android.util.Log.d("UserRepository", "Global pending invitations found: ${pending.size}")
+            android.util.Log.d("UserRepository", "Global pending requests found: ${pending.size}")
 
-            // Check for both the input ID and the resolved Doc ID in invitations
+            // Check for both the input ID and the resolved Doc ID in requests
             val matchFound = pending.any { it.eventId == actualDocId || it.eventId == eventId }
             if (matchFound) {
-                android.util.Log.d("UserRepository", "Access GRANTED: Found matching invitation")
+                android.util.Log.d("UserRepository", "Access GRANTED: Found matching request")
                 return true
             }
 
             // Target search fallback for specific event
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
 
             // We check against EVERY potential ID variant Bob might have entered or Admin might have used
             val eventIdsToCheck = (listOf(actualDocId, eventId) + docIdsToTry).distinct()
@@ -495,7 +496,7 @@ class UserRepositoryImpl @Inject constructor(
                         .collection("pending_access").document(cleanEmail).get().await()
 
                     if (pDoc.exists()) {
-                        android.util.Log.d("UserRepository", "Access GRANTED: Found target invitation in $room for ID variant: $id")
+                        android.util.Log.d("UserRepository", "Access GRANTED: Found target request in $room for ID variant: $id")
                         return true
                     }
                 }
@@ -578,7 +579,7 @@ class UserRepositoryImpl @Inject constructor(
 
             // 2. Remove from all rooms in the event (Deletes from room sub-collections)
             // We use the room sub-collection deletion part only since profile is already updated
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
             for (room in rooms) {
                 val collectionName = getUserCollectionName(room)
                 firestore.collection("events").document(eventId)

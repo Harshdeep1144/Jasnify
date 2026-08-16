@@ -77,7 +77,6 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
@@ -117,13 +116,14 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
 import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -135,8 +135,8 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
-import com.harshdeep.jasnify.util.ContactHelper
-import com.harshdeep.jasnify.util.SearchHistoryManager
+import com.harshdeep.jasnify.utils.ContactHelper
+import com.harshdeep.jasnify.utils.SearchHistoryManager
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -1525,15 +1525,7 @@ fun GuestTypeScreen(
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter)
                         .background(
-                            brush = Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.00f to Color.Transparent,
-                                    0.25f to BackgroundSecondary.copy(alpha = 0.15f),
-                                    0.55f to BackgroundSecondary.copy(alpha = 0.65f),
-                                    0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                    1.00f to BackgroundPrimary
-                                )
-                            )
+                            brush = BottomGradientBrush
                         )
                         .navigationBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 12.dp)

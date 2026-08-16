@@ -1,10 +1,10 @@
-package com.harshdeep.jasnify.presentation.util
+package com.harshdeep.jasnify.presentation.utils
 
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -17,7 +17,7 @@ fun SetStatusBarTheme(
     val context = LocalContext.current
     val activity = context as? ComponentActivity
 
-    LaunchedEffect(useDarkIcons, statusBarColor) {
+    DisposableEffect(useDarkIcons, statusBarColor) {
         activity?.enableEdgeToEdge(
             statusBarStyle = if (useDarkIcons) {
                 SystemBarStyle.light(statusBarColor.toArgb(), Color.White.toArgb())
@@ -25,5 +25,11 @@ fun SetStatusBarTheme(
                 SystemBarStyle.dark(statusBarColor.toArgb())
             }
         )
+        onDispose {
+            // Revert to dark icons when this Composable leaves the composition
+            activity?.enableEdgeToEdge(
+                statusBarStyle = SystemBarStyle.light(statusBarColor.toArgb(), Color.White.toArgb())
+            )
+        }
     }
 }

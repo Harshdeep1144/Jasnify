@@ -47,7 +47,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.graphicsLayer
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
@@ -110,9 +109,10 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.scaffold.pill360Shadow
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.util.TimeUtils
+import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
@@ -1104,15 +1104,7 @@ fun ManageEventsScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        brush = Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.00f to Color.Transparent,
-                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                1.00f to BackgroundPrimary
-                            )
-                        )
+                        brush = BottomGradientBrush
                     )
                     .navigationBarsPadding()
             ) {

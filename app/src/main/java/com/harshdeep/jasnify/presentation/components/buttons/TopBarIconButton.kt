@@ -1,11 +1,13 @@
 package com.harshdeep.jasnify.presentation.components.buttons
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -21,7 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -70,7 +75,10 @@ fun TopBarIconButton(
     iconColor: Color = ContentPrimary,
     size: Dp = 40.dp,
     iconSize: Dp = 24.dp,
-    translucentAlpha: Float = 0.2f
+    translucentAlpha: Float = 0.2f,
+    iconShadowColor: Color = Color.Transparent,
+    iconShadowBlur: Dp = 4.dp,
+    iconShadowOffsetY: Dp = 0.dp
 ) {
     val backgroundColor = when (backgroundStyle) {
         ButtonBackground.TRANSPARENT -> Color.Transparent
@@ -78,10 +86,9 @@ fun TopBarIconButton(
         ButtonBackground.OPAQUE -> SurfaceSecondary
     }
 
-    // Convert the Custom / Predefined TopIcon into a Painter
     val painter: Painter = when (icon) {
         TopIcon.Predefined.BACK -> painterResource(R.drawable.ic_back)
-        TopIcon.Predefined.BACK_2 -> rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowBack)
+        TopIcon.Predefined.BACK_2 -> painterResource(R.drawable.ic_back_02)
         TopIcon.Predefined.DOWN -> painterResource(R.drawable.ic_down)
         TopIcon.Predefined.CLOSE -> painterResource(R.drawable.ic_cross)
         TopIcon.Predefined.MENU_VERTICAL -> rememberVectorPainter(Icons.Rounded.MoreVert)
@@ -122,6 +129,34 @@ fun TopBarIconButton(
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
+        // Icon Drop Shadow (rendered behind the main icon only when TRANSPARENT)
+        if (backgroundStyle == ButtonBackground.TRANSPARENT && iconShadowColor != Color.Transparent) {
+            Icon(
+                painter = painter,
+                contentDescription = null,
+                tint = iconShadowColor,
+                modifier = Modifier
+                    .size(iconSize)
+                    .offset(y = iconShadowOffsetY)
+                    .then(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && iconShadowBlur > 0.dp) {
+                            Modifier.graphicsLayer {
+                                renderEffect = android.graphics.RenderEffect
+                                    .createBlurEffect(
+                                        iconShadowBlur.toPx(),
+                                        iconShadowBlur.toPx(),
+                                        android.graphics.Shader.TileMode.DECAL
+                                    )
+                                    .asComposeRenderEffect()
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
+            )
+        }
+
+        // Foreground Icon
         Icon(
             painter = painter,
             contentDescription = null,
@@ -131,7 +166,7 @@ fun TopBarIconButton(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF000000)
+@Preview(showBackground = true)
 @Composable
 private fun TopBarIconButtonPreview() {
     val iconList = listOf(
@@ -160,7 +195,8 @@ private fun TopBarIconButtonPreview() {
                     icon = icon,
                     onClick = { },
                     backgroundStyle = ButtonBackground.TRANSPARENT,
-                    iconColor = Color.White
+                    iconColor = Color.White,
+                    iconShadowColor = Color.Black.copy(0.5f),
                 )
 
                 Spacer(Modifier.size(16.dp))

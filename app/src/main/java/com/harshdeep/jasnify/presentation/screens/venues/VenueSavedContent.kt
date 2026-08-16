@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.venues
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -42,6 +43,7 @@ fun VenueSavedContent(
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
+        contentPadding = PaddingValues(bottom = 100.dp),
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 12.dp)

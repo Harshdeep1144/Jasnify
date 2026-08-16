@@ -173,8 +173,8 @@ class AuthViewModel @Inject constructor(
 
                                 _authState.value = AuthState.Success("Account created!")
                             } else {
-                                // If they signed up via ID but weren't invited, we keep the account but don't let them join the event
-                                android.util.Log.w("AuthViewModel", "User signed up via ID but no invitation found for $userEmail")
+                                // If they signed up via ID but weren't granted access, we keep the account but don't let them join the event
+                                android.util.Log.w("AuthViewModel", "User signed up via ID but no access request found for $userEmail")
                                 createProfile(firebaseUser.uid, userEmail, cleanEmail.substringBefore("@"), firebaseUser.photoUrl?.toString())
                                 _authState.value = AuthState.Error("Account created, but you don't have access to that event.")
                             }

@@ -14,7 +14,7 @@ import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
-import com.harshdeep.jasnify.presentation.screens.cards.CardsScreen
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.home.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
@@ -30,7 +30,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.navDeepLink
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 
 object NavAnimations {

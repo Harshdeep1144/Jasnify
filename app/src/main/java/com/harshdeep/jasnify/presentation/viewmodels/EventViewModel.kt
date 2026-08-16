@@ -282,13 +282,14 @@ class EventViewModel @Inject constructor(
                                     "Checklist" to UserRole.OWNER,
                                     "Vendors" to UserRole.OWNER,
                                     "Venue" to UserRole.OWNER,
-                                    "Guest" to UserRole.OWNER
+                                    "Guest" to UserRole.OWNER,
+                                    "Cards" to UserRole.OWNER
                                 )
                             )
                             userRepository.updateUserJoinedEvents(userId, userEvent)
 
                             // 2. Grant room-specific access (internal collections)
-                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
+                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
                             val currentUserEmail = auth.currentUser?.email
                             val currentUserId = auth.currentUser?.uid
                             if (currentUserEmail != null && currentUserId != null) {
@@ -319,6 +320,7 @@ class EventViewModel @Inject constructor(
             "vendors" -> "vendors_room_users"
             "venue" -> "venue_room_users"
             "guest" -> "guest_room_users"
+            "cards" -> "card_room_users"
             else -> "room_users"
         }
         
@@ -491,7 +493,7 @@ class EventViewModel @Inject constructor(
 
             // 2. Check if user is a member of ANY room (Budget, Catering, etc.)
             // We search for the user's UID in all room-specific user collections
-            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest")
+            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
             for (room in rooms) {
                 val collectionName = when (room.lowercase()) {
                     "budget" -> "budget_room_users"
@@ -500,6 +502,7 @@ class EventViewModel @Inject constructor(
                     "vendors" -> "vendors_room_users"
                     "venue" -> "venue_room_users"
                     "guest" -> "guest_room_users"
+                    "cards" -> "card_room_users"
                     else -> "room_users"
                 }
 

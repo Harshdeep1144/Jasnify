@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.util
+package com.harshdeep.jasnify.presentation.utils
 
 fun String.toFlagEmoji(): String {
     if (length != 2) return ""

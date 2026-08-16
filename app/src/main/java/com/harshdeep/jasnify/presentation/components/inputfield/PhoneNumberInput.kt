@@ -20,7 +20,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CountryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
-import com.harshdeep.jasnify.presentation.util.toFlagEmoji
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall

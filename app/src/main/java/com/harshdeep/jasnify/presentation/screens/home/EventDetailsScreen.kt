@@ -1034,6 +1034,15 @@ fun EventDetailsScreen(
                                     .fillMaxWidth()
                                     .padding(12.dp)
                             ) {
+                                Text(
+                                    text = "By proceeding, you allow us to delete any existing timeline.",
+                                    style = JasnifyTheme.typography.bodyMedium,
+                                    color = ContentSecondary,
+                                    fontWeight = FontWeight.Light,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                                Spacer(Modifier.height(12.dp))
+
                                 CustomTextButton(
                                     onClick = {
                                         if (pickDateSegmentSelected && tempSelectedDateString.isNullOrBlank()) {
@@ -1050,7 +1059,7 @@ fun EventDetailsScreen(
                                             }
                                         }
                                     },
-                                    text = "Confirm",
+                                    text = "Switch to Single-day",
                                     modifier = Modifier.fillMaxWidth(),
                                     size = ButtonSize.Medium,
                                     type = ButtonType.Primary,
