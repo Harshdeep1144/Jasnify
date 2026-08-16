@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.main.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs.guests
 
 import android.Manifest
 import android.content.pm.PackageManager
@@ -86,6 +86,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
 import com.harshdeep.jasnify.domain.model.Guest
+import com.harshdeep.jasnify.domain.model.GuestType
+import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
@@ -228,7 +230,7 @@ fun GuestsTab(
 
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
-    var userToRemove by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.User?>(null) }
+    var userToRemove by remember { mutableStateOf<User?>(null) }
 
     var isHeaderVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
@@ -855,7 +857,7 @@ fun GuestsTab(
                             GuestTypeScreen(
                                 isViewer = isViewer,
                                 guestTypes = guestTypes.map { typeName ->
-                                    com.harshdeep.jasnify.domain.model.GuestType(
+                                    GuestType(
                                         name = typeName,
                                         guestCount = guests.count { it.type == typeName }
                                     )
@@ -888,7 +890,7 @@ fun GuestsTab(
                         }
                         GuestsView.ROOM_ACCESS -> {
                             val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                val self = com.harshdeep.jasnify.domain.model.User(
+                                val self = User(
                                     uid = currentUserUid,
                                     name = auth.currentUser?.displayName ?: "Me",
                                     email = auth.currentUser?.email ?: "",
@@ -1095,7 +1097,7 @@ fun GuestsTab(
                 }
             },
             onAddNewTypeClick = { showAddTypeSheet = true },
-            guestTypes = guestTypes.map { com.harshdeep.jasnify.domain.model.GuestType(name = it) },
+            guestTypes = guestTypes.map { GuestType(name = it) },
             initialGuest = selectedGuestForEdit,
             onError = { message ->
                 toastData = ToastData(message, ToastType.ERROR)
@@ -1180,7 +1182,7 @@ fun GuestsTab(
     if (showTypeFilterSheet) {
         SelectGuestTypeBottomSheet(
             guestTypes = guestTypes.map { typeName ->
-                com.harshdeep.jasnify.domain.model.GuestType(
+                GuestType(
                     name = typeName,
                     guestCount = guests.count { it.type == typeName }
                 )
@@ -1476,10 +1478,10 @@ fun GuestEmptyState(
 @Composable
 fun GuestTypeScreen(
     isViewer: Boolean = false,
-    guestTypes: List<com.harshdeep.jasnify.domain.model.GuestType>,
+    guestTypes: List<GuestType>,
     onBackClick: () -> Unit,
     onAddTypeClick: () -> Unit,
-    onTypeClick: (com.harshdeep.jasnify.domain.model.GuestType) -> Unit,
+    onTypeClick: (GuestType) -> Unit,
     getGuestThumbnails: (String) -> List<String>
 ) {
     Scaffold(

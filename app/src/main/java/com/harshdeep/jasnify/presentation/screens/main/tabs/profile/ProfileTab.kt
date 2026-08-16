@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.main.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs.profile
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -76,9 +77,11 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.Enquiry
 import com.harshdeep.jasnify.domain.model.UserEvent
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Event
+import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
@@ -130,6 +133,7 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
@@ -162,7 +166,7 @@ fun ProfileTab(
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
-    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
     val firebaseUser = auth.currentUser
 
@@ -174,7 +178,7 @@ fun ProfileTab(
         if (firebaseUser?.uid != null) {
             enquiryViewModel.getEnquiriesForUser(firebaseUser.uid)
         } else {
-            kotlinx.coroutines.flow.flowOf(emptyList())
+            flowOf(emptyList())
         }
     }.collectAsState(emptyList())
 
@@ -1047,10 +1051,10 @@ fun AppearanceScreen(
 
 @Composable
 fun ManageEventsScreen(
-    userProfile: com.harshdeep.jasnify.domain.model.User?,
+    userProfile: User?,
     eventViewModel: EventViewModel,
     mainNavController: NavHostController,
-    ownedEvents: List<com.harshdeep.jasnify.domain.model.Event>,
+    ownedEvents: List<Event>,
     onBack: () -> Unit,
     onEventClick: (String) -> Unit,
     onJoinOrCreateClick: () -> Unit,
@@ -1187,7 +1191,7 @@ fun MyEnquiriesScreen(
     enquiryViewModel: EnquiryViewModel,
     userId: String,
     onBack: () -> Unit,
-    onEnquiryClick: (com.harshdeep.jasnify.domain.model.Enquiry) -> Unit
+    onEnquiryClick: (Enquiry) -> Unit
 ) {
     val enquiries by enquiryViewModel.getEnquiriesForUser(userId).collectAsState(emptyList())
 

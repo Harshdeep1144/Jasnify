@@ -1,10 +1,12 @@
-package com.harshdeep.jasnify.presentation.screens.main.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +15,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,6 +40,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -102,6 +107,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.VendorGalleryCategory
 import com.harshdeep.jasnify.domain.model.VendorHighlightItem
@@ -135,11 +141,13 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.GalleryCategoryUiModel
 import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.GallerySection
 import com.harshdeep.jasnify.presentation.components.sections.MediaItemUiModel
+import com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen
 import com.harshdeep.jasnify.presentation.components.sections.MerchantReplyUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingBreakdownUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
@@ -270,7 +278,7 @@ fun VendorDetailScreen(
     var showAddressSheet by remember { mutableStateOf(false) }
     var showAboutSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
-    var selectedOfferForSheet by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Offer?>(null) }
+    var selectedOfferForSheet by remember { mutableStateOf<Offer?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
 
     val isSubmitting by vendorViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
@@ -436,7 +444,7 @@ fun VendorDetailScreen(
 
                     VendorActiveScreen.ALBUM_DETAIL -> {
                         selectedAlbum?.let { album ->
-                            com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen(
+                            AlbumDetailScreen(
                                 category = album,
                                 onBack = { screenStack = screenStack.dropLast(1) },
                                 onMediaClick = { list, index ->
@@ -464,7 +472,7 @@ fun VendorDetailScreen(
                     }
 
                     VendorActiveScreen.MEDIA_VIEWER -> {
-                        com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen(
+                        MediaViewerScreen(
                             mediaItems = mediaViewerList,
                             initialIndex = mediaViewerInitialIndex,
                             onBack = { screenStack = screenStack.dropLast(1) }
@@ -528,10 +536,10 @@ fun VendorDetailScreen(
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
+        AnimatedVisibility(
             visible = toastData?.message != null && !anySheetVisible,
-            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
@@ -555,7 +563,7 @@ fun VendorDetailScreen(
 private fun VendorDetailContent(
     vendorDetail: Vendor,
     reviewsData: ReviewsDataUiModel,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+    listState: LazyListState,
     pagerState: PagerState,
     sheetOffsetPx: Float,
     minOffsetPx: Float,
@@ -572,7 +580,7 @@ private fun VendorDetailContent(
     onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
-    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit,
+    onOfferClick: (Offer) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
     onShowToast: (ToastData) -> Unit,
@@ -937,10 +945,10 @@ private fun VendorDetailContent(
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
+        AnimatedVisibility(
             visible = !anySheetVisible,
-            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { it }),
-            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { it }),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -974,7 +982,7 @@ private fun VendorDetailContent(
                             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            android.util.Log.e("VendorDetail", "Error opening dialer: ${e.message}")
+                            Log.e("VendorDetail", "Error opening dialer: ${e.message}")
                         }
                     },
                     modifier = Modifier
@@ -1331,8 +1339,8 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
 
 @Composable
 fun VendorOffersSection(
-    offers: List<com.harshdeep.jasnify.domain.model.Offer>,
-    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit
+    offers: List<Offer>,
+    onOfferClick: (Offer) -> Unit
 ) {
     Column(
         modifier = Modifier

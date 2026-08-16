@@ -13,10 +13,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.screens.main.tabs.*
 
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
+import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistsTab
+import com.harshdeep.jasnify.presentation.screens.main.tabs.guests.GuestsTab
+import com.harshdeep.jasnify.presentation.screens.main.tabs.home.HomeTab
+import com.harshdeep.jasnify.presentation.screens.main.tabs.profile.ProfileTab
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 
 private val tabOrder = listOf(
     Screen.HomeTabScreen.Home.route,

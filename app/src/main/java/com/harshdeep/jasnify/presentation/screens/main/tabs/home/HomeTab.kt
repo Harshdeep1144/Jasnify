@@ -1,10 +1,11 @@
-package com.harshdeep.jasnify.presentation.screens.main.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs.home
 
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -66,9 +67,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.domain.model.Offer
+import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
@@ -84,10 +89,15 @@ import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
@@ -98,9 +108,12 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val PARALLAX_RATE = 0.5f
@@ -240,7 +253,7 @@ fun HomeTabContent(
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
-    activeEvent: com.harshdeep.jasnify.domain.model.Event? = null
+    activeEvent: Event? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
@@ -277,13 +290,13 @@ fun HomeTabContent(
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
     var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
-    var activeTargetVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
-    var activeTargetVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
+    var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
+    var activeTargetVendor by remember { mutableStateOf<Vendor?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
     var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
-    var toastData by remember { mutableStateOf<com.harshdeep.jasnify.presentation.components.others.ToastData?>(null) }
-    var lastSavedVenue by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Venue?>(null) }
-    var lastSavedVendor by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Vendor?>(null) }
+    var toastData by remember { mutableStateOf<ToastData?>(null) }
+    var lastSavedVenue by remember { mutableStateOf<Venue?>(null) }
+    var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     val isAnySheetVisible = showSaveListBottomSheet || showOfferSheet
@@ -295,7 +308,7 @@ fun HomeTabContent(
         toastData?.message?.contains("Saved List") == true && (lastSavedVenue != null || lastSavedVendor != null)
     }
 
-    val isOwner = activeEvent?.ownerId == com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+    val isOwner = activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid
     // For simplicity in HomeTab, we assume owner for now or fetch role if needed.
     // Ideally use RoomViewModel to get exact role, but false is safe for viewers.
     val isViewer = !isOwner
@@ -313,13 +326,13 @@ fun HomeTabContent(
                 venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
                 lastSavedVenue = null
                 lastSavedVendor = null
-                toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
             }
         } else {
             venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
             lastSavedVenue = venue
             lastSavedVendor = null
-            toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
 
@@ -336,13 +349,13 @@ fun HomeTabContent(
                 vendorViewModel?.toggleSaveVendor(vendor, isViewer, null)
                 lastSavedVenue = null
                 lastSavedVendor = null
-                toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
             }
         } else {
             vendorViewModel?.toggleSaveVendor(vendor, isViewer, "mysaved")
             lastSavedVendor = vendor
             lastSavedVenue = null
-            toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
 
@@ -357,11 +370,11 @@ fun HomeTabContent(
     val timelineEvents = remember(activeEvent) {
         activeEvent?.subEvents?.map { subEvent ->
             val formattedDate = subEvent.date?.let { timestamp ->
-                val sdf = java.text.SimpleDateFormat("dd MMM, yyyy", java.util.Locale.getDefault())
-                sdf.format(java.util.Date(timestamp))
+                val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+                sdf.format(Date(timestamp))
             } ?: "Date TBD"
 
-            com.harshdeep.jasnify.domain.model.TimelineEvent(
+            TimelineEvent(
                 id = subEvent.id,
                 date = formattedDate,
                 event = subEvent.name,
@@ -765,7 +778,7 @@ fun HomeTabContent(
                         },
                         onAddNewEvent = { subEventItem ->
                             activeEvent?.let { event ->
-                                val newSubEvent = com.harshdeep.jasnify.domain.model.SubEvent(
+                                val newSubEvent = SubEvent(
                                     id = subEventItem.id,
                                     name = subEventItem.name,
                                     date = subEventItem.date,
@@ -798,12 +811,12 @@ fun HomeTabContent(
                                     venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, destination)
                                     lastSavedVenue = venue
                                     lastSavedVendor = null
-                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                    toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                                 } else {
                                     venueViewModel?.toggleSaveVenue(venue.name, venue.id, isViewer, null)
                                     lastSavedVenue = null
                                     lastSavedVendor = null
-                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                    toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
                                 }
                             }
                             activeTargetVendor?.let { vendor ->
@@ -811,12 +824,12 @@ fun HomeTabContent(
                                     vendorViewModel?.toggleSaveVendor(vendor, isViewer, destination)
                                     lastSavedVendor = vendor
                                     lastSavedVenue = null
-                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Added to Saved List!", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                    toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                                 } else {
                                     vendorViewModel?.toggleSaveVendor(vendor, isViewer, null)
                                     lastSavedVendor = null
                                     lastSavedVenue = null
-                                    toastData = com.harshdeep.jasnify.presentation.components.others.ToastData("Removed from Saved List", com.harshdeep.jasnify.presentation.components.others.ToastType.DEFAULT)
+                                    toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
                                 }
                             }
                             showSaveListBottomSheet = false
@@ -827,7 +840,7 @@ fun HomeTabContent(
                     )
                 }
 
-                androidx.compose.animation.AnimatedVisibility(
+                AnimatedVisibility(
                     visible = toastData?.message != null && isSavedListToast,
                     enter = slideInVertically(initialOffsetY = { it + 500 }),
                     exit = slideOutVertically(targetOffsetY = { it + 500 }),
@@ -837,7 +850,7 @@ fun HomeTabContent(
                         .padding(horizontal = 12.dp)
                 ) {
                     toastData?.let { data ->
-                        com.harshdeep.jasnify.presentation.components.others.CustomToast(
+                        CustomToast(
                             message = data.message ?: "",
                             type = data.type,
                             leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
@@ -868,7 +881,7 @@ fun HomeTabContent(
                     }
                 }
 
-                androidx.compose.animation.AnimatedVisibility(
+                AnimatedVisibility(
                     visible = toastData?.message != null && !isSavedListToast,
                     enter = fadeIn(),
                     exit = fadeOut(),
@@ -878,7 +891,7 @@ fun HomeTabContent(
                         .padding(horizontal = 12.dp)
                 ) {
                     toastData?.let { data ->
-                        com.harshdeep.jasnify.presentation.components.others.CustomToast(
+                        CustomToast(
                             message = data.message ?: "",
                             type = data.type
                         )
@@ -966,7 +979,8 @@ fun HomeTabContent(
                                     currentScreen = "home"
                                 },
                                 onChatClick = { vendorChat ->
-                                    val merchantId = vendorChat.merchantId.ifBlank { "unknown_merchant" }
+                                    val merchantId =
+                                        vendorChat.merchantId.ifBlank { "unknown_merchant" }
                                     val itemId = vendorChat.id.ifBlank { "unknown_vendor" }
                                     mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
                                 },

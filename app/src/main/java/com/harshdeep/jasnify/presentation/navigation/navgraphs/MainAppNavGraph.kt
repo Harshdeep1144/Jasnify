@@ -18,7 +18,7 @@ import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.main.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
-import com.harshdeep.jasnify.presentation.screens.main.tabs.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

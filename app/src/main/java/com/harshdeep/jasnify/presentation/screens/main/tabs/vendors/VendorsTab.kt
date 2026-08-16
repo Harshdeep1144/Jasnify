@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.main.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.content.Context
 import android.os.Build
@@ -61,6 +61,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -82,6 +83,8 @@ import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Offer
+import com.harshdeep.jasnify.domain.model.SavedVendor
 import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
@@ -203,7 +206,7 @@ fun VendorsTab(
     var showMenuSheet by remember { mutableStateOf(false) }
     var showRoomMenuBottomSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
-    var offersToShow by remember { mutableStateOf<List<com.harshdeep.jasnify.domain.model.Offer>>(emptyList()) }
+    var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     var selectedCategory by remember { mutableStateOf(initialCategory) }
@@ -913,7 +916,7 @@ fun VendorMainContent(
     onFavoriteToggle: (Vendor) -> Unit,
     onOfferClick: (Vendor) -> Unit = {},
     recentVendorsList: List<Vendor>,
-    focusManager: androidx.compose.ui.focus.FocusManager,
+    focusManager: FocusManager,
     context: Context,
     onRecentSearchesUpdate: (List<String>) -> Unit,
     allVendors: List<Vendor>,
@@ -1170,7 +1173,7 @@ fun VendorMainContent(
 fun VendorCategoryDetailContent(
     category: VendorCategoryItem,
     allVendors: List<Vendor>,
-    savedVendorsForCategory: List<com.harshdeep.jasnify.domain.model.SavedVendor>,
+    savedVendorsForCategory: List<SavedVendor>,
     selectedCity: String,
     onBackClick: () -> Unit,
     onLocationClick: () -> Unit,
