@@ -104,7 +104,7 @@ fun VendorMainContent(
                     it.locality.contains(searchQuery, ignoreCase = true) ||
                     it.city.contains(searchQuery, ignoreCase = true) ||
                     it.location.contains(searchQuery, ignoreCase = true)
-        }
+        }.distinctBy { it.id }
     }
 
     LaunchedEffect(isSearchActive) {
@@ -206,7 +206,7 @@ fun VendorMainContent(
                     } else {
                         items(
                             items = filteredAllVendors.take(8),
-                            key = { "search_${it.name}_${it.category}" }
+                            key = { "search_${it.id}" }
                         ) { vendor ->
                             SearchSuggestionItem(
                                 title = vendor.name,
@@ -222,7 +222,7 @@ fun VendorMainContent(
                 } else if (!isSearchActive && searchQuery.isNotEmpty()) {
                     items(
                         items = filteredAllVendors,
-                        key = { "filtered_${it.name}_${it.category}" }
+                        key = { "filtered_${it.id}" }
                     ) { vendor ->
                         VendorCardFull(
                             vendor = vendor,

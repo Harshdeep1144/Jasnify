@@ -111,7 +111,7 @@ fun VenueCarousel(
             } else {
                 items(
                     items = venues,
-                    key = { "${it.name}_${it.location}" }
+                    key = { it.id }
                 ) { venue ->
                     VenueCardCompact(
                         venue = venue,

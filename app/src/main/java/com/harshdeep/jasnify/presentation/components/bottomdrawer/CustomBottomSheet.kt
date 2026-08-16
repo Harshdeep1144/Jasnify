@@ -126,7 +126,7 @@ fun CustomBottomSheet(
 
     // Dynamic height fallback calculation
     val defaultHeightPx = with(density) { (sheetHeight ?: 400.dp).toPx() + 80.dp.toPx() }
-    var actualSheetHeightPx by remember { mutableFloatStateOf(defaultHeightPx) }
+    var actualSheetHeightPx by remember(sheetHeight) { mutableFloatStateOf(defaultHeightPx) }
 
     // Spring physics spec configured from parameters
     val springSpec = remember(dampingRatio, stiffness) {

@@ -161,11 +161,7 @@ fun VendorCategoryDetailContent(
             2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
             3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
             else -> result
-        }
-
-        if (appliedFilterOptions.contains("Top Rated")) {
-            result = result.filter { it.rating >= 4.5 }
-        }
+        }.distinctBy { it.id }
 
         result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
     }
@@ -380,7 +376,7 @@ fun VendorCategoryDetailContent(
                                 } else {
                                     items(
                                         items = filteredVendors.take(8),
-                                        key = { "cat_search_${it.name}" }
+                                        key = { "cat_search_${it.id}" }
                                     ) { vendor ->
                                         SearchSuggestionItem(
                                             title = vendor.name,
@@ -396,7 +392,7 @@ fun VendorCategoryDetailContent(
                             } else if (!isSearchActive && searchQuery.isNotEmpty()) {
                                 items(
                                     items = filteredVendors,
-                                    key = { "cat_filtered_${it.name}" }
+                                    key = { "cat_filtered_${it.id}" }
                                 ) { vendor ->
                                     VendorCardFull(
                                         vendor = vendor,
@@ -476,7 +472,7 @@ fun VendorCategoryDetailContent(
                                 } else {
                                     items(
                                         items = filteredVendors,
-                                        key = { "vendor_${it.name}_${it.category}" }
+                                        key = { it.id }
                                     ) { vendor ->
                                         VendorCardFull(
                                             vendor = vendor,
@@ -597,7 +593,10 @@ fun VendorCategoryDetailContent(
                                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                     }
                                 } else {
-                                    items(savedVendorsList) { vendor ->
+                                    items(
+                                        items = savedVendorsList,
+                                        key = { it.id }
+                                    ) { vendor ->
                                         VendorCardCompact(
                                             vendor = vendor,
                                             onCardClick = { onVendorClick(vendor) },
@@ -621,7 +620,11 @@ fun VendorCategoryDetailContent(
                                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                     }
                                 } else {
-                                    items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
+                                    items(
+                                        items = savedTimelineEvents,
+                                        key = { it.id },
+                                        span = { GridItemSpan(2) }
+                                    ) { timelineItem ->
                                         val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
                                         TimelineSection(
                                             date = timelineItem.date,

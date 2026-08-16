@@ -111,7 +111,7 @@ fun VendorCarousel(
             } else {
                 items(
                     items = vendors,
-                    key = { "${it.name}_${it.category}" }
+                    key = { it.id }
                 ) { vendor ->
                     VendorCardCompact(
                         vendor = vendor,

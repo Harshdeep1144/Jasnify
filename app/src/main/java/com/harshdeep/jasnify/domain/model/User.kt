@@ -1,9 +1,12 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
+
 enum class UserRole {
     OWNER, EDITOR, VIEWER
 }
 
+@Immutable
 data class User(
     val uid: String = "",
     val name: String = "",
@@ -18,6 +21,7 @@ data class User(
     val currentEventId: String? = null
 )
 
+@Immutable
 data class UserEvent(
     val eventId: String = "",
     val eventName: String = "",

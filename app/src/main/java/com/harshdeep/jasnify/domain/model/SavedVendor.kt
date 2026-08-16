@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class SavedVendor(
     val vendorId: String = "",
     val vendorName: String = "",

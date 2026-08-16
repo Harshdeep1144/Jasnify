@@ -189,7 +189,7 @@ fun AddExpenseBottomSheet(
         }
     }
 
-    var amountTextFieldValue by remember(initialAmount) {
+    val amountTextFieldValueState = remember(initialAmount) {
         mutableStateOf(
             TextFieldValue(
                 text = initialAmount,
@@ -197,6 +197,8 @@ fun AddExpenseBottomSheet(
             )
         )
     }
+    var amountTextFieldValue by amountTextFieldValueState
+    
     var receiverName by remember(initialReceiver) { mutableStateOf(initialReceiver) }
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     var selectedEmoji by remember(initialEmoji) { mutableStateOf(initialEmoji) }
@@ -207,13 +209,17 @@ fun AddExpenseBottomSheet(
 
     var showCustomCategoryUI by remember { mutableStateOf(false) }
 
-    val headingTitle = if (showCustomCategoryUI) "Add custom category" else if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
+    val headingTitle = remember(showCustomCategoryUI, initialReceiver) {
+        if (showCustomCategoryUI) "Add custom category" else if (initialReceiver.isNotEmpty()) "Edit expense" else "Add an expense"
+    }
+
+    val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
 
     CustomBottomSheet(
         heading = headingTitle,
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = null,
+        sheetHeight = 560.dp,
         showDragHandle = true,
         showCloseButton = true,
         hasToast = toastData.message != null,
@@ -224,7 +230,6 @@ fun AddExpenseBottomSheet(
                 exit = slideOutVertically(targetOffsetY = { it }),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
                     .padding(12.dp)
             ) {
                 activeToastData?.let { data ->
@@ -236,73 +241,52 @@ fun AddExpenseBottomSheet(
             }
         }
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 550.dp).navigationBarsPadding()) {
-                AnimatedContent(
-                    targetState = showCustomCategoryUI,
-                    transitionSpec = {
-                        if (targetState) {
-                            (fadeIn(animationSpec = tween(220, delayMillis = 90)) + 
-                             slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(220, delayMillis = 90)))
-                            .togetherWith(fadeOut(animationSpec = tween(90)))
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            if (showCustomCategoryUI) {
+                AddCustomCategorySheetContent(
+                    onDismiss = { showCustomCategoryUI = false },
+                    onAddCategory = { newCategory ->
+                        if (newCategory.isBlank()) {
+                            toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
                         } else {
-                            (fadeIn(animationSpec = tween(220, delayMillis = 90)) + 
-                             slideInVertically(initialOffsetY = { -40 }, animationSpec = tween(220, delayMillis = 90)))
-                            .togetherWith(fadeOut(animationSpec = tween(90)))
+                            onAddCategory(newCategory)
+                            dynamicCategories = dynamicCategories + newCategory
+                            selectedCategory = newCategory
+                            showCustomCategoryUI = false
+                        }
+                    }
+                )
+            } else {
+                AddExpenseSheetContent(
+                    amountTextFieldValue = amountTextFieldValue,
+                    onAmountChange = { amountTextFieldValue = it },
+                    receiverName = receiverName,
+                    onReceiverChange = { receiverName = it },
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = { selectedCategory = it },
+                    dynamicCategories = dynamicCategories,
+                    selectedEmoji = selectedEmoji,
+                    onEmojiChange = { selectedEmoji = it },
+                    phoneNumber = phoneNumber,
+                    onPhoneNumberChange = { phoneNumber = it },
+                    note = note,
+                    onNoteChange = { note = it },
+                    onCustomCategoryClick = { showCustomCategoryUI = true },
+                    onDismiss = onDismiss,
+                    onSave = { amt, rec, cat ->
+                        if (amountTextFieldValue.text.isBlank()) {
+                            toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                        } else if (receiverName.isBlank()) {
+                            toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
+                        } else if (selectedCategory.isBlank()) {
+                            toastData = ToastData("Please select an expense category!", ToastType.ERROR)
+                        } else {
+                            val finalEmoji = selectedEmoji.ifBlank { "💸" }
+                            onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
                         }
                     },
-                    label = "AddExpenseContentTransition"
-                ) { isCustom ->
-                    if (isCustom) {
-                        AddCustomCategorySheetContent(
-                            onDismiss = { showCustomCategoryUI = false },
-                            onAddCategory = { newCategory ->
-                                if (newCategory.isBlank()) {
-                                    toastData = ToastData("Please enter an expense category!", ToastType.ERROR)
-                                } else {
-                                    onAddCategory(newCategory)
-                                    dynamicCategories = dynamicCategories + newCategory
-                                    selectedCategory = newCategory
-                                    showCustomCategoryUI = false
-                                }
-                            }
-                        )
-                    } else {
-                        AddExpenseSheetContent(
-                            amountTextFieldValue = amountTextFieldValue,
-                            onAmountChange = { amountTextFieldValue = it },
-                            receiverName = receiverName,
-                            onReceiverChange = { receiverName = it },
-                            selectedCategory = selectedCategory,
-                            onCategorySelect = { selectedCategory = it },
-                            dynamicCategories = dynamicCategories,
-                            selectedEmoji = selectedEmoji,
-                            onEmojiChange = { selectedEmoji = it },
-                            phoneNumber = phoneNumber,
-                            onPhoneNumberChange = { phoneNumber = it },
-                            note = note,
-                            onNoteChange = { note = it },
-                            onCustomCategoryClick = { showCustomCategoryUI = true },
-                            onDismiss = onDismiss,
-                            onSave = { amt, rec, cat ->
-                                if (amountTextFieldValue.text.isBlank()) {
-                                    toastData = ToastData("Please enter the expense!", ToastType.ERROR)
-                                } else if (receiverName.isBlank()) {
-                                    toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
-                                } else if (selectedCategory.isBlank()) {
-                                    toastData = ToastData("Please select an expense category!", ToastType.ERROR)
-                                } else {
-                                    val finalEmoji = selectedEmoji.ifBlank { "💸" }
-                                    onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
-                                }
-                            }
-                        )
-                    }
-                }
+                    visualTransformation = visualTransformation
+                )
             }
         }
     }
@@ -321,17 +305,16 @@ fun AddCustomCategoryBottomSheet(
         heading = heading,
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = null,
+        sheetHeight = 161.dp,
         showDragHandle = true,
         showCloseButton = true
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding(),
+                .fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 161.dp)) {
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 AddCustomCategorySheetContent(
                     onDismiss = onDismiss,
                     onAddCategory = onAddCategory,
@@ -370,6 +353,7 @@ fun AddExpenseSheetContent(
     onCustomCategoryClick: () -> Unit,
     onDismiss: () -> Unit,
     onSave: (amount: Long, receiver: String, category: String) -> Unit,
+    visualTransformation: VisualTransformation,
     modifier: Modifier = Modifier
 ) {
     val emojiFocusRequester = remember { FocusRequester() }
@@ -438,10 +422,12 @@ fun AddExpenseSheetContent(
                         )
 
                         val textMeasurer = rememberTextMeasurer()
-                        val textLayoutResult = textMeasurer.measure(
-                            text = displayAmountText,
-                            style = textStyle
-                        )
+                        val textLayoutResult = remember(displayAmountText, textStyle) {
+                            textMeasurer.measure(
+                                text = displayAmountText,
+                                style = textStyle
+                            )
+                        }
                         val textWidthDp = with(LocalDensity.current) { textLayoutResult.size.width.toDp() }
 
                         BasicTextField(
@@ -455,7 +441,7 @@ fun AddExpenseSheetContent(
                             textStyle = textStyle,
                             cursorBrush = SolidColor(ContentPrimary),
                             singleLine = true,
-                            visualTransformation = ThousandsSeparatorVisualTransformation(),
+                            visualTransformation = visualTransformation,
                             modifier = Modifier
                                 .width(textWidthDp + 6.dp),
                             decorationBox = { innerTextField ->
@@ -844,6 +830,7 @@ fun AddExpenseSheetContentPreview() {
         onNoteChange = {},
         onCustomCategoryClick = {},
         onDismiss = {},
-        onSave = { _, _, _ -> }
+        onSave = { _, _, _ -> },
+        visualTransformation = ThousandsSeparatorVisualTransformation()
     )
 }

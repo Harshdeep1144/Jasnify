@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -202,13 +203,13 @@ fun BudgetTrackerContent(
                     }
                 }
             } else {
-                items(
+                itemsIndexed(
                     items = filteredExpenses,
-                    key = { it.id },
-                    contentType = { "expense" }
-                ) { item ->
-                    val isFirst = filteredExpenses.firstOrNull()?.id == item.id
-                    val isLast = filteredExpenses.lastOrNull()?.id == item.id
+                    key = { _, item -> item.id },
+                    contentType = { _, _ -> "expense" }
+                ) { index, item ->
+                    val isFirst = index == 0
+                    val isLast = index == filteredExpenses.lastIndex
 
                     val itemShape = remember(isFirst, isLast) {
                         when {
