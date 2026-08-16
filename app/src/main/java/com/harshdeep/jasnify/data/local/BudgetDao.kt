@@ -9,7 +9,7 @@ interface BudgetDao {
     @Query("SELECT * FROM expenses WHERE eventId = :eventId ORDER BY lastUpdatedDate DESC")
     fun getAllExpenses(eventId: String): Flow<List<ExpenseEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertExpense(expense: ExpenseEntity)
 
     @Delete
@@ -28,6 +28,6 @@ interface BudgetDao {
     @Query("SELECT * FROM budget_settings WHERE eventId = :eventId")
     fun getBudgetSettings(eventId: String): Flow<BudgetEntity?>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun updateBudgetSettings(budget: BudgetEntity)
 }

@@ -143,20 +143,22 @@ fun BudgetScreen(
     val dateFormatter = remember { SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.ENGLISH) }
 
     val allExpenses = remember(expensesEntities) {
-        expensesEntities.map { entity ->
-            ExpenseItem(
-                id = entity.id,
-                title = entity.title,
-                category = entity.category,
-                amount = "₹${formatter.format(entity.amount)}",
-                emoji = entity.emoji,
-                lastUpdatedBy = entity.lastUpdatedBy,
-                lastUpdatedDate = dateFormatter.format(Date(entity.lastUpdatedDate)),
-                phoneNumber = entity.phoneNumber,
-                note = entity.note
-            )
+        derivedStateOf {
+            expensesEntities.map { entity ->
+                ExpenseItem(
+                    id = entity.id,
+                    title = entity.title,
+                    category = entity.category,
+                    amount = "₹${formatter.format(entity.amount)}",
+                    emoji = entity.emoji,
+                    lastUpdatedBy = entity.lastUpdatedBy,
+                    lastUpdatedDate = dateFormatter.format(Date(entity.lastUpdatedDate)),
+                    phoneNumber = entity.phoneNumber,
+                    note = entity.note
+                )
+            }
         }
-    }
+    }.value
 
     var toastData by remember { mutableStateOf(ToastData()) }
     LaunchedEffect(toastData.message) {
@@ -260,11 +262,21 @@ fun BudgetScreen(
         numericPart.toDoubleOrNull() ?: 0.0
     }
 
-    val totalSpent = remember(allExpenses) { allExpenses.sumOf { parseAmount(it.amount) } }
+    val totalSpent = remember(allExpenses) {
+        derivedStateOf { allExpenses.sumOf { parseAmount(it.amount) } }
+    }.value
 
-    val remainingFunds = (totalBudget - totalSpent).coerceAtLeast(0.0)
-    val remainingPercentage = if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
-    val spentPercentage = if (totalBudget > 0) (totalSpent / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
+    val remainingFunds = remember(totalBudget, totalSpent) {
+        derivedStateOf { (totalBudget - totalSpent).coerceAtLeast(0.0) }
+    }.value
+
+    val remainingPercentage = remember(totalBudget, remainingFunds) {
+        derivedStateOf { if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f }
+    }.value
+
+    val spentPercentage = remember(totalBudget, totalSpent) {
+        derivedStateOf { if (totalBudget > 0) (totalSpent / totalBudget).toFloat().coerceIn(0f, 1f) else 0f }
+    }.value
 
     val formattedRemaining = "₹${formatter.format(remainingFunds.toLong())}"
     val formattedTotalSpent = "₹${formatter.format(totalSpent.toLong())}"
@@ -280,33 +292,39 @@ fun BudgetScreen(
     }
 
     val filteredExpenses = remember(allExpenses, searchQuery, selectedFilterOptions, selectedSortOption) {
-        allExpenses.filter { item ->
-            val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) || item.category.contains(searchQuery, ignoreCase = true)
-            val matchesCategory = selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
-            matchesSearch && matchesCategory
-        }.let { list ->
-            when (selectedSortOption) {
-                "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
-                "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
-                "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
-                else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+        derivedStateOf {
+            allExpenses.filter { item ->
+                val matchesSearch = item.title.contains(searchQuery, ignoreCase = true) || item.category.contains(searchQuery, ignoreCase = true)
+                val matchesCategory = selectedFilterOptions.isEmpty() || selectedFilterOptions.contains(item.category)
+                matchesSearch && matchesCategory
+            }.let { list ->
+                when (selectedSortOption) {
+                    "Highest Amount" -> list.sortedByDescending { parseAmount(it.amount) }
+                    "Lowest Amount" -> list.sortedBy { parseAmount(it.amount) }
+                    "Oldest First" -> list.sortedBy { it.id.toIntOrNull() ?: 0 }
+                    else -> list.sortedByDescending { it.id.toIntOrNull() ?: 0 }
+                }
             }
         }
-    }
+    }.value
 
     val computedCategories = remember(allExpenses, defaultCategories) {
-        val grouped = allExpenses.groupBy { it.category }
-        val finalCategories = (grouped.keys + defaultCategories).distinct()
-        finalCategories.map { catName ->
-            val items = grouped[catName] ?: emptyList()
-            val totalAmt = items.sumOf { parseAmount(it.amount) }
-            CategorySummaryData(catName, "₹${formatter.format(totalAmt.toLong())}", totalAmt, items.map { it.emoji }, items.size)
-        }.sortedByDescending { it.amountRaw }
-    }
+        derivedStateOf {
+            val grouped = allExpenses.groupBy { it.category }
+            val finalCategories = (grouped.keys + defaultCategories).distinct()
+            finalCategories.map { catName ->
+                val items = grouped[catName] ?: emptyList()
+                val totalAmt = items.sumOf { parseAmount(it.amount) }
+                CategorySummaryData(catName, "₹${formatter.format(totalAmt.toLong())}", totalAmt, items.map { it.emoji }, items.size)
+            }.sortedByDescending { it.amountRaw }
+        }
+    }.value
 
     val filteredCategorySummary = remember(computedCategories, categorySearchQuery) {
-        computedCategories.filter { it.name.contains(categorySearchQuery, ignoreCase = true) }
-    }
+        derivedStateOf {
+            computedCategories.filter { it.name.contains(categorySearchQuery, ignoreCase = true) }
+        }
+    }.value
 
     val colorPalette = remember { listOf(Color(0xFF1D5590), Color(0xFFFF1E56), Color(0xFFE56B8F), Color(0xFF0FAD48), Color(0xFF2FA4C4), Color(0xFF8D16FF), Color(0xFFFFB020), Color(0xFF00C9A7), Color(0xFF6C5B7B), Color(0xFF355C7D), Color(0xFFF67280), Color(0xFFC06C84), Color(0xFFFF8C94), Color(0xFF45B6FE), Color(0xFF50B498), Color(0xFF9B59B6), Color(0xFFE67E22), Color(0xFF16A085)) }
 
@@ -319,12 +337,14 @@ fun BudgetScreen(
     val getCategoryColor = { categoryName: String -> categoryColors[categoryName] ?: ContentSecondary }
 
     val pieSlices = remember(allExpenses, categoryColors) {
-        allExpenses.groupBy { it.category }
-            .mapValues { (_, items) -> items.sumOf { parseAmount(it.amount) } }
-            .toList()
-            .sortedByDescending { it.second }
-            .map { (cat, amt) -> PieChartSlice(amt.toFloat(), getCategoryColor(cat), cat) }
-    }
+        derivedStateOf {
+            allExpenses.groupBy { it.category }
+                .mapValues { (_, items) -> items.sumOf { parseAmount(it.amount) } }
+                .toList()
+                .sortedByDescending { it.second }
+                .map { (cat, amt) -> PieChartSlice(amt.toFloat(), getCategoryColor(cat), cat) }
+        }
+    }.value
 
     RoomAccessGuardian(hasAccess = hasAccess, roomName = "Budget", onBackClick = onBackClick) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {

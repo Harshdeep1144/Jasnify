@@ -15,7 +15,7 @@ import androidx.room.TypeConverters
         SavedVenueEntity::class,
         SavedVendorEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

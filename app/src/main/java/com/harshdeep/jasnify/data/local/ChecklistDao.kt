@@ -14,7 +14,7 @@ interface ChecklistDao {
     @Query("SELECT * FROM checklists WHERE id = :id")
     suspend fun getChecklistById(id: String): ChecklistEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertChecklist(checklist: ChecklistEntity)
 
     @Delete

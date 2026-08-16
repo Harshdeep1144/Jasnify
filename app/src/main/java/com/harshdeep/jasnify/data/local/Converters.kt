@@ -6,10 +6,11 @@ import com.google.gson.reflect.TypeToken
 import com.harshdeep.jasnify.domain.model.ChecklistItem
 
 class Converters {
+    private val gson = Gson()
+
     // Converts List<ChecklistItem> → String
     @TypeConverter
     fun fromChecklistItemList(value: List<ChecklistItem>): String {
-        val gson = Gson()
         val type = object : TypeToken<List<ChecklistItem>>() {}.type
         return gson.toJson(value, type)
     }
@@ -17,7 +18,6 @@ class Converters {
     // Converts String → List<ChecklistItem>
     @TypeConverter
     fun toChecklistItemList(value: String): List<ChecklistItem> {
-        val gson = Gson()
         val type = object : TypeToken<List<ChecklistItem>>() {}.type
         return gson.fromJson(value, type)
     }

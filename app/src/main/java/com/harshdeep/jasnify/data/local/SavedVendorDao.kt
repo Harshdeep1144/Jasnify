@@ -11,7 +11,7 @@ interface SavedVendorDao {
     @Query("SELECT * FROM saved_vendors WHERE eventId = :eventId AND category = :category ORDER BY timestamp DESC")
     fun getSavedVendorsByCategory(eventId: String, category: String): Flow<List<SavedVendorEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertSavedVendor(vendor: SavedVendorEntity)
 
     @Query("DELETE FROM saved_vendors WHERE vendorName = :vendorName AND eventId = :eventId AND category = :category")

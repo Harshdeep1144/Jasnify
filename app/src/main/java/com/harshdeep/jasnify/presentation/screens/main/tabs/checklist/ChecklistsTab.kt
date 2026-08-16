@@ -595,30 +595,32 @@ fun ChecklistsTab(
 
                                         val filteredAndSortedChecklists =
                                             remember(searchQuery, checklists, selectedFilter) {
-                                                checklists.filter {
-                                                    it.title.contains(
-                                                        searchQuery,
-                                                        ignoreCase = true
-                                                    ) ||
-                                                            it.items.any { item ->
-                                                                item.text.contains(
-                                                                    searchQuery,
-                                                                    ignoreCase = true
-                                                                )
-                                                            }
-                                                }.let { list ->
-                                                    when (selectedFilter) {
-                                                        "Recent First" -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated })
+                                                derivedStateOf {
+                                                    checklists.filter {
+                                                        it.title.contains(
+                                                            searchQuery,
+                                                            ignoreCase = true
+                                                        ) ||
+                                                                it.items.any { item ->
+                                                                    item.text.contains(
+                                                                        searchQuery,
+                                                                        ignoreCase = true
+                                                                    )
+                                                                }
+                                                    }.let { list ->
+                                                        when (selectedFilter) {
+                                                            "Recent First" -> list.sortedWith(
+                                                                compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated })
 
-                                                        "Oldest First" -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated })
+                                                            "Oldest First" -> list.sortedWith(
+                                                                compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated })
 
-                                                        else -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt })
+                                                            else -> list.sortedWith(
+                                                                compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt })
+                                                        }
                                                     }
                                                 }
-                                            }
+                                            }.value
 
                                         val boundsTransformSpec = BoundsTransform { _, _ ->
                                             tween(
