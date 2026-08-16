@@ -23,11 +23,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -35,18 +33,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -62,8 +55,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -95,20 +86,17 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.GuestCard
 import com.harshdeep.jasnify.presentation.components.cards.GuestCardType
-import com.harshdeep.jasnify.presentation.components.cards.GuestTypeCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
@@ -124,9 +112,6 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BackgroundSecondary
-import com.harshdeep.jasnify.theme.BottomGradientBrush
-import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -503,7 +488,7 @@ fun GuestsTab(
                                     .background(BackgroundPrimary)
                             ) {
                                 if (isSearchActive) {
-                                    GuestSearchContent(
+                                    GuestSearchScreen(
                                         searchQuery = searchQuery,
                                         onSearchQueryChange = { searchQuery = it },
                                         onBackClick = {
@@ -534,7 +519,6 @@ fun GuestsTab(
                                         onInviteToggle = onInviteToggle
                                     )
                                 } else if (isLoading) {
-                                    // Initial loading state - show nothing or a skeleton to prevent flickering
                                     Box(modifier = Modifier.fillMaxSize())
                                 } else {
                                     var expandedGuestId by remember { mutableStateOf<String?>(null) }
@@ -709,509 +693,358 @@ fun GuestsTab(
                                                 key = { _, guest -> guest.id }
                                             ) { index, guest ->
 
-                                                    val isExpanded = expandedGuestId == guest.id
-                                                    val isSelected = selectedGuestIds.contains(guest.id)
+                                                val isExpanded = expandedGuestId == guest.id
+                                                val isSelected = selectedGuestIds.contains(guest.id)
 
-                                                    val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                                                    val bottomRadius =
-                                                        if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
+                                                val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
+                                                val bottomRadius =
+                                                    if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
 
-                                                    val itemShape = SquircleShape(
-                                                        topStart = topRadius,
-                                                        topEnd = topRadius,
-                                                        bottomStart = bottomRadius,
-                                                        bottomEnd = bottomRadius,
-                                                        cornerSmoothing = CornerSmoothingDefault
+                                                val itemShape = SquircleShape(
+                                                    topStart = topRadius,
+                                                    topEnd = topRadius,
+                                                    bottomStart = bottomRadius,
+                                                    bottomEnd = bottomRadius,
+                                                    cornerSmoothing = CornerSmoothingDefault
+                                                )
+
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(horizontal = 12.dp, vertical = 1.dp)
+                                                ) {
+                                                    GuestCard(
+                                                        name = guest.name,
+                                                        label = guest.type,
+                                                        imageUrl = guest.imageUrl,
+                                                        isInvited = guest.invited,
+                                                        invitedBy = guest.invitedBy,
+                                                        invitedAt = guest.invitedAt,
+                                                        type = when {
+                                                            isMultiSelectMode -> GuestCardType.SELECTABLE
+                                                            isViewer -> GuestCardType.DEFAULT
+                                                            else -> GuestCardType.INVITE_ACTION
+                                                        },
+                                                        isSelected = isSelected,
+                                                        showActions = isExpanded,
+                                                        labelColor = typeColors.getOrDefault(guest.type, Color.Gray),
+                                                        onCardClick = {
+                                                            if (isMultiSelectMode) {
+                                                                if (isSelected) selectedGuestIds.remove(guest.id) else selectedGuestIds.add(guest.id)
+                                                            } else {
+                                                                expandedGuestId = if (isExpanded) null else guest.id
+                                                            }
+                                                        },
+                                                        onSelectToggle = { selected ->
+                                                            if (selected) {
+                                                                selectedGuestIds.add(guest.id)
+                                                            } else {
+                                                                selectedGuestIds.remove(guest.id)
+                                                            }
+                                                        },
+                                                        onViewDetailsClick = {
+                                                            selectedGuestForInfo = guest
+                                                        },
+                                                        onInviteClick = {
+                                                            onInviteToggle(guest.id)
+                                                        },
+                                                        cardShape = itemShape
                                                     )
-
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(horizontal = 12.dp, vertical = 1.dp)
-                                                    ) {
-                                                        GuestCard(
-                                                            name = guest.name,
-                                                            label = guest.type,
-                                                            imageUrl = guest.imageUrl,
-                                                            isInvited = guest.invited,
-                                                            invitedBy = guest.invitedBy,
-                                                            invitedAt = guest.invitedAt,
-                                                            type = when {
-                                                                isMultiSelectMode -> GuestCardType.SELECTABLE
-                                                                isViewer -> GuestCardType.DEFAULT
-                                                                else -> GuestCardType.INVITE_ACTION
-                                                            },
-                                                            isSelected = isSelected,
-                                                            showActions = isExpanded,
-                                                            labelColor = typeColors.getOrDefault(guest.type, Color.Gray),
-                                                            onCardClick = {
-                                                                if (isMultiSelectMode) {
-                                                                    if (isSelected) selectedGuestIds.remove(guest.id) else selectedGuestIds.add(guest.id)
-                                                                } else {
-                                                                    expandedGuestId = if (isExpanded) null else guest.id
-                                                                }
-                                                            },
-                                                            onSelectToggle = { selected ->
-                                                                if (selected) {
-                                                                    selectedGuestIds.add(guest.id)
-                                                                } else {
-                                                                    selectedGuestIds.remove(guest.id)
-                                                                }
-                                                            },
-                                                            onViewDetailsClick = {
-                                                                selectedGuestForInfo = guest
-                                                            },
-                                                            onInviteClick = {
-                                                                onInviteToggle(guest.id)
-                                                            },
-                                                            cardShape = itemShape
-                                                        )
-                                                    }
                                                 }
+                                            }
 
-                                                if (guests.size > 10) {
-                                                    item {
-                                                        FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
-                                                    }
+                                            if (guests.size > 10) {
+                                                item {
+                                                    FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
                                                 }
                                             }
                                         }
                                     }
 
-                                if (isMultiSelectMode && selectedGuestIds.isNotEmpty() && inviteFilter != "Already invited") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .align(Alignment.BottomCenter)
-                                            .background(
-                                                brush = Brush.verticalGradient(
-                                                    colorStops = arrayOf(
-                                                        0.00f to Color.Transparent,
-                                                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                                        1.00f to BackgroundPrimary
-                                                    )
-                                                )
-                                            )
-                                            .navigationBarsPadding()
-                                            .padding(horizontal = 12.dp, vertical = 12.dp)
-                                    ) {
-                                        Surface(
+                                    if (isMultiSelectMode && selectedGuestIds.isNotEmpty() && inviteFilter != "Already invited") {
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(62.dp)
-                                                .pill360Shadow(
-                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                    ambientBlur = 12.dp,
-                                                    ambientSpread = 2.dp,
-                                                    spotColor = Color.Black.copy(alpha = 0.15f),
-                                                    spotBlur = 18.dp,
-                                                    spotOffsetY = 4.dp
-                                                ),
-                                            color = SurfacePrimary,
-                                            shape = CircleShape
+                                                .align(Alignment.BottomCenter)
+                                                .background(
+                                                    brush = Brush.verticalGradient(
+                                                        colorStops = arrayOf(
+                                                            0.00f to Color.Transparent,
+                                                            0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                                            0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                                            0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                                            1.00f to BackgroundPrimary
+                                                        )
+                                                    )
+                                                )
+                                                .navigationBarsPadding()
+                                                .padding(horizontal = 12.dp, vertical = 12.dp)
                                         ) {
-                                            Row(
+                                            Surface(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                    .height(62.dp)
+                                                    .pill360Shadow(
+                                                        ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                        ambientBlur = 12.dp,
+                                                        ambientSpread = 2.dp,
+                                                        spotColor = Color.Black.copy(alpha = 0.15f),
+                                                        spotBlur = 18.dp,
+                                                        spotOffsetY = 4.dp
+                                                    ),
+                                                color = SurfacePrimary,
+                                                shape = CircleShape
                                             ) {
-                                                CustomTextButton(
-                                                    onClick = {
-                                                        val nameFromAuth = auth.currentUser?.displayName
-                                                        val nameFromRoom = currentUserInRoom?.name
-                                                        val currentUserName = when {
-                                                            !nameFromRoom.isNullOrBlank() -> nameFromRoom
-                                                            !nameFromAuth.isNullOrBlank() -> nameFromAuth
-                                                            else -> "User"
-                                                        }
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    CustomTextButton(
+                                                        onClick = {
+                                                            val nameFromAuth = auth.currentUser?.displayName
+                                                            val nameFromRoom = currentUserInRoom?.name
+                                                            val currentUserName = when {
+                                                                !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                                                                !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                                                                else -> "User"
+                                                            }
 
-                                                        val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
-                                                        selectedGuests.forEach { guest ->
-                                                            val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
-                                                            guestViewModel.updateGuest(guest.copy(
-                                                                invited = true,
-                                                                invitedBy = currentUserName,
-                                                                invitedAt = timestamp
-                                                            ))
-                                                        }
-                                                        selectedGuestIds.clear()
-                                                        isMultiSelectMode = false
-                                                    },
-                                                    text = "Mark all as invited",
-                                                    leadingIcon = painterResource(id = R.drawable.ic_users_tick),
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    containerColor = ContentPrimary,
-                                                    contentColor = ContentInvPrimary,
-                                                    shapeStyle = ButtonShapeStyle.Round
-                                                )
+                                                            val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
+                                                            selectedGuests.forEach { guest ->
+                                                                val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+                                                                guestViewModel.updateGuest(guest.copy(
+                                                                    invited = true,
+                                                                    invitedBy = currentUserName,
+                                                                    invitedAt = timestamp
+                                                                ))
+                                                            }
+                                                            selectedGuestIds.clear()
+                                                            isMultiSelectMode = false
+                                                        },
+                                                        text = "Mark all as invited",
+                                                        leadingIcon = painterResource(id = R.drawable.ic_users_tick),
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        containerColor = ContentPrimary,
+                                                        contentColor = ContentInvPrimary,
+                                                        shapeStyle = ButtonShapeStyle.Round
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
+                         }
                         GuestsView.MANAGE_GUEST_TYPES -> {
-                            GuestTypeScreen(
-                                isViewer = isViewer,
-                                guestTypes = guestTypes.map { typeName ->
-                                    GuestType(
-                                        name = typeName,
-                                        guestCount = guests.count { it.type == typeName }
-                                    )
-                                },
-                                onBackClick = { currentView = GuestsView.MAIN },
-                                onAddTypeClick = { showAddTypeSheet = true },
-                                onTypeClick = { type ->
-                                    selectedGuestTypeForDetail = type.name
-                                    currentView = GuestsView.GUEST_TYPE_DETAIL
-                                },
-                                getGuestThumbnails = { typeName ->
-                                    guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
-                                }
-                            )
-                        }
-                        GuestsView.GUEST_TYPE_DETAIL -> {
-                            GuestTypeDetailScreen(
-                                isViewer = isViewer,
-                                typeName = selectedGuestTypeForDetail ?: "",
-                                guests = guests.filter { it.type == selectedGuestTypeForDetail },
-                                onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
-                                getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
-                                onViewDetails = { guest -> selectedGuestForInfo = guest },
-                                onEditTypeClick = {
-                                    selectedGuestTypeForEdit = selectedGuestTypeForDetail
-                                    showAddTypeSheet = true
-                                },
-                                onInviteToggle = onInviteToggle
-                            )
-                        }
-                        GuestsView.ROOM_ACCESS -> {
-                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                val self = User(
-                                    uid = currentUserUid,
-                                    name = auth.currentUser?.displayName ?: "Me",
-                                    email = auth.currentUser?.email ?: "",
-                                    role = currentUserRole,
-                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                                )
-                                (listOf(self) + roomUsers).distinctBy { it.uid }
-                            } else {
-                                roomUsers
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(SurfaceSecondary)
-                            ) {
-                                RoomScreen(
-                                    allUsers = displayUsers,
-                                    currentUserRole = currentUserRole,
-                                    isSelf = { it.uid == currentUserUid },
+                                GuestTypeScreen(
+                                    isViewer = isViewer,
+                                    guestTypes = guestTypes.map { typeName ->
+                                        GuestType(
+                                            name = typeName,
+                                            guestCount = guests.count { it.type == typeName }
+                                        )
+                                    },
                                     onBackClick = { currentView = GuestsView.MAIN },
-                                    onMenuClick = {
-                                        focusManager.clearFocus()
-                                        showRoomMenuBottomSheet = true
+                                    onAddTypeClick = { showAddTypeSheet = true },
+                                    onTypeClick = { type ->
+                                        selectedGuestTypeForDetail = type.name
+                                        currentView = GuestsView.GUEST_TYPE_DETAIL
                                     },
-                                    onRoleChange = { targetUser, newRole ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.updateRole(eventId, "Guest", targetUser, newRole)
-                                        }
-                                    },
-                                    onRemove = { targetUser ->
-                                        userToRemove = targetUser
-                                    },
-                                    onReport = { targetUser ->
-                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
-                                    },
-                                    onLeave = {
-                                        showLeaveConfirmation = true
-                                    },
-                                    searchResults = roomSearchResults,
-                                    onSearch = { roomViewModel.searchUsers(it) },
-                                    onGrantAccess = { email, role ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.grantAccess(eventId, "Guest", email, role)
-                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    getGuestThumbnails = { typeName ->
+                                        guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
+                                    }
                                 )
+                            }
+                            GuestsView.GUEST_TYPE_DETAIL -> {
+                                GuestTypeDetailScreen(
+                                    isViewer = isViewer,
+                                    typeName = selectedGuestTypeForDetail ?: "",
+                                    guests = guests.filter { it.type == selectedGuestTypeForDetail },
+                                    onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
+                                    getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
+                                    onViewDetails = { guest -> selectedGuestForInfo = guest },
+                                    onEditTypeClick = {
+                                        selectedGuestTypeForEdit = selectedGuestTypeForDetail
+                                        showAddTypeSheet = true
+                                    },
+                                    onInviteToggle = onInviteToggle
+                                )
+                            }
+                            GuestsView.ROOM_ACCESS -> {
+                                val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
+                                    val self = User(
+                                        uid = currentUserUid,
+                                        name = auth.currentUser?.displayName ?: "Me",
+                                        email = auth.currentUser?.email ?: "",
+                                        role = currentUserRole,
+                                        username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                                    )
+                                    (listOf(self) + roomUsers).distinctBy { it.uid }
+                                } else {
+                                    roomUsers
+                                }
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(SurfaceSecondary)
+                                ) {
+                                    RoomScreen(
+                                        allUsers = displayUsers,
+                                        currentUserRole = currentUserRole,
+                                        isSelf = { it.uid == currentUserUid },
+                                        onBackClick = { currentView = GuestsView.MAIN },
+                                        onMenuClick = {
+                                            focusManager.clearFocus()
+                                            showRoomMenuBottomSheet = true
+                                        },
+                                        onRoleChange = { targetUser, newRole ->
+                                            activeEvent?.id?.let { eventId ->
+                                                roomViewModel.updateRole(eventId, "Guest", targetUser, newRole)
+                                            }
+                                        },
+                                        onRemove = { targetUser ->
+                                            userToRemove = targetUser
+                                        },
+                                        onReport = { targetUser ->
+                                            toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
+                                        },
+                                        onLeave = {
+                                            showLeaveConfirmation = true
+                                        },
+                                        searchResults = roomSearchResults,
+                                        onSearch = { roomViewModel.searchUsers(it) },
+                                        onGrantAccess = { email, role ->
+                                            activeEvent?.id?.let { eventId ->
+                                                roomViewModel.grantAccess(eventId, "Guest", email, role)
+                                                toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
+                                            }
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        AnimatedVisibility(
-            visible = toastData?.message != null && !isAnyBottomSheetOpen,
-            enter = slideInVertically(initialOffsetY = { -it - 500 }),
-            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .zIndex(100f)
-                .padding(horizontal = 12.dp, vertical = 16.dp)
-        ) {
-            toastData?.let { data ->
-                CustomToast(
-                    message = data.message ?: "",
-                    type = data.type
-                )
-            }
-        }
-    }
-
-    if (selectedGuestForInfo != null) {
-        val currentGuest = guests.find { it.id == selectedGuestForInfo?.id } ?: selectedGuestForInfo!!
-
-        GuestDetailsBottomSheet(
-            isViewer = isViewer,
-            guest = currentGuest,
-            onDismiss = { selectedGuestForInfo = null },
-            onProgress = { sheetMotionProgress = it },
-            onEditClick = {
-                selectedGuestForEdit = currentGuest
-                selectedGuestForInfo = null
-            },
-            onInviteClick = {
-                onInviteToggle(currentGuest.id)
-            },
-            onDeleteClick = {
-                guestToDeleteForInfo = currentGuest
-                selectedGuestForInfo = null
-            },
-            onRecentActivityClick = {
-                selectedGuestForRecentActivity = currentGuest
-            }
-        )
-    }
-
-    if (selectedGuestForRecentActivity != null) {
-        RecentActivityBottomSheet(
-            guest = selectedGuestForRecentActivity!!,
-            onDismiss = { selectedGuestForRecentActivity = null },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    guestToDeleteForInfo?.let { guest ->
-        val formattedName = guest.name.trim().split("\\s+".toRegex()).let { parts ->
-            if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
-        }
-        ConfirmationBottomSheet(
-            heading = "Are you sure?",
-            subHeading = "${guest.name} will be removed from the guest list.",
-            confirmButtonText = "Remove $formattedName",
-            onDismiss = { guestToDeleteForInfo = null },
-            onConfirm = {
-                guestViewModel.deleteGuest(guest.id)
-                guestToDeleteForInfo = null
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    if (showMultiDeleteConfirmation) {
-        val selectedGuests = guests.filter { it.id in selectedGuestIds }
-        val subHeading = when {
-            selectedGuests.size == 1 -> "${selectedGuests[0].name} will be removed from the guest list."
-            selectedGuests.size == 2 -> "${selectedGuests[0].name} and ${selectedGuests[1].name} will be removed from the guest list."
-            selectedGuests.size > 2 -> {
-                val n1 = selectedGuests[0].name.trim().split("\\s+".toRegex())[0]
-                val n2 = selectedGuests[1].name.trim().split("\\s+".toRegex())[0]
-                "$n1, $n2 & ${selectedGuests.size - 2} other guests will be removed from the guest list."
-            }
-            else -> ""
-        }
-
-        ConfirmationBottomSheet(
-            heading = "Are you sure?",
-            subHeading = subHeading,
-            confirmButtonText = "Remove All ${selectedGuestIds.size} Guests",
-            onDismiss = { showMultiDeleteConfirmation = false },
-            onConfirm = {
-                guestViewModel.deleteMultipleGuests(selectedGuestIds.toList())
-                selectedGuestIds.clear()
-                isMultiSelectMode = false
-                showMultiDeleteConfirmation = false
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    if (showAddGuestSheet || selectedGuestForEdit != null) {
-        AddGuestInfoBottomSheet(
-            onDismiss = {
-                showAddGuestSheet = false
-                selectedGuestForEdit = null
-            },
-            onProgress = { sheetMotionProgress = it },
-            onUploadPhoto = { uri, guestId, onUrlReady ->
-                guestViewModel.uploadGuestPhoto(uri, guestId, onUrlReady) { error ->
-                    toastData = ToastData(error, ToastType.ERROR)
+            AnimatedVisibility(
+                visible = toastData?.message != null && !isAnyBottomSheetOpen,
+                enter = slideInVertically(initialOffsetY = { -it - 500 }),
+                exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .zIndex(100f)
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            ) {
+                toastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
+                    )
                 }
-            },
-            onRemovePhoto = { url ->
-                guestViewModel.deleteGuestPhoto(url)
-            },
-            onAddClick = { newGuest ->
-                val nameFromAuth = auth.currentUser?.displayName
-                val nameFromRoom = currentUserInRoom?.name
-                val currentUserName = when {
-                    !nameFromRoom.isNullOrBlank() -> nameFromRoom
-                    !nameFromAuth.isNullOrBlank() -> nameFromAuth
-                    else -> "User"
-                }
-                val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+            }
+        }
 
-                if (selectedGuestForEdit != null) {
-                    guestViewModel.updateGuest(newGuest.copy(
-                        id = selectedGuestForEdit!!.id,
-                        updatedBy = currentUserName,
-                        updatedAt = timestamp
-                    ))
+        if (selectedGuestForInfo != null) {
+            val currentGuest = guests.find { it.id == selectedGuestForInfo?.id } ?: selectedGuestForInfo!!
+
+            GuestDetailsBottomSheet(
+                isViewer = isViewer,
+                guest = currentGuest,
+                onDismiss = { selectedGuestForInfo = null },
+                onProgress = { sheetMotionProgress = it },
+                onEditClick = {
+                    selectedGuestForEdit = currentGuest
+                    selectedGuestForInfo = null
+                },
+                onInviteClick = {
+                    onInviteToggle(currentGuest.id)
+                },
+                onDeleteClick = {
+                    guestToDeleteForInfo = currentGuest
+                    selectedGuestForInfo = null
+                },
+                onRecentActivityClick = {
+                    selectedGuestForRecentActivity = currentGuest
+                }
+            )
+        }
+
+        if (selectedGuestForRecentActivity != null) {
+            RecentActivityBottomSheet(
+                guest = selectedGuestForRecentActivity!!,
+                onDismiss = { selectedGuestForRecentActivity = null },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        guestToDeleteForInfo?.let { guest ->
+            val formattedName = guest.name.trim().split("\\s+".toRegex()).let { parts ->
+                if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
+            }
+            ConfirmationBottomSheet(
+                heading = "Are you sure?",
+                subHeading = "${guest.name} will be removed from the guest list.",
+                confirmButtonText = "Remove $formattedName",
+                onDismiss = { guestToDeleteForInfo = null },
+                onConfirm = {
+                    guestViewModel.deleteGuest(guest.id)
+                    guestToDeleteForInfo = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showMultiDeleteConfirmation) {
+            val selectedGuests = guests.filter { it.id in selectedGuestIds }
+            val subHeading = when {
+                selectedGuests.size == 1 -> "${selectedGuests[0].name} will be removed from the guest list."
+                selectedGuests.size == 2 -> "${selectedGuests[0].name} and ${selectedGuests[1].name} will be removed from the guest list."
+                selectedGuests.size > 2 -> {
+                    val n1 = selectedGuests[0].name.trim().split("\\s+".toRegex())[0]
+                    val n2 = selectedGuests[1].name.trim().split("\\s+".toRegex())[0]
+                    "$n1, $n2 & ${selectedGuests.size - 2} other guests will be removed from the guest list."
+                }
+                else -> ""
+            }
+
+            ConfirmationBottomSheet(
+                heading = "Are you sure?",
+                subHeading = subHeading,
+                confirmButtonText = "Remove All ${selectedGuestIds.size} Guests",
+                onDismiss = { showMultiDeleteConfirmation = false },
+                onConfirm = {
+                    guestViewModel.deleteMultipleGuests(selectedGuestIds.toList())
+                    selectedGuestIds.clear()
+                    isMultiSelectMode = false
+                    showMultiDeleteConfirmation = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showAddGuestSheet || selectedGuestForEdit != null) {
+            AddGuestInfoBottomSheet(
+                onDismiss = {
+                    showAddGuestSheet = false
                     selectedGuestForEdit = null
-                    toastData = ToastData("Update successfully!", ToastType.SUCCESS)
-                } else {
-                    val exists = guests.any {
-                        it.name.equals(newGuest.name, ignoreCase = true) &&
-                                it.contactNo == newGuest.contactNo &&
-                                it.contactNo.isNotBlank()
+                },
+                onProgress = { sheetMotionProgress = it },
+                onUploadPhoto = { uri, guestId, onUrlReady ->
+                    guestViewModel.uploadGuestPhoto(uri, guestId, onUrlReady) { error ->
+                        toastData = ToastData(error, ToastType.ERROR)
                     }
-                    if (exists) {
-                        toastData = ToastData("${newGuest.name} already exists", ToastType.DEFAULT)
-                    } else {
-                        guestViewModel.addGuest(newGuest.copy(
-                            addedBy = currentUserName,
-                            addedAt = timestamp
-                        ))
-                        showAddGuestSheet = false
-                        toastData = ToastData("Guest added successfully!", ToastType.SUCCESS)
-                    }
-                }
-            },
-            onAddNewTypeClick = { showAddTypeSheet = true },
-            guestTypes = guestTypes.map { GuestType(name = it) },
-            initialGuest = selectedGuestForEdit,
-            onError = { message ->
-                toastData = ToastData(message, ToastType.ERROR)
-            },
-            hasToast = toastData != null,
-            toast = {
-                AnimatedVisibility(
-                    visible = toastData?.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(12.dp)
-                ) {
-                    activeToastData?.let { data ->
-                        CustomToast(
-                            message = data.message ?: "",
-                            type = data.type
-                        )
-                    }
-                }
-            }
-        )
-    }
-
-    if (showAddTypeSheet) {
-        AddGuestTypeBottomSheet(
-            onDismiss = {
-                showAddTypeSheet = false
-                selectedGuestTypeForEdit = null
-            },
-            onProgress = { sheetMotionProgress = it },
-            initialType = selectedGuestTypeForEdit,
-            onAddType = { newType ->
-                if (selectedGuestTypeForEdit != null) {
-                    // Update existing type name in guestTypes list
-                    val index = guestTypes.indexOf(selectedGuestTypeForEdit)
-                    if (index != -1) {
-                        guestTypes[index] = newType
-                    }
-
-                    // Update all guests who had this type
-                    guests.forEachIndexed { idx, guest ->
-                        if (guest.type == selectedGuestTypeForEdit) {
-                            guestViewModel.updateGuest(guest.copy(type = newType))
-                        }
-                    }
-
-                    // Update detail view if active
-                    if (selectedGuestTypeForDetail == selectedGuestTypeForEdit) {
-                        selectedGuestTypeForDetail = newType
-                    }
-                    selectedGuestTypeForEdit = null
-                } else if (!guestTypes.contains(newType)) {
-                    guestTypes.add(newType)
-                }
-                showAddTypeSheet = false
-            },
-            hasToast = toastData != null,
-            toast = {
-                AnimatedVisibility(
-                    visible = toastData?.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(12.dp)
-                ) {
-                    activeToastData?.let { data ->
-                        CustomToast(
-                            message = data.message ?: "",
-                            type = data.type
-                        )
-                    }
-                }
-            }
-        )
-    }
-
-    if (showTypeFilterSheet) {
-        SelectGuestTypeBottomSheet(
-            guestTypes = guestTypes.map { typeName ->
-                GuestType(
-                    name = typeName,
-                    guestCount = guests.count { it.type == typeName }
-                )
-            },
-            initialSelectedTypes = selectedTypesFilter,
-            onDismiss = { showTypeFilterSheet = false },
-            onProgress = { sheetMotionProgress = it },
-            onApply = { types ->
-                selectedTypesFilter = types
-                showTypeFilterSheet = false
-            },
-            imageUrls = guests.mapNotNull { it.imageUrl }.distinct()
-        )
-    }
-
-    if (showContactPicker) {
-        ContactPickerBottomSheet(
-            contacts = phoneContacts,
-            onDismiss = { showContactPicker = false },
-            onProgress = { sheetMotionProgress = it },
-            onAddManuallyClick = {
-                showContactPicker = false
-                showAddGuestSheet = true
-            },
-            existingGuestIdentifiers = guests.map { it.name.lowercase() + it.contactNo }.toSet(),
-            onContactsSelected = { selectedContacts, includePhoneNo ->
-                if (selectedContacts.isEmpty()) {
-                    toastData = ToastData("Please select at least 1 guest!", ToastType.ERROR)
-                } else {
+                },
+                onRemovePhoto = { url ->
+                    guestViewModel.deleteGuestPhoto(url)
+                },
+                onAddClick = { newGuest ->
                     val nameFromAuth = auth.currentUser?.displayName
                     val nameFromRoom = currentUserInRoom?.name
                     val currentUserName = when {
@@ -1221,702 +1054,347 @@ fun GuestsTab(
                     }
                     val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
 
-                    var duplicateCount = 0
-                    selectedContacts.forEach { contact ->
-                        val phoneNumber = if (includePhoneNo) contact.phoneNumber else ""
+                    if (selectedGuestForEdit != null) {
+                        guestViewModel.updateGuest(newGuest.copy(
+                            id = selectedGuestForEdit!!.id,
+                            updatedBy = currentUserName,
+                            updatedAt = timestamp
+                        ))
+                        selectedGuestForEdit = null
+                        toastData = ToastData("Update successfully!", ToastType.SUCCESS)
+                    } else {
                         val exists = guests.any {
-                            it.name.equals(contact.name, ignoreCase = true) && it.contactNo == phoneNumber
+                            it.name.equals(newGuest.name, ignoreCase = true) &&
+                                    it.contactNo == newGuest.contactNo &&
+                                    it.contactNo.isNotBlank()
                         }
-                        if (!exists) {
-                            guestViewModel.addGuest(
-                                Guest(
-                                    name = contact.name,
-                                    contactNo = phoneNumber,
-                                    imageUrl = contact.photoUri,
-                                    type = "Others",
-                                    addedBy = currentUserName,
-                                    addedAt = timestamp
-                                )
-                            )
+                        if (exists) {
+                            toastData = ToastData("${newGuest.name} already exists", ToastType.DEFAULT)
                         } else {
-                            duplicateCount++
+                            guestViewModel.addGuest(newGuest.copy(
+                                addedBy = currentUserName,
+                                addedAt = timestamp
+                            ))
+                            showAddGuestSheet = false
+                            toastData = ToastData("Guest added successfully!", ToastType.SUCCESS)
                         }
                     }
-                    if (duplicateCount > 0) {
-                        toastData = ToastData(
-                            if (duplicateCount == 1) "Guest already exists!" else "$duplicateCount Guests already exist!",
-                            ToastType.DEFAULT
-                        )
-                    }
-
-                    if (selectedContacts.size > duplicateCount) {
-                        importedCount = selectedContacts.size - duplicateCount
-                        showSuccessSheet = true
-                    }
-
-                    showContactPicker = false
-                }
-            },
-            hasToast = toastData != null,
-            toast = {
-                AnimatedVisibility(
-                    visible = toastData?.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }),
-                    exit = slideOutVertically(targetOffsetY = { it }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(12.dp)
-                ) {
-                    activeToastData?.let { data ->
-                        CustomToast(
-                            message = data.message ?: "",
-                            type = data.type
-                        )
-                    }
-                }
-            }
-        )
-    }
-
-    if (showSuccessSheet) {
-        CustomSuccessBottomSheet(
-            message = "$importedCount Contacts Imported",
-            onDismiss = { showSuccessSheet = false },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    if (showRoomMenuBottomSheet) {
-        MenuBottomSheet(
-            items = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Leave Room",
-                        icon = painterResource(R.drawable.ic_logout),
-                        iconPlacement = IconPlacement.Left,
-                        contentColor = Color.Red,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            showLeaveConfirmation = true
-                        }
-                    )
-                )
-            ),
-            onCancelClick = {
-                showRoomMenuBottomSheet = false
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    if (showLeaveConfirmation) {
-        ConfirmationBottomSheet(
-            heading = "Leaving Guest Room?",
-            subHeading = "You will lose access to this room and won't be able to see updates.",
-            confirmButtonText = "Leave",
-            onDismiss = {
-                showLeaveConfirmation = false
-            },
-            onConfirm = {
-                activeEvent?.id?.let { eventId ->
-                    roomViewModel.removeAccess(eventId, "Guest", currentUserUid)
-                }
-                toastData = ToastData("You left the room", ToastType.DEFAULT)
-                currentView = GuestsView.MAIN
-                showLeaveConfirmation = false
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    userToRemove?.let { user ->
-        ConfirmationBottomSheet(
-            heading = "Remove ${user.name} from Guest Room?",
-            subHeading = "They will not be able to access this room anymore.",
-            confirmButtonText = "Remove",
-            onDismiss = {
-                userToRemove = null
-            },
-            onConfirm = {
-                val target = userToRemove
-                if (target != null && activeEvent != null) {
-                    roomViewModel.removeAccess(activeEvent!!.id, "Guest", target.uid)
-                    toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
-                }
-                userToRemove = null
-            },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-
-    if (showMenuSheet) {
-        val menuItems = listOf(
-            listOfNotNull(
-                if (!isViewer) {
-                    MenuSheetActionItem(
-                        text = "Add Guests",
-                        icon = painterResource(id = R.drawable.ic_add_circle),
-                        iconPlacement = IconPlacement.Top,
-                        onClick = {
-                            showMenuSheet = false
-                            onAddGuestClick()
-                        }
-                    )
-                } else null,
-                if (guests.isNotEmpty() && !isViewer) {
-                    MenuSheetActionItem(
-                        text = "Multi-Select",
-                        icon = painterResource(id = R.drawable.ic_multi_select),
-                        iconPlacement = IconPlacement.Top,
-                        onClick = {
-                            showMenuSheet = false
-                            isMultiSelectMode = true
-                            inviteFilter = "Yet to invite"
-                        }
-                    )
-                } else null
-            ),
-            listOf(
-                MenuSheetActionItem(
-                    text = "Manage Guest Type",
-                    icon = painterResource(id = R.drawable.ic_category),
-                    iconPlacement = IconPlacement.Left,
-                    onClick = {
-                        showMenuSheet = false
-                        currentView = GuestsView.MANAGE_GUEST_TYPES
-                    }
-                )
-            ),
-            listOf(
-                MenuSheetActionItem(
-                    text = if (isOwner) "Manage Room Access" else "Room Members",
-                    icon = painterResource(id = R.drawable.ic_user_default),
-                    iconPlacement = IconPlacement.Left,
-                    onClick = {
-                        showMenuSheet = false
-                        currentView = GuestsView.ROOM_ACCESS
-                    }
-                )
-            ),
-            listOf(
-                MenuSheetActionItem(
-                    text = "Help & Feedback",
-                    icon = painterResource(id = R.drawable.ic_help_feedback),
-                    iconPlacement = IconPlacement.Left,
-                    onClick = { showMenuSheet = false }
-                )
-            )
-        )
-
-        MenuBottomSheet(
-            items = menuItems,
-            onCancelClick = { showMenuSheet = false },
-            onProgress = { sheetMotionProgress = it }
-        )
-    }
-}
-
-
-@Composable
-fun GuestEmptyState(
-    hasContactPermission: Boolean,
-    onAddGuestClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Top
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(320.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Top,
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_book),
-                    contentDescription = null,
-                    tint = ContentTertiary,
-                    modifier = Modifier.size(84.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "No guests to invite",
-                    style = JasnifyTheme.typography.displayMedium.copy(
-                        textAlign = TextAlign.Center,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = ContentTertiary
-                )
-                Spacer(modifier = Modifier.height(24.dp))
-
-                CustomTextButton(
-                    onClick = onAddGuestClick,
-                    text = if (hasContactPermission) "Add Guests" else "Allow Contacts Access",
-                    leadingIcon = if (hasContactPermission) painterResource(id = R.drawable.ic_plus) else null,
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Text(
-                    text = if (hasContactPermission) "Select and Import multiple \n contacts at once." else "We need contacts \n access to show contacts.",
-                    style = JasnifyTheme.typography.labelMedium,
-                    color = ContentTertiary,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun GuestTypeScreen(
-    isViewer: Boolean = false,
-    guestTypes: List<GuestType>,
-    onBackClick: () -> Unit,
-    onAddTypeClick: () -> Unit,
-    onTypeClick: (GuestType) -> Unit,
-    getGuestThumbnails: (String) -> List<String>
-) {
-    Scaffold(
-        topBar = {
-            Column(
-                modifier = Modifier
-                    .background(BackgroundPrimary)
-                    .statusBarsPadding()
-            ) {
-                CustomTopBar(
-                    title = "Guest Type",
-                    onBackClick = onBackClick
-                )
-            }
-        },
-        containerColor = BackgroundSecondary,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { paddingValues ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 88.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                items(guestTypes, key = { it.name }) { type ->
-                    GuestTypeCard(
-                        label = type.name,
-                        guestCount = type.guestCount,
-                        showChecker = false,
-                        imageUrls = getGuestThumbnails(type.name),
-                        onClick = { onTypeClick(type) }
-                    )
-                }
-            }
-
-            if (!isViewer) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .background(
-                            brush = BottomGradientBrush
-                        )
-                        .navigationBarsPadding()
-                        .padding(horizontal = 12.dp, vertical = 12.dp)
-                ) {
-                    Surface(
+                },
+                onAddNewTypeClick = { showAddTypeSheet = true },
+                guestTypes = guestTypes.map { GuestType(name = it) },
+                initialGuest = selectedGuestForEdit,
+                onError = { message ->
+                    toastData = ToastData(message, ToastType.ERROR)
+                },
+                hasToast = toastData != null,
+                toast = {
+                    AnimatedVisibility(
+                        visible = toastData?.message != null,
+                        enter = slideInVertically(initialOffsetY = { it }),
+                        exit = slideOutVertically(targetOffsetY = { it }),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(62.dp)
-                            .pill360Shadow(
-                                ambientColor = Color.Black.copy(alpha = 0.10f),
-                                ambientBlur = 12.dp,
-                                ambientSpread = 2.dp,
-                                spotColor = Color.Black.copy(alpha = 0.15f),
-                                spotBlur = 18.dp,
-                                spotOffsetY = 4.dp
-                            ),
-                        color = SurfacePrimary,
-                        shape = CircleShape
+                            .statusBarsPadding()
+                            .padding(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            CustomTextButton(
-                                onClick = onAddTypeClick,
-                                text = "Add a Guest Type",
-                                leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                modifier = Modifier.fillMaxWidth(),
-                                shapeStyle = ButtonShapeStyle.Round
+                        activeToastData?.let { data ->
+                            CustomToast(
+                                message = data.message ?: "",
+                                type = data.type
                             )
                         }
                     }
                 }
-            }
+            )
         }
-    }
-}
 
-@Composable
-fun GuestTypeDetailScreen(
-    isViewer: Boolean = false,
-    typeName: String,
-    guests: List<Guest>,
-    onBackClick: () -> Unit,
-    getGuestTypeColor: (String) -> Color,
-    onViewDetails: (Guest) -> Unit,
-    onEditTypeClick: () -> Unit,
-    onInviteToggle: (String) -> Unit
-) {
-    var activeFilter by remember { mutableStateOf("Everyone") }
-    var expandedGuestId by remember { mutableStateOf<String?>(null) }
+        if (showAddTypeSheet) {
+            AddGuestTypeBottomSheet(
+                onDismiss = {
+                    showAddTypeSheet = false
+                    selectedGuestTypeForEdit = null
+                },
+                onProgress = { sheetMotionProgress = it },
+                initialType = selectedGuestTypeForEdit,
+                onAddType = { newType ->
+                    if (selectedGuestTypeForEdit != null) {
+                        val index = guestTypes.indexOf(selectedGuestTypeForEdit)
+                        if (index != -1) {
+                            guestTypes[index] = newType
+                        }
 
-    val filteredGuests = remember(guests, activeFilter) {
-        when (activeFilter) {
-            "Yet to invite" -> guests.filter { !it.invited }
-            "Already invited" -> guests.filter { it.invited }
-            else -> guests
-        }
-    }
-
-    Scaffold(
-        topBar = {
-            Column(
-                modifier = Modifier.statusBarsPadding()
-            ) {
-                CustomTopBar(
-                    onBackClick = onBackClick
-                )
-            }
-        },
-        containerColor = BackgroundPrimary,
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .navigationBarsPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = typeName,
-                    style = JasnifyTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = ContentPrimary
-                )
-
-                if (!isViewer) {
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    CustomIconButton(
-                        icon = painterResource(R.drawable.ic_edit),
-                        size = ButtonSize.Small,
-                        contentColor = ContentPrimary,
-                        containerColor = ContentInvPrimary,
-                        onClick = onEditTypeClick
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
-                    FilterChip(
-                        label = "Everyone",
-                        isSelected = activeFilter == "Everyone",
-                        onClick = { activeFilter = "Everyone" },
-                        shapeStyle = ChipShapeStyle.Round,
-                        hasStroke = true
-                    )
-                }
-                item {
-                    FilterChip(
-                        label = "Yet to invite",
-                        isSelected = activeFilter == "Yet to invite",
-                        onClick = { activeFilter = "Yet to invite" },
-                        shapeStyle = ChipShapeStyle.Round,
-                        hasStroke = true
-                    )
-                }
-                item {
-                    FilterChip(
-                        label = "Already invited",
-                        isSelected = activeFilter == "Already invited",
-                        onClick = { activeFilter = "Already invited" },
-                        shapeStyle = ChipShapeStyle.Round,
-                        hasStroke = true
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(start = 12.dp, top = 0.dp, bottom = 12.dp, end = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                if (filteredGuests.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(320.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Top,
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_book),
-                                    contentDescription = null,
-                                    tint = ContentTertiary,
-                                    modifier = Modifier.size(84.dp)
-                                )
-                                Spacer(modifier = Modifier.height(12.dp))
-                                Text(
-                                    text = "No guests to invite",
-                                    style = JasnifyTheme.typography.displayMedium.copy(
-                                        textAlign = TextAlign.Center,
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    color = ContentTertiary
-                                )
+                        guests.forEachIndexed { idx, guest ->
+                            if (guest.type == selectedGuestTypeForEdit) {
+                                guestViewModel.updateGuest(guest.copy(type = newType))
                             }
                         }
+
+                        if (selectedGuestTypeForDetail == selectedGuestTypeForEdit) {
+                            selectedGuestTypeForDetail = newType
+                        }
+                        selectedGuestTypeForEdit = null
+                    } else if (!guestTypes.contains(newType)) {
+                        guestTypes.add(newType)
                     }
-                } else {
-                    itemsIndexed(filteredGuests, key = { _, guest -> guest.id }) { index, guest ->
-                        val isExpanded = expandedGuestId == guest.id
-
-                        val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                        val bottomRadius = if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
-                        val itemShape = SquircleShape(
-                            topStart = topRadius,
-                            topEnd = topRadius,
-                            bottomStart = bottomRadius,
-                            bottomEnd = bottomRadius,
-                            cornerSmoothing = CornerSmoothingDefault
-                        )
-
-                        GuestCard(
-                            name = guest.name,
-                            label = guest.type,
-                            imageUrl = guest.imageUrl,
-                            isInvited = guest.invited,
-                            invitedBy = guest.invitedBy,
-                            invitedAt = guest.invitedAt,
-                            type = if (isViewer) GuestCardType.DEFAULT else GuestCardType.INVITE_ACTION,
-                            labelColor = getGuestTypeColor(guest.type),
-                            showActions = isExpanded,
-                            onCardClick = {
-                                expandedGuestId = if (isExpanded) null else guest.id
-                            },
-                            onViewDetailsClick = { onViewDetails(guest) },
-                            onInviteClick = { onInviteToggle(guest.id) },
-                            cardShape = itemShape
-                        )
+                    showAddTypeSheet = false
+                },
+                hasToast = toastData != null,
+                toast = {
+                    AnimatedVisibility(
+                        visible = toastData?.message != null,
+                        enter = slideInVertically(initialOffsetY = { it }),
+                        exit = slideOutVertically(targetOffsetY = { it }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(12.dp)
+                    ) {
+                        activeToastData?.let { data ->
+                            CustomToast(
+                                message = data.message ?: "",
+                                type = data.type
+                            )
+                        }
                     }
                 }
-            }
+            )
         }
-    }
-}
 
-@Composable
-fun GuestSearchContent(
-    isViewer: Boolean = false,
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit,
-    onBackClick: () -> Unit,
-    recentSearches: List<String>,
-    onClearRecent: () -> Unit,
-    onRemoveRecent: (String) -> Unit,
-    searchResults: List<Guest>,
-    onGuestClick: (Guest) -> Unit,
-    onAddGuestClick: () -> Unit,
-    getGuestTypeColor: (String) -> Color,
-    onInviteToggle: (String) -> Unit
-) {
-    var wasFocused by remember { mutableStateOf(false) }
-    val focusRequester = remember { FocusRequester() }
-
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundPrimary)
-            .statusBarsPadding()
-    ) {
-        CustomSearchBar(
-            value = searchQuery,
-            onValueChange = onSearchQueryChange,
-            placeholder = "Search Guests",
-            onActiveChange = { active ->
-                if (active) {
-                    wasFocused = true
-                } else if (wasFocused) {
-                    onBackClick()
-                    wasFocused = false
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp, 12.dp, 12.dp, 0.dp)
-                .focusRequester(focusRequester)
-        )
-
-        if (searchQuery.isEmpty() && recentSearches.isNotEmpty()) {
-            Column(modifier = Modifier.padding(horizontal = 12.dp)) {
-                Spacer(Modifier.height(24.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_clock_forward),
-                            contentDescription = null,
-                            tint = ContentPrimary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Recent Searches",
-                            style = JasnifyTheme.typography.headingMedium,
-                            fontWeight = FontWeight.Medium,
-                            color = ContentPrimary
-                        )
-                    }
-                    Text(
-                        text = "Clear all",
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = ContentBrandDark,
-                        modifier = Modifier.clickable { onClearRecent() }
+        if (showTypeFilterSheet) {
+            SelectGuestTypeBottomSheet(
+                guestTypes = guestTypes.map { typeName ->
+                    GuestType(
+                        name = typeName,
+                        guestCount = guests.count { it.type == typeName }
                     )
+                },
+                initialSelectedTypes = selectedTypesFilter,
+                onDismiss = { showTypeFilterSheet = false },
+                onProgress = { sheetMotionProgress = it },
+                onApply = { types ->
+                    selectedTypesFilter = types
+                    showTypeFilterSheet = false
+                },
+                imageUrls = guests.mapNotNull { it.imageUrl }.distinct()
+            )
+        }
+
+        if (showContactPicker) {
+            ContactPickerBottomSheet(
+                contacts = phoneContacts,
+                onDismiss = { showContactPicker = false },
+                onProgress = { sheetMotionProgress = it },
+                onAddManuallyClick = {
+                    showContactPicker = false
+                    showAddGuestSheet = true
+                },
+                existingGuestIdentifiers = guests.map { it.name.lowercase() + it.contactNo }.toSet(),
+                onContactsSelected = { selectedContacts, includePhoneNo ->
+                    if (selectedContacts.isEmpty()) {
+                        toastData = ToastData("Please select at least 1 guest!", ToastType.ERROR)
+                    } else {
+                        val nameFromAuth = auth.currentUser?.displayName
+                        val nameFromRoom = currentUserInRoom?.name
+                        val currentUserName = when {
+                            !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                            !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                            else -> "User"
+                        }
+                        val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+
+                        var duplicateCount = 0
+                        selectedContacts.forEach { contact ->
+                            val phoneNumber = if (includePhoneNo) contact.phoneNumber else ""
+                            val exists = guests.any {
+                                it.name.equals(contact.name, ignoreCase = true) && it.contactNo == phoneNumber
+                            }
+                            if (!exists) {
+                                guestViewModel.addGuest(
+                                    Guest(
+                                        name = contact.name,
+                                        contactNo = phoneNumber,
+                                        imageUrl = contact.photoUri,
+                                        type = "Others",
+                                        addedBy = currentUserName,
+                                        addedAt = timestamp
+                                    )
+                                )
+                            } else {
+                                duplicateCount++
+                            }
+                        }
+                        if (duplicateCount > 0) {
+                            toastData = ToastData(
+                                if (duplicateCount == 1) "Guest already exists!" else "$duplicateCount Guests already exist!",
+                                ToastType.DEFAULT
+                            )
+                        }
+
+                        if (selectedContacts.size > duplicateCount) {
+                            importedCount = selectedContacts.size - duplicateCount
+                            showSuccessSheet = true
+                        }
+
+                        showContactPicker = false
+                    }
+                },
+                hasToast = toastData != null,
+                toast = {
+                    AnimatedVisibility(
+                        visible = toastData?.message != null,
+                        enter = slideInVertically(initialOffsetY = { it }),
+                        exit = slideOutVertically(targetOffsetY = { it }),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(12.dp)
+                    ) {
+                        activeToastData?.let { data ->
+                            CustomToast(
+                                message = data.message ?: "",
+                                type = data.type
+                            )
+                        }
+                    }
                 }
+            )
+        }
 
-                Spacer(modifier = Modifier.height(12.dp))
+        if (showSuccessSheet) {
+            CustomSuccessBottomSheet(
+                message = "$importedCount Contacts Imported",
+                onDismiss = { showSuccessSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
 
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    recentSearches.forEach { search ->
-                        FilterChip(
-                            label = search,
-                            trailingIcon = Icons.Default.Close,
-                            hasStroke = true,
-                            shapeStyle = ChipShapeStyle.Round,
-                            onTrailingIconClick = {
-                                onRemoveRecent(search)
-                            },
+        if (showRoomMenuBottomSheet) {
+            MenuBottomSheet(
+                items = listOf(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Leave Room",
+                            icon = painterResource(R.drawable.ic_logout),
+                            iconPlacement = IconPlacement.Left,
+                            contentColor = Color.Red,
                             onClick = {
-                                onSearchQueryChange(search)
+                                showRoomMenuBottomSheet = false
+                                showLeaveConfirmation = true
                             }
                         )
-                    }
-                }
-            }
-        } else {
-            if (searchResults.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(320.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Top,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_book),
-                            contentDescription = null,
-                            tint = ContentTertiary,
-                            modifier = Modifier.size(84.dp)
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = "No guests to invite",
-                            style = JasnifyTheme.typography.displayMedium.copy(
-                                textAlign = TextAlign.Center,
-                                fontWeight = FontWeight.Medium
-                            ),
-                            color = ContentTertiary
-                        )
+                    )
+                ),
+                onCancelClick = {
+                    showRoomMenuBottomSheet = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
 
-                        Spacer(modifier = Modifier.height(24.dp))
-                        CustomTextButton(
-                            onClick = onAddGuestClick,
-                            text = "Add New Guests",
-                            leadingIcon = painterResource(id = R.drawable.ic_plus),
-                        )
+        if (showLeaveConfirmation) {
+            ConfirmationBottomSheet(
+                heading = "Leaving Guest Room?",
+                subHeading = "You will lose access to this room and won't be able to see updates.",
+                confirmButtonText = "Leave",
+                onDismiss = {
+                    showLeaveConfirmation = false
+                },
+                onConfirm = {
+                    activeEvent?.id?.let { eventId ->
+                        roomViewModel.removeAccess(eventId, "Guest", currentUserUid)
                     }
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    itemsIndexed(searchResults, key = { _, guest -> guest.id }) { index, guest ->
-                        val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                        val bottomRadius = if (index == searchResults.lastIndex) CornerLargeIncrease else CornerExtraSmall
-                        val itemShape = SquircleShape(
-                            topStart = topRadius,
-                            topEnd = topRadius,
-                            bottomStart = bottomRadius,
-                            bottomEnd = bottomRadius,
-                            cornerSmoothing = CornerSmoothingDefault
-                        )
+                    toastData = ToastData("You left the room", ToastType.DEFAULT)
+                    currentView = GuestsView.MAIN
+                    showLeaveConfirmation = false
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
 
-                        GuestCard(
-                            name = guest.name,
-                            label = guest.type,
-                            imageUrl = guest.imageUrl,
-                            isInvited = guest.invited,
-                            invitedBy = guest.invitedBy,
-                            invitedAt = guest.invitedAt,
-                            type = if (isViewer) GuestCardType.DEFAULT else GuestCardType.INVITE_ACTION,
-                            labelColor = getGuestTypeColor(guest.type),
-                            onCardClick = {
-                                onGuestClick(guest)
-                            },
-                            onInviteClick = { onInviteToggle(guest.id) },
-                            cardShape = itemShape,
-                        )
+        userToRemove?.let { user ->
+            ConfirmationBottomSheet(
+                heading = "Remove ${user.name} from Guest Room?",
+                subHeading = "They will not be able to access this room anymore.",
+                confirmButtonText = "Remove",
+                onDismiss = {
+                    userToRemove = null
+                },
+                onConfirm = {
+                    val target = userToRemove
+                    if (target != null && activeEvent != null) {
+                        roomViewModel.removeAccess(activeEvent!!.id, "Guest", target.uid)
+                        toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
-                }
-            }
+                    userToRemove = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showMenuSheet) {
+            val menuItems = listOf(
+                listOfNotNull(
+                    if (!isViewer) {
+                        MenuSheetActionItem(
+                            text = "Add Guests",
+                            icon = painterResource(id = R.drawable.ic_add_circle),
+                            iconPlacement = IconPlacement.Top,
+                            onClick = {
+                                showMenuSheet = false
+                                onAddGuestClick()
+                            }
+                        )
+                    } else null,
+                    if (guests.isNotEmpty() && !isViewer) {
+                        MenuSheetActionItem(
+                            text = "Multi-Select",
+                            icon = painterResource(id = R.drawable.ic_multi_select),
+                            iconPlacement = IconPlacement.Top,
+                            onClick = {
+                                showMenuSheet = false
+                                isMultiSelectMode = true
+                                inviteFilter = "Yet to invite"
+                            }
+                        )
+                    } else null
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Guest Type",
+                        icon = painterResource(id = R.drawable.ic_category),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = GuestsView.MANAGE_GUEST_TYPES
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = if (isOwner) "Manage Room Access" else "Room Members",
+                        icon = painterResource(id = R.drawable.ic_user_default),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = GuestsView.ROOM_ACCESS
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(id = R.drawable.ic_help_feedback),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = { showMenuSheet = false }
+                    )
+                )
+            )
+
+            MenuBottomSheet(
+                items = menuItems,
+                onCancelClick = { showMenuSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
         }
     }
-}
+
