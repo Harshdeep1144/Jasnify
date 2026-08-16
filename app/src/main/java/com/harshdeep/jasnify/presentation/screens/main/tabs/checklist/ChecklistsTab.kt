@@ -414,39 +414,10 @@ fun ChecklistsTab(
                             }
 
                             ChecklistScreenState.ManageRoomAccess -> {
-                                val currentUid = auth.currentUser?.uid ?: ""
-                                val ownerState = activeEvent?.ownerId == currentUid
-                                val currentUserInRoomState = roomUsers.find { it.uid == currentUid }
-                                val currentRoleState = when {
-                                    ownerState -> UserRole.OWNER
-                                    currentUserInRoomState != null -> currentUserInRoomState.role
-                                    else -> UserRole.VIEWER
-                                }
-
-                                val displayUsers =
-                                    if (currentUserInRoomState == null && currentUid.isNotEmpty()) {
-                                        val self = User(
-                                            uid = currentUid,
-                                            name = auth.currentUser?.displayName ?: "User",
-                                            email = auth.currentUser?.email ?: "",
-                                            role = currentRoleState,
-                                            username = auth.currentUser?.email?.substringBefore("@")
-                                                ?: "Username"
-                                        )
-                                        (listOf(self) + roomUsers).distinctBy { it.uid }
-                                    } else {
-                                        roomUsers
-                                    }
-
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(SurfaceSecondary)
-                                ) {
-                                    RoomScreen(
-                                        allUsers = displayUsers,
-                                        currentUserRole = currentRoleState,
-                                        isSelf = { it.uid == currentUid },
+                                activeEvent?.id?.let { id ->
+                                    ChecklistRoomContent(
+                                        eventId = id,
+                                        roomViewModel = roomViewModel,
                                         onBackClick = {
                                             focusManager.clearFocus()
                                             showRoomAccess = false
@@ -455,47 +426,14 @@ fun ChecklistsTab(
                                             focusManager.clearFocus()
                                             showRoomMenuBottomSheet = true
                                         },
-                                        onRoleChange = { targetUser, newRole ->
-                                            activeEvent?.id?.let { id ->
-                                                roomViewModel.updateRole(
-                                                    id,
-                                                    "Checklist",
-                                                    targetUser,
-                                                    newRole
-                                                )
-                                            }
-                                        },
                                         onRemove = { targetUser ->
                                             focusManager.clearFocus()
                                             userToRemove = targetUser
                                         },
-                                        onReport = { targetUser ->
-                                            focusManager.clearFocus()
-                                            toastData = ToastData(
-                                                "${targetUser.name} reported",
-                                                ToastType.DEFAULT
-                                            )
-                                        },
                                         onLeave = {
                                             showLeaveConfirmation = true
                                         },
-                                        searchResults = searchResults,
-                                        onSearch = { roomViewModel.searchUsers(it) },
-                                        onGrantAccess = { email, role ->
-                                            activeEvent?.id?.let { id ->
-                                                roomViewModel.grantAccess(
-                                                    id,
-                                                    "Checklist",
-                                                    email,
-                                                    role
-                                                )
-                                                toastData = ToastData(
-                                                    "Access granted to $email",
-                                                    ToastType.SUCCESS
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxSize()
+                                        onShowToast = { toastData = it }
                                     )
                                 }
                             }

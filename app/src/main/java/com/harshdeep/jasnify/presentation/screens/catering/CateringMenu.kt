@@ -701,33 +701,11 @@ fun CateringMenuScreen(
                         }
 
                         CateringMenuView.MANAGE_ROOM_ACCESS -> {
-                            val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-
-                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                val self = User(
-                                    uid = currentUserUid,
-                                    name = auth.currentUser?.displayName ?: "Me",
-                                    email = auth.currentUser?.email ?: "",
-                                    role = currentUserRole,
-                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                                )
-                                (listOf(self) + roomUsers).distinctBy { it.uid }
-                            } else {
-                                roomUsers
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(BackgroundSecondary)
-                                    .pointerInput(Unit) {
-                                        detectTapGestures(onTap = { focusManager.clearFocus() })
-                                    }
-                            ) {
-                                RoomScreen(
-                                    allUsers = displayUsers,
+                            activeEvent?.id?.let { id ->
+                                CateringRoomContent(
+                                    eventId = id,
+                                    roomViewModel = roomViewModel,
                                     currentUserRole = currentUserRole,
-                                    isSelf = { it.uid == currentUserUid },
                                     onBackClick = {
                                         currentView = CateringMenuView.MENU
                                         focusManager.clearFocus()
@@ -736,29 +714,13 @@ fun CateringMenuScreen(
                                         showRoomMenuBottomSheet = true
                                         focusManager.clearFocus()
                                     },
-                                    onRoleChange = { targetUser, newRole ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
-                                        }
-                                    },
                                     onRemove = { targetUser ->
                                         userToRemove = targetUser
-                                    },
-                                    onReport = { targetUser ->
-                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                     },
                                     onLeave = {
                                         showLeaveConfirmation = true
                                     },
-                                    searchResults = searchResults,
-                                    onSearch = { roomViewModel.searchUsers(it) },
-                                    onGrantAccess = { email, role ->
-                                        activeEvent?.id?.let { id ->
-                                            roomViewModel.grantAccess(id, "Catering", email, role)
-                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    onShowToast = { toastData = it }
                                 )
                             }
                         }
