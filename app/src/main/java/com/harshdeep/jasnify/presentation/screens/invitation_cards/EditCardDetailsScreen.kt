@@ -250,6 +250,9 @@ fun EditCardDetailsScreen(
     var historyIndex by remember { mutableIntStateOf(0) }
     val currentCard = history.getOrElse(historyIndex) { normalizedInitialData }
 
+    // Track the currently saved reference state
+    var savedCardState by remember(normalizedInitialData) { mutableStateOf(normalizedInitialData) }
+
     var selectedElementId by remember { mutableStateOf<String?>(null) }
     var isMenuExpanded by remember { mutableStateOf(false) }
     var activeTab by remember { mutableStateOf(EditorTab.TEXT) }
@@ -266,9 +269,10 @@ fun EditCardDetailsScreen(
     var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
     var cardToDownload by remember { mutableStateOf<CardData?>(null) }
 
-    val hasUnsavedChanges by remember(currentCard, normalizedInitialData, pendingImageUri) {
+    // Evaluates against savedCardState rather than the initial entry data
+    val hasUnsavedChanges by remember(currentCard, savedCardState, pendingImageUri) {
         derivedStateOf {
-            currentCard != normalizedInitialData || pendingImageUri != null
+            currentCard != savedCardState || pendingImageUri != null
         }
     }
 
@@ -448,7 +452,7 @@ fun EditCardDetailsScreen(
             description = "All the changes you made will be lost.",
             confirmButtonText = "Discard",
             dismissButtonText = "Cancel",
-            isDestructive = true
+            isDestructive = false
         )
     }
 
@@ -586,14 +590,18 @@ fun EditCardDetailsScreen(
                                         isUploading = false
                                         pendingImageUri = null
                                         val finalCard = currentCard.copy(backgroundUrl = url)
+                                        // Save immediately
                                         onDataChange(finalCard)
+                                        savedCardState = finalCard
                                         showSuccessSheet = true
                                     }, { error ->
                                         isUploading = false
                                         toastData = ToastData(error, ToastType.ERROR)
                                     })
                                 } else {
+                                    // Save immediately
                                     onDataChange(currentCard)
+                                    savedCardState = currentCard
                                     showSuccessSheet = true
                                 }
                             },
@@ -622,47 +630,40 @@ fun EditCardDetailsScreen(
                                 ) {
                                     Surface(
                                         modifier = Modifier
-                                            .width(220.dp)
-                                            .shadow(8.dp, SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .width(280.dp)
+                                            .height(64.dp)
+                                            .shadow(8.dp, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                             .background(Color(0xFF2C2C2C)),
                                         color = Color(0xFF2C2C2C)
                                     ) {
-                                        Column(
+                                        Row(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                                                .clickable {
+                                                    isMenuExpanded = false
+                                                    updateCardState(normalizedInitialData)
+                                                    selectedElementId = null
+                                                    zoomScale = 1f
+                                                    panOffset = Offset.Zero
+                                                }
+                                                .padding(16.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.Center
                                         ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(48.dp)
-                                                    .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                                    .clickable {
-                                                        isMenuExpanded = false
-                                                        updateCardState(normalizedInitialData)
-                                                        selectedElementId = null
-                                                        zoomScale = 1f
-                                                        panOffset = Offset.Zero
-                                                    }
-                                                    .padding(horizontal = 16.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Sync,
-                                                    contentDescription = null,
-                                                    tint = ContentInvPrimary,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
+                                            Icon(
+                                                imageVector = Icons.Default.Sync,
+                                                contentDescription = null,
+                                                tint = ContentInvPrimary,
+                                                modifier = Modifier.size(24.dp)
+                                            )
 
-                                                Text(
-                                                    text = "Reset to Defaults",
-                                                    style = JasnifyTheme.typography.labelXLarge,
-                                                    color = ContentInvPrimary
-                                                )
-                                            }
+                                            Text(
+                                                text = "Reset to Defaults",
+                                                style = JasnifyTheme.typography.labelXLarge,
+                                                color = ContentInvPrimary
+                                            )
                                         }
                                     }
                                 }
@@ -1001,13 +1002,11 @@ fun EditCardDetailsScreen(
                                                     bgName = if (currentCard.bgName.isBlank()) "" else currentCard.bgName
                                                 )
                                                 updateCardState(updated)
-                                                onDataChange(updated)
                                             },
                                             onUpdateThemeName = onUpdateThemeName,
                                             onUpdateCardBgName = { newName ->
                                                 val updated = currentCard.copy(bgName = newName)
                                                 updateCardState(updated)
-                                                onDataChange(updated)
                                             },
                                             onUploadClick = { imageLauncher.launch("image/*") }
                                         )
@@ -2298,7 +2297,7 @@ fun InteractiveTextElementItem(
                             Icon(
                                 imageVector = Icons.Rounded.OpenInFull,
                                 contentDescription = "Resize",
-                                tint = ContentInvPrimary,
+                                tint = Color(0xE53D3D3D),
                                 modifier = Modifier
                                     .requiredSize(reducedIconSize)
                                     .graphicsLayer {
