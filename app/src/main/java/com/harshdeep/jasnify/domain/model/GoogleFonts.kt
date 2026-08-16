@@ -37,5 +37,5 @@ val googleFontNames = listOf(
     "Cabin Sketch", "Finger Paint", "Ribeye Marrow", "Nosifer", "Creepster", "Butcherman",
     "Metal Mania", "Piedra", "Trade Winds", "Shojumaru", "Rye", "Sancreek", "Henny Penny",
     "Jolly Lodger", "Frijole", "Abril Fatface", "Arvo", "Josefin Sans", "Quicksand",
-    "Anton", "Varela Round", "Bebas Neue", "Cinzel", "Righteous", "Amatic SC", "Bangers"
+    "Anton", "Varela Round", "Bebas Neue", "Cinzel", "Righteous", "Amatic SC", "Bangers", "Afacad Flux"
 )

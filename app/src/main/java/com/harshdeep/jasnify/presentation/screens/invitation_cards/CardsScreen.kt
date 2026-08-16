@@ -83,6 +83,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.carousels.CardCarousel
+import com.harshdeep.jasnify.presentation.components.explore.ExploreTrendingCards
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
@@ -144,6 +145,7 @@ fun CardsScreen(
     }
 
     var currentView by remember { mutableStateOf(CardsView.MAIN) }
+    var previousView by remember { mutableStateOf<CardsView?>(null) }
     var selectedCard by remember { mutableStateOf<CardData?>(null) }
     var activeTransitionKey by remember { mutableStateOf<String?>(null) }
     var editingCard by remember { mutableStateOf<CardData?>(null) }
@@ -263,7 +265,10 @@ fun CardsScreen(
             showLeaveConfirmation -> showLeaveConfirmation = false
             selectedCardIds.isNotEmpty() -> selectedCardIds = emptySet()
             currentView == CardsView.LIKED_CARDS -> currentView = CardsView.MAIN
-            currentView == CardsView.FULL_VIEW -> currentView = CardsView.MAIN
+            currentView == CardsView.FULL_VIEW -> {
+                currentView = previousView ?: CardsView.MAIN
+                previousView = null
+            }
             currentView == CardsView.EDIT_DETAILS -> currentView = CardsView.MAIN
             currentView != CardsView.MAIN -> currentView = CardsView.MAIN
             else -> onBackClick()
@@ -345,6 +350,7 @@ fun CardsScreen(
                                     onCardClick = { card, transitionKey ->
                                         selectedCard = card
                                         activeTransitionKey = transitionKey
+                                        previousView = CardsView.MAIN
                                         currentView = CardsView.FULL_VIEW
                                     },
                                     onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) },
@@ -366,7 +372,10 @@ fun CardsScreen(
                                         animatedVisibilityScope = this@AnimatedContent,
                                         sharedTransitionScope = this@SharedTransitionLayout,
                                         canEdit = canEdit,
-                                        onBackClick = { currentView = CardsView.MAIN },
+                                        onBackClick = {
+                                            currentView = previousView ?: CardsView.MAIN
+                                            previousView = null
+                                        },
                                         onEditDetailsClick = {
                                             editingCard = if (card.id.startsWith("template_")) {
                                                 card.copy(id = UUID.randomUUID().toString())
@@ -387,6 +396,7 @@ fun CardsScreen(
                                     onCardClick = { card, transitionKey ->
                                         selectedCard = card
                                         activeTransitionKey = transitionKey
+                                        previousView = CardsView.LIKED_CARDS
                                         currentView = CardsView.FULL_VIEW
                                     },
                                     onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) }
@@ -802,7 +812,7 @@ fun ExploreTabContent(
     ) {
         item {
             Column(
-                modifier = Modifier.padding(vertical = 24.dp),
+                modifier = Modifier.padding(vertical = 36.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 val currentCarouselCard = templates[pagerState.currentPage % templates.size]
@@ -866,28 +876,7 @@ fun ExploreTabContent(
         }
 
         item {
-            DashedDivider()
-            Spacer(Modifier.height(24.dp))
-        }
-
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_trend_up),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-                Text(
-                    text = "Trending Templates",
-                    style = JasnifyTheme.typography.headingLarge.copy(fontWeight = FontWeight.Medium),
-                    color = ContentPrimary
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
+            ExploreTrendingCards()
         }
 
         val chunkedTemplates = templates.chunked(2)

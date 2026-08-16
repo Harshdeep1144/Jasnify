@@ -3,8 +3,10 @@ package com.harshdeep.jasnify.presentation.components.explore
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,8 +20,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -27,31 +31,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.domain.model.getGoogleFontFamily
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 
 @Composable
 fun ExploreTrendingCards(modifier: Modifier = Modifier) {
-    val gradientColors = listOf(
-        Color(0xFFFBF8F5),
-        Color(0xFFF7E9DE),
-        Color(0xFFEFE0D3)
-    )
 
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(115.dp)
-            .background(brush = Brush.verticalGradient(colors = gradientColors))
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.Center
+            .height(102.48.dp)
+            .background(Color.Transparent)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically
     ) {
         // --- Left Card Fan ---
-        Box(
-            modifier = Modifier.align(Alignment.CenterStart)
-        ) {
+        Box {
             // Back Card
             TrendingCardItem(
                 imageResId = R.drawable.img_trending_card_01,
@@ -69,31 +69,33 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
             )
         }
 
-        // --- Center Typography ---
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(horizontal = 8.dp)
+            modifier = Modifier.padding(horizontal = 12.dp)
         ) {
             Text(
                 text = "EXPLORE",
                 style = JasnifyTheme.typography.labelSmall,
-                color = Color(0xFF4A2B20),
-                letterSpacing = 2.sp
+                color = Color(0xFF4D2A15),
             )
 
             Text(
                 text = "TRENDING CARDS",
-                style = JasnifyTheme.typography.displayLarge,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF331B14),
-                letterSpacing = 0.5.sp
+                style = JasnifyTheme.typography.displayLarge.copy(
+                    fontFamily = getGoogleFontFamily("Afacad Flux"),
+                    shadow = Shadow(
+                        color = Color(0x664D2A15),
+                        offset = Offset(0f, -5f),
+                        blurRadius = 6f
+                    )
+                ),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF4D2A15),
             )
         }
 
         // --- Right Card Fan ---
-        Box(
-            modifier = Modifier.align(Alignment.CenterEnd)
-        ) {
+        Box {
             // Back Card
             TrendingCardItem(
                 imageResId = R.drawable.img_trending_card_03,
@@ -119,8 +121,8 @@ private fun TrendingCardItem(
     modifier: Modifier = Modifier,
     offsetX: Dp = 0.dp,
     offsetY: Dp = 0.dp,
-    width: Dp = 46.dp,
-    height: Dp = 62.dp,
+    width: Dp = 41.44.dp,
+    height: Dp = 55.26.dp,
 ) {
     val cardShape = RoundedCornerShape(8.dp)
 
