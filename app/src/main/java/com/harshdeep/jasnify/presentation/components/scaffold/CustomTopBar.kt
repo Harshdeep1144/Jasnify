@@ -4,8 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -19,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
@@ -29,6 +26,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -89,9 +87,7 @@ fun CustomTopBar(
                     modifier = Modifier
                         .weight(1f)
                         .then(
-                            if (onDropdownClick != null) Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
+                            if (onDropdownClick != null) Modifier.noRippleClickable(
                                 onClick = onDropdownClick
                             ) else Modifier
                         ),
@@ -331,9 +327,7 @@ private fun TopBarTextLayout(
     Column(
         modifier = Modifier
             .then(
-                if (isClickable) Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
+                if (isClickable) Modifier.noRippleClickable(
                     onClick = onClick
                 ) else Modifier
             ),
@@ -434,9 +428,7 @@ private fun TopBarProfileLayout(
     Row(
         modifier = Modifier
             .then(
-                if (onClick != null) Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
+                if (onClick != null) Modifier.noRippleClickable(
                     onClick = onClick
                 ) else Modifier
             ),

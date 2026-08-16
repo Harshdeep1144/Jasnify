@@ -6,11 +6,9 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -35,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -88,11 +87,7 @@ fun HomeCard(
                 shape = SquircleShape(20.dp, CornerSmoothingDefault)
             )
             .clip(SquircleShape(20.dp, CornerSmoothingDefault))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null, // Disables the default ripple effect
-                onClick = onClick
-            ),
+            .noRippleClickable { onClick() },
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
             containerColor = cardBgColor,

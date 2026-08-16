@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
@@ -495,10 +496,7 @@ fun ChecklistsTab(
                                                     Box(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .clickable(
-                                                                interactionSource = remember { MutableInteractionSource() },
-                                                                indication = null
-                                                            ) {
+                                                            .noRippleClickable {
                                                                 focusManager.clearFocus()
                                                             }
                                                     ) {
@@ -543,10 +541,7 @@ fun ChecklistsTab(
                                     containerColor = BackgroundPrimary,
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .clickable(
-                                            interactionSource = remember { MutableInteractionSource() },
-                                            indication = null
-                                        ) {
+                                        .noRippleClickable {
                                             focusManager.clearFocus()
                                         }
                                 ) { paddingValues ->
@@ -554,10 +549,7 @@ fun ChecklistsTab(
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .padding(top = paddingValues.calculateTopPadding())
-                                            .clickable(
-                                                interactionSource = remember { MutableInteractionSource() },
-                                                indication = null
-                                            ) {
+                                            .noRippleClickable {
                                                 focusManager.clearFocus()
                                             }
                                     ) {
