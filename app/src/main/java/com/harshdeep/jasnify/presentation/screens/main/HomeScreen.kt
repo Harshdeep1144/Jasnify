@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home
+package com.harshdeep.jasnify.presentation.screens.main
 
 import android.annotation.SuppressLint
 import android.app.Activity

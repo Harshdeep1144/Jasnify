@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -107,11 +108,7 @@ fun BudgetTrackerCard(
                 shape = SquircleShape(20.dp, CornerSmoothingDefault)
             )
             .clip(SquircleShape(20.dp, CornerSmoothingDefault))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null, // Disables default ripple overlay
-                onClick = onClick
-            ),
+            .noRippleClickable { onClick() },
         shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFBED4D4),

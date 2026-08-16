@@ -12,13 +12,13 @@ import androidx.navigation.navigation
 import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.screens.home.HomeScreen
+import com.harshdeep.jasnify.presentation.screens.main.HomeScreen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
-import com.harshdeep.jasnify.presentation.screens.home.EventDetailsScreen
+import com.harshdeep.jasnify.presentation.screens.main.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
-import com.harshdeep.jasnify.presentation.screens.home.tabs.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue

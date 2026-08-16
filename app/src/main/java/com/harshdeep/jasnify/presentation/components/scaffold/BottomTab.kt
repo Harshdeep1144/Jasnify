@@ -6,8 +6,6 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,9 +25,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.coerceAtLeast
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
@@ -39,7 +36,6 @@ import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
-import kotlin.math.roundToInt
 import sv.lib.squircleshape.SquircleShape
 
 enum class BottomTabStyle {
@@ -174,10 +170,7 @@ private fun <T> StandardBottomTab(
                             Column(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
-                                        indication = null
-                                    ) {
+                                    .noRippleClickable {
                                         onItemSelected(item.value)
                                     },
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -306,10 +299,7 @@ private fun <T> FloatingBottomTab(
                                         }
                                     }
                                 }
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
+                                .noRippleClickable {
                                     onItemSelected(item.value)
                                 }
                                 .padding(horizontal = 20.dp),

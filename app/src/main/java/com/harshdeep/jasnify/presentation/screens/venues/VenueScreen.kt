@@ -432,56 +432,22 @@ fun VenueScreen(
                             )
                         }
                         VenueScreenState.ROOM_ACCESS -> {
-                            val displayUsers = if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
-                                val self = User(
-                                    uid = currentUserUid,
-                                    name = auth.currentUser?.displayName ?: "Me",
-                                    email = auth.currentUser?.email ?: "",
-                                    role = currentUserRole,
-                                    username = auth.currentUser?.email?.substringBefore("@") ?: "me"
-                                )
-                                (listOf(self) + roomUsers).distinctBy { it.uid }
-                            } else {
-                                roomUsers
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(SurfaceSecondary)
-                            ) {
-                                RoomScreen(
-                                    allUsers = displayUsers,
-                                    currentUserRole = currentUserRole,
-                                    isSelf = { it.uid == currentUserUid },
+                            activeEvent?.id?.let { id ->
+                                VenueRoomContent(
+                                    eventId = id,
+                                    roomViewModel = roomViewModel,
                                     onBackClick = { screenStack = screenStack.dropLast(1) },
                                     onMenuClick = {
                                         focusManager.clearFocus()
                                         showRoomMenuBottomSheet = true
                                     },
-                                    onRoleChange = { targetUser, newRole ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.updateRole(eventId, "Venue", targetUser, newRole)
-                                        }
-                                    },
                                     onRemove = { targetUser ->
                                         userToRemove = targetUser
-                                    },
-                                    onReport = { targetUser ->
-                                        toastData = ToastData("${targetUser.name} reported", ToastType.DEFAULT)
                                     },
                                     onLeave = {
                                         showLeaveConfirmation = true
                                     },
-                                    searchResults = searchResults,
-                                    onSearch = { roomViewModel.searchUsers(it) },
-                                    onGrantAccess = { email, role ->
-                                        activeEvent?.id?.let { eventId ->
-                                            roomViewModel.grantAccess(eventId, "Venue", email, role)
-                                            toastData = ToastData("Access granted to $email", ToastType.SUCCESS)
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    onShowToast = { toastData = it }
                                 )
                             }
                         }

@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home
+package com.harshdeep.jasnify.presentation.screens.main
 
 import android.content.ClipData
 import android.content.ClipboardManager
