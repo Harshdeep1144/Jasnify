@@ -37,6 +37,7 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlin.math.roundToInt
 import sv.lib.squircleshape.SquircleShape
@@ -65,7 +66,8 @@ fun <T> BottomTab(
     onItemSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
     style: BottomTabStyle = BottomTabStyle.STANDARD,
-    activeColor: Color = ContentBrandDark
+    activeColor: Color = ContentBrandDark,
+    activeBg: Color = SurfaceBrandSecondary
 ) {
     when (style) {
         BottomTabStyle.STANDARD -> StandardBottomTab(
@@ -81,7 +83,8 @@ fun <T> BottomTab(
             selectedValue = selectedValue,
             onItemSelected = onItemSelected,
             modifier = modifier,
-            activeColor = activeColor
+            activeColor = activeColor,
+            activeBg = activeBg
         )
     }
 }
@@ -92,7 +95,7 @@ private fun <T> StandardBottomTab(
     selectedValue: T,
     onItemSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
-    activeColor: Color = ContentBrandDark
+    activeColor: Color = ContentBrandDark,
 ) {
     Box(
         modifier = modifier.fillMaxWidth()
@@ -208,7 +211,8 @@ private fun <T> FloatingBottomTab(
     selectedValue: T,
     onItemSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
-    activeColor: Color = ContentBrandDark
+    activeColor: Color = ContentBrandDark,
+    activeBg: Color = SurfaceBrandSecondary
 ) {
     val density = LocalDensity.current
     var tabBoundsMap by remember { mutableStateOf(mapOf<Int, TabBounds>()) }
@@ -272,7 +276,7 @@ private fun <T> FloatingBottomTab(
                             .width(animatedWidth)
                             .height(56.dp)
                             .background(
-                                color = activeColor.copy(alpha = 0.12f),
+                                color = activeBg,
                                 shape = CircleShape
                             )
                     )

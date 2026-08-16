@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.domain.model
 
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.googlefonts.Font as GoogleFontRes
 import androidx.compose.ui.text.googlefonts.GoogleFont
 import com.harshdeep.jasnify.R
@@ -16,9 +17,20 @@ fun getGoogleFontFamily(fontName: String): FontFamily {
     val googleFont = GoogleFont(fontName)
 
     return FontFamily(
-        GoogleFontRes(
-            googleFont = googleFont,
-            fontProvider = provider
+        listOf(
+            GoogleFontRes(
+                googleFont = googleFont,
+                fontProvider = provider,
+                weight = FontWeight.Normal
+            ),
+            GoogleFontRes(
+                googleFont = googleFont,
+                fontProvider = provider,
+                weight = FontWeight.Bold
+            ),
+            // High-quality bundled fallbacks to prevent "flash of unstyled text"
+            Font(R.font.outfit_regular, FontWeight.Normal),
+            Font(R.font.outfit_bold, FontWeight.Bold)
         )
     )
 }

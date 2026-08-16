@@ -39,7 +39,6 @@ fun CardCarousel(
     showControls: Boolean = true,
     isLiked: (Int) -> Boolean = { false },
     onLikeClick: (CardData) -> Unit = {},
-    onShareClick: (CardData) -> Unit = {},
     onCardClick: (CardData) -> Unit = {},
     pagerState: PagerState = rememberPagerState(
         initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
@@ -98,7 +97,6 @@ fun CardCarousel(
                     showControls = showControls,
                     isLiked = isLiked(backgrounds[actualIndex]),
                     onLikeClick = { onLikeClick(currentCard) },
-                    onShareClick = { onShareClick(currentCard) },
                     modifier = Modifier.size(cardWidth, cardHeight)
                 )
             }
