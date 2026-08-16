@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs
 
 import android.annotation.SuppressLint
 import android.os.Build
@@ -60,7 +60,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.painter.Painter

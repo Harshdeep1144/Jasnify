@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs
 
 import android.annotation.SuppressLint
 import android.content.Intent
@@ -150,7 +150,6 @@ import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary

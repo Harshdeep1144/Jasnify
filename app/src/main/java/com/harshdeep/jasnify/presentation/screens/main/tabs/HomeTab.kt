@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.home.tabs
+package com.harshdeep.jasnify.presentation.screens.main.tabs
 
 import android.annotation.SuppressLint
 import android.os.Build

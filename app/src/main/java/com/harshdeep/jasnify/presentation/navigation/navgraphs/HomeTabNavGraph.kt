@@ -13,7 +13,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.screens.home.tabs.*
+import com.harshdeep.jasnify.presentation.screens.main.tabs.*
 
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
