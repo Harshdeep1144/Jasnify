@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,7 +17,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.GuestType
@@ -39,7 +36,13 @@ fun SelectGuestTypeBottomSheet(
     imageUrls: List<String> = emptyList(),
     onProgress: (Float) -> Unit = {}
 ) {
-    var tempSelectedTypes by remember { mutableStateOf(initialSelectedTypes.toSet()) }
+    var tempSelectedTypes by remember(initialSelectedTypes) {
+        mutableStateOf(initialSelectedTypes.toSet())
+    }
+
+    val previewThumbnails = remember(imageUrls) {
+        imageUrls.take(3)
+    }
 
     CustomBottomSheet(
         heading = "Select Guest Type",
@@ -49,7 +52,11 @@ fun SelectGuestTypeBottomSheet(
         showDragHandle = false
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
+            )
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -57,12 +64,17 @@ fun SelectGuestTypeBottomSheet(
                 contentPadding = PaddingValues(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(guestTypes, key = { it.id }) { type ->
+                items(
+                    items = guestTypes,
+                    key = { it.name } // Stable key prevents item recreation
+                ) { type ->
+                    val isSelected = tempSelectedTypes.contains(type.name)
+
                     GuestTypeCard(
                         label = type.name,
                         guestCount = type.guestCount,
                         showChecker = true,
-                        isSelected = tempSelectedTypes.contains(type.name),
+                        isSelected = isSelected,
                         onToggle = { isChecked ->
                             tempSelectedTypes = if (isChecked) {
                                 tempSelectedTypes + type.name
@@ -70,12 +82,15 @@ fun SelectGuestTypeBottomSheet(
                                 tempSelectedTypes - type.name
                             }
                         },
-                        imageUrls = imageUrls.take(if (type.guestCount > 0) 3 else 0),
+                        imageUrls = if (type.guestCount > 0) previewThumbnails else emptyList(),
                     )
                 }
             }
 
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
+            )
 
             Row(
                 modifier = Modifier
@@ -107,27 +122,5 @@ fun SelectGuestTypeBottomSheet(
                 )
             }
         }
-    }
-}
-
-
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewSelectGuestTypeBottomSheet() {
-    JasnifyTheme {
-        SelectGuestTypeBottomSheet(
-            guestTypes = listOf(
-                GuestType(name = "Family", guestCount = 14),
-                GuestType(name = "Close Friend", guestCount = 3),
-                GuestType(name = "Office", guestCount = 25),
-                GuestType(name = "Hometown", guestCount = 2),
-                GuestType(name = "Apartment", guestCount = 11),
-                GuestType(name = "College", guestCount = 41),
-            ),
-            initialSelectedTypes = listOf("Family"),
-            onDismiss = {},
-            onApply = {}
-        )
     }
 }

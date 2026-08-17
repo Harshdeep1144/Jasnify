@@ -638,18 +638,35 @@ fun VendorsTab(
         }
 
         if (showMenuSheet) {
-            val commonMenuItems = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Change Location",
-                        icon = painterResource(R.drawable.ic_location_marker),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            mainNavController.navigate(Screen.LocationSelector.route)
-                        }
+            val menuItems = listOf(
+                buildList {
+                    if (currentScreenState == VendorScreenState.MAIN) {
+                        add(
+                            MenuSheetActionItem(
+                                text = "Saved Vendors",
+                                icon = painterResource(R.drawable.ic_top_bar_heart),
+                                iconPlacement = IconPlacement.Top,
+                                onClick = {
+                                    showMenuSheet = false
+                                    screenStack += VendorScreenState.ALL_SAVED
+                                },
+                            )
+                        )
+                    }
+
+                    add(
+                        MenuSheetActionItem(
+                            text = "Change Location",
+                            icon = painterResource(R.drawable.ic_location_marker),
+                            iconPlacement = if (currentScreenState == VendorScreenState.MAIN) IconPlacement.Top else IconPlacement.Left,
+                            onClick = {
+                                showMenuSheet = false
+                                mainNavController.navigate(Screen.LocationSelector.route)
+                            }
+                        )
                     )
-                ),
+                },
+
                 listOf(
                     MenuSheetActionItem(
                         text = "Manage Room Access",
@@ -657,39 +674,31 @@ fun VendorsTab(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            screenStack = screenStack + VendorScreenState.ROOM
+                            screenStack += VendorScreenState.ROOM
                         }
                     )
                 ),
+
                 listOf(
                     MenuSheetActionItem(
                         text = "Help & Feedback",
                         icon = painterResource(R.drawable.ic_help_feedback),
                         iconPlacement = IconPlacement.Left,
-                        onClick = { showMenuSheet = false }
+                        onClick = {
+                            showMenuSheet = false
+                        }
                     )
                 )
             )
 
-            val menuItems = if (currentScreenState == VendorScreenState.MAIN) {
-                val savedVendorsItem = listOf(
-                    MenuSheetActionItem(
-                        text = "Saved Vendors",
-                        icon = painterResource(R.drawable.ic_top_bar_heart),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            screenStack = screenStack + VendorScreenState.ALL_SAVED
-                        }
-                    )
-                )
-                listOf(savedVendorsItem) + commonMenuItems
-            } else commonMenuItems
-
             MenuBottomSheet(
                 items = menuItems,
-                onCancelClick = { showMenuSheet = false },
-                onProgress = { sheetMotionProgress = it }
+                onCancelClick = {
+                    showMenuSheet = false
+                },
+                onProgress = {
+                    sheetMotionProgress = it
+                }
             )
         }
 

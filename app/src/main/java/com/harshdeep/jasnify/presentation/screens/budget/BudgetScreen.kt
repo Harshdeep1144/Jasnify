@@ -604,28 +604,44 @@ fun BudgetScreen(
         if (showCategoryMenuBottomSheet) {
             MenuBottomSheet(
                 items = listOfNotNull(
-                    listOf(
+                    listOfNotNull(
                         MenuSheetActionItem(
                             text = "View Expenses",
                             icon = painterResource(R.drawable.ic_pie_chart),
-                            onClick = { showCategoryMenuBottomSheet = false; selectedCategoryForDetails = selectedCategoryForMenu; currentView = BudgetScreenView.CATEGORY_DETAIL }
-                        )
+                            onClick = {
+                                showCategoryMenuBottomSheet = false
+                                selectedCategoryForDetails = selectedCategoryForMenu
+                                currentView = BudgetScreenView.CATEGORY_DETAIL
+                            },
+                            iconPlacement = IconPlacement.Top
+                        ),
+                        if (!isViewer) {
+                            MenuSheetActionItem(
+                                text = "Rename Category",
+                                icon = painterResource(R.drawable.ic_edit),
+                                onClick = {
+                                    showCategoryMenuBottomSheet = false
+                                    categoryToRename = selectedCategoryForMenu
+                                    showAddCustomCategorySheet = true
+                                },
+                                iconPlacement = IconPlacement.Top
+                            )
+                        } else null
                     ),
-                    if (!isViewer) listOf(
-                        MenuSheetActionItem(
-                            text = "Rename Category",
-                            icon = painterResource(R.drawable.ic_edit),
-                            onClick = { showCategoryMenuBottomSheet = false; categoryToRename = selectedCategoryForMenu; showAddCustomCategorySheet = true }
+                    if (!isViewer) {
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Delete Category",
+                                icon = painterResource(R.drawable.ic_delete),
+                                contentColor = MaterialTheme.colorScheme.error,
+                                onClick = {
+                                    categoryToDeleteConfirm = selectedCategoryForMenu
+                                    showCategoryMenuBottomSheet = false
+                                    selectedCategoryForMenu = null
+                                }
+                            )
                         )
-                    ) else null,
-                    if (!isViewer) listOf(
-                        MenuSheetActionItem(
-                            text = "Delete Category",
-                            icon = painterResource(R.drawable.ic_delete),
-                            contentColor = MaterialTheme.colorScheme.error,
-                            onClick = { categoryToDeleteConfirm = selectedCategoryForMenu; showCategoryMenuBottomSheet = false; selectedCategoryForMenu = null }
-                        )
-                    ) else null
+                    } else null
                 ),
                 onCancelClick = { showCategoryMenuBottomSheet = false; selectedCategoryForMenu = null },
                 onProgress = { sheetMotionProgress = it }

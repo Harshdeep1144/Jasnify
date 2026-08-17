@@ -3,7 +3,9 @@ package com.harshdeep.jasnify.presentation.screens.main
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -12,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
@@ -19,7 +22,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
@@ -68,7 +70,6 @@ fun MainSkeletonLoading(
         profileViewModel.fetchProfile()
     }
 
-    // Navigate to the actual main screen after a delay to allow data to pre-load
     LaunchedEffect(Unit) {
         delay(1400.milliseconds)
         navController.navigate(Screen.MainAppScreen.route) {
@@ -84,16 +85,103 @@ fun MainSkeletonContent(
     modifier: Modifier = Modifier,
     brush: Brush = shimmerBrush()
 ) {
+    val scrollState = rememberScrollState()
+
     Scaffold(
         modifier = modifier,
-        containerColor = BackgroundPrimary,
-        bottomBar = {
+        containerColor = BackgroundPrimary
+    ) { paddingValues ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Top Bar Skeleton
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(180.dp)
+                            .height(30.dp)
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(brush)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(brush)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Main Content Skeleton (Mirroring Home Tab)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                        .background(brush)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(172.dp)
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(brush)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(172.dp)
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(brush)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(172.dp)
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(brush)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(172.dp)
+                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .background(brush)
+                    )
+                }
+
+            }
+
             Box(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                contentAlignment = Alignment.Center
+                    .padding(all = 12.dp)
             ) {
                 Box(
                     modifier = Modifier
@@ -103,95 +191,6 @@ fun MainSkeletonContent(
                         .background(brush)
                 )
             }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            // Top Bar Skeleton
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(180.dp)
-                        .height(30.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                        .background(brush)
-                )
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(brush)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Main Content Skeleton (Mirroring Home Tab)
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                    .background(brush)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(172.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                        .background(brush)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(172.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                        .background(brush)
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(172.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                        .background(brush)
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(172.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                        .background(brush)
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp)
-                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                    .background(brush)
-            )
         }
     }
 }
