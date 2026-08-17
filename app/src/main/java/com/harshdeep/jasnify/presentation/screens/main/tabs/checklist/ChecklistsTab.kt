@@ -503,6 +503,7 @@ fun ChecklistsTab(
                                                         CustomTopBar(
                                                             title = "Checklist",
                                                             titleIcon = painterResource(R.drawable.ic_checklists),
+                                                            menuIcon = TopIcon.Predefined.MENU_MODERN,
                                                             isLeftAligned = true,
                                                             isLargeTitle = true,
                                                             secondaryIcon = TopIcon.Predefined.SEARCH,

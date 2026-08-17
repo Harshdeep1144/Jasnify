@@ -1038,7 +1038,7 @@ fun HeaderMediaSlider(
     mediaList: List<HeaderMedia>,
     pagerState: PagerState,
     modifier: Modifier = Modifier,
-    autoSlideIntervalMs: Long = 4000L
+    autoSlideIntervalMs: Long = 8000L
 ) {
     if (mediaList.isEmpty()) return
 
@@ -1053,7 +1053,7 @@ fun HeaderMediaSlider(
                     val nextPage = pagerState.currentPage + 1
                     pagerState.animateScrollToPage(
                         page = nextPage,
-                        animationSpec = tween(durationMillis = 800)
+                        animationSpec = tween(durationMillis = 2000)
                     )
                 }
             }

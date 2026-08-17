@@ -179,6 +179,7 @@ fun VendorMainContent(
                                 onMenuClick = if (active) null else onMenuClick,
                                 onDropdownClick = if (active) null else onLocationClick,
                                 titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
+                                menuIcon = TopIcon.Predefined.MENU_MODERN,
                                 backIcon = TopIcon.Predefined.DOWN,
                                 isLargeTitle = true,
                                 isLeftAligned = !active,

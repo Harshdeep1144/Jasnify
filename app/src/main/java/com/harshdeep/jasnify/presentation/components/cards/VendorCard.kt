@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,11 +104,17 @@ fun VendorCardFull(
         pageCount = { virtualCount }
     )
 
+    val isDragged by pagerState.interactionSource.collectIsDraggedAsState()
+
     if (actualPageCount > 1) {
-        LaunchedEffect(pagerState.currentPage) {
-            delay(4000.milliseconds)
-            if (!pagerState.isScrollInProgress) {
-                pagerState.animateScrollToPage(pagerState.currentPage + 1)
+        LaunchedEffect(isDragged) {
+            if (!isDragged) {
+                while (true) {
+                    delay(3000.milliseconds)
+                    if (!pagerState.isScrollInProgress) {
+                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                    }
+                }
             }
         }
     }

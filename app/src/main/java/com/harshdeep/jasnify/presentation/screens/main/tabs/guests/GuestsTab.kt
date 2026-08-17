@@ -540,6 +540,7 @@ fun GuestsTab(
                                                     CustomTopBar(
                                                         title = "Guests",
                                                         titleIcon = painterResource(R.drawable.ic_guests),
+                                                        menuIcon = TopIcon.Predefined.MENU_MODERN,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
                                                         onMenuClick = {

@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -52,7 +53,7 @@ fun ChatScreen(
 ) {
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
-    
+
     val allVenues by venueViewModel.allVenues.collectAsState()
     val allVendors by vendorViewModel.allVendors.collectAsState()
 
@@ -81,7 +82,7 @@ fun ChatScreen(
     }
 
     var messageText by remember { mutableStateOf("") }
-    
+
     val messages by remember(currentUserUid, merchantId, itemId) {
         if (merchantId != null && itemId != null) {
             enquiryViewModel.getChatMessages(currentUserUid, merchantId, itemId)
@@ -95,8 +96,8 @@ fun ChatScreen(
     // Reactive Status Updates: Mark as Seen
     LaunchedEffect(messages, merchantId, itemId) {
         if (merchantId != null && itemId != null && messages.isNotEmpty()) {
-            val hasUnseenIncoming = messages.any { 
-                it.senderId != currentUserUid && it.status != MessageStatus.SEEN 
+            val hasUnseenIncoming = messages.any {
+                it.senderId != currentUserUid && it.status != MessageStatus.SEEN
             }
             if (hasUnseenIncoming) {
                 enquiryViewModel.markMessagesAsSeen(currentUserUid, merchantId, itemId)
@@ -110,6 +111,47 @@ fun ChatScreen(
         }
     }
 
+    ChatContent(
+        itemName = itemName,
+        activeStatus = activeStatus,
+        messages = messages,
+        currentUserUid = currentUserUid,
+        messageText = messageText,
+        onMessageChange = { messageText = it },
+        onSendClick = {
+            if (messageText.isNotBlank() && merchantId != null && itemId != null) {
+                enquiryViewModel.sendMessage(
+                    userId = currentUserUid,
+                    merchantId = merchantId,
+                    itemId = itemId,
+                    itemName = itemName,
+                    itemType = itemType,
+                    text = messageText,
+                    merchantProfileUrl = merchantProfile?.profilePictureUrl,
+                    merchantPhoneNumber = itemPhoneNumber
+                )
+                messageText = ""
+            }
+        },
+        onBackClick = onBackClick,
+        scrollState = scrollState,
+        modifier = modifier
+    )
+}
+
+@Composable
+fun ChatContent(
+    itemName: String,
+    activeStatus: String,
+    messages: List<ChatMessage>,
+    currentUserUid: String,
+    messageText: String,
+    onMessageChange: (String) -> Unit,
+    onSendClick: () -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    scrollState: LazyListState = rememberLazyListState()
+) {
     Scaffold(
         topBar = {
             Surface(
@@ -122,7 +164,6 @@ fun ChatScreen(
                     subtitle = activeStatus,
                     image = painterResource(R.drawable.ic_user_profile),
                     onBackClick = onBackClick,
-                    onMenuClick = { /* Handle menu */ },
                     buttonStyle = ButtonBackground.OPAQUE,
                     backIcon = TopIcon.Predefined.BACK
                 )
@@ -136,22 +177,8 @@ fun ChatScreen(
             ) {
                 ChatInputBar(
                     value = messageText,
-                    onValueChange = { messageText = it },
-                    onSendClick = {
-                        if (messageText.isNotBlank() && merchantId != null && itemId != null) {
-                            enquiryViewModel.sendMessage(
-                                userId = currentUserUid,
-                                merchantId = merchantId,
-                                itemId = itemId,
-                                itemName = itemName,
-                                itemType = itemType,
-                                text = messageText,
-                                merchantProfileUrl = merchantProfile?.profilePictureUrl,
-                                merchantPhoneNumber = itemPhoneNumber
-                            )
-                            messageText = ""
-                        }
-                    }
+                    onValueChange = onMessageChange,
+                    onSendClick = onSendClick
                 )
             }
         },
@@ -185,7 +212,7 @@ fun MessageBubble(
     val horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
     val bubbleColor = if (isSentByMe) SurfaceBrandSecondary else SurfaceSecondary
     val contentColor = if (isSentByMe) ContentPrimary else ContentPrimary
-    
+
     val shape = if (isSentByMe) {
         SquircleShape(16.dp, 16.dp, 16.dp, 4.dp)
     } else {
@@ -254,11 +281,12 @@ fun MessageStatusTicks(status: MessageStatus) {
 fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
-    onSendClick: () -> Unit
+    onSendClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Surface(
         color = Color.Transparent,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(12.dp)
     ) {
@@ -272,45 +300,14 @@ fun ChatInputBar(
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                     shape = RoundedCornerShape(28.dp)
                 )
-                .padding(4.dp),
+                .padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Camera Button
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(SurfacePrimary, CircleShape)
-                    .clickable { /* Handle camera */ },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_camera),
-                    contentDescription = "Camera",
-                    tint = ContentPrimary,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(Modifier.width(8.dp))
-
-            // Plus Button
-            IconButton(
-                onClick = { /* Handle plus */ },
-                modifier = Modifier.size(32.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_plus),
-                    contentDescription = "Add",
-                    tint = ContentPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            // Text Input
+            // Text Input Field
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
                 if (value.isEmpty()) {
@@ -332,7 +329,7 @@ fun ChatInputBar(
             // Send Button
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .background(
                         if (value.isNotBlank()) SurfacePrimary else SurfacePrimary.copy(alpha = 0.5f),
                         CircleShape
@@ -344,7 +341,7 @@ fun ChatInputBar(
                     painter = painterResource(R.drawable.ic_send),
                     contentDescription = "Send",
                     tint = if (value.isNotBlank()) ContentPrimary else ContentSecondary,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -354,7 +351,47 @@ fun ChatInputBar(
 @Preview(showBackground = true)
 @Composable
 fun ChatScreenPreview() {
+    val sampleMessages = listOf(
+        ChatMessage(
+            id = "1",
+            senderId = "merchant_1",
+            text = "Hello! Thanks for reaching out. How can we help you today?",
+            timestamp = System.currentTimeMillis() - 3600000,
+            status = MessageStatus.SEEN
+        ),
+        ChatMessage(
+            id = "2",
+            senderId = "current_user",
+            text = "Hi! Is the venue available for booking this Saturday?",
+            timestamp = System.currentTimeMillis() - 1800000,
+            status = MessageStatus.SEEN
+        ),
+        ChatMessage(
+            id = "3",
+            senderId = "merchant_1",
+            text = "Yes, it is available from 2 PM to 10 PM.",
+            timestamp = System.currentTimeMillis() - 900000,
+            status = MessageStatus.DELIVERED
+        ),
+        ChatMessage(
+            id = "4",
+            senderId = "current_user",
+            text = "Awesome, what are the catering options?",
+            timestamp = System.currentTimeMillis(),
+            status = MessageStatus.SENT
+        )
+    )
+
     JasnifyTheme {
-        ChatScreen()
+        ChatContent(
+            itemName = "Grand Orchid Ballroom",
+            activeStatus = "Online",
+            messages = sampleMessages,
+            currentUserUid = "current_user",
+            messageText = "",
+            onMessageChange = {},
+            onSendClick = {},
+            onBackClick = {}
+        )
     }
 }
