@@ -13,6 +13,7 @@ import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.main.HomeScreen
+import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonLoading
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.main.EventDetailsScreen
@@ -65,6 +66,10 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         startDestination = Screen.MainAppScreen.route,
         route = Screen.MainAppGraph.route
     ) {
+        composable(Screen.MainSkeletonLoading.route) {
+            MainSkeletonLoading(navController = mainNavController)
+        }
+
         // The core Host screen containing the Bottom Navigation Scaffold
         composable(
             route = Screen.MainAppScreen.route + "?eventId={eventId}",

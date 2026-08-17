@@ -159,12 +159,12 @@ fun ProfileTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
     val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
-    val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()

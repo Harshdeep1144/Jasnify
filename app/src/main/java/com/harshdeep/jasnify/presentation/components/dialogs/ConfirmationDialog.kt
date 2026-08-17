@@ -105,7 +105,7 @@ fun ConfirmationDialog(
                             },
                             text = confirmButtonText,
                             type = ButtonType.Primary,
-                            containerColor = if (isDestructive) MaterialTheme.colorScheme.error else SurfaceBrandPrimary,
+                            containerColor = if (isDestructive) MaterialTheme.colorScheme.error else ContentPrimary,
                             contentColor = ContentInvPrimary,
                             shapeStyle = ButtonShapeStyle.Square,
                             modifier = Modifier.weight(1f)

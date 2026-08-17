@@ -100,7 +100,6 @@ class VendorViewModel @Inject constructor(
             if (repository.isCatalogEmpty()) {
                 seedMockData(com.harshdeep.jasnify.data.mock.MockData.sampleVendors)
             }
-            delay(2000.milliseconds) // Small delay for shimmer effect visibility
             _isLoading.value = false
         }
     }
@@ -119,7 +118,9 @@ class VendorViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setSelectedVendorId(id: String?) {
-        _selectedVendorId.value = id
+        if (_selectedVendorId.value != id) {
+            _selectedVendorId.value = id
+        }
     }
 
     private val _eventId = MutableStateFlow<String?>(null)
@@ -133,7 +134,9 @@ class VendorViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setEventId(id: String) {
-        _eventId.value = id
+        if (_eventId.value != id) {
+            _eventId.value = id
+        }
     }
 
     fun toggleSaveVendor(vendor: Vendor, isViewer: Boolean, destination: String? = null) {

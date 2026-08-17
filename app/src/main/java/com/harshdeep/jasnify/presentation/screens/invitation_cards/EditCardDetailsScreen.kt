@@ -2297,7 +2297,7 @@ fun InteractiveTextElementItem(
                             Icon(
                                 imageVector = Icons.Rounded.OpenInFull,
                                 contentDescription = "Resize",
-                                tint = Color(0xE53D3D3D),
+                                tint = ContentInvPrimary,
                                 modifier = Modifier
                                     .requiredSize(reducedIconSize)
                                     .graphicsLayer {

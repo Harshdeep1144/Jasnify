@@ -35,7 +35,9 @@ class BudgetViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     fun setEventId(id: String) {
-        _eventId.value = id
+        if (_eventId.value != id) {
+            _eventId.value = id
+        }
     }
 
     fun addExpense(

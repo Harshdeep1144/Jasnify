@@ -107,6 +107,18 @@ fun VendorMainContent(
         }.distinctBy { it.id }
     }
 
+    val makeupVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } }
+    }
+
+    val photographyVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } }
+    }
+
+    val mehendiVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } }
+    }
+
     LaunchedEffect(isSearchActive) {
         if (!isSearchActive && searchQuery.isNotEmpty() && filteredAllVendors.isEmpty()) {
             onSearchQueryChange("")
@@ -245,7 +257,7 @@ fun VendorMainContent(
                     item(key = "carousel_makeup") {
                         VendorCarousel(
                             title = "Top Makeup Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                            vendors = makeupVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
@@ -261,7 +273,7 @@ fun VendorMainContent(
                     item(key = "carousel_photography") {
                         VendorCarousel(
                             title = "Best Photographers in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                            vendors = photographyVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
@@ -277,7 +289,7 @@ fun VendorMainContent(
                     item(key = "carousel_mehendi") {
                         VendorCarousel(
                             title = "Expert Mehendi Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                            vendors = mehendiVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
