@@ -8,8 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,6 +31,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -36,22 +39,26 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.UserListItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,7 +86,6 @@ fun RoomScreen(
     var showAccessBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
 
-    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     val isAnyBottomSheetOpen by remember {
@@ -108,11 +114,15 @@ fun RoomScreen(
 
     val isAdmin = currentUserRole == UserRole.OWNER
 
-    // Efficiently filter users only when allUsers list or search query changes
     val filteredUsers = remember(allUsers, searchQuery) {
-        allUsers.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.username.contains(searchQuery, ignoreCase = true)
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            allUsers
+        } else {
+            allUsers.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.username.contains(query, ignoreCase = true)
+            }
         }
     }
 
@@ -137,14 +147,7 @@ fun RoomScreen(
                     CustomTopBar(
                         title = "Manage Room Access",
                         onBackClick = onBackClick,
-                        menuIcon = if (isAdmin) TopIcon.Predefined.PLUS else TopIcon.Predefined.MENU_VERTICAL,
-                        onMenuClick = {
-                            if (isAdmin) {
-                                showAccessBottomSheet = true
-                            } else {
-                                onMenuClick()
-                            }
-                        },
+                        onMenuClick = if(!isAdmin) onMenuClick else null,
                         backIcon = TopIcon.Predefined.BACK,
                         buttonStyle = ButtonBackground.TRANSLUCENT,
                         translucentAlpha = 0.5f
@@ -170,16 +173,35 @@ fun RoomScreen(
                         detectTapGestures(onTap = { focusManager.clearFocus() })
                     }
             ) {
-                CustomSearchBar(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = "Search a user",
-                    backgroundColor = SurfacePrimary
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    CustomSearchBar(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        placeholder = "Search a user",
+                        backgroundColor = SurfacePrimary,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (isAdmin) {
+                        CustomIconButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                showAccessBottomSheet = true
+                            },
+                            icon = painterResource(R.drawable.ic_plus),
+                            type = ButtonType.Tertiary,
+                            enabled = true,
+                            containerColor = SurfacePrimary
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // List of Users Container
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -187,23 +209,24 @@ fun RoomScreen(
                         .background(Color.Transparent)
                         .navigationBarsPadding(),
                 ) {
-                    itemsIndexed(filteredUsers) { index, user ->
+                    itemsIndexed(
+                        items = filteredUsers,
+                        key = { _, user -> user.uid },
+                        contentType = { _, _ -> "user_list_item" }
+                    ) { index, user ->
                         val isFirst = index == 0
                         val isLast = index == filteredUsers.size - 1
 
-                        // Determine shape based on position in list
                         val itemShape = when {
                             isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
                             isFirst -> RoundedCornerShape(
                                 topStart = CornerExtraLarge,
                                 topEnd = CornerExtraLarge
                             )
-
                             isLast -> RoundedCornerShape(
                                 bottomStart = CornerExtraLarge,
                                 bottomEnd = CornerExtraLarge
                             )
-
                             else -> RectangleShape
                         }
 
@@ -236,22 +259,23 @@ fun RoomScreen(
         }
 
         if (showProfileBottomSheet && selectedUser != null) {
+            val targetUser = selectedUser!!
             focusManager.clearFocus()
             RoomProfileBottomSheet(
-                user = selectedUser!!,
+                user = targetUser,
                 currentUserRole = currentUserRole,
-                isSelf = isSelf(selectedUser!!),
+                isSelf = isSelf(targetUser),
                 onDismissRequest = { showProfileBottomSheet = false },
                 onRoleChange = { newRole ->
-                    onRoleChange(selectedUser!!, newRole)
+                    onRoleChange(targetUser, newRole)
                     showProfileBottomSheet = false
                 },
                 onRemove = {
-                    onRemove(selectedUser!!)
+                    onRemove(targetUser)
                     showProfileBottomSheet = false
                 },
                 onReport = {
-                    onReport(selectedUser!!)
+                    onReport(targetUser)
                     showProfileBottomSheet = false
                 },
                 onLeave = {
@@ -261,86 +285,5 @@ fun RoomScreen(
                 onProgress = { sheetMotionProgress = it }
             )
         }
-    }
-}
-
-
-// ==================================================================== Preview ======================================================
-
-
-@Preview(showBackground = true)
-@Composable
-fun RoomScreenPreview() {
-    val sampleUsers = listOf(
-        User(
-            uid = "1",
-            name = "Anand K.",
-            email = "anand@jasnify.com",
-            username = "viratanand",
-            role = UserRole.OWNER,
-            profilePictureUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "2",
-            name = "Steve R.",
-            email = "steve@jasnify.com",
-            username = "captainamerica",
-            role = UserRole.EDITOR,
-            profilePictureUrl = "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "3",
-            name = "Tony S.",
-            email = "tony@jasnify.com",
-            username = "ironman",
-            role = UserRole.EDITOR,
-            profilePictureUrl = "https://images.unsplash.com/photo-1531427186611-ecfd6d936c79?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "4",
-            name = "Bruce B.",
-            email = "bruce@jasnify.com",
-            username = "hulk",
-            role = UserRole.VIEWER,
-            profilePictureUrl = "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "5",
-            name = "Thor O.",
-            email = "thor@jasnify.com",
-            username = "thor",
-            role = UserRole.EDITOR,
-            profilePictureUrl = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "6",
-            name = "Natasha R.",
-            email = "natasha@jasnify.com",
-            username = "blackwidow",
-            role = UserRole.VIEWER,
-            profilePictureUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=150&h=150&q=80"
-        ),
-        User(
-            uid = "7",
-            name = "Clint B.",
-            email = "clint@jasnify.com",
-            username = "hawkeye",
-            role = UserRole.VIEWER,
-            profilePictureUrl = "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=150&h=150&q=80"
-        )
-    )
-
-    JasnifyTheme {
-        RoomScreen(
-            allUsers = sampleUsers,
-            currentUserRole = UserRole.OWNER,
-            isSelf = { it.username == "viratanand" },
-            onBackClick = {},
-            onMenuClick = {},
-            onRoleChange = { _, _ -> },
-            onRemove = {},
-            onReport = {},
-            onLeave = {}
-        )
     }
 }

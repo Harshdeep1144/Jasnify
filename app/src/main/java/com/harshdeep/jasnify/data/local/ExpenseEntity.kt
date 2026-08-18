@@ -1,9 +1,16 @@
 package com.harshdeep.jasnify.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "expenses")
+@Entity(
+    tableName = "expenses",
+    indices = [
+        Index(value = ["eventId"]),
+        Index(value = ["category"])
+    ]
+)
 data class ExpenseEntity(
     @PrimaryKey val id: String = "",
     val eventId: String = "",

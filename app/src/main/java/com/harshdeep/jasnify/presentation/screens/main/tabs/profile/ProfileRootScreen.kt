@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,6 +55,8 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
+private val CellGroupShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ProfileTabContent(
@@ -66,6 +69,36 @@ fun ProfileTabContent(
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit
 ) {
+    val editIcon = painterResource(R.drawable.ic_edit)
+    val eventsStackIcon = painterResource(R.drawable.ic_events_stack)
+    val messageTypingIcon = painterResource(R.drawable.ic_message_typing)
+    val profileIcon = painterResource(R.drawable.ic_profile)
+    val paintIcon = painterResource(R.drawable.ic_paint)
+    val notificationIcon = painterResource(R.drawable.ic_notification)
+    val termsIcon = painterResource(R.drawable.ic_terms_and_conditions)
+    val privacyIcon = painterResource(R.drawable.ic_privacy_policy)
+    val logoutIcon = painterResource(R.drawable.ic_logout)
+    val placeholderIcon = painterResource(R.drawable.ic_user_profile)
+
+    val eventSubtitle = remember(eventCount) {
+        if (eventCount == 1) "1 Event" else "$eventCount Events"
+    }
+    val enquirySubtitle = remember(enquiryCount) {
+        if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries"
+    }
+
+    val cellBorderModifier = remember {
+        Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = Color.Unspecified, // overwritten via MaterialTheme color below
+                shape = CellGroupShape
+            )
+            .clip(CellGroupShape)
+            .background(Color.Unspecified)
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -74,7 +107,7 @@ fun ProfileTabContent(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 1. User Header
-        item {
+        item(key = "user_header", contentType = "header") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -92,7 +125,7 @@ fun ProfileTabContent(
                         contentDescription = "Profile Picture",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        placeholder = painterResource(R.drawable.ic_user_profile)
+                        placeholder = placeholderIcon
                     )
                 }
                 Spacer(Modifier.height(12.dp))
@@ -113,14 +146,14 @@ fun ProfileTabContent(
                     onClick = onEditProfile,
                     text = "Edit Profile",
                     size = ButtonSize.Small,
-                    leadingIcon = painterResource(R.drawable.ic_edit),
+                    leadingIcon = editIcon,
                     type = ButtonType.Secondary
                 )
             }
         }
 
         // 2. Plan Cards
-        item {
+        item(key = "plan_cards", contentType = "plan_carousel") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -155,7 +188,7 @@ fun ProfileTabContent(
         }
 
         // 3. Grid Actions
-        item {
+        item(key = "grid_actions", contentType = "grid_actions") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -164,15 +197,15 @@ fun ProfileTabContent(
             ) {
                 ProfileGridCell(
                     title = "Manage Events",
-                    subtitle = if (eventCount == 1) "1 Event" else "$eventCount Events",
-                    icon = painterResource(R.drawable.ic_events_stack),
+                    subtitle = eventSubtitle,
+                    icon = eventsStackIcon,
                     onClick = { onNavigateTo(ProfileScreen.ManageEvents) },
                     modifier = Modifier.weight(1f)
                 )
                 ProfileGridCell(
                     title = "My Enquiries",
-                    subtitle = if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries",
-                    icon = painterResource(R.drawable.ic_message_typing),
+                    subtitle = enquirySubtitle,
+                    icon = messageTypingIcon,
                     onClick = { onNavigateTo(ProfileScreen.MyEnquiries) },
                     modifier = Modifier.weight(1f)
                 )
@@ -180,7 +213,7 @@ fun ProfileTabContent(
         }
 
         // 4. Menu Items
-        item {
+        item(key = "menu_items", contentType = "menu_items") {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -191,7 +224,7 @@ fun ProfileTabContent(
                 ProfileMenuCell(
                     title = "Account Settings",
                     subtitle = null,
-                    icon = painterResource(R.drawable.ic_profile),
+                    icon = profileIcon,
                     hasBorder = true,
                     onClick = { onNavigateTo(ProfileScreen.AccountSettings) }
                 )
@@ -203,15 +236,15 @@ fun ProfileTabContent(
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            shape = CellGroupShape
                         )
-                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .clip(CellGroupShape)
                         .background(SurfacePrimary)
                 ) {
                     ProfileMenuCell(
                         title = "Appearance",
                         subtitle = null,
-                        icon = painterResource(R.drawable.ic_paint),
+                        icon = paintIcon,
                         hasBorder = false,
                         shape = RectangleShape,
                         containerColor = Color.Transparent,
@@ -220,7 +253,7 @@ fun ProfileTabContent(
                     ProfileMenuCell(
                         title = "Notifications",
                         subtitle = "On",
-                        icon = painterResource(R.drawable.ic_notification),
+                        icon = notificationIcon,
                         hasBorder = false,
                         shape = RectangleShape,
                         containerColor = Color.Transparent,
@@ -235,15 +268,15 @@ fun ProfileTabContent(
                         .border(
                             width = 1.dp,
                             color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            shape = CellGroupShape
                         )
-                        .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                        .clip(CellGroupShape)
                         .background(SurfacePrimary)
                 ) {
                     ProfileMenuCell(
                         title = "Terms & Conditions",
                         subtitle = null,
-                        icon = painterResource(R.drawable.ic_terms_and_conditions),
+                        icon = termsIcon,
                         hasBorder = false,
                         shape = RectangleShape,
                         containerColor = Color.Transparent,
@@ -252,7 +285,7 @@ fun ProfileTabContent(
                     ProfileMenuCell(
                         title = "Privacy Policy",
                         subtitle = null,
-                        icon = painterResource(R.drawable.ic_privacy_policy),
+                        icon = privacyIcon,
                         hasBorder = false,
                         shape = RectangleShape,
                         containerColor = Color.Transparent,
@@ -264,7 +297,7 @@ fun ProfileTabContent(
                 ProfileMenuCell(
                     title = "Logout",
                     subtitle = null,
-                    icon = painterResource(R.drawable.ic_logout),
+                    icon = logoutIcon,
                     hasBorder = true,
                     onClick = onLogout,
                     contentColor = MaterialTheme.colorScheme.error
@@ -273,7 +306,7 @@ fun ProfileTabContent(
         }
 
         // 5. Footer
-        item {
+        item(key = "footer", contentType = "footer") {
             FooterJansify()
         }
     }
@@ -289,19 +322,18 @@ fun ProfileGridCell(
 ) {
     Surface(
         modifier = modifier
-            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .clip(CellGroupShape)
             .border(
                 width = 1.dp,
                 color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                shape = CellGroupShape
             )
             .clickable { onClick() },
         color = SurfacePrimary,
-        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        shape = CellGroupShape
     ) {
         Column(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = Alignment.Start
         ) {

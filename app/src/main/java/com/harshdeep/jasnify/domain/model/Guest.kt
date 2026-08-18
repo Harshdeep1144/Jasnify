@@ -1,8 +1,10 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.util.UUID
 import com.google.firebase.firestore.PropertyName
 
+@Immutable
 data class Guest(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",
@@ -23,6 +25,7 @@ data class Guest(
     constructor() : this(id = "")
 }
 
+@Immutable
 data class GuestType(
     val id: String = UUID.randomUUID().toString(),
     val name: String = "",

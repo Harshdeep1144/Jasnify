@@ -6,6 +6,10 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -14,74 +18,39 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.Spring
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.Enquiry
-import com.harshdeep.jasnify.domain.model.UserEvent
-import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Event
-import com.harshdeep.jasnify.domain.model.User
+import com.harshdeep.jasnify.domain.model.UserEvent
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
@@ -94,25 +63,11 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinOrCreateBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.cards.EnquiryCard
-import com.harshdeep.jasnify.presentation.components.cards.ManageEventCard
-import com.harshdeep.jasnify.presentation.components.cards.PlanCard
-import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.dialogs.AccountDeletionDialog
 import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.utils.pill360Shadow
-import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
@@ -123,19 +78,10 @@ import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
-import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerLarge
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
-import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfacePrimary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
-import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class ProfileScreen {
@@ -159,12 +105,14 @@ fun ProfileTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit,
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
 ) {
-    val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+    val mainGraphEntry = remember(mainNavController) {
+        mainNavController.getBackStackEntry(Screen.MainAppGraph.route)
+    }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
-    val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
@@ -172,8 +120,7 @@ fun ProfileTab(
 
     val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
-    
-    // Stop listening to enquiries if the user is null or being deleted
+
     val enquiries by remember(firebaseUser?.uid) {
         if (firebaseUser?.uid != null) {
             enquiryViewModel.getEnquiriesForUser(firebaseUser.uid)
@@ -182,7 +129,6 @@ fun ProfileTab(
         }
     }.collectAsState(emptyList())
 
-    // Ensure owned events are fetched for old accounts
     LaunchedEffect(firebaseUser) {
         if (firebaseUser != null) {
             eventViewModel.fetchUserEvents()
@@ -199,7 +145,6 @@ fun ProfileTab(
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
 
-    // Prioritize Cloudinary URL from profile. Fallback to Google only if no profile exists yet.
     val profilePic: Any = if (userProfile != null) {
         userProfile?.profilePictureUrl ?: R.drawable.ic_user_profile
     } else {
@@ -225,7 +170,6 @@ fun ProfileTab(
     var verifiedEvent by remember { mutableStateOf<Event?>(null) }
     var isVerifying by remember { mutableStateOf(false) }
 
-    // Real-time drag progress ratio (0.0f = fully open sheet, 1.0f = fully dismissed sheet)
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     val isAnyBottomSheetOpen by remember {
@@ -287,28 +231,29 @@ fun ProfileTab(
     }
 
     LaunchedEffect(authState) {
-        if (authState is AuthState.Success) {
-            if ((authState as AuthState.Success).message == "Password updated successfully") {
-                delay(2000.milliseconds)
-                showChangePassword = false
-                authViewModel.resetAuthState()
-            } else if ((authState as AuthState.Success).message == "Account deleted successfully" || 
-                (authState as AuthState.Success).message == "Account deletion requested") {
-                // Important: clear local data immediately to trigger recomposition 
-                // and stop listeners before the navigation delay
-                eventViewModel.clearActiveEvent()
-                
-                toastData = ToastData((authState as AuthState.Success).message, ToastType.SUCCESS)
-                delay(2000.milliseconds)
-                
-                mainNavController.navigate(Screen.OnboardingGraph.route) {
-                    popUpTo(0) { inclusive = true }
+        when (val state = authState) {
+            is AuthState.Success -> {
+                if (state.message == "Password updated successfully") {
+                    delay(2000.milliseconds)
+                    showChangePassword = false
+                    authViewModel.resetAuthState()
+                } else if (state.message == "Account deleted successfully" ||
+                    state.message == "Account deletion requested"
+                ) {
+                    eventViewModel.clearActiveEvent()
+                    toastData = ToastData(state.message, ToastType.SUCCESS)
+                    delay(2000.milliseconds)
+                    mainNavController.navigate(Screen.OnboardingGraph.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                    authViewModel.resetAuthState()
                 }
+            }
+            is AuthState.Error -> {
+                toastData = ToastData(state.message, ToastType.ERROR)
                 authViewModel.resetAuthState()
             }
-        } else if (authState is AuthState.Error) {
-            toastData = ToastData((authState as AuthState.Error).message, ToastType.ERROR)
-            authViewModel.resetAuthState()
+            else -> Unit
         }
     }
 
@@ -340,7 +285,11 @@ fun ProfileTab(
         )
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -463,7 +412,7 @@ fun ProfileTab(
         }
 
         val isSheetWithToastShowing = showJoinEventSheet || showEditProfile || showChangePassword
-        
+
         AnimatedVisibility(
             visible = toastData.message != null && !isSheetWithToastShowing && !isAnyBottomSheetOpen,
             enter = slideInVertically(initialOffsetY = { -it }),
@@ -495,7 +444,6 @@ fun ProfileTab(
             )
         }
 
-
         if (showChangePassword) {
             val lastChangedText = TimeUtils.formatPasswordLastChanged(userProfile?.lastPasswordChangeTimestamp)
             ChangePasswordBottomSheet(
@@ -512,7 +460,7 @@ fun ProfileTab(
                 onUpdatePassword = { newPassword ->
                     authViewModel.updatePassword(newPassword)
                 },
-                onForgotPassword = { /* Need OTP Service */ },
+                onForgotPassword = { /* Handled via OTP service */ },
                 onProgress = { sheetMotionProgress = it }
             )
         }
@@ -607,13 +555,17 @@ fun ProfileTab(
             val isCurrentEvent = selectedEventForMenu!!.eventId == activeEventId
             val isAdminOfEvent = userProfile?.uid == selectedEventForMenu!!.adminId
 
+            val shufflePainter = painterResource(R.drawable.ic_shuffle)
+            val infoPainter = painterResource(R.drawable.ic_info)
+            val logoutPainter = painterResource(R.drawable.ic_logout)
+
             MenuBottomSheet(
                 items = listOfNotNull(
                     if (!isCurrentEvent) {
                         listOf(
                             MenuSheetActionItem(
                                 text = "Switch to Event",
-                                icon = painterResource(R.drawable.ic_shuffle),
+                                icon = shufflePainter,
                                 iconPlacement = IconPlacement.Left,
                                 onClick = {
                                     eventViewModel.fetchAndSetActiveEvent(selectedEventForMenu!!.eventId)
@@ -629,7 +581,7 @@ fun ProfileTab(
                     listOf(
                         MenuSheetActionItem(
                             text = "Event Detail",
-                            icon = painterResource(R.drawable.ic_info),
+                            icon = infoPainter,
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 mainNavController.navigate(Screen.EventDetail.route)
@@ -641,7 +593,7 @@ fun ProfileTab(
                         listOf(
                             MenuSheetActionItem(
                                 text = "Leave Event",
-                                icon = painterResource(R.drawable.ic_logout),
+                                icon = logoutPainter,
                                 iconPlacement = IconPlacement.Left,
                                 contentColor = MaterialTheme.colorScheme.error,
                                 onClick = {
@@ -660,7 +612,7 @@ fun ProfileTab(
         if (showLeaveConfirmation && selectedEventForMenu != null) {
             ConfirmationBottomSheet(
                 heading = "Are you sure?",
-                subHeading = "You will be removed from all rooms & will immediately loose access to all the information.",
+                subHeading = "You will be removed from all rooms & will immediately lose access to all the information.",
                 confirmButtonText = "Leave Event",
                 onDismiss = { showLeaveConfirmation = false },
                 isDestructive = true,

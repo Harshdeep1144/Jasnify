@@ -231,12 +231,12 @@ class UserRepositoryImpl @Inject constructor(
 
             for (doc in snapshot.documents) {
                 val docEventId = doc.getString("eventId") ?: continue
-                
-                // Be more flexible with eventId matching: check if doc matches input eventId 
+
+                // Be more flexible with eventId matching: check if doc matches input eventId
                 // OR if both represent the same event (via a resolved check)
                 // For simplicity and speed, we check exact match first.
                 if (eventId.isNotBlank() && docEventId != eventId) {
-                    // Potential mismatch between short code and Doc ID. 
+                    // Potential mismatch between short code and Doc ID.
                     // Since we want to promote correctly, we proceed if we can't definitively say they are different.
                     // But to stay safe, we only proceed if the document's eventId is valid.
                 }

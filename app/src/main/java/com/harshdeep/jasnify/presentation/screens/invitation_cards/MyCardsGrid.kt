@@ -9,7 +9,16 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -18,7 +27,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,9 +44,16 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.utils.TimeUtils
 import sv.lib.squircleshape.SquircleShape
+
+private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalSharedTransitionApi::class)
 @Composable
@@ -60,6 +78,7 @@ fun MyCardsGrid(
         )
     } else {
         val isSelectionMode = selectedCardIds.isNotEmpty()
+        val editPenPainter = painterResource(R.drawable.ic_edit_pen)
 
         LazyVerticalGrid(
             state = gridState,
@@ -67,10 +86,15 @@ fun MyCardsGrid(
             contentPadding = PaddingValues(12.dp, 12.dp, 12.dp, 120.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
                 .nestedScroll(nestedScrollConnection)
         ) {
-            items(cards, key = { it.id }) { card ->
+            items(
+                items = cards,
+                key = { it.id },
+                contentType = { "my_card_grid_item" }
+            ) { card ->
                 val isSelected = selectedCardIds.contains(card.id)
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
@@ -91,13 +115,13 @@ fun MyCardsGrid(
                                 .sharedBounds(
                                     sharedContentState = rememberSharedContentState(key = myCardKey),
                                     animatedVisibilityScope = animatedVisibilityScope,
-                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                    clipInOverlayDuringTransition = OverlayClip(CardShape)
                                 )
                                 .graphicsLayer {
                                     scaleX = scale
                                     scaleY = scale
                                 }
-                                .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                .clip(CardShape)
                                 .combinedClickable(
                                     interactionSource = interactionSource,
                                     indication = null,
@@ -113,7 +137,7 @@ fun MyCardsGrid(
                                     }
                                 )
                                 .then(
-                                    if (isSelected) Modifier.border(2.dp, ContentBrand, SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                    if (isSelected) Modifier.border(2.dp, ContentBrand, CardShape)
                                     else Modifier
                                 )
                         ) {
@@ -134,7 +158,7 @@ fun MyCardsGrid(
                                     Surface(
                                         modifier = Modifier.align(Alignment.TopEnd),
                                         shape = CircleShape,
-                                        color = if (isSelected) SurfacePrimary else Color.Black.copy(0.3f)
+                                        color = if (isSelected) SurfacePrimary else Color.Black.copy(alpha = 0.3f)
                                     ) {
                                         CustomChecker(
                                             checked = isSelected,
@@ -156,7 +180,7 @@ fun MyCardsGrid(
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_edit_pen),
+                            painter = editPenPainter,
                             contentDescription = null,
                             tint = ContentSecondary,
                             modifier = Modifier.size(20.dp)

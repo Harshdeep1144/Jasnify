@@ -3,9 +3,20 @@ package com.harshdeep.jasnify.presentation.screens.budget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,7 +25,11 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,9 +47,20 @@ import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
-import java.util.Locale
+
+private val CardContainerShape = SquircleShape(CornerLargeIncrease)
+private val IndicatorPillShape = SquircleShape(100)
+private val RoundedShadowShape = RoundedCornerShape(20.dp)
+private val RoundedCardShadowShape = RoundedCornerShape(24.dp)
+
+private val SuccessGreenColor = Color(0xFF137935)
+private val SpentRedColor = Color(0xFFBF3C34)
 
 @Composable
 fun ExpenseSummaryContent(
@@ -55,6 +81,8 @@ fun ExpenseSummaryContent(
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
     var isCategoryListExpanded by remember { mutableStateOf(false) }
+
+    val aiPainter = painterResource(R.drawable.ic_ai)
 
     Column(
         modifier = Modifier
@@ -117,9 +145,9 @@ fun ExpenseSummaryContent(
                         .fillMaxWidth()
                         .shadow(
                             elevation = 12.dp,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = RoundedShadowShape,
                         )
-                        .clip(SquircleShape(CornerLargeIncrease))
+                        .clip(CardContainerShape)
                         .background(SurfacePrimary)
                         .padding(16.dp)
                 ) {
@@ -146,7 +174,7 @@ fun ExpenseSummaryContent(
                             style = JasnifyTheme.typography.headingLarge.copy(
                                 fontWeight = FontWeight.Medium
                             ),
-                            color = Color(0xFF137935)
+                            color = SuccessGreenColor
                         )
                     }
                 }
@@ -156,11 +184,11 @@ fun ExpenseSummaryContent(
                         .fillMaxWidth()
                         .shadow(
                             elevation = 16.dp,
-                            shape = RoundedCornerShape(24.dp),
+                            shape = RoundedCardShadowShape,
                             spotColor = ContentPrimary.copy(alpha = 0.35f),
                             ambientColor = ContentPrimary.copy(alpha = 0.15f)
                         )
-                        .clip(SquircleShape(CornerLargeIncrease))
+                        .clip(CardContainerShape)
                         .background(SurfacePrimary)
                         .padding(16.dp),
                 ) {
@@ -187,13 +215,13 @@ fun ExpenseSummaryContent(
                             style = JasnifyTheme.typography.headingLarge.copy(
                                 fontWeight = FontWeight.Medium
                             ),
-                            color = Color(0xFFBF3C34)
+                            color = SpentRedColor
                         )
                     }
                     Spacer(Modifier.height(16.dp))
 
                     DashedDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                         dashLength = 12f,
                         gapLength = 6f
                     )
@@ -209,13 +237,6 @@ fun ExpenseSummaryContent(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         displayedCategories.forEach { (categoryName, totalCategorySpent) ->
-                            val categoryPct = if (centerTextPrimaryValue != "₹ 0") {
-                                // This is a bit tricky since I don't have totalBudget here.
-                                // I'll pass category percentage from outside or recalculate.
-                                // For now, let's assume it's pre-calculated or passed in processedCategories.
-                                0.0 // Placeholder
-                            } else 0.0
-
                             val formattedCategorySpentText = "₹${formatAmount(totalCategorySpent)}"
                             val indicatorColor = getCategoryColor(categoryName)
 
@@ -232,7 +253,7 @@ fun ExpenseSummaryContent(
                                         modifier = Modifier
                                             .width(6.dp)
                                             .height(24.dp)
-                                            .clip(SquircleShape(100))
+                                            .clip(IndicatorPillShape)
                                             .background(indicatorColor)
                                     )
 
@@ -302,7 +323,7 @@ fun ExpenseSummaryContent(
                     shapeStyle = ButtonShapeStyle.Square,
                     type = ButtonType.Secondary,
                     modifier = Modifier.weight(1f),
-                    leadingIcon = painterResource(R.drawable.ic_ai)
+                    leadingIcon = aiPainter
                 )
 
                 if (!isViewer) {

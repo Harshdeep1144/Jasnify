@@ -10,9 +10,11 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
@@ -22,24 +24,24 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -63,24 +65,29 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
@@ -106,6 +113,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
@@ -124,16 +133,12 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.harshdeep.jasnify.theme.BackgroundBrand
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -141,11 +146,25 @@ import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.Pattaya
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+
+private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
+private val DEFAULT_TYPES = listOf("Starters", "Beverages", "Main Course", "Desserts")
+
+val TopHeaderGradientBrush = Brush.verticalGradient(
+    0.0f to Color(0xFFCCE3CB),
+    0.75f to Color(0xFFE1EFE0),
+    1.0f to BackgroundPrimary
+)
+
+private val StickyHeaderSolidBrush = Brush.verticalGradient(
+    0.0f to Color(0xFFD8EBD7),
+    0.45f to Color(0xFFE3F0E2),
+    1.0f to Color(0xFFF0F7EF)
+)
 
 data class MenuItem(
     val id: String,
@@ -158,6 +177,110 @@ data class MenuItem(
 enum class CateringMenuView {
     MENU,
     MANAGE_ROOM_ACCESS
+}
+
+fun Modifier.detectCombinedClicks(
+    key: Any,
+    onTap: () -> Unit,
+    onLongPress: () -> Unit
+): Modifier = this.pointerInput(key, onTap, onLongPress) {
+    awaitEachGesture {
+        val down = awaitFirstDown(pass = PointerEventPass.Initial)
+        val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+
+        try {
+            withTimeout(longPressTimeout) {
+                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                if (up != null) {
+                    onTap()
+                }
+            }
+        } catch (_: PointerEventTimeoutCancellationException) {
+            onLongPress()
+        }
+    }
+}
+
+data class CategoryStyle(
+    val containerBrush: Brush,
+    val innerBg: Color,
+    val headerTextColor: Color,
+    val subtitleTextColor: Color,
+    val illustrationRes: Int
+)
+
+fun createCategoryGradient(colors: List<Color>): Brush {
+    if (colors.isEmpty()) return SolidColor(Color.Transparent)
+    if (colors.size == 1) return SolidColor(colors.first())
+
+    val colorStops = when (colors.size) {
+        2 -> arrayOf(
+            0.0f to colors[0],
+            1.0f to colors[1]
+        )
+        3 -> arrayOf(
+            0.0f to colors[0],
+            0.68f to colors[1],
+            1.0f to colors[2]
+        )
+        else -> colors.mapIndexed { index, color ->
+            val stop = if (index == colors.lastIndex) {
+                1.0f
+            } else {
+                (index.toFloat() / (colors.size - 1)) * 0.68f
+            }
+            stop to color
+        }.toTypedArray()
+    }
+
+    return Brush.linearGradient(
+        colorStops = colorStops,
+        start = Offset.Zero,
+        end = Offset.Infinite
+    )
+}
+
+private val AppetizerCategoryStyle = CategoryStyle(
+    containerBrush = createCategoryGradient(listOf(Color(0xFFFFAF90), Color(0xFFFED8CA), Color(0xFFFFF2EC))),
+    innerBg = Color(0xFFFFF6F3),
+    headerTextColor = Color(0xFF621E09),
+    subtitleTextColor = Color(0xFF9E4A2E),
+    illustrationRes = R.drawable.ill_appetizers
+)
+
+private val BeverageCategoryStyle = CategoryStyle(
+    containerBrush = createCategoryGradient(listOf(Color(0xFF91DBFF), Color(0xFFD8F3FF), Color(0xFFF2FBFF))),
+    innerBg = Color(0xFFF2FAFE),
+    headerTextColor = Color(0xFF0A405F),
+    subtitleTextColor = Color(0xFF327B9E),
+    illustrationRes = R.drawable.ill_beverages
+)
+
+private val MainCourseCategoryStyle = CategoryStyle(
+    containerBrush = createCategoryGradient(listOf(Color(0xFFFF9E99), Color(0xFFFCDAD7), Color(0xFFFFF3F2))),
+    innerBg = Color(0xFFFFF4F3),
+    headerTextColor = Color(0xFF6B1515),
+    subtitleTextColor = Color(0xFF9E4141),
+    illustrationRes = R.drawable.ill_main_courses
+)
+
+private val DessertCategoryStyle = CategoryStyle(
+    containerBrush = createCategoryGradient(listOf(Color(0xFFFFA9D5), Color(0xFFFBDBEC), Color(0xFFFFF3FA))),
+    innerBg = Color(0xFFFFF2F7),
+    headerTextColor = Color(0xFF631034),
+    subtitleTextColor = Color(0xFF9C3E67),
+    illustrationRes = R.drawable.ill_desserts
+)
+
+fun getCategoryStyle(categoryName: String): CategoryStyle {
+    val normalized = categoryName.lowercase().trim()
+    return when {
+        normalized.contains("appetizer") || normalized.contains("starter") -> AppetizerCategoryStyle
+        normalized.contains("beverage") || normalized.contains("drink") -> BeverageCategoryStyle
+        normalized.contains("main") -> MainCourseCategoryStyle
+        normalized.contains("dessert") || normalized.contains("sweet") -> DessertCategoryStyle
+        else -> AppetizerCategoryStyle
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -179,16 +302,19 @@ fun CateringMenuScreen(
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
 
-    val auth = FirebaseAuth.getInstance()
-    val currentUserUid = auth.currentUser?.uid ?: ""
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid ?: "" }
 
-    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-    val isOwner = activeEvent?.ownerId == currentUserUid
-    val currentUserRole = when {
-        isOwner -> UserRole.OWNER
-        currentUserInRoom != null -> currentUserInRoom.role
-        else -> UserRole.VIEWER
+    val currentUserRole = remember(activeEvent, roomUsers, currentUserUid) {
+        val isOwner = activeEvent?.ownerId == currentUserUid
+        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+        when {
+            isOwner -> UserRole.OWNER
+            currentUserInRoom != null -> currentUserInRoom.role
+            else -> UserRole.VIEWER
+        }
     }
+    val isOwner = currentUserRole == UserRole.OWNER
     val isViewer = currentUserRole == UserRole.VIEWER
 
     val allMenuItems = remember(cateringItemsEntities) {
@@ -209,10 +335,11 @@ fun CateringMenuScreen(
     }
 
     LaunchedEffect(activeEventId) {
-        if (activeEventId != null) {
-            cateringViewModel.setEventId(activeEventId!!)
-            roomViewModel.verifyAccess(activeEventId!!, "Catering", currentUserUid)
-            roomViewModel.loadRoomUsers(activeEventId!!, "Catering")
+        val id = activeEventId
+        if (id != null) {
+            cateringViewModel.setEventId(id)
+            roomViewModel.verifyAccess(id, "Catering", currentUserUid)
+            roomViewModel.loadRoomUsers(id, "Catering")
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -228,7 +355,17 @@ fun CateringMenuScreen(
     var searchText by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    BackHandler(enabled = isSearchActive) {
+    var isMultiSelectActive by remember { mutableStateOf(false) }
+    var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
+    val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
+
+    BackHandler(enabled = isSelectionMode) {
+        selectedItemIds = emptySet()
+        isMultiSelectActive = false
+        focusManager.clearFocus()
+    }
+
+    BackHandler(enabled = isSearchActive && !isSelectionMode) {
         isSearchActive = false
         searchText = ""
         focusManager.clearFocus()
@@ -286,7 +423,7 @@ fun CateringMenuScreen(
 
     val mainListState = rememberLazyListState()
 
-    val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
+    val topBarMaxScrollPx = remember(density) { with(density) { 56.dp.toPx() } }
     val topBarScrollProgress by remember {
         derivedStateOf {
             if (mainListState.firstVisibleItemIndex > 0) {
@@ -297,23 +434,19 @@ fun CateringMenuScreen(
         }
     }
 
-    val isAnyBottomSheetOpen by remember {
-        derivedStateOf {
-            showDetailsBottomSheet ||
-                    showDeleteConfirmationSheet ||
-                    showCuisineBottomSheet ||
-                    showTypeBottomSheet ||
-                    showAddItemSheet ||
-                    showSuccessSheet ||
-                    showAddCuisineBottomSheet ||
-                    showAddTypeBottomSheet ||
-                    showMenuBottomSheet ||
-                    showRoomMenuBottomSheet ||
-                    showRoomAccessBottomSheet ||
-                    userToRemove != null ||
-                    showLeaveConfirmation
-        }
-    }
+    val isAnyBottomSheetOpen = showDetailsBottomSheet ||
+            showDeleteConfirmationSheet ||
+            showCuisineBottomSheet ||
+            showTypeBottomSheet ||
+            showAddItemSheet ||
+            showSuccessSheet ||
+            showAddCuisineBottomSheet ||
+            showAddTypeBottomSheet ||
+            showMenuBottomSheet ||
+            showRoomMenuBottomSheet ||
+            showRoomAccessBottomSheet ||
+            userToRemove != null ||
+            showLeaveConfirmation
 
     val targetScale = if (isAnyBottomSheetOpen) {
         0.92f + (0.08f * sheetMotionProgress)
@@ -333,45 +466,41 @@ fun CateringMenuScreen(
         label = "backdropCornerRadius"
     )
 
-    val cuisineOptions by remember(allMenuItems) {
-        derivedStateOf {
-            (listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean") +
-                    allMenuItems.map { it.cuisine }).distinct().sorted()
-        }
+    val cuisineOptions = remember(allMenuItems) {
+        (DEFAULT_CUISINES + allMenuItems.map { it.cuisine }).distinct().sorted()
     }
 
-    val typeOptions by remember(allMenuItems) {
-        derivedStateOf {
-            (listOf("Starters", "Beverages", "Main Course", "Desserts") +
-                    allMenuItems.map { it.type }).distinct().sorted()
-        }
+    val typeOptions = remember(allMenuItems) {
+        (DEFAULT_TYPES + allMenuItems.map { it.type }).distinct().sorted()
     }
 
-    val filteredItems by remember(allMenuItems, searchText, selectedFilterTab, selectedCuisines, selectedTypes) {
-        derivedStateOf {
-            allMenuItems.filter { item ->
-                val matchesSearch = item.name.contains(searchText, ignoreCase = true) ||
-                        item.type.contains(searchText, ignoreCase = true) ||
-                        item.cuisine.contains(searchText, ignoreCase = true)
+    val filteredItems = remember(allMenuItems, searchText, selectedFilterTab, selectedCuisines, selectedTypes) {
+        val query = searchText.trim()
+        val hasQuery = query.isNotEmpty()
+        val hasCuisineFilter = selectedCuisines.isNotEmpty()
+        val hasTypeFilter = selectedTypes.isNotEmpty()
 
-                val matchesTab = when (selectedFilterTab) {
-                    "Veg" -> item.dietary == Dietary.Veg
-                    "Non-Veg" -> item.dietary == Dietary.NonVeg
-                    else -> true
-                }
+        allMenuItems.filter { item ->
+            val matchesSearch = !hasQuery ||
+                    item.name.contains(query, ignoreCase = true) ||
+                    item.type.contains(query, ignoreCase = true) ||
+                    item.cuisine.contains(query, ignoreCase = true)
 
-                val matchesCuisine = if (selectedCuisines.isEmpty()) true else selectedCuisines.contains(item.cuisine)
-                val matchesType = if (selectedTypes.isEmpty()) true else selectedTypes.contains(item.type)
-
-                matchesSearch && matchesTab && matchesCuisine && matchesType
+            val matchesTab = when (selectedFilterTab) {
+                "Veg" -> item.dietary == Dietary.Veg
+                "Non-Veg" -> item.dietary == Dietary.NonVeg
+                else -> true
             }
+
+            val matchesCuisine = !hasCuisineFilter || selectedCuisines.contains(item.cuisine)
+            val matchesType = !hasTypeFilter || selectedTypes.contains(item.type)
+
+            matchesSearch && matchesTab && matchesCuisine && matchesType
         }
     }
 
-    val categorizedItems by remember(filteredItems) {
-        derivedStateOf {
-            filteredItems.groupBy { it.type }
-        }
+    val categorizedItems = remember(filteredItems) {
+        filteredItems.groupBy { it.type }
     }
 
     RoomAccessGuardian(
@@ -414,9 +543,12 @@ fun CateringMenuScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .windowInsetsTopHeight(WindowInsets.statusBars)
-                                        .background(BackgroundPrimary)
-                                        .zIndex(100f)
+                                        .height(250.dp)
+                                        .graphicsLayer {
+                                            translationY = -topBarScrollProgress * topBarMaxScrollPx
+                                        }
+                                        .background(brush = TopHeaderGradientBrush)
+                                        .zIndex(0f)
                                 )
 
                                 LazyColumn(
@@ -425,73 +557,111 @@ fun CateringMenuScreen(
                                         .statusBarsPadding(),
                                     state = mainListState,
                                 ) {
-                                    item(key = "top_bar") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .graphicsLayer {
-                                                    alpha =
-                                                        (1f - topBarScrollProgress).coerceIn(0f, 1f)
-                                                    translationY = -topBarScrollProgress * 30f
-                                                }
+                                    item(key = "top_bar", contentType = "top_bar") {
+                                        AnimatedVisibility(
+                                            visible = !isSearchActive,
+                                            enter = fadeIn(animationSpec = tween(200)) + expandVertically(animationSpec = tween(200)),
+                                            exit = fadeOut(animationSpec = tween(150)) + shrinkVertically(animationSpec = tween(150))
                                         ) {
-                                            AnimatedContent(
-                                                targetState = isSearchActive,
-                                                transitionSpec = {
-                                                    fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(250))
-                                                },
-                                                label = "CateringTopBarSearchTransition"
-                                            ) { active ->
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .background(Color.Transparent)
+                                                    .graphicsLayer {
+                                                        alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                                        translationY = -topBarScrollProgress * 30f
+                                                    }
+                                            ) {
                                                 CustomTopBar(
-                                                    title = if (active) "Search Menu" else "Catering Menu",
-                                                    onBackClick = if (active) {
-                                                        {
-                                                            isSearchActive = false
-                                                            searchText = ""
-                                                            focusManager.clearFocus()
-                                                        }
-                                                    } else {
-                                                        {
-                                                            focusManager.clearFocus()
-                                                            onBackClick()
-                                                        }
+                                                    title = "Catering Menu",
+                                                    onBackClick = {
+                                                        focusManager.clearFocus()
+                                                        onBackClick()
                                                     },
-                                                    onMenuClick = if (active) null else {
-                                                        {
-                                                            focusManager.clearFocus()
-                                                            showMenuBottomSheet = true
-                                                        }
+                                                    onMenuClick = {
+                                                        focusManager.clearFocus()
+                                                        showMenuBottomSheet = true
                                                     },
+                                                    menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                     isLargeTitle = true,
-                                                    buttonStyle = ButtonBackground.OPAQUE
+                                                    buttonStyle = ButtonBackground.TRANSLUCENT,
+                                                    borderColor = Color(0xFFB5CEB2)
                                                 )
                                             }
                                         }
                                     }
 
-                                    stickyHeader(key = "search_and_filters_header") {
+                                    stickyHeader(key = "search_and_filters_header", contentType = "header") {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .background(BackgroundPrimary)
+                                                .drawBehind {
+                                                    val alpha = if (isSearchActive) 1f else topBarScrollProgress
+                                                    if (alpha > 0f) {
+                                                        drawRect(
+                                                            brush = if (alpha >= 1f) {
+                                                                StickyHeaderSolidBrush
+                                                            } else {
+                                                                Brush.verticalGradient(
+                                                                    0.0f to Color(0xFFD8EBD7).copy(alpha = alpha),
+                                                                    0.45f to Color(0xFFE3F0E2).copy(alpha = alpha),
+                                                                    1.0f to Color(0xFFF0F7EF).copy(alpha = alpha)
+                                                                )
+                                                            }
+                                                        )
+                                                    }
+                                                }
                                                 .zIndex(10f)
                                         ) {
-                                            Spacer(Modifier.height(12.dp))
-                                            CustomSearchBar(
-                                                value = searchText,
-                                                onValueChange = { searchText = it },
-                                                onActiveChange = { isSearchActive = it },
-                                                placeholder = "Search Menu",
-                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                                            )
+                                            Spacer(Modifier.height(8.dp))
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                CustomSearchBar(
+                                                    value = searchText,
+                                                    onValueChange = { searchText = it },
+                                                    onActiveChange = { isSearchActive = it },
+                                                    placeholder = "Search Menu",
+                                                    modifier = Modifier.weight(1f),
+                                                    isTranslucent = true,
+                                                    borderColor = Color(0xFFB5CEB2)
+                                                )
+
+                                                AnimatedVisibility(
+                                                    visible = isSelectionMode && !isViewer,
+                                                    enter = fadeIn(animationSpec = tween(200)) + expandHorizontally(
+                                                        expandFrom = Alignment.Start,
+                                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                                                    ),
+                                                    exit = fadeOut(animationSpec = tween(150)) + shrinkHorizontally(
+                                                        shrinkTowards = Alignment.Start,
+                                                        animationSpec = tween(150)
+                                                    )
+                                                ) {
+                                                    TopBarIconButton(
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            showDeleteConfirmationSheet = true
+                                                        },
+                                                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
+                                                        borderColor = Color(0xFFB5CEB2),
+                                                        size = 56.dp,
+                                                        iconSize = 24.dp
+                                                    )
+                                                }
+                                            }
 
                                             LazyRow(
-                                                state = rememberLazyListState(),
                                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                item {
+                                                item(key = "all_items_chip", contentType = "chip") {
                                                     FilterChip(
                                                         label = "All Items",
                                                         isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
@@ -502,10 +672,11 @@ fun CateringMenuScreen(
                                                             selectedFilterTab = "All Items"
                                                             selectedCuisines = emptySet()
                                                             selectedTypes = emptySet()
-                                                        }
+                                                        },
+                                                        isTransparent = true
                                                     )
                                                 }
-                                                item {
+                                                item(key = "veg_chip", contentType = "chip") {
                                                     FoodChip(
                                                         foodType = Dietary.Veg,
                                                         isSelected = selectedFilterTab == "Veg",
@@ -513,10 +684,11 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             selectedFilterTab = "Veg"
-                                                        }
+                                                        },
+                                                        isTransparent = true
                                                     )
                                                 }
-                                                item {
+                                                item(key = "non_veg_chip", contentType = "chip") {
                                                     FoodChip(
                                                         foodType = Dietary.NonVeg,
                                                         isSelected = selectedFilterTab == "Non-Veg",
@@ -524,11 +696,11 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             selectedFilterTab = "Non-Veg"
-                                                        }
+                                                        },
+                                                        isTransparent = true
                                                     )
                                                 }
-
-                                                item {
+                                                item(key = "cuisine_chip", contentType = "chip") {
                                                     val hasSelectedCuisines = selectedCuisines.isNotEmpty()
                                                     val cuisineLabel = if (hasSelectedCuisines) {
                                                         "Cuisine (${selectedCuisines.size})"
@@ -544,11 +716,11 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             showCuisineBottomSheet = true
-                                                        }
+                                                        },
+                                                        isTransparent = true
                                                     )
                                                 }
-
-                                                item {
+                                                item(key = "type_chip", contentType = "chip") {
                                                     val hasSelectedTypes = selectedTypes.isNotEmpty()
                                                     val typeLabel = if (hasSelectedTypes) {
                                                         "Type (${selectedTypes.size})"
@@ -564,7 +736,8 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             showTypeBottomSheet = true
-                                                        }
+                                                        },
+                                                        isTransparent = true
                                                     )
                                                 }
                                             }
@@ -572,12 +745,12 @@ fun CateringMenuScreen(
                                     }
 
                                     if (isLoading) {
-                                        items(3) {
+                                        items(count = 3, contentType = { "skeleton" }) {
                                             Spacer(Modifier.height(12.dp))
                                             SkeletonMenuCategoryCard(brush = shimmerBrush())
                                         }
                                     } else if (categorizedItems.isEmpty()) {
-                                        item {
+                                        item(key = "empty_state", contentType = "empty") {
                                             Spacer(Modifier.height(12.dp))
                                             Box(
                                                 modifier = Modifier
@@ -608,18 +781,36 @@ fun CateringMenuScreen(
                                             }
                                         }
                                     } else {
-                                        item {
+                                        item(key = "spacer_top", contentType = "spacer") {
                                             Spacer(Modifier.height(12.dp))
                                         }
                                         categorizedItems.forEach { (category, items) ->
-                                            item(key = "category_$category") {
+                                            item(key = "category_$category", contentType = "category_card") {
                                                 MenuCategoryCard(
                                                     categoryTitle = category,
                                                     items = items,
+                                                    selectedItemIds = selectedItemIds,
+                                                    isSelectionMode = isSelectionMode,
                                                     onItemClick = { item ->
                                                         focusManager.clearFocus()
-                                                        selectedItemForDetails = item
-                                                        showDetailsBottomSheet = true
+                                                        if (isSelectionMode) {
+                                                            selectedItemIds = if (selectedItemIds.contains(item.id)) {
+                                                                selectedItemIds - item.id
+                                                            } else {
+                                                                selectedItemIds + item.id
+                                                            }
+                                                        } else {
+                                                            selectedItemForDetails = item
+                                                            showDetailsBottomSheet = true
+                                                        }
+                                                    },
+                                                    onItemLongClick = { item ->
+                                                        focusManager.clearFocus()
+                                                        selectedItemIds = if (selectedItemIds.contains(item.id)) {
+                                                            selectedItemIds - item.id
+                                                        } else {
+                                                            selectedItemIds + item.id
+                                                        }
                                                     },
                                                     modifier = Modifier.padding(horizontal = 12.dp)
                                                 )
@@ -627,7 +818,7 @@ fun CateringMenuScreen(
                                             }
                                         }
 
-                                        item(key = "footer") {
+                                        item(key = "footer", contentType = "footer") {
                                             FooterJansify()
                                         }
                                     }
@@ -637,9 +828,7 @@ fun CateringMenuScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .align(Alignment.BottomCenter)
-                                        .background(
-                                            brush = BottomGradientBrush
-                                        )
+                                        .background(brush = BottomGradientBrush)
                                         .navigationBarsPadding()
                                         .padding(horizontal = 12.dp, vertical = 12.dp)
                                 ) {
@@ -782,22 +971,43 @@ fun CateringMenuScreen(
         }
     }
 
-    if (showDeleteConfirmationSheet && itemToDelete != null) {
+    if (showDeleteConfirmationSheet) {
+        val count = selectedItemIds.size
+        val deleteHeading = if (isSelectionMode) {
+            if (count == 1) "Remove 1 item?" else "Remove $count items?"
+        } else {
+            "Remove item?"
+        }
+
+        val deleteSubheading = if (isSelectionMode) {
+            "The selected items will be removed from the Catering Menu."
+        } else {
+            "The item will be removed from the Catering Menu."
+        }
+
         ConfirmationBottomSheet(
-            heading = "Remove item?",
-            subHeading = "The item will be removed from the Catering Menu.",
+            heading = deleteHeading,
+            subHeading = deleteSubheading,
             onProgress = { sheetMotionProgress = it },
             onDismiss = {
                 focusManager.clearFocus()
                 showDeleteConfirmationSheet = false
-                itemToDelete = null
+                if (!isSelectionMode) itemToDelete = null
             },
             onConfirm = {
                 focusManager.clearFocus()
-                itemToDelete?.let { cateringViewModel.deleteItem(it.id) }
+                if (isSelectionMode) {
+                    val removedCount = selectedItemIds.size
+                    selectedItemIds.forEach { id -> cateringViewModel.deleteItem(id) }
+                    selectedItemIds = emptySet()
+                    isMultiSelectActive = false
+                    toastData = ToastData("$removedCount item${if (removedCount > 1) "s" else ""} removed from menu", ToastType.SUCCESS)
+                } else {
+                    itemToDelete?.let { cateringViewModel.deleteItem(it.id) }
+                    itemToDelete = null
+                    toastData = ToastData("Item removed from menu", ToastType.SUCCESS)
+                }
                 showDeleteConfirmationSheet = false
-                itemToDelete = null
-                toastData = ToastData("Item removed from menu", ToastType.SUCCESS)
             }
         )
     }
@@ -1011,24 +1221,36 @@ fun CateringMenuScreen(
     }
 
     if (showMenuBottomSheet) {
+        val plusPainter = painterResource(R.drawable.ic_plus)
+        val checkPainter = painterResource(R.drawable.ic_check)
+        val userDefaultPainter = painterResource(R.drawable.ic_user_default)
+
         MenuBottomSheet(
             items = listOfNotNull(
                 if (!isViewer) {
                     listOf(
                         MenuSheetActionItem(
                             text = "Add an item",
-                            icon = painterResource(R.drawable.ic_plus),
+                            icon = plusPainter,
                             onClick = {
                                 showMenuBottomSheet = false
                                 showAddItemSheet = true
+                            }
+                        ),
+                        MenuSheetActionItem(
+                            text = "Select items",
+                            icon = checkPainter,
+                            onClick = {
+                                showMenuBottomSheet = false
+                                isMultiSelectActive = true
                             }
                         )
                     )
                 } else null,
                 listOf(
                     MenuSheetActionItem(
-                        text = if(isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(R.drawable.ic_user_default),
+                        text = if (isOwner) "Manage Room Access" else "Room Members",
+                        icon = userDefaultPainter,
                         onClick = {
                             showMenuBottomSheet = false
                             currentView = CateringMenuView.MANAGE_ROOM_ACCESS
@@ -1044,12 +1266,13 @@ fun CateringMenuScreen(
     }
 
     if (showRoomMenuBottomSheet) {
+        val logoutPainter = painterResource(R.drawable.ic_logout)
         MenuBottomSheet(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
                         text = "Leave Room",
-                        icon = painterResource(R.drawable.ic_logout),
+                        icon = logoutPainter,
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false
@@ -1125,74 +1348,117 @@ fun MenuCategoryCard(
     categoryTitle: String,
     items: List<MenuItem>,
     onItemClick: (MenuItem) -> Unit,
+    onItemLongClick: (MenuItem) -> Unit = {},
+    selectedItemIds: Set<String> = emptySet(),
+    isSelectionMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
+    val categoryStyle = remember(categoryTitle) { getCategoryStyle(categoryTitle) }
 
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .border(width = 1.dp, color = ContentBrand, shape = SquircleShape(CornerExtraLarge)),
+        modifier = modifier.fillMaxWidth(),
         shape = SquircleShape(CornerExtraLarge),
         colors = CardDefaults.cardColors(
-            containerColor = BackgroundBrand
+            containerColor = Color.Transparent
         ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(brush = categoryStyle.containerBrush)
                 .pointerInput(Unit) {
                     detectTapGestures(onTap = { focusManager.clearFocus() })
                 }
         ) {
-            Image(
-                painter = painterResource(id = R.drawable.bg_pattern_source_catering_menu),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.3f
-            )
-
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(8.dp)
             ) {
-                Text(
-                    text = categoryTitle,
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    style = JasnifyTheme.typography.headingXLarge.copy(
-                        fontFamily = Pattaya,
-                        fontWeight = FontWeight.Normal,
-                        color = ContentBrandDark,
-                        textAlign = TextAlign.Center
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DashedDivider(
-                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    dashLength = 20f,
-                    gapLength = 6f
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    items.forEach { item ->
-                        CateringItemChip(
-                            label = item.name,
-                            foodType = item.dietary,
-                            isMultiSelect = false,
-                            onClick = {
-                                focusManager.clearFocus()
-                                onItemClick(item)
-                            },
-                            modifier = Modifier.fillMaxWidth()
+                    Column(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = categoryTitle.uppercase(),
+                            style = JasnifyTheme.typography.displayLarge.copy(
+                                fontFamily = FontFamily(Font(R.font.facadflux_bold)),
+                                fontWeight = FontWeight.Bold,
+                                color = categoryStyle.headerTextColor,
+                                lineHeight = JasnifyTheme.typography.displayLarge.fontSize
+                            )
                         )
+                        Text(
+                            text = "${items.size} ITEMS",
+                            style = JasnifyTheme.typography.labelSmall.copy(
+                                color = categoryStyle.subtitleTextColor,
+                                letterSpacing = 2.sp
+                            )
+                        )
+                    }
+
+                    Image(
+                        painter = painterResource(id = categoryStyle.illustrationRes),
+                        contentDescription = categoryTitle,
+                        modifier = Modifier.size(80.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = SquircleShape(CornerExtraLarge),
+                    colors = CardDefaults.cardColors(
+                        containerColor = categoryStyle.innerBg
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp)
+                    ) {
+                        items.forEach { item ->
+                            val isChecked = selectedItemIds.contains(item.id)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .detectCombinedClicks(
+                                        key = item.id,
+                                        onTap = {
+                                            focusManager.clearFocus()
+                                            onItemClick(item)
+                                        },
+                                        onLongPress = {
+                                            focusManager.clearFocus()
+                                            onItemLongClick(item)
+                                        }
+                                    )
+                            ) {
+                                CateringItemChip(
+                                    label = item.name,
+                                    foodType = item.dietary,
+                                    isMultiSelect = isSelectionMode,
+                                    checked = isChecked,
+                                    onCheckedChange = {
+                                        onItemClick(item)
+                                    },
+                                    onClick = {},
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1514,15 +1780,5 @@ fun AddItemSheetContent(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun CateringMenuScreenPreview() {
-    JasnifyTheme {
-        CateringMenuScreen(
-            onBackClick = {}
-        )
     }
 }

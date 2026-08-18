@@ -21,6 +21,7 @@ sealed class Screen(val route: String) {
 
     // --- Main App Host (Contains Bottom Nav) ---
     data object MainAppScreen : Screen("main_app_host_screen")
+    data object MainSkeletonLoading : Screen("main_skeleton_loading")
 
     // --- Bottom Navigation Tab Items ---
     sealed class HomeTabScreen(val route: String, @DrawableRes val iconResId: Int, val title: String) {

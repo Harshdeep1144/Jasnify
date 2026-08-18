@@ -31,6 +31,8 @@ import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
 import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 
+private val ViewOptions = listOf("By Timeline", "All Saved")
+
 @Composable
 fun AllSavedVendorsContent(
     onBackClick: () -> Unit,
@@ -45,8 +47,6 @@ fun AllSavedVendorsContent(
     onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
     gridState: LazyGridState = rememberLazyGridState()
 ) {
-    val viewOptions = listOf("By Timeline", "All Saved")
-
     val savedVendorsList = remember(vendorSavedDestinations, allVendors) {
         allVendors.filter { v -> vendorSavedDestinations.containsKey("${v.name}-${v.category}") }
             .map { it.copy(favorite = true) }
@@ -94,9 +94,13 @@ fun AllSavedVendorsContent(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            item(span = { GridItemSpan(2) }) {
+            item(
+                key = "view_type_selector",
+                span = { GridItemSpan(2) },
+                contentType = "segmented_control"
+            ) {
                 IosSegmentedControl(
-                    options = viewOptions,
+                    options = ViewOptions,
                     selectedOption = selectedViewType,
                     onOptionSelected = onSelectedViewTypeChange,
                     modifier = Modifier
@@ -107,7 +111,11 @@ fun AllSavedVendorsContent(
 
             if (selectedViewType == "All Saved") {
                 if (isLoading) {
-                    items(6) {
+                    items(
+                        count = 6,
+                        key = { "shimmer_vendor_$it" },
+                        contentType = { "vendor_shimmer" }
+                    ) {
                         VendorCardCompact(
                             vendor = Vendor(),
                             isLoading = true,
@@ -116,11 +124,19 @@ fun AllSavedVendorsContent(
                         )
                     }
                 } else if (savedVendorsList.isEmpty()) {
-                    item(span = { GridItemSpan(2) }) {
+                    item(
+                        key = "empty_saved_vendors",
+                        span = { GridItemSpan(2) },
+                        contentType = "empty_state"
+                    ) {
                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                     }
                 } else {
-                    items(savedVendorsList) { vendor ->
+                    items(
+                        items = savedVendorsList,
+                        key = { "${it.name}-${it.category}" },
+                        contentType = { "saved_vendor_card" }
+                    ) { vendor ->
                         VendorCardCompact(
                             vendor = vendor,
                             onCardClick = { onVendorClick(vendor) },
@@ -132,7 +148,12 @@ fun AllSavedVendorsContent(
                 }
             } else {
                 if (isLoading) {
-                    items(3, span = { GridItemSpan(2) }) {
+                    items(
+                        count = 3,
+                        key = { "shimmer_timeline_$it" },
+                        span = { GridItemSpan(2) },
+                        contentType = { "timeline_shimmer" }
+                    ) {
                         TimelineSection(
                             date = "Loading...",
                             event = "Fetching your plans",
@@ -141,14 +162,25 @@ fun AllSavedVendorsContent(
                         )
                     }
                 } else if (savedTimelineEvents.isEmpty()) {
-                    item(span = { GridItemSpan(2) }) {
+                    item(
+                        key = "empty_timeline_events",
+                        span = { GridItemSpan(2) },
+                        contentType = "empty_state"
+                    ) {
                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                     }
                 } else {
-                    items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
-                        val vendorsForEvent = allVendors.filter { v ->
-                            vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
-                        }.map { it.copy(favorite = true) }
+                    items(
+                        items = savedTimelineEvents,
+                        key = { it.id },
+                        span = { GridItemSpan(2) },
+                        contentType = { "timeline_section" }
+                    ) { timelineItem ->
+                        val vendorsForEvent = remember(allVendors, vendorSavedDestinations, timelineItem.id) {
+                            allVendors.filter { v ->
+                                vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
+                            }.map { it.copy(favorite = true) }
+                        }
 
                         TimelineSection(
                             date = timelineItem.date,
@@ -162,7 +194,14 @@ fun AllSavedVendorsContent(
                     }
                 }
             }
-            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
+
+            item(
+                key = "bottom_spacer",
+                span = { GridItemSpan(2) },
+                contentType = "spacer"
+            ) {
+                Spacer(Modifier.height(24.dp))
+            }
         }
     }
 }

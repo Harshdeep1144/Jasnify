@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class ExpenseItem(
     val id: String,
     val title: String,
@@ -12,6 +15,7 @@ data class ExpenseItem(
     val note: String? = null
 )
 
+@Immutable
 data class CategorySummaryData(
     val name: String,
     val amountFormatted: String,

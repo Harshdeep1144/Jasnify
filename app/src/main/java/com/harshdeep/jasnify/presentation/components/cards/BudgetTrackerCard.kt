@@ -9,11 +9,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +58,9 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
 
+val ProgressColor = ContentBrandDark.copy(alpha = 0.8f)
+val TrackColor = ContentTertiary
+
 @Composable
 fun BudgetTrackerCard(
     modifier: Modifier = Modifier,
@@ -71,10 +72,8 @@ fun BudgetTrackerCard(
     labelText: String? = null,
     onClick: () -> Unit
 ) {
-    // Track immediate touch down state for quick tap feedback
     var isPressed by remember { mutableStateOf(false) }
 
-    // Bouncy scale spring animation
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(
@@ -95,7 +94,6 @@ fun BudgetTrackerCard(
             }
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    // Instantly capture initial touch down event
                     awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
                     waitForUpOrCancellation()
@@ -116,15 +114,13 @@ fun BudgetTrackerCard(
         ),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(130.dp)
                     .align(Alignment.BottomCenter)
-                    .background(color = Color.Transparent)
+                    .background(Color.Transparent)
             ) {
                 Image(
                     painter = painterResource(R.drawable.bg_wave),
@@ -132,7 +128,7 @@ fun BudgetTrackerCard(
                     contentDescription = "wave background",
                     alignment = Alignment.BottomCenter,
                     colorFilter = ColorFilter.tint(Color(0x1A006363).copy(alpha = 0.9f)),
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
 
@@ -170,7 +166,7 @@ fun BudgetTrackerCard(
                         CircularProgressChart(
                             progress = progress,
                             amountText = amountText,
-                            labelText = labelText ?: "Left",
+                            labelText = labelText ?: "Left"
                         )
                     }
 
@@ -178,10 +174,8 @@ fun BudgetTrackerCard(
                         modifier = Modifier.padding(0.dp),
                         contentAlignment = Alignment.BottomEnd
                     ) {
-                        val finalImage = illustration ?: painterResource(R.drawable.ill_budget_tracker_card)
-
                         Image(
-                            painter = finalImage,
+                            painter = illustration ?: painterResource(R.drawable.ill_budget_tracker_card),
                             contentDescription = "Card Illustration",
                             modifier = Modifier.height(80.dp),
                             contentScale = ContentScale.FillHeight
@@ -192,11 +186,6 @@ fun BudgetTrackerCard(
         }
     }
 }
-
-//----------------------------------- Progress Bar --------------------------------
-
-val ProgressColor = ContentBrandDark.copy(0.8f)
-val TrackColor = ContentTertiary
 
 @Composable
 fun CircularProgressChart(
@@ -221,35 +210,30 @@ fun CircularProgressChart(
         modifier = modifier.size(size),
         contentAlignment = Alignment.Center
     ) {
-        // Canvas for drawing the circular chart
         Canvas(Modifier.fillMaxSize()) {
+            val strokeWidthPx = strokeWidth.toPx()
+            val strokeStyle = Stroke(
+                width = strokeWidthPx,
+                cap = StrokeCap.Butt
+            )
 
-            // Draw the background track (full circle)
             drawArc(
                 color = TrackColor,
                 startAngle = 0f,
                 sweepAngle = 360f,
                 useCenter = false,
-                style = Stroke(
-                    width = strokeWidth.toPx(),
-                    cap = StrokeCap.Butt
-                )
+                style = strokeStyle
             )
 
-            // Draw the progress arc (Start from 270 degrees)
             drawArc(
                 color = ProgressColor,
                 startAngle = 270f,
                 sweepAngle = 360f * animatedProgress.value,
                 useCenter = false,
-                style = Stroke(
-                    width = strokeWidth.toPx(),
-                    cap = StrokeCap.Butt,
-                )
+                style = strokeStyle
             )
         }
 
-        // Column for the centered text content
         Column(
             modifier = Modifier.size(56.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -272,9 +256,7 @@ fun CircularProgressChart(
 @Preview(showBackground = true)
 @Composable
 fun PreviewCircularProgressChart() {
-    Column(
-        modifier = Modifier.padding(12.dp),
-    ) {
+    Column(modifier = Modifier.padding(12.dp)) {
         BudgetTrackerCard(
             insight = "See your budget",
             heading = "Budget Tracker",

@@ -18,24 +18,55 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedVisibilityScope
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,13 +76,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import com.google.android.gms.common.api.ResolvableApiException
-import com.google.android.gms.location.*
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.LocationSettingsRequest
+import com.google.android.gms.location.Priority
+import com.google.android.gms.location.SettingsClient
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
@@ -61,24 +97,40 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import org.json.JSONObject
 import sv.lib.squircleshape.SquircleShape
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+
+data class City<T>(
+    val name: String,
+    val imageRes: Int,
+    val value: T
+)
+
+private val PopularCities = listOf(
+    City("Delhi NCR", R.drawable.ic_city_del, "delhi"),
+    City("Bengaluru", R.drawable.ic_city_blr, "bengaluru"),
+    City("Mumbai", R.drawable.ic_city_mum, "mumbai"),
+    City("Hyderabad", R.drawable.ic_city_hyd, "hyderabad"),
+    City("Chennai", R.drawable.ic_city_chn, "chennai"),
+    City("Jaipur", R.drawable.ic_city_jpr, "jaipur"),
+    City("Agra", R.drawable.ic_city_agr, "agra"),
+    City("Kolkata", R.drawable.ic_city_kol, "kolkata"),
+    City("Patna", R.drawable.ic_city_ptn, "patna")
+)
 
 @SuppressLint("UseKtx")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -131,7 +183,6 @@ fun LocationScreen(
     var selectedCityId by remember { mutableStateOf("") }
     val fusedLocationClient = remember { LocationServices.getFusedLocationProviderClient(context) }
 
-    // Active search job reference to cancel stale API requests when user types fast
     var searchJob by remember { mutableStateOf<Job?>(null) }
 
     LaunchedEffect(text) {
@@ -144,21 +195,19 @@ fun LocationScreen(
             return@LaunchedEffect
         }
 
-        // Immediately filter and prioritize matching recent searches at the top
         val matchingRecent = recentSearches.filter {
             it.contains(query, ignoreCase = true)
         }
         filteredSuggestions = matchingRecent
-
         isSearchingLocation = true
 
         searchJob = launch(Dispatchers.IO) {
-            delay(250.milliseconds) // Debounce rapid user input
+            delay(250.milliseconds)
 
             val searchResults = mutableListOf<String>()
             searchResults.addAll(matchingRecent)
 
-            // 1. Android Native Geocoder Search (Fast & local)
+            // 1. Android Native Geocoder Search
             try {
                 val geocoder = Geocoder(context, Locale("en", "IN"))
                 @Suppress("DEPRECATION")
@@ -182,11 +231,9 @@ fun LocationScreen(
                         }
                     }
                 }
-            } catch (e: Exception) {
-                // Geocoder offline fallback
-            }
+            } catch (_: Exception) {}
 
-            // 2. High-speed Photon API fallback (sub-50ms location resolution for OSM India)
+            // 2. Photon API fallback
             if (searchResults.size < 5) {
                 try {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -199,7 +246,7 @@ fun LocationScreen(
 
                     if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                         val jsonResponse = connection.inputStream.bufferedReader().use { it.readText() }
-                        val features = org.json.JSONObject(jsonResponse).optJSONArray("features") ?: JSONArray()
+                        val features = JSONObject(jsonResponse).optJSONArray("features") ?: JSONArray()
 
                         for (i in 0 until features.length()) {
                             val props = features.getJSONObject(i).optJSONObject("properties") ?: continue
@@ -218,12 +265,10 @@ fun LocationScreen(
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    // Ignore Photon errors
-                }
+                } catch (_: Exception) {}
             }
 
-            // 3. Nominatim API with detailed boundary fallback if needed
+            // 3. Nominatim API fallback
             if (searchResults.size < 3) {
                 try {
                     val encodedQuery = URLEncoder.encode(query, "UTF-8")
@@ -265,9 +310,7 @@ fun LocationScreen(
                             }
                         }
                     }
-                } catch (e: Exception) {
-                    // Ignore network exceptions
-                }
+                } catch (_: Exception) {}
             }
 
             withContext(Dispatchers.Main) {
@@ -341,7 +384,7 @@ fun LocationScreen(
                                 handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
                             }
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         withContext(Dispatchers.Main) {
                             exactAddressState = null
                             handleLocationSelected("Lat: ${location.latitude}, Lng: ${location.longitude}")
@@ -401,9 +444,7 @@ fun LocationScreen(
                 try {
                     val intentSenderRequest = IntentSenderRequest.Builder(exception.resolution).build()
                     gpsResolutionLauncher.launch(intentSenderRequest)
-                } catch (sendEx: Exception) {
-                    // Ignore
-                }
+                } catch (_: Exception) {}
             } else {
                 val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
                 context.startActivity(intent)
@@ -432,24 +473,6 @@ fun LocationScreen(
         text = ""
         focusManager.clearFocus()
     }
-
-    data class City<T>(
-        val name: String,
-        val imageRes: Int,
-        val value: T
-    )
-
-    val cities = listOf(
-        City("Delhi NCR", R.drawable.ic_city_del, "delhi"),
-        City("Bengaluru", R.drawable.ic_city_blr, "bengaluru"),
-        City("Mumbai", R.drawable.ic_city_mum, "mumbai"),
-        City("Hyderabad", R.drawable.ic_city_hyd, "hyderabad"),
-        City("Chennai", R.drawable.ic_city_chn, "chennai"),
-        City("Jaipur", R.drawable.ic_city_jpr, "jaipur"),
-        City("Agra", R.drawable.ic_city_agr, "agra"),
-        City("Kolkata", R.drawable.ic_city_kol, "kolkata"),
-        City("Patna", R.drawable.ic_city_ptn, "patna")
-    )
 
     Scaffold(modifier = Modifier) { paddingValues ->
         Column(
@@ -585,7 +608,11 @@ fun LocationScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 contentPadding = PaddingValues(horizontal = 12.dp)
                             ) {
-                                items(recentSearches) { city ->
+                                items(
+                                    items = recentSearches,
+                                    key = { it },
+                                    contentType = { "recent_search_chip" }
+                                ) { city ->
                                     FilterChip(
                                         label = city,
                                         trailingIcon = Icons.Default.Close,
@@ -615,7 +642,7 @@ fun LocationScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        cities.chunked(3).forEach { rowItems ->
+                        PopularCities.chunked(3).forEach { rowItems ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -692,13 +719,20 @@ fun LocationScreen(
                                 ),
                             )
                         } else {
+                            val locationMarkerPainter = painterResource(R.drawable.ic_location_marker)
+                            val clockForwardPainter = painterResource(R.drawable.ic_clock_forward)
+
                             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                                items(filteredSuggestions) { suggestion ->
+                                items(
+                                    items = filteredSuggestions,
+                                    key = { it },
+                                    contentType = { "suggestion_list_item" }
+                                ) { suggestion ->
                                     ListItem(
                                         headlineContent = { Text(suggestion) },
                                         leadingContent = {
                                             Icon(
-                                                painter = if (recentSearches.contains(suggestion)) painterResource(R.drawable.ic_clock_forward) else painterResource(R.drawable.ic_location_marker),
+                                                painter = if (recentSearches.contains(suggestion)) clockForwardPainter else locationMarkerPainter,
                                                 contentDescription = null,
                                                 modifier = Modifier.size(24.dp)
                                             )
@@ -753,9 +787,7 @@ fun LocationPicker(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Use Current Location",
                 color = ContentBrandDark,

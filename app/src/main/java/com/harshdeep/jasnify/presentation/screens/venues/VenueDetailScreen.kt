@@ -3,8 +3,10 @@ package com.harshdeep.jasnify.presentation.screens.venues
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -12,6 +14,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -36,6 +40,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -102,6 +107,7 @@ import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
 import com.harshdeep.jasnify.domain.model.VenueHighlightItem
@@ -110,8 +116,8 @@ import com.harshdeep.jasnify.domain.model.VenuePricingItem
 import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -128,18 +134,20 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.AllReviewsScreen
 import com.harshdeep.jasnify.presentation.components.sections.GalleryCategoryUiModel
 import com.harshdeep.jasnify.presentation.components.sections.GalleryDetailScreen
 import com.harshdeep.jasnify.presentation.components.sections.GallerySection
 import com.harshdeep.jasnify.presentation.components.sections.MediaItemUiModel
+import com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen
 import com.harshdeep.jasnify.presentation.components.sections.MerchantReplyUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingBreakdownUiModel
 import com.harshdeep.jasnify.presentation.components.sections.RatingSurface
@@ -150,7 +158,6 @@ import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -174,7 +181,6 @@ import kotlin.time.Duration.Companion.milliseconds
 enum class VenueActiveScreen {
     DETAIL, REVIEWS, GALLERY, POST, MEDIA_VIEWER, ALBUM_DETAIL
 }
-
 
 fun VenueReview.toUiModel() = ReviewUiModel(
     id = id,
@@ -228,7 +234,6 @@ fun VenueDetailScreen(
     venueViewModel: VenueViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // Dynamic stack to keep track of screens locally
     var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
     val currentScreen = screenStack.last()
 
@@ -238,10 +243,8 @@ fun VenueDetailScreen(
     var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
     var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
-    // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
 
-    // Persistent state for Hero slider offset and Media Pager across navigation stack switches
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
     val topBarHeightPx = with(density) { 56.dp.toPx() }
@@ -249,11 +252,9 @@ fun VenueDetailScreen(
     val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
     val maxOffsetPx = with(density) { 320.dp.toPx() }
 
-    // Remember sheet offset so returning to DETAIL screen retains collapsed/expanded slider offset
     var sheetOffsetPx by rememberSaveable { mutableFloatStateOf(Float.NaN) }
     val currentSheetOffsetPx = if (sheetOffsetPx.isNaN()) maxOffsetPx else sheetOffsetPx.coerceIn(minOffsetPx, maxOffsetPx)
 
-    // Remember media pager state and mute state across navigation screen changes
     val pagerState = rememberPagerState(pageCount = { venueDetail.mediaItems.size })
     var isMuted by rememberSaveable { mutableStateOf(true) }
 
@@ -271,7 +272,7 @@ fun VenueDetailScreen(
     var showAddressSheet by remember { mutableStateOf(false) }
     var showAboutSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
-    var selectedOfferForSheet by remember { mutableStateOf<com.harshdeep.jasnify.domain.model.Offer?>(null) }
+    var selectedOfferForSheet by remember { mutableStateOf<Offer?>(null) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0f) }
 
     val isSubmitting by venueViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
@@ -284,7 +285,6 @@ fun VenueDetailScreen(
 
     val dynamicReviewsData = remember(venueDetail.reviewsData, venueReviews) {
         val base = venueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
-        // Combine base reviews with live ones, preferring live ones
         val combinedReviews = (venueReviews.map { it.toUiModel() } + base.reviews)
             .distinctBy { it.id.ifBlank { it.userName } }
 
@@ -310,7 +310,6 @@ fun VenueDetailScreen(
         label = "backdropCornerRadius"
     )
 
-    // Intercepts the back gesture locally (for sheets and internal screens)
     BackHandler(enabled = anySheetVisible || screenStack.size > 1) {
         if (showReviewSheet) { showReviewSheet = false; return@BackHandler }
         if (showAddressSheet) { showAddressSheet = false; return@BackHandler }
@@ -397,11 +396,7 @@ fun VenueDetailScreen(
                                 screenStack = screenStack + VenueActiveScreen.POST
                             },
                             onLeaveReview = {
-                                if (userExistingReview != null) {
-                                    initialRatingForSheet = userExistingReview.rating.toInt()
-                                } else {
-                                    initialRatingForSheet = 0
-                                }
+                                initialRatingForSheet = userExistingReview?.rating?.toInt() ?: 0
                                 showReviewSheet = true
                             },
                             leaveReviewButtonText = if (userExistingReview != null) "Edit review" else "Leave a review"
@@ -429,7 +424,7 @@ fun VenueDetailScreen(
 
                     VenueActiveScreen.ALBUM_DETAIL -> {
                         selectedAlbum?.let { album ->
-                            com.harshdeep.jasnify.presentation.components.sections.AlbumDetailScreen(
+                            AlbumDetailScreen(
                                 category = album,
                                 onBack = { screenStack = screenStack.dropLast(1) },
                                 onMediaClick = { list, index ->
@@ -457,7 +452,7 @@ fun VenueDetailScreen(
                     }
 
                     VenueActiveScreen.MEDIA_VIEWER -> {
-                        com.harshdeep.jasnify.presentation.components.sections.MediaViewerScreen(
+                        MediaViewerScreen(
                             mediaItems = mediaViewerList,
                             initialIndex = mediaViewerInitialIndex,
                             onBack = { screenStack = screenStack.dropLast(1) }
@@ -520,10 +515,10 @@ fun VenueDetailScreen(
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
+        AnimatedVisibility(
             visible = toastData?.message != null && !anySheetVisible,
-            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { -it }),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
@@ -547,7 +542,7 @@ fun VenueDetailScreen(
 private fun VenueDetailContent(
     venueDetail: Venue,
     reviewsData: ReviewsDataUiModel,
-    listState: androidx.compose.foundation.lazy.LazyListState,
+    listState: LazyListState,
     pagerState: PagerState,
     sheetOffsetPx: Float,
     minOffsetPx: Float,
@@ -563,7 +558,7 @@ private fun VenueDetailContent(
     onMediaClick: (List<MediaItemUiModel>, Int) -> Unit,
     onOpenReviewPost: (ReviewUiModel) -> Unit,
     onWriteReviewClick: (Int) -> Unit,
-    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit,
+    onOfferClick: (Offer) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
     onShowToast: (ToastData) -> Unit,
@@ -659,7 +654,6 @@ private fun VenueDetailContent(
                         if (itemIndex < firstContentIdx) {
                             0
                         } else {
-                            // If we are past all content sections (e.g. footer), select the last tab
                             activeTabs.size - 1
                         }
                     }
@@ -752,11 +746,11 @@ private fun VenueDetailContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item(key = "info") {
+                item(key = "info", contentType = "info_section") {
                     VenueInfoSection(venue = venueDetail, onAddressClick = onAddressClick)
                 }
 
-                stickyHeader(key = "tabs") {
+                stickyHeader(key = "tabs", contentType = "sticky_tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
@@ -792,73 +786,73 @@ private fun VenueDetailContent(
                 }
 
                 if (venueDetail.pricingItems.isNotEmpty()) {
-                    item(key = "pricings") {
+                    item(key = "pricings", contentType = "pricings_section") {
                         VenuePricingsSection(venue = venueDetail, pricingItems = venueDetail.pricingItems)
                     }
-                    item(key = "div_pricings") {
-                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    item(key = "div_pricings", contentType = "divider") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
                 if (venueDetail.highlightItems.isNotEmpty()) {
-                    item(key = "highlights") {
+                    item(key = "highlights", contentType = "highlights_section") {
                         VenueHighlightsSection(highlightItems = venueDetail.highlightItems)
                     }
-                    item(key = "div_highlights") {
-                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    item(key = "div_highlights", contentType = "divider") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
                 if (venueDetail.offers.isNotEmpty()) {
-                    item(key = "offers") {
+                    item(key = "offers", contentType = "offers_section") {
                         VenueOffersSection(
                             offers = venueDetail.offers,
                             onOfferClick = onOfferClick
                         )
                     }
-                    item(key = "div_offers") {
+                    item(key = "div_offers", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
                 if (venueDetail.aboutText != null) {
-                    item(key = "about") {
+                    item(key = "about", contentType = "about_section") {
                         VenueAboutSection(
                             venue = venueDetail,
                             aboutText = venueDetail.aboutText,
                             onReadMoreClick = onAboutClick
                         )
                     }
-                    item(key = "div_about") {
-                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    item(key = "div_about", contentType = "divider") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
-                item(key = "ask_ai") {
+                item(key = "ask_ai", contentType = "ask_ai_section") {
                     VenueAskAISection()
                 }
-                item(key = "div_ask_ai") {
-                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                item(key = "div_ask_ai", contentType = "divider") {
+                    DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                 }
 
                 if (venueDetail.galleryCategories.isNotEmpty()) {
-                    item(key = "gallery") {
+                    item(key = "gallery", contentType = "gallery_section") {
                         GallerySection(
                             galleryCategories = venueDetail.galleryCategories.map { it.toUiModel() },
                             onSeeAllClick = onSeeAllGalleryClick,
                             onMediaClick = onMediaClick
                         )
                     }
-                    item(key = "div_gallery") {
-                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    item(key = "div_gallery", contentType = "divider") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
-                    item(key = "reviews") {
+                    item(key = "reviews", contentType = "reviews_section") {
                         ReviewsSection(
                             rating = venueDetail.rating,
                             totalReviews = venueDetail.totalReviews,
@@ -869,12 +863,12 @@ private fun VenueDetailContent(
                             hasUserReviewed = hasUserReviewed
                         )
                     }
-                    item(key = "div_reviews") {
-                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(0.16f), modifier = Modifier.padding(horizontal = 12.dp))
+                    item(key = "div_reviews", contentType = "divider") {
+                        DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
                     }
                 }
 
-                item(key = "explore_more") {
+                item(key = "explore_more", contentType = "explore_more_section") {
                     val similarVenues = remember(venueDetail.id) {
                         MockData.sampleVenues1.filter { it.id != venueDetail.id }.take(6)
                     }
@@ -884,14 +878,19 @@ private fun VenueDetailContent(
                     )
                 }
 
-                item(key = "footer") {
+                item(key = "footer", contentType = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
                 }
             }
         }
 
-        val secondaryIcon = if (venueDetail.favorite) painterResource(R.drawable.ic_heart_filled) else painterResource(R.drawable.ic_top_bar_heart)
+        val heartFilledPainter = painterResource(R.drawable.ic_heart_filled)
+        val heartOutlinePainter = painterResource(R.drawable.ic_top_bar_heart)
+        val secondaryIcon = remember(venueDetail.favorite) {
+            if (venueDetail.favorite) heartFilledPainter else heartOutlinePainter
+        }
+        val sharePainter = painterResource(R.drawable.ic_share)
 
         val dynamicButtonStyle = if (scrollFraction > 0.8f) {
             ButtonBackground.OPAQUE
@@ -909,7 +908,7 @@ private fun VenueDetailContent(
                 isLeftAligned = true,
                 onBackClick = onBackClick,
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
-                menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
+                menuIcon = TopIcon.CustomPainter(painter = sharePainter),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
                     onFavoriteToggle(!venueDetail.favorite)
@@ -929,10 +928,10 @@ private fun VenueDetailContent(
             )
         }
 
-        androidx.compose.animation.AnimatedVisibility(
+        AnimatedVisibility(
             visible = !anySheetVisible,
-            enter = fadeIn() + androidx.compose.animation.slideInVertically(initialOffsetY = { it }),
-            exit = fadeOut() + androidx.compose.animation.slideOutVertically(targetOffsetY = { it }),
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it }),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -966,7 +965,7 @@ private fun VenueDetailContent(
                             val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:$phone"))
                             context.startActivity(intent)
                         } catch (e: Exception) {
-                            android.util.Log.e("VenueDetail", "Error opening dialer: ${e.message}")
+                            Log.e("VenueDetail", "Error opening dialer: ${e.message}")
                         }
                     },
                     modifier = Modifier
@@ -1027,6 +1026,12 @@ fun VenueMediaSlider(
             }
         }
 
+        val mutePainter = painterResource(R.drawable.ic_mute)
+        val volumePainter = painterResource(R.drawable.ic_volume)
+        val audioIcon = remember(isMuted) {
+            if (isMuted) mutePainter else volumePainter
+        }
+
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -1037,8 +1042,6 @@ fun VenueMediaSlider(
         ) {
             val activeItem = mediaItems.getOrNull(pagerState.currentPage)
             if (activeItem?.video == true) {
-                val audioIcon = if (isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
-
                 TopBarIconButton(
                     icon = TopIcon.CustomPainter(painter = audioIcon),
                     onClick = onMuteToggle,
@@ -1113,7 +1116,7 @@ fun VenueInfoSection(
                 .clip(shape = RoundedCornerShape(CornerMedium))
                 .border(
                     width = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                     shape = RoundedCornerShape(CornerMedium)
                 ),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -1141,9 +1144,10 @@ fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         pricingItems.forEachIndexed { index, item ->
-            val shape = when (index) {
-                0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
-                pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
+            val shape = when {
+                pricingItems.size == 1 -> SquircleShape(CornerLarge)
+                index == 0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
+                index == pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
                 else -> SquircleShape(CornerExtraSmall)
             }
             PricingCard(
@@ -1156,7 +1160,7 @@ fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
             )
         }
 
-        if(pricingItems.size > 3){
+        if (pricingItems.size > 3) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1184,8 +1188,8 @@ fun VenuePricingsSection(venue: Venue, pricingItems: List<VenuePricingItem>) {
 
 @Composable
 fun VenueOffersSection(
-    offers: List<com.harshdeep.jasnify.domain.model.Offer>,
-    onOfferClick: (com.harshdeep.jasnify.domain.model.Offer) -> Unit
+    offers: List<Offer>,
+    onOfferClick: (Offer) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -1205,7 +1209,11 @@ fun VenueOffersSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            itemsIndexed(offers) { index, offer ->
+            itemsIndexed(
+                items = offers,
+                key = { index, offer -> offer.title + index },
+                contentType = { _, _ -> "offer_card" }
+            ) { index, offer ->
                 OfferCard(
                     title = offer.title,
                     description = offer.description,
@@ -1332,53 +1340,21 @@ fun VenueAskAISection() {
             "How many guests they can serve?"
         )
 
-        if (suggestionChips.size > 6) {
-            val midIndex = (suggestionChips.size + 1) / 2
-            val firstRowChips = suggestionChips.take(midIndex)
-            val secondRowChips = suggestionChips.drop(midIndex)
-
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(firstRowChips) { chip ->
-                        FilterChip(
-                            label = chip,
-                            trailingIcon = Icons.Rounded.ArrowOutward,
-                            hasStroke = true,
-                            onClick = { }
-                        )
-                    }
-                }
-
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 12.dp)
-                ) {
-                    items(secondRowChips) { chip ->
-                        FilterChip(
-                            label = chip,
-                            trailingIcon = Icons.Rounded.ArrowOutward,
-                            hasStroke = true,
-                            onClick = { }
-                        )
-                    }
-                }
-            }
-        } else {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(horizontal = 12.dp)
-            ) {
-                items(suggestionChips) { chip ->
-                    FilterChip(
-                        label = chip,
-                        trailingIcon = Icons.Rounded.ArrowOutward,
-                        hasStroke = true,
-                        onClick = { }
-                    )
-                }
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(horizontal = 12.dp)
+        ) {
+            items(
+                items = suggestionChips,
+                key = { "chip_$it" },
+                contentType = { "filter_chip" }
+            ) { chip ->
+                FilterChip(
+                    label = chip,
+                    trailingIcon = Icons.Rounded.ArrowOutward,
+                    hasStroke = true,
+                    onClick = { }
+                )
             }
         }
     }
@@ -1398,7 +1374,7 @@ fun VenueExploreMoreSection(
             "Do they serve alcohol?"
         )
     }
-    var selectedFilterIndex by remember { mutableStateOf(0) }
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = modifier
@@ -1418,7 +1394,11 @@ fun VenueExploreMoreSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(filters) { index, filterText ->
+            itemsIndexed(
+                items = filters,
+                key = { _, filterText -> filterText },
+                contentType = { _, _ -> "filter_chip" }
+            ) { index, filterText ->
                 FilterChip(
                     label = filterText,
                     isSelected = selectedFilterIndex == index,
@@ -1445,7 +1425,7 @@ fun VenueExploreMoreSection(
             HorizontalDivider(
                 modifier = Modifier.weight(1f),
                 thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
         }
 
@@ -1455,7 +1435,11 @@ fun VenueExploreMoreSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(similarVenues) { venueItem ->
+            items(
+                items = similarVenues,
+                key = { it.id },
+                contentType = { "similar_venue_card" }
+            ) { venueItem ->
                 VenueCardCompact(
                     venue = venueItem,
                     compactCardSize = CompactCardSize.MEDIUM
@@ -1485,7 +1469,7 @@ private fun AddressSheet(
                 .fillMaxHeight()
         ) {
             Spacer(Modifier.height(12.dp))
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
             Column(
                 modifier = Modifier
@@ -1504,8 +1488,7 @@ private fun AddressSheet(
                         horizontalAlignment = Alignment.Start
                     ) {
                         Box(
-                            modifier = Modifier
-                                .background(Color.Transparent),
+                            modifier = Modifier.background(Color.Transparent),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -1534,7 +1517,7 @@ private fun AddressSheet(
                     }
                 }
             }
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
             CustomTextButton(
                 onClick = {
@@ -1593,7 +1576,7 @@ private fun AboutSheet(
                 color = ContentSecondary
             )
         }
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
         Column {
             CustomTextButton(
@@ -1627,7 +1610,11 @@ fun SuggestionChipsSection(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(vertical = 8.dp)
     ) {
-        items(suggestions) { text ->
+        items(
+            items = suggestions,
+            key = { "suggest_$it" },
+            contentType = { "suggestion_chip" }
+        ) { text ->
             FilterChip(
                 label = text,
                 isSelected = false,

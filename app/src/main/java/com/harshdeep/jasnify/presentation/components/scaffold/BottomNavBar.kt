@@ -61,8 +61,18 @@ import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
+private val DefaultNavItems = listOf(
+    Screen.HomeTabScreen.Home,
+    Screen.HomeTabScreen.Vendors,
+    Screen.HomeTabScreen.Checklists,
+    Screen.HomeTabScreen.Guests,
+    Screen.HomeTabScreen.Profile
+)
+
+private val ZeroInsets = WindowInsets(0, 0, 0, 0)
 
 @Composable
 fun BottomNavBar(
@@ -70,14 +80,6 @@ fun BottomNavBar(
     modifier: Modifier = Modifier,
     style: NavBarStyleOption = NavBarStyleOption.PILL_SHAPED
 ) {
-    val navItems = listOf(
-        Screen.HomeTabScreen.Home,
-        Screen.HomeTabScreen.Vendors,
-        Screen.HomeTabScreen.Checklists,
-        Screen.HomeTabScreen.Guests,
-        Screen.HomeTabScreen.Profile
-    )
-
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
@@ -86,7 +88,7 @@ fun BottomNavBar(
 
     val selectedIndex = remember(currentDestination) {
         val effectiveDest = currentDestination ?: navController.currentDestination
-        val index = navItems.indexOfFirst { screen ->
+        val index = DefaultNavItems.indexOfFirst { screen ->
             effectiveDest?.hierarchy?.any { it.route == screen.route } == true
         }
 
@@ -112,7 +114,7 @@ fun BottomNavBar(
                 restoreState = true
             }
         },
-        navItems = navItems,
+        navItems = DefaultNavItems,
         style = style,
         modifier = modifier
     )
@@ -156,7 +158,7 @@ private fun BasicBottomNavBar(
 ) {
     BottomAppBar(
         containerColor = SurfacePrimary,
-        windowInsets = if (applyPadding) BottomAppBarDefaults.windowInsets else WindowInsets(0, 0, 0, 0),
+        windowInsets = if (applyPadding) BottomAppBarDefaults.windowInsets else ZeroInsets,
         modifier = modifier
             .fillMaxWidth()
             .height(if (applyPadding) 93.dp else 80.dp)
@@ -203,10 +205,8 @@ fun PillBottomNavBar(
     modifier: Modifier = Modifier,
     applyPadding: Boolean = true
 ) {
-    // Flag to skip animation on the very first composition or restoration
     var isInitialComposition by remember { mutableStateOf(true) }
 
-    // Smooth physics spring animation for the sliding tab indicator
     val animatedIndex by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
         animationSpec = if (isInitialComposition) {
@@ -222,7 +222,7 @@ fun PillBottomNavBar(
     )
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(150.milliseconds)
+        delay(150.milliseconds)
         isInitialComposition = false
     }
 
@@ -232,12 +232,12 @@ fun PillBottomNavBar(
             .then(
                 if (applyPadding) {
                     Modifier
-                        .background(
-                            brush = BottomGradientBrush
-                        )
+                        .background(brush = BottomGradientBrush)
                         .navigationBarsPadding()
                         .padding(horizontal = 12.dp, vertical = 12.dp)
-                } else Modifier
+                } else {
+                    Modifier
+                }
             ),
         contentAlignment = Alignment.BottomCenter
     ) {
@@ -262,11 +262,9 @@ fun PillBottomNavBar(
                     .fillMaxSize()
                     .padding(4.dp)
             ) {
-                val containerWidth = maxWidth
                 val tabCount = navItems.size
-                val tabWidth = containerWidth / tabCount
+                val tabWidth = maxWidth / tabCount
 
-                // Active brand pill background that slides across tabs
                 Box(
                     modifier = Modifier
                         .offset(x = tabWidth * animatedIndex)
@@ -284,10 +282,8 @@ fun PillBottomNavBar(
                     navItems.forEachIndexed { index, screen ->
                         val isSelected = index == selectedIndex
 
-                        // Animated icon tint color
-                        val targetContentColor = if (isSelected) ContentBrandDark else ContentSecondary
                         val animatedContentColor by animateColorAsState(
-                            targetValue = targetContentColor,
+                            targetValue = if (isSelected) ContentBrandDark else ContentSecondary,
                             animationSpec = tween(durationMillis = 150),
                             label = "TabContentColorAnimation"
                         )

@@ -1,8 +1,13 @@
 package com.harshdeep.jasnify.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 
-@Entity(tableName = "saved_vendors", primaryKeys = ["vendorName", "eventId", "category"])
+@Entity(
+    tableName = "saved_vendors",
+    primaryKeys = ["vendorName", "eventId", "category"],
+    indices = [Index(value = ["eventId"])]
+)
 data class SavedVendorEntity(
     val vendorName: String,
     val vendorId: String,

@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
@@ -24,6 +25,7 @@ import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundBrand
+import com.harshdeep.jasnify.utils.NetworkUtils
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -33,15 +35,18 @@ fun SplashScreen(
     authViewModel: AuthViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel()
 ) {
+    val androidContext = LocalContext.current
     LaunchedEffect(Unit) {
-        delay(500L.milliseconds) // Wait for auth state to stabilize
+        delay(200L.milliseconds) // Minimal delay for auth state to stabilize
         var isLoggedIn = authViewModel.isUserLoggedIn()
         
         // If not immediately logged in, wait a bit longer (Firebase initialization)
         if (!isLoggedIn) {
-            delay(500L.milliseconds)
+            delay(300L.milliseconds)
             isLoggedIn = authViewModel.isUserLoggedIn()
         }
+
+        val isOnline = NetworkUtils.isInternetAvailable(androidContext)
 
         val destination = when {
             !isLoggedIn -> Screen.OnboardingGraph.route
@@ -54,12 +59,12 @@ fun SplashScreen(
                     // Check local cache for immediate redirection
                     val cachedEventId = eventViewModel.getLocalActiveEventId()
                     if (cachedEventId != null) {
-                        android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting to MainApp.")
+                        android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting.")
                         eventViewModel.fetchAndSetActiveEvent(cachedEventId)
-                        Screen.MainAppScreen.route
+                        if (isOnline) Screen.MainSkeletonLoading.route else Screen.MainAppScreen.route
                     } else {
-                        android.util.Log.d("SplashScreen", "Participation confirmed but no cache. Redirecting to MainApp.")
-                        Screen.MainAppScreen.route
+                        android.util.Log.d("SplashScreen", "Participation confirmed but no cache. Redirecting.")
+                        if (isOnline) Screen.MainSkeletonLoading.route else Screen.MainAppScreen.route
                     }
                 } else {
                     android.util.Log.d("SplashScreen", "No events found. Clearing cache and redirecting to OnboardingType.")

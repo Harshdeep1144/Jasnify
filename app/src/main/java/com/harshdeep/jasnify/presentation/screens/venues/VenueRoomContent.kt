@@ -4,10 +4,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -27,22 +27,25 @@ fun VenueRoomContent(
     onLeave: () -> Unit,
     onShowToast: (ToastData) -> Unit
 ) {
-    val roomUsers by roomViewModel.roomUsers.collectAsState()
-    val searchResults by roomViewModel.searchResults.collectAsState()
-    val auth = FirebaseAuth.getInstance()
-    val currentUserUid = auth.currentUser?.uid ?: ""
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = remember(auth.currentUser) { auth.currentUser }
+    val currentUserUid = remember(currentUser) { currentUser?.uid.orEmpty() }
 
-    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-    val currentUserRole = currentUserInRoom?.role ?: UserRole.VIEWER
+    val currentUserRole = remember(roomUsers, currentUserUid) {
+        roomUsers.find { it.uid == currentUserUid }?.role ?: UserRole.VIEWER
+    }
 
-    val displayUsers = remember(roomUsers, currentUserUid) {
+    val displayUsers = remember(roomUsers, currentUser, currentUserUid, currentUserRole) {
+        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
         if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
             val self = User(
                 uid = currentUserUid,
-                name = auth.currentUser?.displayName ?: "Me",
-                email = auth.currentUser?.email ?: "",
+                name = currentUser?.displayName ?: "Me",
+                email = currentUser?.email.orEmpty(),
                 role = currentUserRole,
-                username = auth.currentUser?.email?.substringBefore("@") ?: "me"
+                username = currentUser?.email?.substringBefore("@") ?: "me"
             )
             (listOf(self) + roomUsers).distinctBy { it.uid }
         } else {

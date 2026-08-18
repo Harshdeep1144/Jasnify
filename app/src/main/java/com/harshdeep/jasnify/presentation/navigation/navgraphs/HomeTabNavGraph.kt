@@ -12,8 +12,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.runtime.remember
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.harshdeep.jasnify.presentation.navigation.Screen
-
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistsTab
@@ -75,7 +76,8 @@ fun NavGraphBuilder.homeNavGraph(
         route = Screen.HomeTabScreen.Home.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
-    ) {
+    ) { entry ->
+        val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
         HomeTab(
             mainNavController = mainNavController,
             internalNavController = navController,
@@ -83,7 +85,11 @@ fun NavGraphBuilder.homeNavGraph(
                 mainNavController.navigate((Screen.EventDetail.route))
             },
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-            eventViewModel = eventViewModel
+            eventViewModel = hiltViewModel(graphEntry),
+            budgetViewModel = hiltViewModel(graphEntry),
+            venueViewModel = hiltViewModel(graphEntry),
+            vendorViewModel = hiltViewModel(graphEntry),
+            roomViewModel = hiltViewModel(graphEntry)
         )
     }
 
@@ -91,11 +97,14 @@ fun NavGraphBuilder.homeNavGraph(
         route = Screen.HomeTabScreen.Checklists.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
-    ) {
+    ) { entry ->
+        val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
         ChecklistsTab(
             mainNavController = mainNavController,
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-            eventViewModel = eventViewModel,
+            viewModel = hiltViewModel(graphEntry),
+            eventViewModel = hiltViewModel(graphEntry),
+            roomViewModel = hiltViewModel(graphEntry),
             onBackClick = {
                 navController.navigate(Screen.HomeTabScreen.Home.route) {
                     popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
@@ -108,7 +117,8 @@ fun NavGraphBuilder.homeNavGraph(
         route = Screen.HomeTabScreen.Vendors.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
-    ) {
+    ) { entry ->
+        val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
         VendorsTab(
             mainNavController = mainNavController,
             internalNavController = navController,
@@ -122,7 +132,10 @@ fun NavGraphBuilder.homeNavGraph(
                 navController.navigate(Screen.HomeTabScreen.Home.route) {
                     popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
                 }
-            }
+            },
+            eventViewModel = hiltViewModel(graphEntry),
+            roomViewModel = hiltViewModel(graphEntry),
+            vendorViewModel = hiltViewModel(graphEntry)
         )
     }
 
@@ -130,9 +143,13 @@ fun NavGraphBuilder.homeNavGraph(
         route = Screen.HomeTabScreen.Guests.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
-    ) {
+    ) { entry ->
+        val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
         GuestsTab(
             onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            roomViewModel = hiltViewModel(graphEntry),
+            eventViewModel = hiltViewModel(graphEntry),
+            guestViewModel = hiltViewModel(graphEntry),
             onBackClick = {
                 navController.navigate(Screen.HomeTabScreen.Home.route) {
                     popUpTo(Screen.HomeTabScreen.Home.route) { inclusive = true }
@@ -145,11 +162,17 @@ fun NavGraphBuilder.homeNavGraph(
         route = Screen.HomeTabScreen.Profile.route,
         enterTransition = enterTransition,
         exitTransition = exitTransition
-    ) {
+    ) { entry ->
+        val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
         ProfileTab(
             mainNavController = mainNavController,
             internalNavController = navController,
-            onBottomBarVisibilityChange = onBottomBarVisibilityChange
+            onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+            authViewModel = hiltViewModel(graphEntry),
+            profileViewModel = hiltViewModel(graphEntry),
+            eventViewModel = hiltViewModel(graphEntry),
+            venueViewModel = hiltViewModel(graphEntry),
+            enquiryViewModel = hiltViewModel(graphEntry)
         )
     }
 }

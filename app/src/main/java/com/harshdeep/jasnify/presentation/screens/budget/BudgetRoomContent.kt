@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -27,17 +28,19 @@ fun BudgetRoomContent(
     onLeaveClick: () -> Unit,
     onToastShow: (ToastData) -> Unit
 ) {
-    val displayUsers = if (roomUsers.none { it.uid == currentUserUid } && currentUserUid.isNotEmpty()) {
-        val self = User(
-            uid = currentUserUid,
-            name = "Me", // This could be passed as a parameter for better accuracy
-            email = "",
-            role = currentUserRole,
-            username = "me"
-        )
-        (listOf(self) + roomUsers).distinctBy { it.uid }
-    } else {
-        roomUsers
+    val displayUsers = remember(roomUsers, currentUserUid, currentUserRole) {
+        if (roomUsers.none { it.uid == currentUserUid } && currentUserUid.isNotEmpty()) {
+            val self = User(
+                uid = currentUserUid,
+                name = "Me",
+                email = "",
+                role = currentUserRole,
+                username = "me"
+            )
+            (listOf(self) + roomUsers).distinctBy { it.uid }
+        } else {
+            roomUsers
+        }
     }
 
     Box(

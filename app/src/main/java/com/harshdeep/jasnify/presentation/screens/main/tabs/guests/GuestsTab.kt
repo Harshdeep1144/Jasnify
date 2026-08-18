@@ -18,8 +18,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +38,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -97,6 +96,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.GuestCard
 import com.harshdeep.jasnify.presentation.components.cards.GuestCardType
+import com.harshdeep.jasnify.presentation.components.cards.ImportContactsBanner
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
@@ -106,7 +106,6 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -122,7 +121,6 @@ import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
 import kotlinx.coroutines.delay
@@ -155,7 +153,6 @@ fun GuestsTab(
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
-    val roomSearchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
     val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
@@ -168,10 +165,11 @@ fun GuestsTab(
     }
 
     LaunchedEffect(activeEvent) {
-        if (activeEvent != null) {
-            roomViewModel.verifyAccess(activeEvent!!.id, "Guest", currentUserUid)
-            roomViewModel.loadRoomUsers(activeEvent!!.id, "Guest")
-            guestViewModel.setEventId(activeEvent!!.id)
+        val event = activeEvent
+        if (event != null) {
+            roomViewModel.verifyAccess(event.id, "Guest", currentUserUid)
+            roomViewModel.loadRoomUsers(event.id, "Guest")
+            guestViewModel.setEventId(event.id)
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -222,6 +220,8 @@ fun GuestsTab(
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
     val mainListState = rememberLazyListState()
 
+    var isBannerDismissed by remember { mutableStateOf(false) }
+
     val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
     val topBarScrollProgress by remember {
         derivedStateOf {
@@ -245,10 +245,10 @@ fun GuestsTab(
                     return Offset.Zero
                 }
 
-                if (delta > 0) { // Scrolling up (showing)
+                if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
-                } else if (delta < 0) { // Scrolling down (hiding)
+                } else if (delta < 0) {
                     if (scrollAccumulator > 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
                 }
@@ -292,7 +292,6 @@ fun GuestsTab(
     }
     val isViewer = currentUserRole == UserRole.VIEWER
 
-    // Clear selection when filters change
     LaunchedEffect(inviteFilter, selectedTypesFilter) {
         selectedGuestIds.clear()
     }
@@ -397,18 +396,21 @@ fun GuestsTab(
             val isInviting = !guest.invited
             val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
 
-            guestViewModel.updateGuest(guest.copy(
-                invited = isInviting,
-                invitedBy = if (isInviting) currentUserName else null,
-                invitedAt = if (isInviting) timestamp else null
-            ))
+            guestViewModel.updateGuest(
+                guest.copy(
+                    invited = isInviting,
+                    invitedBy = if (isInviting) currentUserName else null,
+                    invitedAt = if (isInviting) timestamp else null
+                )
+            )
         }
     }
 
     val filteredGuests by remember(searchQuery, selectedTypesFilter, inviteFilter, guests) {
         derivedStateOf {
+            val query = searchQuery.trim()
             guests.filter { guest ->
-                val matchesSearch = guest.name.contains(searchQuery, ignoreCase = true)
+                val matchesSearch = query.isEmpty() || guest.name.contains(query, ignoreCase = true)
                 val matchesType = selectedTypesFilter.isEmpty() || selectedTypesFilter.contains(guest.type)
                 val matchesInvite = when (inviteFilter) {
                     "Yet to invite" -> !guest.invited
@@ -522,11 +524,12 @@ fun GuestsTab(
                                     var expandedGuestId by remember { mutableStateOf<String?>(null) }
 
                                     LazyColumn(
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier
+                                            .fillMaxSize()
                                             .statusBarsPadding(),
                                         state = mainListState,
                                     ) {
-                                        item {
+                                        item(key = "top_bar", contentType = "header") {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -539,6 +542,7 @@ fun GuestsTab(
                                                     CustomTopBar(
                                                         title = "Guests",
                                                         titleIcon = painterResource(R.drawable.ic_guests),
+                                                        menuIcon = TopIcon.Predefined.MENU_MODERN,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
                                                         onMenuClick = {
@@ -567,105 +571,113 @@ fun GuestsTab(
                                             }
                                         }
 
-                                        stickyHeader {
-                                            Column(
-                                                modifier = Modifier
-                                                    .background(BackgroundPrimary)
-                                                    .fillMaxWidth()
-                                                    .zIndex(10f)
-                                            ) {
-                                                if (!isMultiSelectMode) {
-                                                    Row(
+                                        if (guests.isNotEmpty()) {
+                                            stickyHeader(key = "search_and_filters", contentType = "sticky_filter_header") {
+                                                Column(
+                                                    modifier = Modifier
+                                                        .background(BackgroundPrimary)
+                                                        .fillMaxWidth()
+                                                        .zIndex(10f)
+                                                ) {
+                                                    if (!isMultiSelectMode) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(start = 12.dp, top = 12.dp, bottom = 0.dp, end = 12.dp),
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                        ) {
+                                                            CustomSearchBar(
+                                                                value = searchQuery,
+                                                                onValueChange = { searchQuery = it },
+                                                                placeholder = "Search Guests",
+                                                                modifier = Modifier.weight(1f),
+                                                                onActiveChange = { if (it) isSearchActive = true }
+                                                            )
+
+                                                            if (!isViewer) {
+                                                                CustomTextButton(
+                                                                    onClick = onAddGuestClick,
+                                                                    text = "Add",
+                                                                    leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                                                    shapeStyle = ButtonShapeStyle.Round
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+
+                                                    LazyRow(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .padding(start = 12.dp, top = 12.dp, bottom = 0.dp, end = 12.dp),
-                                                        verticalAlignment = Alignment.CenterVertically,
+                                                            .padding(top = 12.dp),
+                                                        contentPadding = PaddingValues(horizontal = 12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                     ) {
-                                                        CustomSearchBar(
-                                                            value = searchQuery,
-                                                            onValueChange = { searchQuery = it },
-                                                            placeholder = "Search Guests",
-                                                            modifier = Modifier.weight(1f),
-                                                            onActiveChange = { if (it) isSearchActive = true }
-                                                        )
-
-                                                        if (!isViewer) {
-                                                            CustomTextButton(
-                                                                onClick = onAddGuestClick,
-                                                                text = "Add",
-                                                                leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                                                shapeStyle = ButtonShapeStyle.Round
+                                                        item(key = "type_filter_chip", contentType = "filter_chip") {
+                                                            FilterChip(
+                                                                label = when {
+                                                                    selectedTypesFilter.isEmpty() -> "Guest Type"
+                                                                    selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
+                                                                    else -> "Guest Types (${selectedTypesFilter.size})"
+                                                                },
+                                                                hasDropdown = true,
+                                                                isSelected = selectedTypesFilter.isNotEmpty(),
+                                                                onClick = { showTypeFilterSheet = true },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
+                                                            )
+                                                        }
+                                                        item(key = "yet_to_invite_chip", contentType = "filter_chip") {
+                                                            FilterChip(
+                                                                label = "Yet to invite",
+                                                                isSelected = inviteFilter == "Yet to invite",
+                                                                onClick = {
+                                                                    inviteFilter = if (inviteFilter == "Yet to invite") null else "Yet to invite"
+                                                                },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
+                                                            )
+                                                        }
+                                                        item(key = "already_invited_chip", contentType = "filter_chip") {
+                                                            FilterChip(
+                                                                label = "Already invited",
+                                                                isSelected = inviteFilter == "Already invited",
+                                                                onClick = {
+                                                                    inviteFilter = if (inviteFilter == "Already invited") null else "Already invited"
+                                                                },
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                hasStroke = true
                                                             )
                                                         }
                                                     }
+                                                    Spacer(modifier = Modifier.height(12.dp))
                                                 }
-
-                                                LazyRow(
-                                                    modifier = Modifier.fillMaxWidth()
-                                                        .padding(top = 12.dp),
-                                                    contentPadding = PaddingValues(horizontal = 12.dp),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                ) {
-                                                    item {
-                                                        FilterChip(
-                                                            label = when {
-                                                                selectedTypesFilter.isEmpty() -> "Guest Type"
-                                                                selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
-                                                                else -> "Guest Types (${selectedTypesFilter.size})"
-                                                            },
-                                                            hasDropdown = true,
-                                                            isSelected = selectedTypesFilter.isNotEmpty(),
-                                                            onClick = { showTypeFilterSheet = true },
-                                                            shapeStyle = ChipShapeStyle.Round,
-                                                            hasStroke = true
-                                                        )
-                                                    }
-                                                    item {
-                                                        FilterChip(
-                                                            label = "Yet to invite",
-                                                            isSelected = inviteFilter == "Yet to invite",
-                                                            onClick = {
-                                                                inviteFilter = if (inviteFilter == "Yet to invite") null else "Yet to invite"
-                                                            },
-                                                            shapeStyle = ChipShapeStyle.Round,
-                                                            hasStroke = true
-                                                        )
-                                                    }
-                                                    item {
-                                                        FilterChip(
-                                                            label = "Already invited",
-                                                            isSelected = inviteFilter == "Already invited",
-                                                            onClick = {
-                                                                inviteFilter = if (inviteFilter == "Already invited") null else "Already invited"
-                                                            },
-                                                            shapeStyle = ChipShapeStyle.Round,
-                                                            hasStroke = true
-                                                        )
-                                                    }
-                                                }
-                                                Spacer(modifier = Modifier.height(12.dp))
                                             }
                                         }
 
                                         if (guests.isEmpty()) {
-                                            item {
+                                            item(key = "empty_state", contentType = "empty_state") {
                                                 GuestEmptyState(
+                                                    modifier = Modifier.fillParentMaxHeight(0.80f),
                                                     hasContactPermission = hasContactPermission,
-                                                    onAddGuestClick = onAddGuestClick
+                                                    onAddGuestClick = onAddGuestClick,
+                                                    onAddManuallyClick = {
+                                                        selectedGuestForEdit = null
+                                                        showAddGuestSheet = true
+                                                    }
                                                 )
                                             }
                                         } else if (filteredGuests.isEmpty()) {
-                                            item {
+                                            item(key = "no_guests_found", contentType = "empty_state") {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .height(320.dp),
+                                                        .fillParentMaxHeight(0.80f),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Column(
                                                         horizontalAlignment = Alignment.CenterHorizontally,
-                                                        verticalArrangement = Arrangement.Top,
+                                                        verticalArrangement = Arrangement.Center,
                                                     ) {
                                                         Icon(
                                                             painter = painterResource(id = R.drawable.ic_cross_arrow),
@@ -686,9 +698,24 @@ fun GuestsTab(
                                                 }
                                             }
                                         } else {
+                                            if (!hasContactPermission && !isBannerDismissed) {
+                                                item(key = "contacts_banner", contentType = "banner") {
+                                                    ImportContactsBanner(
+                                                        onAllowAccessClick = {
+                                                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                                        },
+                                                        onDismissClick = {
+                                                            isBannerDismissed = true
+                                                        },
+                                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                                    )
+                                                }
+                                            }
+
                                             itemsIndexed(
-                                                filteredGuests,
-                                                key = { _, guest -> guest.id }
+                                                items = filteredGuests,
+                                                key = { _, guest -> guest.id },
+                                                contentType = { _, _ -> "guest_card" }
                                             ) { index, guest ->
 
                                                 val isExpanded = expandedGuestId == guest.id
@@ -752,7 +779,7 @@ fun GuestsTab(
                                             }
 
                                             if (guests.size > 10) {
-                                                item {
+                                                item(key = "footer", contentType = "footer") {
                                                     FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
                                                 }
                                             }
@@ -812,11 +839,13 @@ fun GuestsTab(
                                                             val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
                                                             selectedGuests.forEach { guest ->
                                                                 val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
-                                                                guestViewModel.updateGuest(guest.copy(
-                                                                    invited = true,
-                                                                    invitedBy = currentUserName,
-                                                                    invitedAt = timestamp
-                                                                ))
+                                                                guestViewModel.updateGuest(
+                                                                    guest.copy(
+                                                                        invited = true,
+                                                                        invitedBy = currentUserName,
+                                                                        invitedAt = timestamp
+                                                                    )
+                                                                )
                                                             }
                                                             selectedGuestIds.clear()
                                                             isMultiSelectMode = false
@@ -834,61 +863,60 @@ fun GuestsTab(
                                     }
                                 }
                             }
-                         }
+                        }
                         GuestsView.MANAGE_GUEST_TYPES -> {
-                                GuestTypeScreen(
-                                    isViewer = isViewer,
-                                    guestTypes = guestTypes.map { typeName ->
-                                        GuestType(
-                                            name = typeName,
-                                            guestCount = guests.count { it.type == typeName }
-                                        )
-                                    },
-                                    onBackClick = { currentView = GuestsView.MAIN },
-                                    onAddTypeClick = { showAddTypeSheet = true },
-                                    onTypeClick = { type ->
-                                        selectedGuestTypeForDetail = type.name
-                                        currentView = GuestsView.GUEST_TYPE_DETAIL
-                                    },
-                                    getGuestThumbnails = { typeName ->
-                                        guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
-                                    }
-                                )
-                            }
-                            GuestsView.GUEST_TYPE_DETAIL -> {
-                                GuestTypeDetailScreen(
-                                    isViewer = isViewer,
-                                    typeName = selectedGuestTypeForDetail ?: "",
-                                    guests = guests.filter { it.type == selectedGuestTypeForDetail },
-                                    onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
-                                    getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
-                                    onViewDetails = { guest -> selectedGuestForInfo = guest },
-                                    onEditTypeClick = {
-                                        selectedGuestTypeForEdit = selectedGuestTypeForDetail
-                                        showAddTypeSheet = true
-                                    },
-                                    onInviteToggle = onInviteToggle
-                                )
-                            }
-                            GuestsView.ROOM_ACCESS -> {
-                                activeEvent?.id?.let { id ->
-                                    GuestRoomContent(
-                                        eventId = id,
-                                        roomViewModel = roomViewModel,
-                                        onBackClick = { currentView = GuestsView.MAIN },
-                                        onMenuClick = {
-                                            focusManager.clearFocus()
-                                            showRoomMenuBottomSheet = true
-                                        },
-                                        onRemove = { targetUser ->
-                                            userToRemove = targetUser
-                                        },
-                                        onLeave = {
-                                            showLeaveConfirmation = true
-                                        },
-                                        onShowToast = { toastData = it }
+                            GuestTypeScreen(
+                                isViewer = isViewer,
+                                guestTypes = guestTypes.map { typeName ->
+                                    GuestType(
+                                        name = typeName,
+                                        guestCount = guests.count { it.type == typeName }
                                     )
+                                },
+                                onBackClick = { currentView = GuestsView.MAIN },
+                                onAddTypeClick = { showAddTypeSheet = true },
+                                onTypeClick = { type ->
+                                    selectedGuestTypeForDetail = type.name
+                                    currentView = GuestsView.GUEST_TYPE_DETAIL
+                                },
+                                getGuestThumbnails = { typeName ->
+                                    guests.filter { it.type == typeName }.mapNotNull { it.imageUrl }.take(3)
                                 }
+                            )
+                        }
+                        GuestsView.GUEST_TYPE_DETAIL -> {
+                            GuestTypeDetailScreen(
+                                isViewer = isViewer,
+                                typeName = selectedGuestTypeForDetail ?: "",
+                                guests = guests.filter { it.type == selectedGuestTypeForDetail },
+                                onBackClick = { currentView = GuestsView.MANAGE_GUEST_TYPES },
+                                getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
+                                onViewDetails = { guest -> selectedGuestForInfo = guest },
+                                onEditTypeClick = {
+                                    selectedGuestTypeForEdit = selectedGuestTypeForDetail
+                                    showAddTypeSheet = true
+                                },
+                                onInviteToggle = onInviteToggle
+                            )
+                        }
+                        GuestsView.ROOM_ACCESS -> {
+                            activeEvent?.id?.let { id ->
+                                GuestRoomContent(
+                                    eventId = id,
+                                    roomViewModel = roomViewModel,
+                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onMenuClick = {
+                                        focusManager.clearFocus()
+                                        showRoomMenuBottomSheet = true
+                                    },
+                                    onRemove = { targetUser ->
+                                        userToRemove = targetUser
+                                    },
+                                    onLeave = {
+                                        showLeaveConfirmation = true
+                                    },
+                                    onShowToast = { toastData = it }
+                                )
                             }
                         }
                     }
@@ -949,8 +977,9 @@ fun GuestsTab(
         }
 
         guestToDeleteForInfo?.let { guest ->
-            val formattedName = guest.name.trim().split("\\s+".toRegex()).let { parts ->
-                if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
+            val formattedName = remember(guest.name) {
+                val parts = guest.name.trim().split(" ").filter { it.isNotBlank() }
+                if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts.firstOrNull() ?: ""
             }
             ConfirmationBottomSheet(
                 heading = "Are you sure?",
@@ -971,8 +1000,8 @@ fun GuestsTab(
                 selectedGuests.size == 1 -> "${selectedGuests[0].name} will be removed from the guest list."
                 selectedGuests.size == 2 -> "${selectedGuests[0].name} and ${selectedGuests[1].name} will be removed from the guest list."
                 selectedGuests.size > 2 -> {
-                    val n1 = selectedGuests[0].name.trim().split("\\s+".toRegex())[0]
-                    val n2 = selectedGuests[1].name.trim().split("\\s+".toRegex())[0]
+                    val n1 = selectedGuests[0].name.trim().split(" ").firstOrNull { it.isNotBlank() } ?: ""
+                    val n2 = selectedGuests[1].name.trim().split(" ").drop(1).firstOrNull { it.isNotBlank() } ?: ""
                     "$n1, $n2 & ${selectedGuests.size - 2} other guests will be removed from the guest list."
                 }
                 else -> ""
@@ -1019,11 +1048,13 @@ fun GuestsTab(
                     val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
 
                     if (selectedGuestForEdit != null) {
-                        guestViewModel.updateGuest(newGuest.copy(
-                            id = selectedGuestForEdit!!.id,
-                            updatedBy = currentUserName,
-                            updatedAt = timestamp
-                        ))
+                        guestViewModel.updateGuest(
+                            newGuest.copy(
+                                id = selectedGuestForEdit!!.id,
+                                updatedBy = currentUserName,
+                                updatedAt = timestamp
+                            )
+                        )
                         selectedGuestForEdit = null
                         toastData = ToastData("Update successfully!", ToastType.SUCCESS)
                     } else {
@@ -1035,10 +1066,12 @@ fun GuestsTab(
                         if (exists) {
                             toastData = ToastData("${newGuest.name} already exists", ToastType.DEFAULT)
                         } else {
-                            guestViewModel.addGuest(newGuest.copy(
-                                addedBy = currentUserName,
-                                addedAt = timestamp
-                            ))
+                            guestViewModel.addGuest(
+                                newGuest.copy(
+                                    addedBy = currentUserName,
+                                    addedAt = timestamp
+                                )
+                            )
                             showAddGuestSheet = false
                             toastData = ToastData("Guest added successfully!", ToastType.SUCCESS)
                         }
@@ -1087,7 +1120,7 @@ fun GuestsTab(
                             guestTypes[index] = newType
                         }
 
-                        guests.forEachIndexed { idx, guest ->
+                        guests.forEachIndexed { _, guest ->
                             if (guest.type == selectedGuestTypeForEdit) {
                                 guestViewModel.updateGuest(guest.copy(type = newType))
                             }
@@ -1240,7 +1273,7 @@ fun GuestsTab(
                             text = "Leave Room",
                             icon = painterResource(R.drawable.ic_logout),
                             iconPlacement = IconPlacement.Left,
-                            contentColor = Color.Red,
+                            contentColor = MaterialTheme.colorScheme.error,
                             onClick = {
                                 showRoomMenuBottomSheet = false
                                 showLeaveConfirmation = true
@@ -1285,8 +1318,9 @@ fun GuestsTab(
                 },
                 onConfirm = {
                     val target = userToRemove
-                    if (target != null && activeEvent != null) {
-                        roomViewModel.removeAccess(activeEvent!!.id, "Guest", target.uid)
+                    val eventId = activeEvent?.id
+                    if (target != null && eventId != null) {
+                        roomViewModel.removeAccess(eventId, "Guest", target.uid)
                         toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
                     userToRemove = null
@@ -1361,4 +1395,4 @@ fun GuestsTab(
             )
         }
     }
-
+}

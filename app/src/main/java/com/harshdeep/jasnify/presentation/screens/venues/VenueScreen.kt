@@ -76,6 +76,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
+import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
@@ -200,10 +201,11 @@ fun VenueScreen(
     }
 
     LaunchedEffect(activeEvent) {
-        if (activeEvent != null) {
-            roomViewModel.verifyAccess(activeEvent!!.id, "Venue", currentUserUid)
-            roomViewModel.loadRoomUsers(activeEvent!!.id, "Venue")
-            venueViewModel.setEventId(activeEvent!!.id)
+        val event = activeEvent
+        if (event != null) {
+            roomViewModel.verifyAccess(event.id, "Venue", currentUserUid)
+            roomViewModel.loadRoomUsers(event.id, "Venue")
+            venueViewModel.setEventId(event.id)
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -216,7 +218,7 @@ fun VenueScreen(
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
-    var offersToShow by remember { mutableStateOf<List<com.harshdeep.jasnify.domain.model.Offer>>(emptyList()) }
+    var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
 
     var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -225,9 +227,9 @@ fun VenueScreen(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
+            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
                     sdf.format(Date(timestamp))
                 } ?: "Date TBD"
 
@@ -297,18 +299,22 @@ fun VenueScreen(
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
 
-    val sortOptions = listOf(
-        "Newest First (Default)",
-        "Oldest First",
-        "Highest to Lowest Amount",
-        "Lowest to Highest Amount"
-    )
+    val sortOptions = remember {
+        listOf(
+            "Newest First (Default)",
+            "Oldest First",
+            "Highest to Lowest Amount",
+            "Lowest to Highest Amount"
+        )
+    }
     var appliedSortOption by remember { mutableStateOf(sortOptions[0]) }
 
-    val filterByOptions = listOf(
-        "Venue", "Catering", "Gifts", "Staff & Crew",
-        "Costumes", "Vendors", "Transportation", "Entertainment"
-    )
+    val filterByOptions = remember {
+        listOf(
+            "Venue", "Catering", "Gifts", "Staff & Crew",
+            "Costumes", "Vendors", "Transportation", "Entertainment"
+        )
+    }
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
     LaunchedEffect(toastData?.message) {
@@ -352,7 +358,7 @@ fun VenueScreen(
         label = "backdropCornerRadius"
     )
 
-    val isSavedListToast = remember(toastData, lastSavedVenue) {
+    val isSavedListToast = remember(toastData?.message, lastSavedVenue) {
         toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
     }
 
@@ -409,10 +415,8 @@ fun VenueScreen(
                     targetState = screenState,
                     transitionSpec = {
                         when {
-                            // Venue Detail Screen (Fast bottom-to-top & top-to-bottom)
                             targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
                             initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
-
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }
                     },
@@ -731,8 +735,9 @@ fun VenueScreen(
             },
             onConfirm = {
                 val target = userToRemove
-                if (target != null && activeEvent != null) {
-                    roomViewModel.removeAccess(activeEvent!!.id, "Venue", target.uid)
+                val eventId = activeEvent?.id
+                if (target != null && eventId != null) {
+                    roomViewModel.removeAccess(eventId, "Venue", target.uid)
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null
@@ -824,7 +829,6 @@ fun VenueMainContent(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val delta = available.y
 
-                // Determine scrollability based on active tab
                 val canScroll = if (selectedTab == "explore") {
                     listState.canScrollForward || listState.canScrollBackward
                 } else {
@@ -832,10 +836,10 @@ fun VenueMainContent(
                 }
                 if (!canScroll) return Offset.Zero
 
-                if (delta > 0) { // Scrolling up (showing)
+                if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
-                } else if (delta < 0) { // Scrolling down (hiding)
+                } else if (delta < 0) {
                     if (scrollAccumulator > 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
                 }
@@ -866,13 +870,14 @@ fun VenueMainContent(
             venue.copy(favorite = venueSavedDestinations.containsKey(venue.name))
         }
 
-        if (text.isNotEmpty()) {
+        val query = text.trim()
+        if (query.isNotEmpty()) {
             result = result.filter {
-                it.name.contains(text, ignoreCase = true) ||
-                        it.location.contains(text, ignoreCase = true) ||
-                        it.locality.contains(text, ignoreCase = true) ||
-                        it.city.contains(text, ignoreCase = true) ||
-                        it.type?.contains(text, ignoreCase = true) == true
+                it.name.contains(query, ignoreCase = true) ||
+                        it.location.contains(query, ignoreCase = true) ||
+                        it.locality.contains(query, ignoreCase = true) ||
+                        it.city.contains(query, ignoreCase = true) ||
+                        it.type?.contains(query, ignoreCase = true) == true
             }
         }
 
@@ -953,7 +958,7 @@ fun VenueMainContent(
                                 },
                                 onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
                                 onDropdownClick = if (!active && isScrolled) onLocationSelectorClick else null,
-                                backIcon = if(active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
+                                backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
                                 buttonStyle = ButtonBackground.OPAQUE,
                                 isLargeTitle = true,
                             )
@@ -1077,7 +1082,7 @@ fun LocationSelectorPill(
     location: String,
     onLocationSelectorClick: () -> Unit,
     modifier: Modifier = Modifier,
-){
+) {
     Surface(
         modifier = modifier
             .fillMaxWidth()

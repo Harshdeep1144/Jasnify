@@ -1,13 +1,5 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.EaseInOut
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,14 +22,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -56,7 +44,6 @@ import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -64,6 +51,10 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val GuestDetailsOuterShape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+private val GuestDetailsCardShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+private val WhitespaceRegex = Regex("\\s+")
 
 @Composable
 fun GuestDetailsBottomSheet(
@@ -93,7 +84,7 @@ fun GuestDetailsBottomSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
+                    .clip(GuestDetailsOuterShape)
                     .background(SurfaceSecondary)
                     .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -159,7 +150,7 @@ fun GuestDetailsBottomSheet(
                     Surface(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(GuestDetailsCardShape)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
@@ -200,7 +191,7 @@ fun GuestDetailsBottomSheet(
                 // Info Card (Guest Type, Contact No)
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
+                    shape = GuestDetailsCardShape,
                     color = SurfacePrimary
                 ) {
                     Column(
@@ -325,8 +316,8 @@ fun RecentActivityBottomSheet(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                    .border(1.dp, SurfaceSecondary, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)),
+                    .clip(GuestDetailsCardShape)
+                    .border(1.dp, SurfaceSecondary, GuestDetailsCardShape),
                 color = SurfacePrimary,
             ) {
                 Column(
@@ -377,7 +368,7 @@ fun RecentActivityBottomSheet(
 
 private fun formatUserName(name: String?): String {
     if (name.isNullOrBlank()) return "Anonymous"
-    val parts = name.trim().split("\\s+".toRegex())
+    val parts = name.trim().split(WhitespaceRegex)
     return if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
 }
 
@@ -424,7 +415,6 @@ private fun ActivityItem(
         }
     }
 }
-
 
 @Preview(showBackground = true)
 @Composable

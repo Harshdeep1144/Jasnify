@@ -13,7 +13,19 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -24,12 +36,22 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
@@ -48,8 +70,41 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val ReviewDetailsContainerShape = SquircleShape(CornerLargeIncrease)
+private val PhotoAddBoxShape = SquircleShape(CornerMedium)
+private val PhotoAttachCardShape = SquircleShape(CornerLarge)
+
+private val TopLikedOptionShape = SquircleShape(
+    topStart = CornerLargeIncrease,
+    topEnd = CornerLargeIncrease,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val MiddleLikedOptionShape = SquircleShape(CornerExtraSmall)
+
+private val BottomLikedOptionShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLargeIncrease,
+    bottomEnd = CornerLargeIncrease,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val DashedBorderEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
 
 enum class ReviewStep {
     RATING, DETAILS, SUCCESS
@@ -60,14 +115,14 @@ fun ReviewBottomSheet(
     targetId: String,
     targetName: String,
     targetImageUrl: String?,
-    targetCategory: String? = null, // null for Venue, category name for Vendor
+    targetCategory: String? = null,
     initialRating: Int = 0,
     initialReviewText: String = "",
     initialImages: List<Uri> = emptyList(),
     initialLikedOptions: Set<String> = emptySet(),
     isEdit: Boolean = false,
     onDismiss: () -> Unit,
-    onSubmit: (Int, String, List<String>, List<String>, List<String>) -> Unit, // rating, text, images, removedImages, likedOptions
+    onSubmit: (Int, String, List<String>, List<String>, List<String>) -> Unit,
     onDeleteReview: (() -> Unit)? = null,
     onProgress: ((Float) -> Unit)? = null
 ) {
@@ -107,7 +162,6 @@ fun ReviewBottomSheet(
         }
     }
 
-    // Dynamic height corresponding to each step layout requirements
     val currentSheetHeight = when (currentStep) {
         ReviewStep.RATING -> 310.dp
         ReviewStep.DETAILS -> 680.dp
@@ -285,8 +339,7 @@ private fun ReviewDetailsStep(
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize(),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
         Column(
@@ -321,7 +374,7 @@ private fun ReviewDetailsStep(
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = `reviewTitle`,
+                    text = reviewTitle,
                     style = JasnifyTheme.typography.headingMedium,
                     color = ContentPrimary
                 )
@@ -339,8 +392,8 @@ private fun ReviewDetailsStep(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(160.dp)
-                    .background(SurfaceSecondary, SquircleShape(CornerLargeIncrease))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f), SquircleShape(CornerLargeIncrease))
+                    .background(SurfaceSecondary, ReviewDetailsContainerShape)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f), ReviewDetailsContainerShape)
                     .padding(16.dp)
             ) {
                 Column {
@@ -387,36 +440,40 @@ private fun ReviewDetailsStep(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 8.dp)
                 ) {
-                    item {
+                    item(contentType = "add_photo_button") {
                         Box(
                             modifier = Modifier
                                 .size(72.dp)
                                 .drawBehind {
                                     val stroke = Stroke(
                                         width = 1.dp.toPx(),
-                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                                        pathEffect = DashedBorderEffect
                                     )
                                     drawRoundRect(
                                         color = ContentTertiary,
                                         style = stroke,
-                                        cornerRadius = androidx.compose.ui.geometry.CornerRadius(CornerMedium.toPx())
+                                        cornerRadius = CornerRadius(CornerMedium.toPx())
                                     )
                                 }
-                                .clip(SquircleShape(CornerMedium))
+                                .clip(PhotoAddBoxShape)
                                 .clickable { onAttachPhotosClick() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(imageVector = Icons.Default.Add, contentDescription = null, tint = ContentPrimary)
                         }
                     }
-                    items(selectedImages) { uri ->
+                    items(
+                        items = selectedImages,
+                        key = { it.toString() },
+                        contentType = { "photo_item" }
+                    ) { uri ->
                         Box(modifier = Modifier.size(72.dp)) {
                             AsyncImage(
                                 model = uri,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clip(SquircleShape(CornerMedium)),
+                                    .clip(PhotoAddBoxShape),
                                 contentScale = ContentScale.Crop
                             )
                             Surface(
@@ -447,16 +504,16 @@ private fun ReviewDetailsStep(
                         .drawBehind {
                             val stroke = Stroke(
                                 width = 1.dp.toPx(),
-                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f)
+                                pathEffect = DashedBorderEffect
                             )
                             drawRoundRect(
                                 color = ContentTertiary,
                                 style = stroke,
-                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(CornerLarge.toPx())
+                                cornerRadius = CornerRadius(CornerLarge.toPx())
                             )
                         }
-                        .clip(SquircleShape(CornerLarge))
-                        .background(SurfaceSecondary, SquircleShape(CornerLarge))
+                        .clip(PhotoAttachCardShape)
+                        .background(SurfaceSecondary, PhotoAttachCardShape)
                         .clickable { onAttachPhotosClick() },
                     contentAlignment = Alignment.Center
                 ) {
@@ -508,20 +565,11 @@ private fun ReviewDetailsStep(
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 likedOptions.forEachIndexed { index, option ->
-                    val shape = when (index) {
-                        0 -> SquircleShape(
-                            topStart = CornerLargeIncrease,
-                            topEnd = CornerLargeIncrease,
-                            bottomStart = CornerExtraSmall,
-                            bottomEnd = CornerExtraSmall
-                        )
-                        likedOptions.lastIndex -> SquircleShape(
-                            topStart = CornerExtraSmall,
-                            topEnd = CornerExtraSmall,
-                            bottomStart = CornerLargeIncrease,
-                            bottomEnd = CornerLargeIncrease
-                        )
-                        else -> SquircleShape(CornerExtraSmall)
+                    val shape = when {
+                        likedOptions.size == 1 -> TopLikedOptionShape
+                        index == 0 -> TopLikedOptionShape
+                        index == likedOptions.lastIndex -> BottomLikedOptionShape
+                        else -> MiddleLikedOptionShape
                     }
 
                     LikedOptionRow(
@@ -551,7 +599,7 @@ private fun ReviewDetailsStep(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
         CustomTextButton(
             onClick = onSubmit,
@@ -569,7 +617,7 @@ private fun ReviewDetailsStep(
 private fun LikedOptionRow(
     label: String,
     isSelected: Boolean,
-    shape: SquircleShape = SquircleShape(CornerExtraSmall),
+    shape: SquircleShape = MiddleLikedOptionShape,
     onToggle: () -> Unit
 ) {
     Surface(

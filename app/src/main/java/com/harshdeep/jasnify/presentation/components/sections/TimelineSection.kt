@@ -297,12 +297,13 @@ fun SavedTimelineItemsScreen(
                         )
                     }
 
-                    CustomIconButton(
-                        onClick = {},
-                        icon = painterResource(R.drawable.ic_edit),
-                        size = ButtonSize.Small,
-                        type = ButtonType.Tertiary
-                    )
+// ================================================ Will be added in next update
+//                    CustomIconButton(
+//                        onClick = {},
+//                        icon = painterResource(R.drawable.ic_edit),
+//                        size = ButtonSize.Small,
+//                        type = ButtonType.Tertiary
+//                    )
                 }
             }
 

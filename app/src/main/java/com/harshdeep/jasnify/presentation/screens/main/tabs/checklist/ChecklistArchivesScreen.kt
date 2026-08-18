@@ -34,16 +34,18 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+
+private val FilterOptions = listOf("All", "Recent First", "Oldest First")
 
 @Composable
 fun ChecklistArchivesScreen(
@@ -57,15 +59,20 @@ fun ChecklistArchivesScreen(
     val focusManager = LocalFocusManager.current
 
     val filteredChecklists = remember(searchQuery, selectedFilter, archivedChecklists) {
-        archivedChecklists.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-                    it.items.any { item -> item.text.contains(searchQuery, ignoreCase = true) }
-        }.let { list ->
-            when (selectedFilter) {
-                "Recent First" -> list.sortedByDescending { it.lastUpdated }
-                "Oldest First" -> list.sortedBy { it.lastUpdated }
-                else -> list.sortedByDescending { it.createdAt }
+        val query = searchQuery.trim()
+        val searched = if (query.isEmpty()) {
+            archivedChecklists
+        } else {
+            archivedChecklists.filter { checklist ->
+                checklist.title.contains(query, ignoreCase = true) ||
+                        checklist.items.any { item -> item.text.contains(query, ignoreCase = true) }
             }
+        }
+
+        when (selectedFilter) {
+            "Recent First" -> searched.sortedByDescending { it.lastUpdated }
+            "Oldest First" -> searched.sortedBy { it.lastUpdated }
+            else -> searched.sortedByDescending { it.createdAt }
         }
     }
 
@@ -129,36 +136,18 @@ fun ChecklistArchivesScreen(
                     .padding(horizontal = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip(
-                    label = "All",
-                    isSelected = selectedFilter == "All",
-                    onClick = {
-                        focusManager.clearFocus()
-                        selectedFilter = "All"
-                    },
-                    hasStroke = true,
-                    shapeStyle = ChipShapeStyle.Round
-                )
-                FilterChip(
-                    label = "Recent First",
-                    isSelected = selectedFilter == "Recent First",
-                    onClick = {
-                        focusManager.clearFocus()
-                        selectedFilter = "Recent First"
-                    },
-                    hasStroke = true,
-                    shapeStyle = ChipShapeStyle.Round
-                )
-                FilterChip(
-                    label = "Oldest First",
-                    isSelected = selectedFilter == "Oldest First",
-                    onClick = {
-                        focusManager.clearFocus()
-                        selectedFilter = "Oldest First"
-                    },
-                    hasStroke = true,
-                    shapeStyle = ChipShapeStyle.Round
-                )
+                FilterOptions.forEach { filterOption ->
+                    FilterChip(
+                        label = filterOption,
+                        isSelected = selectedFilter == filterOption,
+                        onClick = {
+                            focusManager.clearFocus()
+                            selectedFilter = filterOption
+                        },
+                        hasStroke = true,
+                        shapeStyle = ChipShapeStyle.Round
+                    )
+                }
             }
 
             if (filteredChecklists.isEmpty()) {
@@ -180,7 +169,7 @@ fun ChecklistArchivesScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "Nothing Archived Yet",
+                            text = if (searchQuery.isNotBlank()) "No matching archives found" else "Nothing Archived Yet",
                             style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                             color = ContentTertiary,
                             textAlign = TextAlign.Center
@@ -195,10 +184,17 @@ fun ChecklistArchivesScreen(
                         .fillMaxSize()
                         .padding(start = 12.dp, end = 12.dp, top = 12.dp)
                 ) {
-                    items(items = filteredChecklists, key = { it.id }) { checklist ->
+                    items(
+                        items = filteredChecklists,
+                        key = { it.id },
+                        contentType = { "archived_checklist_card" }
+                    ) { checklist ->
                         ChecklistCard(
                             checklist = checklist,
-                            onClick = { onChecklistClick(checklist) }
+                            onClick = {
+                                focusManager.clearFocus()
+                                onChecklistClick(checklist)
+                            }
                         )
                     }
                 }

@@ -208,6 +208,7 @@ private fun TrendingCardItem(
     val initialYOffsetPx = with(density) { 16.dp.toPx() }
     val targetYOffsetPx = with(density) { targetOffsetY.toPx() }
     val targetXOffsetPx = with(density) { targetOffsetX.toPx() }
+    val densityValue = density.density
 
     Box(
         modifier = modifier
@@ -229,8 +230,8 @@ private fun TrendingCardItem(
                 rotationZ = (targetRotation + (idleRot * clampedProgress)) * progress
 
                 // Translation + Idle Sway
-                val idleXPx = with(density) { idleOffsetX.dp.toPx() }
-                val idleYPx = with(density) { idleOffsetY.dp.toPx() }
+                val idleXPx = idleOffsetX * densityValue
+                val idleYPx = idleOffsetY * densityValue
 
                 translationX = (targetXOffsetPx + idleXPx) * progress
                 translationY = (initialYOffsetPx * (1f - progress)) + ((targetYOffsetPx + idleYPx) * progress)

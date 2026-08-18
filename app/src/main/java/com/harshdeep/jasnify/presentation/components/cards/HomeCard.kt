@@ -9,7 +9,17 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Text
@@ -46,12 +56,11 @@ fun HomeCard(
     insight: String,
     heading: String,
     illustration: Painter,
-    cardBgColor : Color,
-    waveColor : Color,
-    insightColor : Color,
+    cardBgColor: Color,
+    waveColor: Color,
+    insightColor: Color,
     onClick: () -> Unit
 ) {
-    // State to track immediate tap down events
     var isPressed by remember { mutableStateOf(false) }
 
     val scale by animateFloatAsState(
@@ -74,7 +83,6 @@ fun HomeCard(
             }
             .pointerInput(Unit) {
                 awaitEachGesture {
-                    // Capture tap down immediately without waiting for standard press timeout
                     awaitFirstDown(requireUnconsumed = false)
                     isPressed = true
                     waitForUpOrCancellation()
@@ -112,7 +120,7 @@ fun HomeCard(
                     alignment = Alignment.BottomCenter,
                     colorFilter = ColorFilter.tint(waveColor),
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.FillWidth,
+                    contentScale = ContentScale.FillWidth
                 )
             }
 
@@ -138,9 +146,7 @@ fun HomeCard(
                 Spacer(Modifier.height(16.dp))
 
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(0.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End
                 ) {
                     Image(

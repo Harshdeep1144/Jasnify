@@ -3,10 +3,20 @@ package com.harshdeep.jasnify.presentation.screens.budget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -14,10 +24,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -30,10 +38,38 @@ import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+
+private val SingleItemShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+private val FirstItemShape = SquircleShape(
+    topStart = CornerLarge,
+    topEnd = CornerLarge,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+private val LastItemShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLarge,
+    bottomEnd = CornerLarge,
+    cornerSmoothing = CornerSmoothingDefault
+)
+private val MiddleItemShape = SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
+
+private val SummaryGradientBrush = Brush.verticalGradient(
+    listOf(SurfacePrimary, SurfaceSecondary)
+)
 
 @Composable
 fun BudgetTrackerContent(
@@ -61,6 +97,8 @@ fun BudgetTrackerContent(
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+
+    val receiptPainter = painterResource(R.drawable.ic_receipt)
 
     Column(
         modifier = Modifier
@@ -100,16 +138,11 @@ fun BudgetTrackerContent(
                 },
         ) {
             // Budget Summary Card Section
-            item {
-                val summaryGradient = remember {
-                    Brush.verticalGradient(
-                        listOf(SurfacePrimary, SurfaceSecondary)
-                    )
-                }
+            item(key = "budget_summary_header", contentType = "summary") {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(brush = summaryGradient)
+                        .background(brush = SummaryGradientBrush)
                         .padding(12.dp)
                 ) {
                     BudgetSummaryCard(
@@ -124,7 +157,7 @@ fun BudgetTrackerContent(
                 }
             }
 
-            item {
+            item(key = "expenses_search_filter_header", contentType = "header") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -175,7 +208,7 @@ fun BudgetTrackerContent(
             }
 
             if (filteredExpenses.isEmpty()) {
-                item {
+                item(key = "empty_expenses_state", contentType = "empty") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -184,7 +217,7 @@ fun BudgetTrackerContent(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_receipt),
+                            painter = receiptPainter,
                             contentDescription = "No expenses",
                             tint = ContentTertiary,
                             modifier = Modifier.size(84.dp)
@@ -202,42 +235,19 @@ fun BudgetTrackerContent(
                     }
                 }
             } else {
-                items(
+                itemsIndexed(
                     items = filteredExpenses,
-                    key = { it.id },
-                    contentType = { "expense" }
-                ) { item ->
-                    val isFirst = filteredExpenses.firstOrNull()?.id == item.id
-                    val isLast = filteredExpenses.lastOrNull()?.id == item.id
+                    key = { _, item -> item.id },
+                    contentType = { _, _ -> "expense_card" }
+                ) { index, item ->
+                    val isFirst = index == 0
+                    val isLast = index == filteredExpenses.lastIndex
 
-                    val itemShape = remember(isFirst, isLast) {
-                        when {
-                            isFirst && isLast -> SquircleShape(
-                                CornerLarge,
-                                CornerSmoothingDefault
-                            )
-
-                            isFirst -> SquircleShape(
-                                CornerLarge,
-                                CornerLarge,
-                                CornerExtraSmall,
-                                CornerExtraSmall,
-                                CornerSmoothingDefault
-                            )
-
-                            isLast -> SquircleShape(
-                                CornerExtraSmall,
-                                CornerExtraSmall,
-                                CornerLarge,
-                                CornerLarge,
-                                CornerSmoothingDefault
-                            )
-
-                            else -> SquircleShape(
-                                CornerExtraSmall,
-                                CornerSmoothingDefault
-                            )
-                        }
+                    val itemShape = when {
+                        isFirst && isLast -> SingleItemShape
+                        isFirst -> FirstItemShape
+                        isLast -> LastItemShape
+                        else -> MiddleItemShape
                     }
 
                     ExpenseCard(
@@ -252,7 +262,6 @@ fun BudgetTrackerContent(
                         isEditable = !isViewer,
                         modifier = Modifier
                             .padding(horizontal = 12.dp, vertical = 1.dp)
-                            .graphicsLayer {}
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
@@ -266,7 +275,7 @@ fun BudgetTrackerContent(
                 }
             }
 
-            item {
+            item(key = "bottom_spacer", contentType = "spacer") {
                 Spacer(modifier = Modifier.height(124.dp))
             }
         }

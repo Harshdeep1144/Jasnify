@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.util.UUID
 
 enum class VendorStatus {
@@ -10,6 +11,7 @@ enum class VendorStatus {
     HIDDEN
 }
 
+@Immutable
 data class Vendor(
     val id: String = UUID.randomUUID().toString(),
     val merchantId: String = "",
@@ -38,12 +40,14 @@ data class Vendor(
     val timestamp: Long = System.currentTimeMillis()
 )
 
+@Immutable
 data class VendorMediaItem(
     val url: String = "",
     val video: Boolean = false,
     val videoDuration: String? = null
 )
 
+@Immutable
 data class VendorPricingItem(
     val id: String = UUID.randomUUID().toString(),
     val title: String = "",
@@ -53,6 +57,7 @@ data class VendorPricingItem(
     val labelText: String = "Price Point Offer"
 )
 
+@Immutable
 data class VendorHighlightItem(
     val id: String = UUID.randomUUID().toString(),
     val label: String = "",
@@ -60,12 +65,14 @@ data class VendorHighlightItem(
     val iconRes: String? = null
 )
 
+@Immutable
 data class VendorGalleryCategory(
     val categoryName: String = "",
     val lastUpdated: String? = null,
     val mediaItems: List<VendorMediaItem> = emptyList()
 )
 
+@Immutable
 data class VendorReviewsData(
     val ratingBreakdown: List<VendorRatingBreakdown> = emptyList(),
     val reviews: List<VendorReview> = emptyList(),
@@ -74,11 +81,13 @@ data class VendorReviewsData(
     val subMetrics: List<VendorRatingBreakdown> = emptyList()
 )
 
+@Immutable
 data class VendorRatingBreakdown(
     val score: String = "0.0",
     val label: String = ""
 )
 
+@Immutable
 data class VendorReview(
     val id: String = "",
     val userId: String = "",
@@ -94,6 +103,7 @@ data class VendorReview(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+@Immutable
 data class VendorMerchantReply(
     val merchantName: String = "",
     val merchantAvatarUrl: String? = null,

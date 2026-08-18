@@ -8,10 +8,10 @@ interface CateringDao {
     @Query("SELECT * FROM catering_items WHERE eventId = :eventId ORDER BY type ASC")
     fun getCateringItemsForEvent(eventId: String): Flow<List<CateringItemEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertItem(item: CateringItemEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertItems(items: List<CateringItemEntity>)
 
     @Delete
@@ -27,6 +27,6 @@ interface CateringDao {
     @Query("SELECT isSeeded FROM catering_metadata WHERE eventId = :eventId")
     suspend fun isEventSeeded(eventId: String): Boolean?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertMetadata(metadata: CateringMetadataEntity)
 }

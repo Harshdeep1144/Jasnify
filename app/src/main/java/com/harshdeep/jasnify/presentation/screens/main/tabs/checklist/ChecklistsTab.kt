@@ -22,8 +22,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,7 +71,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.google.firebase.auth.FirebaseAuth
@@ -100,7 +97,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -109,17 +106,17 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 sealed interface ChecklistScreenState {
-    object List : ChecklistScreenState
+    data object List : ChecklistScreenState
     data class Detail(val checklist: Checklist?, val isAddingNew: Boolean) : ChecklistScreenState
-    object Archives : ChecklistScreenState
-    object ManageRoomAccess : ChecklistScreenState
+    data object Archives : ChecklistScreenState
+    data object ManageRoomAccess : ChecklistScreenState
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
 fun ChecklistsTab(
@@ -130,15 +127,15 @@ fun ChecklistsTab(
     onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     onBackClick: () -> Unit = {}
 ) {
-    val mainGraphEntry =
-        remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+    val mainGraphEntry = remember(mainNavController) {
+        mainNavController.getBackStackEntry(Screen.MainAppGraph.route)
+    }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val navBarStyle by uiViewModel.navBarStyle.collectAsStateWithLifecycle()
 
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
-    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
 
     val auth = FirebaseAuth.getInstance()
@@ -179,7 +176,6 @@ fun ChecklistsTab(
     var navigatedFromArchives by remember { mutableStateOf(false) }
     var showDiscardToast by remember { mutableStateOf(false) }
 
-    // Toast State Management
     var toastData by remember { mutableStateOf(ToastData()) }
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
@@ -192,7 +188,6 @@ fun ChecklistsTab(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
-    // Detail Screen Bottom Sheets (Hoisted to root level to prevent scale issues)
     var showDetailColorPicker by remember { mutableStateOf(false) }
     var showDetailMenu by remember { mutableStateOf(false) }
     var showDetailDeleteConfirmation by remember { mutableStateOf(false) }
@@ -243,15 +238,12 @@ fun ChecklistsTab(
             selectedChecklist != null || isAddingNew -> {
                 ChecklistScreenState.Detail(selectedChecklist, isAddingNew)
             }
-
             showArchives -> {
                 ChecklistScreenState.Archives
             }
-
             showRoomAccess -> {
                 ChecklistScreenState.ManageRoomAccess
             }
-
             else -> {
                 ChecklistScreenState.List
             }
@@ -289,8 +281,6 @@ fun ChecklistsTab(
             showRoomAccess = false
         }
     }
-
-    val isAnySheetVisible = isAnyBottomSheetOpen
 
     RoomAccessGuardian(
         hasAccess = hasAccess,
@@ -503,6 +493,7 @@ fun ChecklistsTab(
                                                         CustomTopBar(
                                                             title = "Checklist",
                                                             titleIcon = painterResource(R.drawable.ic_checklists),
+                                                            menuIcon = TopIcon.Predefined.MENU_MODERN,
                                                             isLeftAligned = true,
                                                             isLargeTitle = true,
                                                             secondaryIcon = TopIcon.Predefined.SEARCH,
@@ -522,8 +513,7 @@ fun ChecklistsTab(
                                     },
                                     floatingActionButton = {
                                         if (!isViewer) {
-                                            val fabOffset =
-                                                if (navBarStyle == NavBarStyleOption.PILL_SHAPED) (-104).dp else (-12).dp
+                                            val fabOffset = if (navBarStyle == NavBarStyleOption.PILL_SHAPED) (-104).dp else (-12).dp
 
                                             CustomIconButton(
                                                 onClick = {
@@ -593,38 +583,37 @@ fun ChecklistsTab(
                                             )
                                         }
 
-                                        val filteredAndSortedChecklists =
-                                            remember(searchQuery, checklists, selectedFilter) {
+                                        val filteredAndSortedChecklists = remember(searchQuery, checklists, selectedFilter) {
+                                            val query = searchQuery.trim()
+                                            val searched = if (query.isEmpty()) {
+                                                checklists
+                                            } else {
                                                 checklists.filter {
-                                                    it.title.contains(
-                                                        searchQuery,
-                                                        ignoreCase = true
-                                                    ) ||
-                                                            it.items.any { item ->
-                                                                item.text.contains(
-                                                                    searchQuery,
-                                                                    ignoreCase = true
-                                                                )
-                                                            }
-                                                }.let { list ->
-                                                    when (selectedFilter) {
-                                                        "Recent First" -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated })
-
-                                                        "Oldest First" -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated })
-
-                                                        else -> list.sortedWith(
-                                                            compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt })
-                                                    }
+                                                    it.title.contains(query, ignoreCase = true) ||
+                                                            it.items.any { item -> item.text.contains(query, ignoreCase = true) }
                                                 }
                                             }
 
-                                        val boundsTransformSpec = BoundsTransform { _, _ ->
-                                            tween(
-                                                durationMillis = 500,
-                                                easing = FastOutSlowInEasing
-                                            )
+                                            when (selectedFilter) {
+                                                "Recent First" -> searched.sortedWith(
+                                                    compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated }
+                                                )
+                                                "Oldest First" -> searched.sortedWith(
+                                                    compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated }
+                                                )
+                                                else -> searched.sortedWith(
+                                                    compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt }
+                                                )
+                                            }
+                                        }
+
+                                        val boundsTransformSpec = remember {
+                                            BoundsTransform { _, _ ->
+                                                tween(
+                                                    durationMillis = 500,
+                                                    easing = FastOutSlowInEasing
+                                                )
+                                            }
                                         }
 
                                         if (filteredAndSortedChecklists.isEmpty()) {
@@ -672,7 +661,9 @@ fun ChecklistsTab(
                                                 ) {
                                                     items(
                                                         items = filteredAndSortedChecklists,
-                                                        key = { it.id }) { checklist ->
+                                                        key = { it.id },
+                                                        contentType = { "checklist_card" }
+                                                    ) { checklist ->
                                                         Box(
                                                             modifier = Modifier.sharedBounds(
                                                                 sharedContentState = rememberSharedContentState(
@@ -706,7 +697,9 @@ fun ChecklistsTab(
                                                 ) {
                                                     items(
                                                         items = filteredAndSortedChecklists,
-                                                        key = { it.id }) { checklist ->
+                                                        key = { it.id },
+                                                        contentType = { "checklist_card" }
+                                                    ) { checklist ->
                                                         Box(
                                                             modifier = Modifier.sharedBounds(
                                                                 sharedContentState = rememberSharedContentState(
@@ -809,24 +802,24 @@ fun ChecklistsTab(
                 )
             }
 
-            userToRemove?.let {
+            userToRemove?.let { targetUser ->
                 ConfirmationBottomSheet(
-                    heading = "Remove ${it.name} from Checklist Room?",
+                    heading = "Remove ${targetUser.name} from Checklist Room?",
                     subHeading = "They will not be able to access this room anymore.",
                     confirmButtonText = "Remove",
                     onDismiss = {
                         userToRemove = null
                     },
                     onConfirm = {
-                        val target = userToRemove
-                        if (target != null && activeEvent != null) {
+                        val eventId = activeEvent?.id
+                        if (eventId != null) {
                             roomViewModel.removeAccess(
-                                activeEvent!!.id,
+                                eventId,
                                 "Checklist",
-                                target.uid
+                                targetUser.uid
                             )
                             toastData = ToastData(
-                                "${target.name} removed from Room!",
+                                "${targetUser.name} removed from Room!",
                                 ToastType.SUCCESS
                             )
                         }
@@ -856,7 +849,6 @@ fun ChecklistsTab(
                 )
             }
 
-            // Detail Screen Bottom Sheets Hoisted Outside Scaled Container
             if (showDetailColorPicker) {
                 ColorPickerBottomSheet(
                     initialColor = detailColorBeforePicker,
@@ -879,7 +871,7 @@ fun ChecklistsTab(
             if (showDetailMenu) {
                 val isDetailArchived = archivedChecklists.any { it.id == selectedChecklist?.id }
                 MenuBottomSheet(
-                    items = listOf(
+                    items = listOfNotNull(
                         listOf(
                             MenuSheetActionItem(
                                 text = if (isDetailArchived) "Unarchive" else "Archive",
@@ -907,7 +899,7 @@ fun ChecklistsTab(
                                 )
                             )
                         } else null
-                    ).filterNotNull(),
+                    ),
                     onCancelClick = { showDetailMenu = false },
                     onProgress = { sheetMotionProgress = it }
                 )
@@ -932,7 +924,7 @@ fun ChecklistsTab(
             }
 
             AnimatedVisibility(
-                visible = (showDiscardToast || toastData.message != null) && !isAnySheetVisible,
+                visible = (showDiscardToast || toastData.message != null) && !isAnyBottomSheetOpen,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }),
                 exit = slideOutVertically(targetOffsetY = { -it - 500 }),
                 modifier = Modifier

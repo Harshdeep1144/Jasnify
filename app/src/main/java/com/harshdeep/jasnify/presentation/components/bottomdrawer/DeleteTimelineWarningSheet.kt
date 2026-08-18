@@ -4,19 +4,15 @@ import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,6 +25,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.InfoCard
 import com.harshdeep.jasnify.presentation.components.cards.InfoCardNature
+import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
 import com.harshdeep.jasnify.theme.*
 import sv.lib.squircleshape.SquircleShape
 
@@ -60,7 +57,6 @@ fun DeleteTimelineWarningSheet(
     }
 }
 
-
 @Composable
 fun DeleteTimelineWarningContent(
     onDismiss: () -> Unit,
@@ -91,7 +87,8 @@ fun DeleteTimelineWarningContent(
         }
 
         Column(
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .padding(12.dp, 0.dp, 12.dp, 12.dp),
             horizontalAlignment = Alignment.Start
         ) {
@@ -131,20 +128,34 @@ fun DeleteTimelineWarningContent(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 if (venueCount > 0) {
+                    val venueTooltip = if (venueCount == 1) {
+                        "Review & remove the 1 venue saved from the timeline."
+                    } else {
+                        "Review & remove all $venueCount venues saved from the timeline."
+                    }
+
                     ReviewCard(
                         count = venueCount,
-                        label = "Venues\nSaved",
-                        iconRes = R.drawable.ic_home, // Placeholder for Venue
+                        label = if (venueCount == 1) "Venue\nSaved" else "Venues\nSaved",
+                        iconRes = R.drawable.ic_home,
+                        tooltipText = venueTooltip,
                         onReview = onReviewVenues,
                         modifier = Modifier.weight(1f)
                     )
                 }
 
                 if (vendorCount > 0) {
+                    val vendorTooltip = if (vendorCount == 1) {
+                        "Review & remove the 1 vendor saved from the timeline."
+                    } else {
+                        "Review & remove all $vendorCount vendors saved from the timeline."
+                    }
+
                     ReviewCard(
                         count = vendorCount,
-                        label = "Vendors\nSaved",
+                        label = if (vendorCount == 1) "Vendor\nSaved" else "Vendors\nSaved",
                         iconRes = R.drawable.ic_vendor,
+                        tooltipText = vendorTooltip,
                         onReview = onReviewVendors,
                         modifier = Modifier.weight(1f)
                     )
@@ -154,16 +165,18 @@ fun DeleteTimelineWarningContent(
     }
 }
 
-
 @SuppressLint("DefaultLocale")
 @Composable
 fun ReviewCard(
     count: Int,
     label: String,
     iconRes: Int,
+    tooltipText: String,
     onReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showTooltip by remember { mutableStateOf(false) }
+
     Column(
         modifier = modifier
             .clip(SquircleShape(CornerLargeIncrease))
@@ -172,7 +185,9 @@ fun ReviewCard(
             .padding(12.dp)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.Top,
         ) {
@@ -195,12 +210,27 @@ fun ReviewCard(
                 )
             }
 
-            Icon(
-                painter = painterResource(id = R.drawable.ic_info),
-                contentDescription = null,
-                tint = ContentPrimary,
-                modifier = Modifier.size(24.dp)
-            )
+            Box {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_info),
+                    contentDescription = "Info",
+                    tint = ContentPrimary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            showTooltip = true
+                        }
+                )
+
+                InfoTooltip(
+                    visible = showTooltip,
+                    tooltipText = tooltipText,
+                    onDismiss = { showTooltip = false }
+                )
+            }
         }
         Spacer(modifier = Modifier.height(8.dp))
 
@@ -211,7 +241,6 @@ fun ReviewCard(
             modifier = Modifier.padding(start = 8.dp)
         )
         Spacer(modifier = Modifier.height(16.dp))
-
 
         CustomTextButton(
             onClick = onReview,
@@ -231,11 +260,10 @@ fun DeleteTimelineWarningSheetPreview() {
     JasnifyTheme {
         DeleteTimelineWarningContent(
             onDismiss = {},
-            venueCount = 58,
+            venueCount = 1,
             vendorCount = 7,
             onReviewVenues = {},
             onReviewVendors = {}
         )
     }
 }
-

@@ -5,25 +5,45 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -41,7 +61,6 @@ import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
@@ -49,6 +68,37 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val SingleContactItemShape = SquircleShape(
+    radius = CornerLargeIncrease,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val TopContactItemShape = SquircleShape(
+    topStart = CornerLargeIncrease,
+    topEnd = CornerLargeIncrease,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val MiddleContactItemShape = SquircleShape(
+    radius = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val BottomContactItemShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLargeIncrease,
+    bottomEnd = CornerLargeIncrease,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val FooterCardShape = SquircleShape(
+    radius = CornerLarge,
+    cornerSmoothing = CornerSmoothingDefault
+)
 
 @Composable
 fun ContactPickerBottomSheet(
@@ -63,22 +113,31 @@ fun ContactPickerBottomSheet(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val selectedContacts = remember { mutableStateListOf<Contact>() }
+    val selectedPhoneNumbers by remember {
+        derivedStateOf { selectedContacts.map { it.phoneNumber }.toSet() }
+    }
+
     var includePhoneNo by remember { mutableStateOf(true) }
     var currentSheetHeight by remember { mutableStateOf<Dp?>(620.dp) }
 
     val filteredContacts = remember(contacts, searchQuery, existingGuestIdentifiers) {
-        val base = if (searchQuery.isBlank()) {
+        val trimmedQuery = searchQuery.trim()
+        val base = if (trimmedQuery.isEmpty()) {
             contacts
         } else {
             contacts.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.phoneNumber.contains(searchQuery)
+                it.name.contains(trimmedQuery, ignoreCase = true) ||
+                        it.phoneNumber.contains(trimmedQuery)
             }
         }
-        
-        base.filter { contact ->
-            val identifier = contact.name.lowercase() + contact.phoneNumber
-            !existingGuestIdentifiers.contains(identifier)
+
+        if (existingGuestIdentifiers.isEmpty()) {
+            base
+        } else {
+            base.filter { contact ->
+                val identifier = contact.name.lowercase() + contact.phoneNumber
+                !existingGuestIdentifiers.contains(identifier)
+            }
         }
     }
 
@@ -141,19 +200,17 @@ fun ContactPickerBottomSheet(
             ) {
                 itemsIndexed(
                     items = filteredContacts,
-                    key = { _, contact -> contact.id + contact.phoneNumber }
+                    key = { _, contact -> contact.id + contact.phoneNumber },
+                    contentType = { _, _ -> "contact_item" }
                 ) { index, contact ->
-                    val isSelected = selectedContacts.any { it.phoneNumber == contact.phoneNumber }
+                    val isSelected = selectedPhoneNumbers.contains(contact.phoneNumber)
 
-                    val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                    val bottomRadius = if (index == filteredContacts.lastIndex) CornerLargeIncrease else CornerExtraSmall
-                    val itemShape = SquircleShape(
-                        topStart = topRadius,
-                        topEnd = topRadius,
-                        bottomStart = bottomRadius,
-                        bottomEnd = bottomRadius,
-                        cornerSmoothing = CornerSmoothingDefault
-                    )
+                    val itemShape = when {
+                        filteredContacts.size == 1 -> SingleContactItemShape
+                        index == 0 -> TopContactItemShape
+                        index == filteredContacts.lastIndex -> BottomContactItemShape
+                        else -> MiddleContactItemShape
+                    }
 
                     ContactItem(
                         contact = contact,
@@ -176,12 +233,13 @@ fun ContactPickerBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(12.dp)
-                    .clip(SquircleShape(radius = CornerLarge, cornerSmoothing = CornerSmoothingDefault))
+                    .clip(FooterCardShape)
                     .background(SurfaceSecondary)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth()
-                        .clip(SquircleShape(radius = CornerLarge, cornerSmoothing = CornerSmoothingDefault))
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(FooterCardShape)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -312,7 +370,6 @@ private fun ContactItem(
         }
     }
 }
-
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable

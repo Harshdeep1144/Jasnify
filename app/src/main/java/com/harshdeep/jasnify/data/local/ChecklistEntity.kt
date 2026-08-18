@@ -1,10 +1,18 @@
 package com.harshdeep.jasnify.data.local
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.harshdeep.jasnify.domain.model.ChecklistItem
 
-@Entity(tableName = "checklists")
+@Entity(
+    tableName = "checklists",
+    indices = [
+        Index(value = ["eventId"]),
+        Index(value = ["archived"]),
+        Index(value = ["pinned"])
+    ]
+)
 data class ChecklistEntity(
     @PrimaryKey val id: String,
     val ownerId: String,

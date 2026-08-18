@@ -42,10 +42,10 @@ import com.harshdeep.jasnify.presentation.components.cards.VenueCardFull
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.sections.RecentSearchesSection
-import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.sections.TrendingAiSearchesSection
+import com.harshdeep.jasnify.presentation.components.states.EmptyState
+import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 
 @Composable
 fun VenueExploreContent(
@@ -89,9 +89,8 @@ fun VenueExploreContent(
     }
 
     val recentVenuesList = remember(recentSearches, exploreVenues) {
-        recentSearches.mapNotNull { name ->
-            exploreVenues.find { it.name == name }
-        }
+        val venueMap = exploreVenues.associateBy { it.name }
+        recentSearches.mapNotNull { name -> venueMap[name] }
     }
 
     val handleVenueClick: (Venue) -> Unit = { venue ->
@@ -107,8 +106,8 @@ fun VenueExploreContent(
         state = listState,
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item {
-            Column{
+        item(key = "search_header", contentType = "header") {
+            Column {
                 AnimatedVisibility(
                     visible = !isSearchActive,
                     enter = fadeIn() + expandVertically(),
@@ -159,14 +158,18 @@ fun VenueExploreContent(
 
         if (isSearchActive && text.isNotEmpty()) {
             if (filteredAndSortedExploreVenues.isEmpty()) {
-                item {
+                item(key = "empty_search", contentType = "empty_state") {
                     EmptyState(
                         message = "No matches for \"$text\"",
                         iconRes = R.drawable.ic_receipt
                     )
                 }
             } else {
-                items(filteredAndSortedExploreVenues.take(8)) { venue ->
+                items(
+                    items = filteredAndSortedExploreVenues.take(8),
+                    key = { "suggestion_${it.id.ifEmpty { it.name }}" },
+                    contentType = { "suggestion_item" }
+                ) { venue ->
                     SearchSuggestionItem(
                         title = venue.name,
                         subtitle = "${venue.locality}, ${venue.city}",
@@ -181,7 +184,7 @@ fun VenueExploreContent(
             items(
                 items = filteredAndSortedExploreVenues,
                 key = { it.id.ifEmpty { it.name } },
-                contentType = { "venue" }
+                contentType = { "venue_full_card" }
             ) { venueItem ->
                 VenueCardFull(
                     venue = venueItem,
@@ -195,7 +198,11 @@ fun VenueExploreContent(
             }
         } else if (!isSearchActive) {
             if (isLoading && filteredAndSortedExploreVenues.isEmpty()) {
-                items(5) {
+                items(
+                    count = 5,
+                    key = { "loading_$it" },
+                    contentType = { "loading_card" }
+                ) {
                     VenueCardFull(
                         venue = Venue(),
                         isLoading = true,
@@ -203,14 +210,14 @@ fun VenueExploreContent(
                     )
                 }
             } else if (filteredAndSortedExploreVenues.isEmpty()) {
-                item {
+                item(key = "no_venues_found", contentType = "empty_state") {
                     EmptyState(message = "No venues found")
                 }
             } else {
                 items(
                     items = filteredAndSortedExploreVenues,
                     key = { it.id.ifEmpty { it.name } },
-                    contentType = { "venue" }
+                    contentType = { "venue_full_card" }
                 ) { venueItem ->
                     VenueCardFull(
                         venue = venueItem,
@@ -224,7 +231,7 @@ fun VenueExploreContent(
                 }
             }
         } else {
-            item {
+            item(key = "trending_searches", contentType = "trending_searches") {
                 TrendingAiSearchesSection(
                     onTrendingClick = { query ->
                         onTextChange(query)
@@ -233,7 +240,7 @@ fun VenueExploreContent(
                 )
             }
             if (recentVenuesList.isNotEmpty()) {
-                item {
+                item(key = "recent_searches_section", contentType = "recent_searches") {
                     RecentSearchesSection(
                         onVenueClick = handleVenueClick,
                         recentVenues = recentVenuesList,
@@ -254,10 +261,9 @@ fun VenueExploreContent(
             }
         }
         if (!isSearchActive) {
-            item {
+            item(key = "footer", contentType = "footer") {
                 FooterJansify()
             }
         }
-        item { Spacer(Modifier.height(100.dp)) }
     }
 }

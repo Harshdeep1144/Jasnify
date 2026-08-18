@@ -96,7 +96,6 @@ class VenueViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             // Simulate check or real check
-            delay(2000.milliseconds) // Small delay for shimmer effect visibility
             _isLoading.value = false
         }
     }
@@ -129,7 +128,9 @@ class VenueViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setEventId(id: String) {
-        _eventId.value = id
+        if (_eventId.value != id) {
+            _eventId.value = id
+        }
     }
 
     fun toggleSaveVenue(venueName: String, venueId: String, isViewer: Boolean, destination: String? = null) {

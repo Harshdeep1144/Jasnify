@@ -5,12 +5,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -31,20 +31,19 @@ fun CateringRoomContent(
     onLeave: () -> Unit,
     onShowToast: (ToastData) -> Unit
 ) {
-    val roomUsers by roomViewModel.roomUsers.collectAsState()
-    val searchResults by roomViewModel.searchResults.collectAsState()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
-    val auth = FirebaseAuth.getInstance()
-    val currentUserUid = auth.currentUser?.uid ?: ""
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
 
-    val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
-
-    val displayUsers = remember(roomUsers, currentUserUid) {
+    val displayUsers = remember(roomUsers, currentUserUid, currentUserRole, auth.currentUser) {
+        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
         if (currentUserInRoom == null && currentUserUid.isNotEmpty()) {
             val self = User(
                 uid = currentUserUid,
                 name = auth.currentUser?.displayName ?: "Me",
-                email = auth.currentUser?.email ?: "",
+                email = auth.currentUser?.email.orEmpty(),
                 role = currentUserRole,
                 username = auth.currentUser?.email?.substringBefore("@") ?: "me"
             )
@@ -77,15 +76,11 @@ fun CateringRoomContent(
             onRoleChange = { targetUser, newRole ->
                 roomViewModel.updateRole(eventId, "Catering", targetUser, newRole)
             },
-            onRemove = { targetUser ->
-                onRemove(targetUser)
-            },
+            onRemove = onRemove,
             onReport = { targetUser ->
                 onShowToast(ToastData("${targetUser.name} reported", ToastType.DEFAULT))
             },
-            onLeave = {
-                onLeave()
-            },
+            onLeave = onLeave,
             searchResults = searchResults,
             onSearch = { roomViewModel.searchUsers(it) },
             onGrantAccess = { email, role ->

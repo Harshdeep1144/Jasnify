@@ -22,6 +22,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,7 +44,6 @@ import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -51,6 +51,22 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+
+private val ProfileCardShape = RoundedCornerShape(CornerExtraLarge)
+private val SingleActionShape = RoundedCornerShape(CornerLarge)
+private val TopActionShape = RoundedCornerShape(
+    topStart = CornerLarge,
+    topEnd = CornerLarge,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall
+)
+private val MiddleActionShape = RoundedCornerShape(CornerExtraSmall)
+private val BottomActionShape = RoundedCornerShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLarge,
+    bottomEnd = CornerLarge
+)
 
 private data class ActionItem(
     val text: String,
@@ -78,7 +94,6 @@ fun RoomProfileBottomSheet(
     onRemove: () -> Unit,
     onReport: () -> Unit,
     onLeave: () -> Unit,
-    modifier: Modifier = Modifier,
     onProgress: ((Float) -> Unit)? = null
 ) {
     CustomBottomSheet(
@@ -87,7 +102,7 @@ fun RoomProfileBottomSheet(
         sheetHeight = null,
         containerColor = SurfaceSecondary,
         showDragHandle = true,
-        showCloseButton = false
+        showCloseButton = false,
     ) {
         RoomProfileContent(
             user = user,
@@ -149,7 +164,7 @@ fun RoomProfileContent(
             modifier = Modifier
                 .padding(horizontal = 12.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(CornerExtraLarge))
+                .clip(ProfileCardShape)
                 .background(SurfacePrimary)
                 .padding(vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -228,7 +243,7 @@ fun AccessLevelSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             DashedDivider(
-                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -249,26 +264,29 @@ fun AccessLevelSection(
             )
         }
     } else {
-        // Read-only/Display Mode Banner Config
-        val data = when (user.role) {
-            UserRole.OWNER -> {
-                val text = if (isSelf) "You’re the Owner" else "Owner"
-                val note = if (isSelf) "You can't transfer ownership to someone else." else null
-                AccessBannerData(
-                    backgroundColor = Color(0xFFF7D985),
-                    textColor = Color(0xFF654C05),
-                    bannerText = text,
-                    iconResId = R.drawable.ic_shield,
-                    subText = note
-                )
-            }
-            UserRole.EDITOR -> {
-                val text = if (isSelf) "You have Editor Access" else "${user.name.split(" ")[0]} has Editor Access"
-                AccessBannerData(SurfaceBrandSecondary, ContentBrand, text)
-            }
-            else -> { // VIEWER
-                val text = if (isSelf) "You have Viewer Access" else "${user.name.split(" ")[0]} has Viewer Access"
-                AccessBannerData(SurfaceSecondary, ContentSecondary, text)
+        val firstName = remember(user.name) { user.name.substringBefore(' ') }
+
+        val data = remember(user.role, isSelf, firstName) {
+            when (user.role) {
+                UserRole.OWNER -> {
+                    val text = if (isSelf) "You’re the Owner" else "Owner"
+                    val note = if (isSelf) "You can't transfer ownership to someone else." else null
+                    AccessBannerData(
+                        backgroundColor = Color(0xFFF7D985),
+                        textColor = Color(0xFF654C05),
+                        bannerText = text,
+                        iconResId = R.drawable.ic_shield,
+                        subText = note
+                    )
+                }
+                UserRole.EDITOR -> {
+                    val text = if (isSelf) "You have Editor Access" else "$firstName has Editor Access"
+                    AccessBannerData(SurfaceBrandSecondary, ContentBrand, text)
+                }
+                else -> {
+                    val text = if (isSelf) "You have Viewer Access" else "$firstName has Viewer Access"
+                    AccessBannerData(SurfaceSecondary, ContentSecondary, text)
+                }
             }
         }
 
@@ -343,37 +361,42 @@ fun ActionsSection(
     val showLeave = isSelf && user.role != UserRole.OWNER
     val showReport = !isSelf
 
-    val actionItems = mutableListOf<ActionItem>()
+    val errorColor = MaterialTheme.colorScheme.error
+    val firstName = remember(user.name) { user.name.substringBefore(' ') }
 
-    if (showRemove) {
-        actionItems.add(
-            ActionItem(
-                text = "Remove from Room",
-                textColor = MaterialTheme.colorScheme.error,
-                iconResId = R.drawable.ic_minus,
-                onClick = onRemove
-            )
-        )
-    }
-    if (showLeave) {
-        actionItems.add(
-            ActionItem(
-                text = "Leave Room",
-                textColor = MaterialTheme.colorScheme.error,
-                iconResId = R.drawable.ic_logout,
-                onClick = onLeave
-            )
-        )
-    }
-    if (showReport) {
-        actionItems.add(
-            ActionItem(
-                text = "Report ${user.name.split(" ")[0]}",
-                textColor = MaterialTheme.colorScheme.error,
-                iconResId = R.drawable.ic_thumbs_down,
-                onClick = onReport
-            )
-        )
+    val actionItems = remember(showRemove, showLeave, showReport, errorColor, firstName) {
+        buildList {
+            if (showRemove) {
+                add(
+                    ActionItem(
+                        text = "Remove from Room",
+                        textColor = errorColor,
+                        iconResId = R.drawable.ic_minus,
+                        onClick = onRemove
+                    )
+                )
+            }
+            if (showLeave) {
+                add(
+                    ActionItem(
+                        text = "Leave Room",
+                        textColor = errorColor,
+                        iconResId = R.drawable.ic_logout,
+                        onClick = onLeave
+                    )
+                )
+            }
+            if (showReport) {
+                add(
+                    ActionItem(
+                        text = "Report $firstName",
+                        textColor = errorColor,
+                        iconResId = R.drawable.ic_thumbs_down,
+                        onClick = onReport
+                    )
+                )
+            }
+        }
     }
 
     if (actionItems.isNotEmpty()) {
@@ -383,13 +406,13 @@ fun ActionsSection(
                 .fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(1.dp)
         ) {
+            val totalItems = actionItems.size
             actionItems.forEachIndexed { index, item ->
-                val totalItems = actionItems.size
                 val roundedShape = when {
-                    totalItems == 1 -> RoundedCornerShape(CornerLarge)
-                    index == 0 -> RoundedCornerShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
-                    index == totalItems - 1 -> RoundedCornerShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
-                    else -> RoundedCornerShape(CornerExtraSmall)
+                    totalItems == 1 -> SingleActionShape
+                    index == 0 -> TopActionShape
+                    index == totalItems - 1 -> BottomActionShape
+                    else -> MiddleActionShape
                 }
 
                 CustomTextButton(
@@ -410,9 +433,7 @@ fun ActionsSection(
     }
 }
 
-
 // ================================================= Preview ======================================================
-
 
 @Preview(showBackground = true)
 @Composable

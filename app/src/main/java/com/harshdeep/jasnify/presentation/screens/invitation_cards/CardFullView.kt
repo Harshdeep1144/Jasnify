@@ -4,8 +4,22 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,12 +38,17 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+
+private val FullCardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -49,16 +68,20 @@ fun CardFullView(
     val graphicsLayer = rememberGraphicsLayer()
     var cardToCapture by remember { mutableStateOf<CardData?>(null) }
 
-    val onShareTrigger = { data: CardData ->
-        coroutineScope.launch {
-            cardToCapture = data
-            delay(100.milliseconds)
-            val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
-            ShareUtils.shareImage(context, bitmap, whatsappOnly = false)
-            cardToCapture = null
+    val onShareTrigger: (CardData) -> Unit = remember(context, graphicsLayer) {
+        { data: CardData ->
+            coroutineScope.launch {
+                cardToCapture = data
+                delay(100.milliseconds)
+                val bitmap = graphicsLayer.toImageBitmap().asAndroidBitmap()
+                ShareUtils.shareImage(context, bitmap, whatsappOnly = false)
+                cardToCapture = null
+            }
         }
-        Unit
     }
+
+    val sharePainter = painterResource(R.drawable.ic_share)
+    val editPainter = painterResource(R.drawable.ic_edit)
 
     Box(
         modifier = Modifier
@@ -90,12 +113,12 @@ fun CardFullView(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-        ){
+        ) {
             CustomTopBar(
                 onBackClick = onBackClick,
                 onMenuClick = { onShareTrigger(card) },
                 backIcon = TopIcon.Predefined.BACK_2,
-                menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_share)),
+                menuIcon = TopIcon.CustomPainter(sharePainter),
                 textColor = ContentInvPrimary,
                 buttonStyle = ButtonBackground.TRANSLUCENT
             )
@@ -121,9 +144,9 @@ fun CardFullView(
                         .sharedBounds(
                             sharedContentState = rememberSharedContentState(key = transitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
-                            clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                            clipInOverlayDuringTransition = OverlayClip(FullCardShape)
                         )
-                        .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                        .clip(FullCardShape)
                 ) {
                     CardItem(
                         data = card,
@@ -134,7 +157,7 @@ fun CardFullView(
             }
         }
 
-        // Bottom Action Button (Visible only when user can edit)
+        // Bottom Action Button
         if (canEdit) {
             Box(
                 modifier = Modifier
@@ -146,7 +169,7 @@ fun CardFullView(
                     onClick = onEditDetailsClick,
                     containerColor = ContentInvPrimary,
                     contentColor = ContentPrimary,
-                    leadingIcon = painterResource(R.drawable.ic_edit),
+                    leadingIcon = editPainter,
                     shapeStyle = ButtonShapeStyle.Round,
                     modifier = Modifier
                         .fillMaxWidth()

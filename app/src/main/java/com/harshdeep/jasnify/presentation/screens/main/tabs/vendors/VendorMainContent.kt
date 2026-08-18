@@ -30,7 +30,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.graphicsLayer
@@ -48,6 +47,7 @@ import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
 import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
@@ -58,7 +58,6 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryGrid
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
-import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -98,13 +97,28 @@ fun VendorMainContent(
 
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
-        baseList.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.category.contains(searchQuery, ignoreCase = true) ||
-                    it.locality.contains(searchQuery, ignoreCase = true) ||
-                    it.city.contains(searchQuery, ignoreCase = true) ||
-                    it.location.contains(searchQuery, ignoreCase = true)
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            baseList.distinctBy { it.id }
+        } else {
+            baseList.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.category.contains(query, ignoreCase = true) ||
+                        it.locality.contains(query, ignoreCase = true) ||
+                        it.city.contains(query, ignoreCase = true) ||
+                        it.location.contains(query, ignoreCase = true)
+            }.distinctBy { it.id }
         }
+    }
+
+    val (makeupVendors, photographyVendors, mehendiVendors) = remember(allVendors) {
+        val base = allVendors.ifEmpty { MockData.sampleVendors }
+        val grouped = base.groupBy { it.category }
+        Triple(
+            grouped["Makeup"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+            grouped["Photography"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+            grouped["Mehendi"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } }
+        )
     }
 
     LaunchedEffect(isSearchActive) {
@@ -112,6 +126,8 @@ fun VendorMainContent(
             onSearchQueryChange("")
         }
     }
+
+    val vendorTitlePainter = painterResource(R.drawable.ic_vendor)
 
     Scaffold(
         containerColor = BackgroundPrimary,
@@ -138,7 +154,7 @@ fun VendorMainContent(
                 state = listState,
                 contentPadding = PaddingValues(bottom = 0.dp)
             ) {
-                item(key = "top_bar") {
+                item(key = "top_bar", contentType = "header") {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -166,7 +182,8 @@ fun VendorMainContent(
                                 } else null,
                                 onMenuClick = if (active) null else onMenuClick,
                                 onDropdownClick = if (active) null else onLocationClick,
-                                titleIcon = if (active) null else painterResource(R.drawable.ic_vendor),
+                                titleIcon = if (active) null else vendorTitlePainter,
+                                menuIcon = TopIcon.Predefined.MENU_MODERN,
                                 backIcon = TopIcon.Predefined.DOWN,
                                 isLargeTitle = true,
                                 isLeftAligned = !active,
@@ -176,7 +193,7 @@ fun VendorMainContent(
                     }
                 }
 
-                stickyHeader(key = "search_header") {
+                stickyHeader(key = "search_header", contentType = "sticky_search") {
                     Column(
                         modifier = Modifier
                             .background(BackgroundPrimary)
@@ -199,14 +216,15 @@ fun VendorMainContent(
 
                 if (isSearchActive && searchQuery.isNotEmpty()) {
                     if (filteredAllVendors.isEmpty()) {
-                        item(key = "empty_search") {
+                        item(key = "empty_search", contentType = "empty_state") {
                             EmptyState(message = "No matches for \"$searchQuery\"")
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                     } else {
                         items(
                             items = filteredAllVendors.take(8),
-                            key = { "search_${it.name}_${it.category}" }
+                            key = { "search_${it.id}" },
+                            contentType = { "suggestion_item" }
                         ) { vendor ->
                             SearchSuggestionItem(
                                 title = vendor.name,
@@ -222,7 +240,8 @@ fun VendorMainContent(
                 } else if (!isSearchActive && searchQuery.isNotEmpty()) {
                     items(
                         items = filteredAllVendors,
-                        key = { "filtered_${it.name}_${it.category}" }
+                        key = { "filtered_${it.id}" },
+                        contentType = { "vendor_full_card" }
                     ) { vendor ->
                         VendorCardFull(
                             vendor = vendor,
@@ -234,18 +253,18 @@ fun VendorMainContent(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 } else if (!isSearchActive) {
-                    item(key = "categories_grid") {
+                    item(key = "categories_grid", contentType = "categories_grid") {
                         VendorCategoryGrid(categories = categories, onCategoryClick = onCategoryClick)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "explore_divider") {
+                    item(key = "explore_divider", contentType = "divider") {
                         OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "carousel_makeup") {
+                    item(key = "carousel_makeup", contentType = "vendor_carousel") {
                         VendorCarousel(
                             title = "Top Makeup Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Makeup" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
+                            vendors = makeupVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
@@ -258,10 +277,10 @@ fun VendorMainContent(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "carousel_photography") {
+                    item(key = "carousel_photography", contentType = "vendor_carousel") {
                         VendorCarousel(
                             title = "Best Photographers in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Photography" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
+                            vendors = photographyVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
@@ -274,10 +293,10 @@ fun VendorMainContent(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "carousel_mehendi") {
+                    item(key = "carousel_mehendi", contentType = "vendor_carousel") {
                         VendorCarousel(
                             title = "Expert Mehendi Artists in $selectedCity",
-                            vendors = allVendors.filter { it.category == "Mehendi" }.ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } },
+                            vendors = mehendiVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
                                 saveRecentSearch(context, vendor.name)
@@ -290,16 +309,16 @@ fun VendorMainContent(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "explore_horizontal") {
+                    item(key = "explore_horizontal", contentType = "explore_horizontal") {
                         DashedDivider()
                         ExploreCategoriesHorizontal(categories = categories, onCategoryClick = onCategoryClick)
                         Spacer(modifier = Modifier.height(12.dp))
                     }
-                    item(key = "footer") {
+                    item(key = "footer", contentType = "footer") {
                         FooterJansify()
                     }
                 } else {
-                    item(key = "trending_searches") {
+                    item(key = "trending_searches", contentType = "trending_searches") {
                         TrendingAiSearchesSection(onTrendingClick = { query ->
                             onSearchQueryChange(query)
                             focusManager.clearFocus()
@@ -307,7 +326,7 @@ fun VendorMainContent(
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                     if (recentVendorsList.isNotEmpty()) {
-                        item(key = "recent_searches_section") {
+                        item(key = "recent_searches_section", contentType = "recent_searches") {
                             RecentSearchesSection(
                                 recentVendors = recentVendorsList,
                                 onVendorClick = onVendorClick,
@@ -321,7 +340,7 @@ fun VendorMainContent(
                             Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
-                    item(key = "spacer_bottom") { Spacer(Modifier.height(24.dp)) }
+                    item(key = "spacer_bottom", contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
                 }
             }
         }

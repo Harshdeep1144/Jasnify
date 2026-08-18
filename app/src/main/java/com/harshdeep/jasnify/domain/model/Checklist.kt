@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.domain.model
 
+import androidx.compose.runtime.Immutable
 import java.util.UUID
 
+@Immutable
 data class Checklist(
     val id: String = UUID.randomUUID().toString(),
     val ownerId: String = "",
@@ -16,6 +18,7 @@ data class Checklist(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+@Immutable
 data class ChecklistItem(
     val id: String = UUID.randomUUID().toString(),
     val text: String = "",
