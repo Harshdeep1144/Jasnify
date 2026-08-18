@@ -60,6 +60,7 @@ fun FilterBottomSheet(
         onProgress = onProgress,
         sheetHeight = null,
         showDragHandle = true,
+        sheetGesturesEnabled = options.size < 10,
         showCloseButton = true
     ) {
         FilterBottomSheetContent(

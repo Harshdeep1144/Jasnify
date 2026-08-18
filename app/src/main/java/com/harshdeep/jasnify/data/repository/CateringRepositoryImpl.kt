@@ -1,17 +1,17 @@
 package com.harshdeep.jasnify.data.repository
 
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.harshdeep.jasnify.data.local.CateringDao
 import com.harshdeep.jasnify.data.local.CateringItemEntity
 import com.harshdeep.jasnify.data.local.CateringMetadataEntity
+import com.harshdeep.jasnify.data.utils.CateringDefaults
 import com.harshdeep.jasnify.domain.repository.CateringRepository
-import com.harshdeep.jasnify.presentation.components.chip.Dietary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 
 class CateringRepositoryImpl @Inject constructor(
@@ -28,7 +28,7 @@ class CateringRepositoryImpl @Inject constructor(
 
     private fun fetchItemsFromFirestore(eventId: String) {
         if (eventId.isEmpty()) return
-        
+
         // 1. Listen for items
         firestore.collection("events")
             .document(eventId)
@@ -37,7 +37,7 @@ class CateringRepositoryImpl @Inject constructor(
             .collection("items")
             .addSnapshotListener { snapshot, e ->
                 if (e != null) return@addSnapshotListener
-                
+
                 snapshot?.documents?.forEach { doc ->
                     val item = doc.toObject(CateringItemEntity::class.java)
                     if (item != null) {
@@ -135,104 +135,36 @@ class CateringRepositoryImpl @Inject constructor(
                     .document(eventId)
                     .collection("rooms")
                     .document("Catering")
-                    .set(mapOf("isSeeded" to true), com.google.firebase.firestore.SetOptions.merge())
+                    .set(mapOf("isSeeded" to true), SetOptions.merge())
                     .await()
             } catch (e: Exception) {}
         }
 
+        // 5. Retrieve appropriate template bundle and map to entities
         val normalizedType = eventType.lowercase()
-        val defaultItems = when {
-            // Grand Festive Events: Wedding, Engagement, Anniversary
+        val templateItems = when {
             normalizedType.contains("wedding") ||
-            normalizedType.contains("engagement") ||
-            normalizedType.contains("anniversary") -> listOf(
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken Malai Tikka", Dietary.NonVeg, "Starters", "Mughlai"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Crispy Chilli Potato", Dietary.Veg, "Starters", "Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Mutton Seekh Kebab", Dietary.NonVeg, "Starters", "Mughlai"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Amritsari Fish Fry", Dietary.NonVeg, "Starters", "Punjabi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Hara Bhara Kebab", Dietary.Veg, "Starters", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken 65", Dietary.NonVeg, "Starters", "South Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Cheese Corn Balls", Dietary.Veg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Garlic Butter Prawns", Dietary.NonVeg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Mango Lassi", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Masala Lemonade", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Virgin Mojito", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Cold Coffee with Ice Cream", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Iced Peach Tea", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Blue Lagoon Mocktail", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Sweet & Salt Lime Soda", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Thandai", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Assorted Soft Drinks", Dietary.Veg, "Beverages", "Global"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Rajma Rice Bowl", Dietary.Veg, "Main Course", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Dal Makhani", Dietary.Veg, "Main Course", "Punjabi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Butter Chicken", Dietary.NonVeg, "Main Course", "Punjabi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Mutton Rogan Josh", Dietary.NonVeg, "Main Course", "Kashmiri"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Paneer Lababdar", Dietary.Veg, "Main Course", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Hyderabadi Chicken Biryani", Dietary.NonVeg, "Main Course", "Hyderabadi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Veg Dum Biryani", Dietary.Veg, "Main Course", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken Tikka Masala", Dietary.NonVeg, "Main Course", "Mughlai"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken Hakka Noodles", Dietary.NonVeg, "Main Course", "Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Fish Curry", Dietary.NonVeg, "Main Course", "Coastal"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chilli Paneer", Dietary.Veg, "Main Course", "Indo-Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Veg Manchurian", Dietary.Veg, "Main Course", "Indo-Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken Manchurian", Dietary.NonVeg, "Main Course", "Indo-Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Tandoori Roti", Dietary.Veg, "Main Course", "Indian Bread"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Butter Naan", Dietary.Veg, "Main Course", "Indian Bread"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Paneer Stuffed Naan", Dietary.Veg, "Main Course", "Indian Bread"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Classic Cheesecake", Dietary.Veg, "Desserts", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Moong Dal Halwa", Dietary.Veg, "Desserts", "Rajasthani"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Warm Chocolate Brownie", Dietary.Veg, "Desserts", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Kesari Phirni", Dietary.Veg, "Desserts", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Tiramisu Cups", Dietary.Veg, "Desserts", "Italian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Fresh Fruit Cream", Dietary.Veg, "Desserts", "Global"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Shahi Tukda", Dietary.Veg, "Desserts", "Awadhi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Vanilla Bean Ice Cream", Dietary.Veg, "Desserts", "Global")
-            )
+                    normalizedType.contains("engagement") ||
+                    normalizedType.contains("anniversary") -> CateringDefaults.weddingTemplates
 
             normalizedType.contains("birthday") ||
-            normalizedType.contains("family") ||
-            normalizedType.contains("reunion") ||
-            normalizedType.contains("farewell") -> listOf(
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Mini Burgers", Dietary.NonVeg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "French Fries", Dietary.Veg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Cheese Corn Balls", Dietary.Veg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chilli Paneer", Dietary.Veg, "Main Course", "Indo-Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken Hakka Noodles", Dietary.NonVeg, "Main Course", "Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Virgin Mojito", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Cold Coffee with Ice Cream", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Warm Chocolate Brownie", Dietary.Veg, "Desserts", "Continental")
-            )
+                    normalizedType.contains("family") ||
+                    normalizedType.contains("reunion") ||
+                    normalizedType.contains("farewell") -> CateringDefaults.casualPartyTemplates
 
             normalizedType.contains("seminar") ||
-            normalizedType.contains("exhibition") ||
-            normalizedType.contains("meetup") -> listOf(
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Hara Bhara Kebab", Dietary.Veg, "Starters", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Assorted Sandwiches", Dietary.Veg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Masala Lemonade", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Iced Peach Tea", Dietary.Veg, "Beverages", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Dal Makhani", Dietary.Veg, "Main Course", "Punjabi"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Paneer Lababdar", Dietary.Veg, "Main Course", "North Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Butter Naan", Dietary.Veg, "Main Course", "Indian Bread"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Fresh Fruit Cream", Dietary.Veg, "Desserts", "Global")
-            )
+                    normalizedType.contains("exhibition") ||
+                    normalizedType.contains("meetup") ||
+                    normalizedType.contains("corporate") -> CateringDefaults.corporateTemplates
 
             normalizedType.contains("concert") ||
-            normalizedType.contains("cultural") -> listOf(
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Crispy Chilli Potato", Dietary.Veg, "Starters", "Chinese"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Chicken 65", Dietary.NonVeg, "Starters", "South Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Assorted Soft Drinks", Dietary.Veg, "Beverages", "Global"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Sweet & Salt Lime Soda", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Veg Dum Biryani", Dietary.Veg, "Main Course", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Hyderabadi Chicken Biryani", Dietary.NonVeg, "Main Course", "Hyderabadi")
-            )
+                    normalizedType.contains("cultural") ||
+                    normalizedType.contains("festival") -> CateringDefaults.festivalTemplates
 
-            else -> listOf(
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Masala Lemonade", Dietary.Veg, "Beverages", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Cheese Corn Balls", Dietary.Veg, "Starters", "Continental"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Veg Dum Biryani", Dietary.Veg, "Main Course", "Indian"),
-                CateringItemEntity(UUID.randomUUID().toString(), eventId, "Vanilla Bean Ice Cream", Dietary.Veg, "Desserts", "Global")
-            )
+            else -> CateringDefaults.generalTemplates
         }
+
+        val defaultItems = templateItems.map { it.toEntity(eventId) }
         addItems(defaultItems)
     }
 }

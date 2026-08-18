@@ -42,6 +42,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.CurrencyBottom
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.getCurrencyCodes
 import com.harshdeep.jasnify.presentation.components.buttons.*
 import com.harshdeep.jasnify.presentation.components.chip.EventTypeChip
 import com.harshdeep.jasnify.presentation.components.inputfield.BudgetInput
@@ -542,8 +543,11 @@ fun EventCreation(
 
         if (isCurrencySheetVisible) {
             val currentCurrencyCode = eventData.budget.takeWhile { !it.isDigit() && it != '.' }.ifEmpty { "INR" }
+            val currentCurrency = remember(currentCurrencyCode) {
+                getCurrencyCodes().find { it.code == currentCurrencyCode } ?: SelectableItem(currentCurrencyCode, "", "")
+            }
             CurrencyBottomSheet(
-                initialSelection = SelectableItem(currentCurrencyCode, "", ""),
+                initialSelection = currentCurrency,
                 onItemSelected = { selectedItem ->
                     val numericValue = eventData.budget.removePrefix(currentCurrencyCode)
                     eventData = eventData.copy(budget = selectedItem.code + numericValue)

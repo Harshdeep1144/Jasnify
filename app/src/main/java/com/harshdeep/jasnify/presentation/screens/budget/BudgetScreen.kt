@@ -136,6 +136,7 @@ private fun parseExpenseAmount(amountStr: String): Double {
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
+    onAiChatClick: (String) -> Unit = {},
     viewModel: BudgetViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
@@ -491,7 +492,21 @@ fun BudgetScreen(
                                         expenseToEdit = null
                                         showAddExpenseSheet = true
                                     },
-                                    onAiOverviewClick = { },
+                                    onAiOverviewClick = {
+                                        val context = """
+                                            Budget Summary for ${activeEvent?.name ?: "Event"}:
+                                            Total Budget: ₹$formattedTotalBudget
+                                            Total Spent: $formattedTotalSpent
+                                            Remaining: $formattedRemaining (${(remainingPercentage * 100).toInt()}%)
+                                            
+                                            Category Breakdown:
+                                            ${computedCategories.joinToString("\n") { "${it.name}: ${it.amountFormatted} (${it.totalCount} items)" }}
+                                            
+                                            Recent Expenses:
+                                            ${allExpenses.take(10).joinToString("\n") { "- ${it.title}: ${it.amount} (${it.category})" }}
+                                        """.trimIndent()
+                                        onAiChatClick(context)
+                                    },
                                     formatAmount = { formatter.format(it.toLong()) }
                                 )
                                 BudgetScreenView.EXPENSE_CATEGORY -> ExpenseCategoryContent(

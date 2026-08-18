@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,6 +49,7 @@ fun CustomTopBar(
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
+    buttonColor: Color = SurfaceSecondary,
     borderColor: Color? = null,
     borderGradientColors: List<Color>? = null,
     borderWidth: Dp = 1.dp,
@@ -78,6 +78,7 @@ fun CustomTopBar(
                         icon = backIcon,
                         onClick = onBackClick,
                         backgroundStyle = buttonStyle,
+                        buttonColor = buttonColor,
                         borderColor = borderColor,
                         borderGradientColors = borderGradientColors,
                         borderWidth = borderWidth,
@@ -110,7 +111,7 @@ fun CustomTopBar(
                                     shape = SquircleShape(CornerMedium, CornerSmoothingDefault)
                                 ),
                             shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
-                            color = SurfaceSecondary
+                            color = buttonColor
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -211,7 +212,7 @@ fun CustomTopBar(
                     }
                 }
 
-                // Right Side Multi-Actions (Supports up to 2 icons horizontally)
+                // Right Side Multi-Actions
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -221,6 +222,7 @@ fun CustomTopBar(
                             icon = secondaryIcon,
                             onClick = onSecondaryClick,
                             backgroundStyle = buttonStyle,
+                            buttonColor = buttonColor,
                             borderColor = borderColor,
                             borderGradientColors = borderGradientColors,
                             borderWidth = borderWidth,
@@ -235,6 +237,7 @@ fun CustomTopBar(
                             icon = menuIcon,
                             onClick = onMenuClick,
                             backgroundStyle = buttonStyle,
+                            buttonColor = buttonColor,
                             borderColor = borderColor,
                             borderGradientColors = borderGradientColors,
                             borderWidth = borderWidth,
@@ -248,13 +251,13 @@ fun CustomTopBar(
 
             } else {
                 // Standard Center-Aligned Layout
-                // Back Button Box (Width locked for centered alignment calculations)
                 Box(modifier = Modifier.width(40.dp)) {
                     if (onBackClick != null && titleIcon == null) {
                         TopBarIconButton(
                             icon = backIcon,
                             onClick = onBackClick,
                             backgroundStyle = buttonStyle,
+                            buttonColor = buttonColor,
                             borderColor = borderColor,
                             borderGradientColors = borderGradientColors,
                             borderWidth = borderWidth,
@@ -295,7 +298,7 @@ fun CustomTopBar(
                     }
                 }
 
-                // Right Actions box (Matches width dynamically to support double or single actions gracefully)
+                // Right Actions Box
                 val actionWidth = if (secondaryIcon != null && onSecondaryClick != null) 88.dp else 40.dp
                 Box(modifier = Modifier.width(actionWidth), contentAlignment = Alignment.CenterEnd) {
                     Row(
@@ -307,6 +310,7 @@ fun CustomTopBar(
                                 icon = secondaryIcon,
                                 onClick = onSecondaryClick,
                                 backgroundStyle = buttonStyle,
+                                buttonColor = buttonColor,
                                 borderColor = borderColor,
                                 borderGradientColors = borderGradientColors,
                                 borderWidth = borderWidth,
@@ -321,6 +325,7 @@ fun CustomTopBar(
                                 icon = menuIcon,
                                 onClick = onMenuClick,
                                 backgroundStyle = buttonStyle,
+                                buttonColor = buttonColor,
                                 borderColor = borderColor,
                                 borderGradientColors = borderGradientColors,
                                 borderWidth = borderWidth,
@@ -622,7 +627,8 @@ fun CustomTopBarVariantsPreview() {
             subtitle = "New Delhi, India",
             onDropdownClick = {},
             onMenuClick = {},
-            buttonStyle = ButtonBackground.OPAQUE
+            buttonStyle = ButtonBackground.OPAQUE,
+            buttonColor = Color.Blue
         )
 
         // 8. Translucent with custom gradient border

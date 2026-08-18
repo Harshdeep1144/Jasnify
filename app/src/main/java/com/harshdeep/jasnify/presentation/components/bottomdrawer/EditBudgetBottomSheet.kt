@@ -74,6 +74,7 @@ fun EditBudgetBottomSheet(
     onProgress: ((Float) -> Unit)? = null
 ) {
     var budgetValue by remember { mutableStateOf(initialBudgetValue) }
+    var showCurrencyUI by remember { mutableStateOf(false) }
 
     val currencyCode = remember(budgetValue) {
         budgetValue.takeWhile { !it.isDigit() && it != '.' }
@@ -112,109 +113,134 @@ fun EditBudgetBottomSheet(
         }
     }
 
+    val currentSheetHeight = if (showCurrencyUI) 512.dp else dynamicSheetHeight
+    val currentHeading = if (showCurrencyUI) "Select currency" else if (isBudgetNotSet) "Add Budget" else "Edit Budget"
+
     CustomBottomSheet(
-        heading = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
-        onDismiss = onDismiss,
+        heading = currentHeading,
+        onDismiss = {
+            if (showCurrencyUI) {
+                showCurrencyUI = false
+            } else {
+                onDismiss()
+            }
+        },
         onProgress = onProgress,
-        sheetHeight = dynamicSheetHeight
+        sheetHeight = currentSheetHeight
     ) {
-        val focusRequester = remember { FocusRequester() }
-        val keyboardController = LocalSoftwareKeyboardController.current
+        if (showCurrencyUI) {
+            val currentCurrency = remember(currencyCode) {
+                getCurrencyCodes().find { it.code == currencyCode } ?: SelectableItem(currencyCode, "", "")
+            }
+            CurrencySheetContent(
+                initialSelection = currentCurrency,
+                onItemSelected = { selectedItem ->
+                    budgetValue = selectedItem.code + numericString
+                    showCurrencyUI = false
+                }
+            )
+        } else {
+            val focusRequester = remember { FocusRequester() }
+            val keyboardController = LocalSoftwareKeyboardController.current
 
-        LaunchedEffect(Unit) {
-            yield()
-            focusRequester.requestFocus()
-            keyboardController?.show()
-        }
+            LaunchedEffect(Unit) {
+                yield()
+                focusRequester.requestFocus()
+                keyboardController?.show()
+            }
 
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
             Column(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(vertical = 12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                BudgetInput(
-                    value = budgetValue,
-                    onValueChange = { newValue ->
-                        budgetValue = newValue
-                    },
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp)
-                        .focusRequester(focusRequester)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.Top
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(
-                        text = "In words : ",
-                        style = JasnifyTheme.typography.labelMedium.copy(
-                            fontWeight = FontWeight.Light,
-                            color = ContentSecondary,
-                        ),
-                        modifier = Modifier.wrapContentSize()
+                    BudgetInput(
+                        value = budgetValue,
+                        onValueChange = { newValue ->
+                            budgetValue = newValue
+                        },
+                        onCurrencyClick = {
+                            showCurrencyUI = true
+                        },
+                        modifier = Modifier
+                            .padding(horizontal = 12.dp)
+                            .focusRequester(focusRequester)
                     )
-                    Text(
-                        text = budgetInWords,
-                        style = JasnifyTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Normal,
-                            color = ContentPrimary,
-                        ),
-                        textAlign = TextAlign.Start,
-                        modifier = Modifier.weight(1f, fill = false)
-                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.Top
+                    ) {
+                        Text(
+                            text = "In words : ",
+                            style = JasnifyTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.Light,
+                                color = ContentSecondary,
+                            ),
+                            modifier = Modifier.wrapContentSize()
+                        )
+                        Text(
+                            text = budgetInWords,
+                            style = JasnifyTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Normal,
+                                color = ContentPrimary,
+                            ),
+                            textAlign = TextAlign.Start,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 12.dp)
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        QuickAddOptions.forEach { (amountToAdd, labelText) ->
+                            FilterChip(
+                                label = labelText,
+                                isSelected = false,
+                                shapeStyle = ChipShapeStyle.Round,
+                                size = ChipSize.Small,
+                                hasStroke = true,
+                                onClick = {
+                                    val updatedValue = (numericValue + amountToAdd).coerceAtMost(999999999999.0)
+                                    val plainString = BigDecimal.valueOf(updatedValue).toPlainString()
+                                    val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
+                                    budgetValue = currencyCode + cleanString
+                                },
+                                modifier = Modifier.background(Color.Transparent)
+                            )
+                        }
+                    }
                 }
 
                 Spacer(Modifier.height(12.dp))
 
-                Row(
+                CustomTextButton(
+                    onClick = { onUpdateBudget(budgetValue) },
+                    text = if (isBudgetNotSet) "Add Budget" else "Update Budget",
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(start = 12.dp)
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    QuickAddOptions.forEach { (amountToAdd, labelText) ->
-                        FilterChip(
-                            label = labelText,
-                            isSelected = false,
-                            shapeStyle = ChipShapeStyle.Round,
-                            size = ChipSize.Small,
-                            hasStroke = true,
-                            onClick = {
-                                val updatedValue = (numericValue + amountToAdd).coerceAtMost(999999999999.0)
-                                val plainString = BigDecimal.valueOf(updatedValue).toPlainString()
-                                val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
-                                budgetValue = currencyCode + cleanString
-                            },
-                            modifier = Modifier.background(Color.Transparent)
-                        )
-                    }
-                }
+                        .padding(horizontal = 12.dp),
+                    type = ButtonType.Primary,
+                    shapeStyle = ButtonShapeStyle.Square,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = ContentInvPrimary
+                )
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            CustomTextButton(
-                onClick = { onUpdateBudget(budgetValue) },
-                text = if (isBudgetNotSet) "Add Budget" else "Update Budget",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
-                type = ButtonType.Primary,
-                shapeStyle = ButtonShapeStyle.Square,
-                containerColor = MaterialTheme.colorScheme.error,
-                contentColor = ContentInvPrimary
-            )
         }
     }
 }

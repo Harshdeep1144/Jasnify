@@ -47,14 +47,26 @@ fun AllSavedVendorsContent(
     onTimelineSeeAll: (TimelineEvent) -> Unit = { _ -> },
     gridState: LazyGridState = rememberLazyGridState()
 ) {
+    // If your vendorSavedDestinations keys are updated to vendor IDs, use vendorSavedDestinations.containsKey(v.id).
+    // Otherwise, you can keep the composite key lookup and use distinctBy / it.id for the key.
     val savedVendorsList = remember(vendorSavedDestinations, allVendors) {
-        allVendors.filter { v -> vendorSavedDestinations.containsKey("${v.name}-${v.category}") }
+        allVendors
+            .filter { v ->
+                vendorSavedDestinations.containsKey(v.id) ||
+                        vendorSavedDestinations.containsKey("${v.name}-${v.category}")
+            }
+            .distinctBy { it.id }
             .map { it.copy(favorite = true) }
     }
 
     val savedTimelineEvents = remember(vendorSavedDestinations, timelineEvents, allVendors) {
         val list = mutableListOf<TimelineEvent>()
-        val defaultSaved = allVendors.filter { v -> vendorSavedDestinations["${v.name}-${v.category}"] == "mysaved" }
+        val defaultSaved = allVendors
+            .filter { v ->
+                vendorSavedDestinations[v.id] == "mysaved" ||
+                        vendorSavedDestinations["${v.name}-${v.category}"] == "mysaved"
+            }
+            .distinctBy { it.id }
             .map { it.copy(favorite = true) }
 
         if (defaultSaved.isNotEmpty()) {
@@ -62,8 +74,14 @@ fun AllSavedVendorsContent(
         }
 
         timelineEvents.forEach { event ->
-            val eventVendors = allVendors.filter { v -> vendorSavedDestinations["${v.name}-${v.category}"] == event.id }
+            val eventVendors = allVendors
+                .filter { v ->
+                    vendorSavedDestinations[v.id] == event.id ||
+                            vendorSavedDestinations["${v.name}-${v.category}"] == event.id
+                }
+                .distinctBy { it.id }
                 .map { it.copy(favorite = true) }
+
             if (eventVendors.isNotEmpty()) {
                 list.add(event.copy(venues = emptyList()))
             }
@@ -134,7 +152,7 @@ fun AllSavedVendorsContent(
                 } else {
                     items(
                         items = savedVendorsList,
-                        key = { "${it.name}-${it.category}" },
+                        key = { it.id },
                         contentType = { "saved_vendor_card" }
                     ) { vendor ->
                         VendorCardCompact(
@@ -177,9 +195,13 @@ fun AllSavedVendorsContent(
                         contentType = { "timeline_section" }
                     ) { timelineItem ->
                         val vendorsForEvent = remember(allVendors, vendorSavedDestinations, timelineItem.id) {
-                            allVendors.filter { v ->
-                                vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
-                            }.map { it.copy(favorite = true) }
+                            allVendors
+                                .filter { v ->
+                                    vendorSavedDestinations[v.id] == timelineItem.id ||
+                                            vendorSavedDestinations["${v.name}-${v.category}"] == timelineItem.id
+                                }
+                                .distinctBy { it.id }
+                                .map { it.copy(favorite = true) }
                         }
 
                         TimelineSection(

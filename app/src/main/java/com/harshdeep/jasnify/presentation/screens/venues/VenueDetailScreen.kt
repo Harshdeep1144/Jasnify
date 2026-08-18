@@ -158,6 +158,7 @@ import com.harshdeep.jasnify.presentation.components.sections.ReviewsSection
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -941,15 +942,7 @@ private fun VenueDetailContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        brush = Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.00f to Color.Transparent,
-                                0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                1.00f to BackgroundPrimary
-                            )
-                        )
+                        brush = BottomGradientBrush
                     )
                     .navigationBarsPadding()
             ) {

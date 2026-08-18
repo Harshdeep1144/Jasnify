@@ -43,7 +43,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -83,13 +85,14 @@ import kotlin.math.roundToInt
  * @param onDismiss Callback invoked once the slide-down dismissal animation completes.
  * @param isVisible Visibility controller for the bottom sheet.
  * @param sheetHeight Explicit height for the content area, or null for dynamic height.
- * @param sheetGesturesEnabled Toggles drag-to-dismiss touch gestures.
+ * @param sheetGesturesEnabled Toggles drag-to-dismiss touch gestures across the entire sheet body. If false, drag gestures remain active on the top header/handle area.
  * @param showDragHandle Controls visibility of the top drag handle indicator.
  * @param showCloseButton Controls visibility of the top-right header close button.
  * @param dismissOnBackdropClick Toggles dismiss trigger when clicking background backdrop overlay.
  * @param dampingRatio Custom spring damping ratio (default 0.82f for clean bounce).
  * @param stiffness Custom spring stiffness (default 300f for fluid motion).
- * @param containerColor Background color of the sheet container.
+ * @param containerColor Background solid color of the sheet container (used if [containerBrush] is null).
+ * @param containerBrush Background brush (gradient/pattern) of the sheet container. Takes priority over [containerColor].
  * @param headerBackgroundImage Optional composable slot to render background image/pattern behind top header elements.
  * @param onProgress Real-time callback emitting sheet position ratio (0f = open, 1f = closed).
  * @param hasToast Dynamic flag indicating if a toast is active, increasing top padding to allow full visibility.
@@ -113,6 +116,7 @@ fun CustomBottomSheet(
     dampingRatio: Float = 0.82f,
     stiffness: Float = 300f,
     containerColor: Color = SurfacePrimary,
+    containerBrush: Brush? = null,
     headerBackgroundImage: (@Composable () -> Unit)? = null,
     onProgress: ((Float) -> Unit)? = null,
     hasToast: Boolean = false,
@@ -156,6 +160,9 @@ fun CustomBottomSheet(
     // Calculate normalized progress (0f = fully open, 1f = fully down/hidden)
     val progress = (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
     val scrimAlpha = (0.55f * (1f - progress)).coerceIn(0f, 0.55f)
+
+    val backgroundBrush = containerBrush ?: SolidColor(containerColor)
+    val sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 
     LaunchedEffect(progress) {
         onProgress?.invoke(progress)
@@ -237,6 +244,39 @@ fun CustomBottomSheet(
         }
     }
 
+    // Vertical drag gesture detector attached to body or top bar
+    val dragGestureModifier = Modifier.pointerInput(Unit) {
+        val velocityTracker = VelocityTracker()
+        detectVerticalDragGestures(
+            onDragStart = { velocityTracker.resetTracking() },
+            onDragEnd = {
+                val velocity = velocityTracker.calculateVelocity().y
+                val currentOffset = sheetOffsetY.value
+
+                if (velocity > 800f || currentOffset > actualSheetHeightPx * 0.28f) {
+                    dismissWithAnimation(velocity)
+                } else {
+                    coroutineScope.launch {
+                        sheetOffsetY.animateTo(0f, springSpec)
+                    }
+                }
+            },
+            onDragCancel = {
+                coroutineScope.launch {
+                    sheetOffsetY.animateTo(0f, springSpec)
+                }
+            },
+            onVerticalDrag = { change, dragAmount ->
+                change.consume()
+                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                val newOffset = (sheetOffsetY.value + dragAmount).coerceAtLeast(0f)
+                coroutineScope.launch {
+                    sheetOffsetY.snapTo(newOffset)
+                }
+            }
+        )
+    }
+
     BackHandler(enabled = !isDismissing) {
         dismissWithAnimation(0f)
     }
@@ -296,44 +336,14 @@ fun CustomBottomSheet(
                     .offset { IntOffset(0, sheetOffsetY.value.roundToInt()) }
                     .then(
                         if (sheetGesturesEnabled && !isDismissing) {
-                            Modifier.pointerInput(Unit) {
-                                val velocityTracker = VelocityTracker()
-                                detectVerticalDragGestures(
-                                    onDragStart = { velocityTracker.resetTracking() },
-                                    onDragEnd = {
-                                        val velocity = velocityTracker.calculateVelocity().y
-                                        val currentOffset = sheetOffsetY.value
-
-                                        if (velocity > 800f || currentOffset > actualSheetHeightPx * 0.28f) {
-                                            dismissWithAnimation(velocity)
-                                        } else {
-                                            coroutineScope.launch {
-                                                sheetOffsetY.animateTo(0f, springSpec)
-                                            }
-                                        }
-                                    },
-                                    onDragCancel = {
-                                        coroutineScope.launch {
-                                            sheetOffsetY.animateTo(0f, springSpec)
-                                        }
-                                    },
-                                    onVerticalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                        val newOffset = (sheetOffsetY.value + dragAmount).coerceAtLeast(0f)
-                                        coroutineScope.launch {
-                                            sheetOffsetY.snapTo(newOffset)
-                                        }
-                                    }
-                                )
-                            }
+                            dragGestureModifier
                         } else Modifier
                     )
                     .background(
-                        color = containerColor,
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                        brush = backgroundBrush,
+                        shape = sheetShape
                     )
-                    .clip(RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp))
+                    .clip(sheetShape)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -347,59 +357,72 @@ fun CustomBottomSheet(
                     headerBackgroundImage?.invoke()
 
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        if (showDragHandle) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 10.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
+                        // Top bar / Drag Handle & Header Area
+                        // Attaches drag gesture if full-sheet gestures are disabled
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (!sheetGesturesEnabled && !isDismissing) {
+                                        dragGestureModifier
+                                    } else Modifier
+                                )
+                        ) {
+                            if (showDragHandle) {
                                 Box(
                                     modifier = Modifier
-                                        .width(56.dp)
-                                        .height(4.dp)
-                                        .background(ContentTertiary, shape = SquircleShape(100))
-                                )
-                            }
-                        }
-
-                        if (heading.isNotEmpty() || showCloseButton) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(
-                                        start = 12.dp,
-                                        top = if (showDragHandle) 0.dp else 12.dp,
-                                        bottom = 0.dp,
-                                        end = 12.dp
-                                    ),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                if (heading.isNotEmpty()) {
-                                    Text(
-                                        text = heading,
-                                        style = headingStyle,
-                                        color = ContentPrimary,
-                                        lineHeight = headingLineHeight
-                                    )
-                                } else {
-                                    Spacer(modifier = Modifier.weight(1f))
-                                }
-
-                                if (showCloseButton) {
-                                    TopBarIconButton(
-                                        backgroundStyle = closeButtonBackgroundStyle,
-                                        icon = TopIcon.Predefined.CLOSE,
-                                        iconSize = 18.dp,
-                                        onClick = { dismissWithAnimation(0f) }
+                                        .fillMaxWidth()
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(56.dp)
+                                            .height(4.dp)
+                                            .background(ContentTertiary, shape = SquircleShape(100))
                                     )
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                            if (heading.isNotEmpty() || showCloseButton) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(
+                                            start = 12.dp,
+                                            top = if (showDragHandle) 0.dp else 12.dp,
+                                            bottom = 0.dp,
+                                            end = 12.dp
+                                        ),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    if (heading.isNotEmpty()) {
+                                        Text(
+                                            text = heading,
+                                            style = headingStyle,
+                                            color = ContentPrimary,
+                                            lineHeight = headingLineHeight
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+
+                                    if (showCloseButton) {
+                                        TopBarIconButton(
+                                            backgroundStyle = closeButtonBackgroundStyle,
+                                            icon = TopIcon.Predefined.CLOSE,
+                                            iconSize = 18.dp,
+                                            onClick = { dismissWithAnimation(0f) }
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
 
+                        // Sheet Content Area
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -458,7 +481,12 @@ fun CustomBottomSheetPreview() {
                 stiffness = 300f,
                 showDragHandle = false,
                 showCloseButton = true,
-                containerColor = ContentTertiary,
+                containerBrush = Brush.verticalGradient(
+                    colors = listOf(
+                        ContentTertiary,
+                        ContentTertiary.copy(alpha = 0.85f)
+                    )
+                ),
                 onProgress = { progress -> sheetProgress = progress },
                 onDismiss = { isSheetVisible = false }
             ) {

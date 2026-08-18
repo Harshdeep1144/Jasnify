@@ -22,55 +22,100 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.inputfield.AiChatInput
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.viewmodels.*
 import com.harshdeep.jasnify.theme.*
-
+import com.harshdeep.jasnify.domain.model.*
+import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
+import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
+import java.text.SimpleDateFormat
+import java.util.*
 
 // Data class for Chat Messages
 data class AiMessage(
     val id: String,
     val text: String,
     val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
+    val venueIds: List<String> = emptyList(),
+    val vendorIds: List<String> = emptyList()
 )
 
 @Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
+    initialContext: String? = null,
+    viewModel: GenerativeViewModel = hiltViewModel(),
+    eventViewModel: EventViewModel = hiltViewModel(),
+    budgetViewModel: BudgetViewModel = hiltViewModel(),
+    cateringViewModel: CateringViewModel = hiltViewModel(),
+    venueViewModel: VenueViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel(),
+    checklistViewModel: ChecklistViewModel = hiltViewModel(),
+    guestViewModel: GuestViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
-    onMoreClick: () -> Unit = {}
+    onMoreClick: () -> Unit = {},
+    onVenueClick: (Venue) -> Unit = {},
+    onVendorClick: (Vendor) -> Unit = {}
 ) {
     var inputText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }
     var isMicMuted by remember { mutableStateOf(false) }
-    var isGenerating by remember { mutableStateOf(false) }
 
-    // Sample data matching the provided screenshot
-    val sampleAiResponse = """
-        **Expense Overview :**
-        Your event has utilized 47% (₹46,50,900) of its total budget, leaving a healthy safety buffer of 53% (₹53,49,100) in remaining funds.
+    val messages by viewModel.messages.collectAsStateWithLifecycle()
+    val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
 
-        🚨 **Critical Vulnerability:**
-        • The Risk: Your "Unplanned Costs" of ₹24,650 are dangerously low. Premium Indian events historically average 7% -10% in hidden overages.
-        • The Action: Immediately allocate ₹3.5L from your remaining funds into a protected emergency reserve.
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val expenses by budgetViewModel.expenses.collectAsStateWithLifecycle()
+    val cateringItems by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
+    val savedVenues by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+    val savedVendors by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
+    val checklists by checklistViewModel.checklists.collectAsStateWithLifecycle()
+    val guests by guestViewModel.guests.collectAsStateWithLifecycle()
 
-        🔮 **30-Day Predictive Forecast :**
-        • Current Path: You are over-spending on Vendors by 11% vs. market trends. If this pattern continues, you risk a ₹2.1L budget overrun.
-        • Optimized Path: Keep upcoming categories strictly indexed to market averages to finish with a ₹12L cash surplus.
-    """.trimIndent()
+    val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
+    val allVendors by vendorViewModel.allVendors.collectAsStateWithLifecycle()
 
-    val messages = remember {
-        mutableStateListOf(
-            AiMessage(
-                id = "1",
-                text = sampleAiResponse,
-                isUser = false
-            )
-        )
+    LaunchedEffect(activeEvent, expenses, cateringItems, savedVenues, savedVendors, checklists, guests) {
+        val event = activeEvent ?: return@LaunchedEffect
+        
+        val contextBuilder = StringBuilder()
+        contextBuilder.append("User Name: ${event.ownerName}\n")
+        contextBuilder.append("Event: ${event.name} (Type ID: ${event.typeId})\n")
+        contextBuilder.append("Date: ${event.date?.let { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it)) } ?: "TBD"}\n")
+        contextBuilder.append("Total Budget: ₹${event.budget ?: 0}\n")
+        
+        contextBuilder.append("\nExpenses:\n")
+        expenses.forEach { contextBuilder.append("- ${it.title}: ₹${it.amount} (${it.category})\n") }
+        
+        contextBuilder.append("\nCatering Menu:\n")
+        cateringItems.forEach { contextBuilder.append("- ${it.name} (${it.cuisine}, ${it.type})\n") }
+        
+        contextBuilder.append("\nSaved Venues:\n")
+        savedVenues.forEach { contextBuilder.append("- ${it.venueName}\n") }
+        
+        contextBuilder.append("\nSaved Vendors:\n")
+        savedVendors.forEach { contextBuilder.append("- ${it.vendorName} (${it.category})\n") }
+        
+        contextBuilder.append("\nChecklists:\n")
+        checklists.forEach { contextBuilder.append("- ${it.title} (${if (it.items.all { item -> item.checked }) "Completed" else "Pending"})\n") }
+        
+        contextBuilder.append("\nGuests:\n")
+        val pendingGuests = guests.filter { !it.invited }
+        contextBuilder.append("- Total: ${guests.size}, Pending to invite: ${pendingGuests.size}\n")
+        
+        if (initialContext != null) {
+            contextBuilder.append("\nAdditional Info: $initialContext")
+        }
+
+        viewModel.setGlobalContext(contextBuilder.toString())
     }
 
     val listState = rememberLazyListState()
@@ -81,69 +126,34 @@ fun AiChatScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            CustomTopBar(
-                title = "",
-                onBackClick = onBackClick,
-                onMenuClick = onMoreClick,
-                backIcon = TopIcon.Predefined.DOWN,
-                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                buttonStyle = ButtonBackground.OPAQUE
-            )
-        },
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .imePadding()
-                    .padding(horizontal = 12.dp, vertical = 12.dp)
-            ) {
-                AiChatInput(
-                    value = inputText,
-                    onValueChange = { inputText = it },
-                    isVoiceMode = isVoiceMode,
-                    isMicMuted = isMicMuted,
-                    isGenerating = isGenerating,
-                    placeholder = "Ask more about expenses",
-                    onSendClick = {
-                        if (inputText.isNotBlank()) {
-                            messages.add(
-                                AiMessage(
-                                    id = System.currentTimeMillis().toString(),
-                                    text = inputText,
-                                    isUser = true
-                                )
-                            )
-                            inputText = ""
-                            // Simulate generating
-                            isGenerating = true
-                        }
-                    },
-                    onStopClick = { isGenerating = false },
-                    onVoiceClick = { isVoiceMode = true },
-                    onToggleMicMute = { isMicMuted = !isMicMuted },
-                    onCancelVoice = { isVoiceMode = false }
-                )
-            }
-        },
-        containerColor = BackgroundPrimary,
-        modifier = modifier.fillMaxSize()
-    ) { paddingValues ->
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(BackgroundPrimary)
+    ) {
+        // Chat Message List (Edge-to-Edge scrolling behind gradients)
         LazyColumn(
             state = listState,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 24.dp)
+            contentPadding = PaddingValues(
+                top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 68.dp,
+                bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
+            )
         ) {
             items(messages) { message ->
                 if (message.isUser) {
                     UserMessageBubble(message = message)
                 } else {
-                    AiMessageContent(message = message)
+                    AiMessageContent(
+                        message = message,
+                        allVenues = allVenues,
+                        allVendors = allVendors,
+                        onVenueClick = onVenueClick,
+                        onVendorClick = onVendorClick
+                    )
                 }
             }
 
@@ -152,6 +162,57 @@ fun AiChatScreen(
                     GeneratingIndicator()
                 }
             }
+        }
+
+        // Floating Top Bar with Top Gradient
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .background(brush = TopGradientBrush)
+                .statusBarsPadding()
+                .zIndex(10f)
+        ) {
+            CustomTopBar(
+                title = "",
+                onBackClick = onBackClick,
+                onMenuClick = onMoreClick,
+                backIcon = TopIcon.Predefined.DOWN,
+                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                buttonStyle = ButtonBackground.TRANSLUCENT,
+                translucentAlpha = 0.6f
+            )
+        }
+
+        // Floating AI Input Area with Bottom Gradient
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .background(brush = BottomGradientBrush)
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+                .zIndex(10f)
+        ) {
+            AiChatInput(
+                value = inputText,
+                onValueChange = { inputText = it },
+                isVoiceMode = isVoiceMode,
+                isMicMuted = isMicMuted,
+                isGenerating = isGenerating,
+                placeholder = "Ask more about expenses",
+                onSendClick = {
+                    if (inputText.isNotBlank()) {
+                        viewModel.sendMessage(inputText)
+                        inputText = ""
+                    }
+                },
+                onStopClick = { },
+                onVoiceClick = { isVoiceMode = true },
+                onToggleMicMute = { isMicMuted = !isMicMuted },
+                onCancelVoice = { isVoiceMode = false }
+            )
         }
     }
 }
@@ -201,7 +262,7 @@ fun UserMessageBubble(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFFEBECEF))
+                .background(SurfaceBrandSecondary)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .widthIn(max = 300.dp),
             verticalAlignment = Alignment.Top
@@ -219,21 +280,23 @@ fun UserMessageBubble(
 
             Text(
                 text = message.text,
-                color = Color(0xFF1E2022),
-                fontSize = 15.sp,
-                lineHeight = 22.sp,
-                fontWeight = FontWeight.Medium
+                color = ContentPrimary,
+                style = JasnifyTheme.typography.bodyXLarge
             )
         }
     }
 }
 
 /**
- * Structured Markdown-Style AI Response with Action Feedback Buttons
+ * Structured Markdown-Style AI Response with Action Feedback Buttons and Rich Cards
  */
 @Composable
 fun AiMessageContent(
     message: AiMessage,
+    allVenues: List<Venue> = emptyList(),
+    allVendors: List<Vendor> = emptyList(),
+    onVenueClick: (Venue) -> Unit = {},
+    onVendorClick: (Vendor) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -241,7 +304,39 @@ fun AiMessageContent(
             .fillMaxWidth()
             .padding(vertical = 4.dp)
     ) {
-        FormattedAiText(text = message.text)
+        if (message.text.isNotBlank()) {
+            FormattedAiText(text = message.text)
+        }
+
+        if (message.venueIds.isNotEmpty()) {
+            val matchedVenues = allVenues.filter { message.venueIds.contains(it.id) }
+            if (matchedVenues.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                VenueCarousel(
+                    title = "Suggested Venues",
+                    venues = matchedVenues,
+                    onVenueClick = onVenueClick,
+                    onFavoriteToggle = {},
+                    onSeeAllClick = {},
+                    onOfferClick = {}
+                )
+            }
+        }
+
+        if (message.vendorIds.isNotEmpty()) {
+            val matchedVendors = allVendors.filter { message.vendorIds.contains(it.id) }
+            if (matchedVendors.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                VendorCarousel(
+                    title = "Suggested Vendors",
+                    vendors = matchedVendors,
+                    onVendorClick = onVendorClick,
+                    onFavoriteToggle = {},
+                    onSeeAllClick = {},
+                    onOfferClick = {}
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -257,8 +352,8 @@ fun AiMessageContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_thumbs_up),
                     contentDescription = "Helpful",
-                    tint = Color(0xFF8E9094),
-                    modifier = Modifier.size(20.dp)
+                    tint = ContentSecondary,
+                    modifier = Modifier.size(28.dp)
                 )
             }
 
@@ -269,8 +364,8 @@ fun AiMessageContent(
                 Icon(
                     painter = painterResource(R.drawable.ic_thumbs_down),
                     contentDescription = "Unhelpful",
-                    tint = Color(0xFF8E9094),
-                    modifier = Modifier.size(20.dp)
+                    tint = ContentSecondary,
+                    modifier = Modifier.size(28.dp)
                 )
             }
         }
@@ -318,7 +413,7 @@ fun FormattedAiText(
 
     Text(
         text = annotatedString,
-        lineHeight = 22.sp,
+        style = JasnifyTheme.typography.bodyXLarge,
         modifier = modifier.fillMaxWidth()
     )
 }

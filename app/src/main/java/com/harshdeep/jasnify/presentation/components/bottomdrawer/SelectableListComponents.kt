@@ -43,6 +43,62 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import sv.lib.squircleshape.SquircleShape
 
+fun getCurrencyCodes(): List<SelectableItem> {
+    return listOf(
+        SelectableItem("INR", "Indian Rupee", "IN"),
+        SelectableItem("USD", "United States Dollar", "US"),
+        SelectableItem("GBP", "British Pound", "GB"),
+        SelectableItem("JPY", "Japanese Yen", "JP"),
+        SelectableItem("AUD", "Australian Dollar", "AU"),
+        SelectableItem("LKR", "Sri Lankan Rupee", "LK"),
+        SelectableItem("CAD", "Canadian Dollar", "CA"),
+        SelectableItem("CHF", "Swiss Franc", "CH"),
+        SelectableItem("AED", "UAE Dirham", "AE"),
+        SelectableItem("CNY", "Chinese Yuan", "CN"),
+        SelectableItem("SGD", "Singapore Dollar", "SG"),
+        SelectableItem("SEK", "Swedish Krona", "SE"),
+        SelectableItem("KRW", "South Korean Won", "KR"),
+        SelectableItem("EUR", "Euro", "EU"),
+        SelectableItem("NZD", "New Zealand Dollar", "NZ"),
+        SelectableItem("ZAR", "South African Rand", "ZA"),
+        SelectableItem("RUB", "Russian Ruble", "RU"),
+        SelectableItem("BRL", "Brazilian Real", "BR"),
+        SelectableItem("MXN", "Mexican Peso", "MX"),
+        SelectableItem("TRY", "Turkish Lira", "TR"),
+        SelectableItem("HKD", "Hong Kong Dollar", "HK"),
+        SelectableItem("THB", "Thai Baht", "TH"),
+        SelectableItem("MYR", "Malaysian Ringgit", "MY"),
+        SelectableItem("IDR", "Indonesian Rupiah", "ID"),
+        SelectableItem("VND", "Vietnamese Dong", "VN"),
+        SelectableItem("PKR", "Pakistani Rupee", "PK"),
+        SelectableItem("BDT", "Bangladeshi Taka", "BD"),
+        SelectableItem("SAR", "Saudi Riyal", "SA"),
+        SelectableItem("EGP", "Egyptian Pound", "EG"),
+        SelectableItem("NGN", "Nigerian Naira", "NG"),
+        SelectableItem("ILS", "Israeli Shekel", "IL"),
+        SelectableItem("PLN", "Polish Zloty", "PL"),
+        SelectableItem("CZK", "Czech Koruna", "CZ"),
+        SelectableItem("HUF", "Hungarian Forint", "HU"),
+        SelectableItem("NOK", "Norwegian Krone", "NO"),
+        SelectableItem("DKK", "Danish Krone", "DK"),
+        SelectableItem("RON", "Romanian Leu", "RO"),
+        SelectableItem("CLP", "Chilean Peso", "CL"),
+        SelectableItem("ARS", "Argentine Peso", "AR"),
+        SelectableItem("COP", "Colombian Peso", "CO"),
+        SelectableItem("PEN", "Peruvian Sol", "PE"),
+        SelectableItem("UAH", "Ukrainian Hryvnia", "UA"),
+        SelectableItem("KZT", "Kazakhstani Tenge", "KZ"),
+        SelectableItem("QAR", "Qatari Riyal", "QA"),
+        SelectableItem("KWD", "Kuwaiti Dinar", "KW"),
+        SelectableItem("OMR", "Omani Rial", "OM"),
+        SelectableItem("BHD", "Bahraini Dinar", "BH"),
+        SelectableItem("KES", "Kenyan Shilling", "KE"),
+        SelectableItem("MAD", "Moroccan Dirham", "MA"),
+        SelectableItem("TWD", "New Taiwan Dollar", "TW"),
+        SelectableItem("PHP", "Philippine Peso", "PH")
+    )
+}
+
 private val SelectableRowShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 
 // Data class to represent a selectable item (used for country code, currency, etc.)
@@ -124,6 +180,33 @@ fun SelectableListBottomSheet(
     selectButtonText: String,
     onProgress: ((Float) -> Unit)? = null
 ) {
+    CustomBottomSheet(
+        heading = heading,
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        showDragHandle = true,
+        sheetGesturesEnabled = false,
+        sheetHeight = sheetHeight
+    ) {
+        SelectableListContent(
+            items = items,
+            initialSelectedItem = initialSelectedItem,
+            onItemSelected = {
+                onItemSelected(it)
+                onDismiss()
+            },
+            selectButtonText = selectButtonText
+        )
+    }
+}
+
+@Composable
+fun SelectableListContent(
+    items: List<SelectableItem>,
+    initialSelectedItem: SelectableItem,
+    onItemSelected: (SelectableItem) -> Unit,
+    selectButtonText: String
+) {
     var selectedItem by remember(items, initialSelectedItem) {
         mutableStateOf(
             items.find { it.code == initialSelectedItem.code } ?: if (items.isNotEmpty()) items.first() else initialSelectedItem
@@ -144,52 +227,44 @@ fun SelectableListBottomSheet(
         }
     }
 
-    CustomBottomSheet(
-        heading = heading,
-        onDismiss = onDismiss,
-        onProgress = onProgress,
-        sheetHeight = sheetHeight
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(12.dp)
     ) {
-        Column(
+        CustomSearchBar(
+            value = searchText,
+            onValueChange = { searchText = it }
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        LazyColumn(modifier = Modifier.weight(1f)) {
+            items(
+                items = filteredItems,
+                key = { it.code },
+                contentType = { "selectable_item" }
+            ) { item ->
+                SelectableItemRow(
+                    item = item,
+                    isSelected = item.code == selectedItem.code,
+                    onSelect = { selectedItem = it }
+                )
+            }
+        }
+
+        CustomTextButton(
+            onClick = {
+                onItemSelected(selectedItem)
+            },
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            CustomSearchBar(
-                value = searchText,
-                onValueChange = { searchText = it }
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            LazyColumn(modifier = Modifier.weight(1f)) {
-                items(
-                    items = filteredItems,
-                    key = { it.code },
-                    contentType = { "selectable_item" }
-                ) { item ->
-                    SelectableItemRow(
-                        item = item,
-                        isSelected = item.code == selectedItem.code,
-                        onSelect = { selectedItem = it }
-                    )
-                }
-            }
-
-            CustomTextButton(
-                onClick = {
-                    onItemSelected(selectedItem)
-                    onDismiss()
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 16.dp),
-                text = selectButtonText,
-                shapeStyle = ButtonShapeStyle.Square,
-                size = ButtonSize.Medium,
-                type = ButtonType.Primary
-            )
-        }
+                .padding(top = 16.dp),
+            text = selectButtonText,
+            shapeStyle = ButtonShapeStyle.Square,
+            size = ButtonSize.Medium,
+            type = ButtonType.Primary
+        )
     }
 }
 

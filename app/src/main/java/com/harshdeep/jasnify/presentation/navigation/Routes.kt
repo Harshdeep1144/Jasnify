@@ -56,4 +56,7 @@ sealed class Screen(val route: String) {
 
     // Messaging
     data object ChatScreen : Screen("chat_screen/{merchantId}/{itemId}?itemType={itemType}")
+
+    // AI Chat
+    data object AiChatScreen : Screen("ai_chat_screen?initialContext={initialContext}")
 }

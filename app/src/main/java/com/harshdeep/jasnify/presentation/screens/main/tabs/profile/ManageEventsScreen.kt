@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -98,14 +99,57 @@ fun ManageEventsScreen(
                 )
             }
         },
-        containerColor = BackgroundPrimary,
-        bottomBar = {
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = BackgroundPrimary
+    ) { padding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            if (allUserEvents.isEmpty()) {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CircularProgressIndicator(color = ContentSecondary)
+                    Text(
+                        text = "Redirecting to event creation...",
+                        color = ContentSecondary
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        top = 12.dp,
+                        end = 12.dp,
+                        bottom = 96.dp // Extra space so items aren't occluded by the floating button
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(allUserEvents) { userEvent ->
+                        ManageEventCard(
+                            userEvent = userEvent,
+                            isActive = userEvent.eventId == activeEventId,
+                            isAdmin = userProfile?.uid == userEvent.adminId,
+                            onEventClick = { onEventClick(userEvent.eventId) },
+                            onMenuClick = {
+                                onShowMenu(userEvent)
+                            }
+                        )
+                    }
+                }
+            }
+
+            // Floating action container at the bottom
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(
-                        brush = BottomGradientBrush
-                    )
+                    .align(Alignment.BottomCenter)
+                    .background(brush = BottomGradientBrush)
                     .navigationBarsPadding()
             ) {
                 Surface(
@@ -132,46 +176,6 @@ fun ManageEventsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(4.dp)
-                    )
-                }
-            }
-        }
-    ) { padding ->
-        if (allUserEvents.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CircularProgressIndicator(color = ContentSecondary)
-                    Text(
-                        text = "Redirecting to event creation...",
-                        color = ContentSecondary
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(allUserEvents) { userEvent ->
-                    ManageEventCard(
-                        userEvent = userEvent,
-                        isActive = userEvent.eventId == activeEventId,
-                        isAdmin = userProfile?.uid == userEvent.adminId,
-                        onEventClick = { onEventClick(userEvent.eventId) },
-                        onMenuClick = {
-                            onShowMenu(userEvent)
-                        }
                     )
                 }
             }
