@@ -70,6 +70,7 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
+import android.net.Uri
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Event
@@ -945,6 +946,10 @@ fun HomeTabContent(
                     "budget" -> eventViewModel?.let { vm ->
                         BudgetScreen(
                             onBackClick = { currentScreen = "home" },
+                            onAiChatClick = { context ->
+                                val encodedContext = Uri.encode(context)
+                                mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
+                            },
                             eventViewModel = vm
                         )
                     }
@@ -966,6 +971,10 @@ fun HomeTabContent(
                     "catering" -> eventViewModel?.let { vm ->
                         CateringMenuScreen(
                             onBackClick = { currentScreen = "home" },
+                            onAskAiClick = { context ->
+                                val encodedContext = Uri.encode(context)
+                                mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
+                            },
                             eventViewModel = vm
                         )
                     }

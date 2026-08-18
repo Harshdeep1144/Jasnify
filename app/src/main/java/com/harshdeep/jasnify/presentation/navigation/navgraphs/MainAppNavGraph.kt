@@ -9,7 +9,9 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
+import android.net.Uri
 import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.main.HomeScreen
@@ -237,6 +239,30 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             )
         }
 
+        // AI Chat
+        composable(
+            route = Screen.AiChatScreen.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("initialContext") {
+                    type = androidx.navigation.NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { entry ->
+            val initialContext = entry.arguments?.getString("initialContext")
+            AiChatScreen(
+                initialContext = initialContext,
+                onBackClick = { mainNavController.popBackStack() },
+                onVenueClick = { venue ->
+                    mainNavController.navigate("venue_detail_screen/${venue.id}")
+                },
+                onVendorClick = { vendor ->
+                    mainNavController.navigate("vendor_detail_screen/${vendor.id}")
+                }
+            )
+        }
+
         // Location Selector Feature
         composable(
             route = Screen.LocationSelector.route,
@@ -271,6 +297,10 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                onAskAiClick = { context ->
+                    val encodedContext = Uri.encode(context)
+                    mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
+                },
                 eventViewModel = eventViewModel
             )
         }
@@ -285,6 +315,10 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
+                },
+                onAiChatClick = { context ->
+                    val encodedContext = Uri.encode(context)
+                    mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
                 },
                 eventViewModel = eventViewModel
             )

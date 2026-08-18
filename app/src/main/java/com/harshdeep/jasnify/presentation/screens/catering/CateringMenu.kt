@@ -309,6 +309,7 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
+    onAskAiClick: (String) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
@@ -946,6 +947,14 @@ fun CateringMenuScreen(
                                             CustomTextButton(
                                                 onClick = {
                                                     focusManager.clearFocus()
+                                                    val context = """
+                                                        Catering Menu for ${activeEvent?.name ?: "Event"}:
+                                                        Total Items: ${allMenuItems.size}
+                                                        
+                                                        Menu items:
+                                                        ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
+                                                    """.trimIndent()
+                                                    onAskAiClick(context)
                                                 },
                                                 text = "Ask AI",
                                                 type = ButtonType.Secondary,
@@ -1676,8 +1685,9 @@ fun ItemDetailsSheetContent(
                         onDeleteClick()
                     },
                     icon = painterResource(R.drawable.ic_delete),
-                    containerColor = SurfacePrimary,
-                    contentColor = MaterialTheme.colorScheme.error,
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = ContentInvPrimary,
+                    modifier = Modifier.width(84.dp)
                 )
 
                 CustomTextButton(

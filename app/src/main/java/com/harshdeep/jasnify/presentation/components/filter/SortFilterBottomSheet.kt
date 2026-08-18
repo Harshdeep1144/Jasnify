@@ -74,7 +74,7 @@ fun SortFilterBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
-        showDragHandle = false,
+        showDragHandle = true,
         showCloseButton = false
     ) {
         SortFilterBottomSheetContent(
