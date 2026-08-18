@@ -1,11 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.chip
 
-import com.harshdeep.jasnify.R
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
@@ -33,27 +29,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.widget.TextViewCompat
-import com.harshdeep.jasnify.theme.BackgroundSecondary
+import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceAccent
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
@@ -67,19 +59,16 @@ fun EventTypeChip(
     onClick: () -> Unit
 ) {
     val containerColor = if (isSelected) SurfaceBrandSecondary else SurfaceSecondary
-    val borderColor = if (isSelected) ContentBrand else Color.Transparent
-    val contentColor = if (isSelected) ContentPrimary else ContentSecondary
+    val borderColor = if (isSelected) ContentBrandDark else Color.Transparent
+    val contentColor = if (isSelected) ContentBrandDark else ContentSecondary
 
-    // Define the size of the checkmark badge
     val badgeSize = 24.dp
     val badgeOffset = 5.dp
 
     Box(
         modifier = modifier
-            .clickable(
-                onClick = onClick,
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
+            .noRippleClickable(
+                onClick = onClick
             )
     ) {
         Card(
@@ -98,7 +87,7 @@ fun EventTypeChip(
                 modifier = Modifier
                     .padding(24.dp)
                     .wrapContentWidth()
-                    .height(IntrinsicSize.Max), // Ensures the column fills the card height
+                    .height(IntrinsicSize.Max),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -108,27 +97,12 @@ fun EventTypeChip(
                         .wrapContentWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Box(modifier = Modifier.size(56.dp)) {
-                        // 1. The Shadow Layer (Offset, Tinted, and Blurred)
-                        Image(
-                            painter = iconPainter,
-                            contentDescription = null,
-                            colorFilter = ColorFilter.tint(ContentPrimary.copy(alpha = 0.25f)),
-                            modifier = Modifier
-                                .matchParentSize()
-                                .offset(x = 2.dp, y = 4.dp)
-                                .graphicsLayer {
-                                    clip = false
-                                }
-                                .blur(radius = 10.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                        )
-
-                        Image(
-                            painter = iconPainter,
-                            contentDescription = "$label Icon",
-                            modifier = Modifier.matchParentSize()
-                        )
-                    }
+                    Image(
+                        painter = iconPainter,
+                        contentDescription = "$label Icon",
+                        contentScale = ContentScale.FillHeight,
+                        modifier = Modifier.height(56.dp)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -147,10 +121,10 @@ fun EventTypeChip(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .offset(x = badgeOffset, y = -badgeOffset) // Apply offset for a better visual
+                    .offset(x = badgeOffset, y = -badgeOffset)
                     .size(badgeSize)
                     .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                    .background(ContentBrand)
+                    .background(ContentBrandDark)
                     .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -165,17 +139,14 @@ fun EventTypeChip(
     }
 }
 
-
 @Preview(showBackground = true)
 @Composable
 fun EventTypeChipPreview() {
-    // Using a simple Android resource for the preview icon
-    val WeddingIconPlaceholder = painterResource(id = R.drawable.img_onboarding_1)
+    val weddingIconPlaceholder = painterResource(id = R.drawable.img_onboarding_1)
 
     var isSelectedWedding by remember { mutableStateOf(false) }
     var isSelectedBirthday by remember { mutableStateOf(true) }
     var isSelectedLong by remember { mutableStateOf(false) }
-
 
     JasnifyTheme {
         Column(
@@ -185,7 +156,7 @@ fun EventTypeChipPreview() {
         ) {
             Text("Default State", style = MaterialTheme.typography.titleMedium)
             EventTypeChip(
-                iconPainter = WeddingIconPlaceholder,
+                iconPainter = weddingIconPlaceholder,
                 label = "Short Label",
                 isSelected = isSelectedWedding,
                 onClick = { isSelectedWedding = !isSelectedWedding }
@@ -193,7 +164,7 @@ fun EventTypeChipPreview() {
 
             Text("Selected State", style = MaterialTheme.typography.titleMedium)
             EventTypeChip(
-                iconPainter = WeddingIconPlaceholder,
+                iconPainter = weddingIconPlaceholder,
                 label = "Birthday Party Test",
                 isSelected = isSelectedBirthday,
                 onClick = { isSelectedBirthday = !isSelectedBirthday }
@@ -201,7 +172,7 @@ fun EventTypeChipPreview() {
 
             Text("Long Label State", style = MaterialTheme.typography.titleMedium)
             EventTypeChip(
-                iconPainter = WeddingIconPlaceholder,
+                iconPainter = weddingIconPlaceholder,
                 label = "Long Label With Auto-Expansion Test",
                 isSelected = isSelectedLong,
                 onClick = { isSelectedLong = !isSelectedLong }

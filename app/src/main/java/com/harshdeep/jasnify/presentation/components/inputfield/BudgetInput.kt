@@ -27,6 +27,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CurrencyBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.getCurrencyCodes
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
@@ -107,18 +108,26 @@ fun BudgetInput(
     onCurrencyClick: (() -> Unit)? = null // Allow external currency sheet handling
 ) {
     var showCurrencyCodeSheet by remember { mutableStateOf(false) }
-    var selectedCurrency by remember {
-        mutableStateOf(SelectableItem("INR", "Indian Rupee", "IN"))
-    }
-
+    
     // Parse current currency prefix from value
     val currentPrefix = remember(value) {
         value.takeWhile { !it.isDigit() && it != '.' }
     }
 
+    var selectedCurrency by remember {
+        val initialCode = currentPrefix.ifEmpty { "INR" }
+        val found = getCurrencyCodes().find { it.code == initialCode }
+        mutableStateOf(found ?: SelectableItem("INR", "Indian Rupee", "IN"))
+    }
+
     // Sync selectedCurrency if prefix changes externally
-    if (currentPrefix.isNotEmpty() && currentPrefix != selectedCurrency.code) {
-        selectedCurrency = SelectableItem(currentPrefix, selectedCurrency.name, selectedCurrency.emoji)
+    LaunchedEffect(currentPrefix) {
+        if (currentPrefix.isNotEmpty() && currentPrefix != selectedCurrency.code) {
+            val found = getCurrencyCodes().find { it.code == currentPrefix }
+            if (found != null) {
+                selectedCurrency = found
+            }
+        }
     }
 
     // Derive the local currency numeric value part directly from the passed source of truth

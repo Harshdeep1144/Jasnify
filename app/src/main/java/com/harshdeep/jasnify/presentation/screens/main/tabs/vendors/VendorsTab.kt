@@ -211,8 +211,15 @@ fun VendorsTab(
     val categories = vendorCategories
     val allSampleVendors = MockData.sampleVendors
 
-    val recentVendorsList = remember(recentSearchesNames, allSampleVendors) {
-        val vendorMap = allSampleVendors.associateBy { it.name }
+    val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
+        val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
+        base.map { vendor ->
+            vendor.copy(favorite = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}"))
+        }
+    }
+
+    val recentVendorsList = remember(recentSearchesNames, exploreVendors) {
+        val vendorMap = exploreVendors.associateBy { it.name }
         recentSearchesNames.mapNotNull { name -> vendorMap[name] }
     }
 
@@ -247,10 +254,6 @@ fun VendorsTab(
         else -> UserRole.VIEWER
     }
     val isViewer = currentUserRole == UserRole.VIEWER
-
-    val exploreVendors = remember(allVendorsFromRepo) {
-        allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
-    }
 
     val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
         if (selectedTimelineEventId == "mysaved") {
@@ -434,15 +437,15 @@ fun VendorsTab(
                                 focusManager = focusManager,
                                 context = context,
                                 onRecentSearchesUpdate = { recentSearchesNames = it },
-                                allVendors = allVendorsFromRepo,
+                                allVendors = exploreVendors,
                                 isLoading = isLoading,
                                 listState = mainListState
                             )
                         }
                         VendorScreenState.CATEGORY_DETAIL -> {
                             selectedCategory?.let { category ->
-                                val categoryVendors = remember(allVendorsFromRepo, category.name) {
-                                    allVendorsFromRepo.filter { it.category == category.name }
+                                val categoryVendors = remember(exploreVendors, category.name) {
+                                    exploreVendors.filter { it.category == category.name }
                                 }
                                 val categorySavedVendors = remember(savedVendorsFromCloud, category.name) {
                                     savedVendorsFromCloud.filter { it.category == category.name }
@@ -517,7 +520,7 @@ fun VendorsTab(
                                 onFavoriteToggle = handleFavoriteToggle,
                                 vendorSavedDestinations = vendorSavedDestinations,
                                 timelineEvents = timelineEvents,
-                                allVendors = allVendorsFromRepo,
+                                allVendors = exploreVendors,
                                 selectedViewType = selectedSavedViewType,
                                 onSelectedViewTypeChange = { selectedSavedViewType = it },
                                 isLoading = isLoading,

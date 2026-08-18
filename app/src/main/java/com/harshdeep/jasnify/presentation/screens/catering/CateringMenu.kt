@@ -63,7 +63,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -663,8 +662,7 @@ fun CateringMenuScreen(
                                                     },
                                                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                     isLargeTitle = true,
-                                                    buttonStyle = ButtonBackground.TRANSLUCENT,
-                                                    borderColor = Color(0xFFB5CEB2)
+                                                    buttonStyle = ButtonBackground.TRANSLUCENT
                                                 )
                                             }
                                         }
@@ -720,8 +718,7 @@ fun CateringMenuScreen(
                                                     },
                                                     placeholder = "Search Menu",
                                                     modifier = Modifier.weight(1f),
-                                                    isTranslucent = true,
-                                                    borderColor = Color(0xFFB5CEB2)
+                                                    isTranslucent = true
                                                 )
 
                                                 AnimatedVisibility(

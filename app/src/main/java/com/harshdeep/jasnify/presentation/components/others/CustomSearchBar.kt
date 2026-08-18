@@ -170,22 +170,15 @@ fun CustomSearchBar(
         }
     }
 
-    // Gradient used strictly when the search bar is inactive
+    // Gradient used only if borderGradientColors is provided; otherwise a SolidColor is used
     val defaultOutline = MaterialTheme.colorScheme.outline
-    val inactiveGradientColors = remember(borderGradientColors, borderColor, defaultOutline) {
+    val inactiveBorderBrush: Brush = remember(borderGradientColors, borderColor, defaultOutline) {
         when {
-            borderGradientColors != null -> borderGradientColors
-            borderColor != null -> listOf(
-                borderColor,
-                borderColor.copy(alpha = 0.4f)
-            )
-            else -> listOf(
-                defaultOutline.copy(alpha = 0.16f),
-                defaultOutline.copy(alpha = 0.16f)
-            )
+            borderGradientColors != null -> Brush.verticalGradient(borderGradientColors)
+            borderColor != null -> SolidColor(borderColor)
+            else -> SolidColor(defaultOutline.copy(alpha = 0.16f))
         }
     }
-    val inactiveBorderBrush = Brush.verticalGradient(inactiveGradientColors)
 
     AnimatedContent(
         targetState = isExpanded,

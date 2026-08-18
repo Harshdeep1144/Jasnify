@@ -16,12 +16,15 @@ import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
@@ -109,22 +112,20 @@ fun TopBarIconButton(
         else -> iconColor
     }
 
+    val defaultOutline = MaterialTheme.colorScheme.outline
+    val borderBrush: Brush = remember(borderGradientColors, borderColor, defaultOutline) {
+        when {
+            borderGradientColors != null -> Brush.verticalGradient(borderGradientColors)
+            borderColor != null -> SolidColor(borderColor)
+            else -> SolidColor(defaultOutline.copy(alpha = 0.16f))
+        }
+    }
+
     // Border applies only for TRANSLUCENT style
     val borderModifier = if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
-        val resolvedGradientColors = when {
-            borderGradientColors != null -> borderGradientColors
-            borderColor != null -> listOf(
-                borderColor,
-                borderColor.copy(alpha = 0.4f)
-            )
-            else -> listOf(
-                Color.White.copy(alpha = 0.6f),
-                Color.White.copy(alpha = 0.1f)
-            )
-        }
         Modifier.border(
             width = borderWidth,
-            brush = Brush.verticalGradient(resolvedGradientColors),
+            brush = borderBrush,
             shape = SquircleShape(100, 0f)
         )
     } else {
