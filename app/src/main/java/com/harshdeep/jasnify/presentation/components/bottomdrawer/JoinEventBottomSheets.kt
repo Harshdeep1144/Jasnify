@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -59,9 +60,18 @@ import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
-import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
-import kotlin.time.Duration.Companion.milliseconds
+
+private val EnterIdInputShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerLarge,
+    bottomStart = CornerLarge,
+    bottomEnd = CornerLarge,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val EventIconContainerShape = SquircleShape(CornerLargeIncrease)
+private val EventIdBadgeShape = SquircleShape(100, CornerSmoothingDefault)
 
 /**
  * Bottom sheet for choosing between creating a new event or joining with an ID.
@@ -149,7 +159,7 @@ fun JoinEventBottomSheet(
         showCloseButton = true,
         hasToast = toastData.message != null,
         headerBackgroundImage = {
-            if(currentState == JoinEventSheetState.EVENT_DETAILS){
+            if (currentState == JoinEventSheetState.EVENT_DETAILS) {
                 Image(
                     painter = painterResource(id = R.drawable.bg_pattern_overlay_events_doodle),
                     contentDescription = null,
@@ -180,8 +190,7 @@ fun JoinEventBottomSheet(
         }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AnimatedContent(
@@ -237,7 +246,7 @@ private fun EnterIdSheetContent(
             value = eventId,
             onValueChange = onEventIdChange,
             placeholder = "Enter the event ID",
-            shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerLarge, CornerLarge, CornerSmoothingDefault),
+            shape = EnterIdInputShape,
             modifier = Modifier.fillMaxWidth()
         )
         Spacer(modifier = Modifier.height(12.dp))
@@ -267,16 +276,15 @@ private fun EventDetailsSheetContent(
     ) {
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Event Image
         val eventTypeIcon = remember(event?.typeId) {
-            com.harshdeep.jasnify.data.models.eventTypes.find { it.id == event?.typeId }?.iconResId
+            eventTypes.find { it.id == event?.typeId }?.iconResId
                 ?: R.drawable.ill_event_type_others
         }
 
         Box(
             modifier = Modifier
                 .size(104.dp)
-                .clip(shape = SquircleShape(CornerLargeIncrease))
+                .clip(shape = EventIconContainerShape)
                 .background(SurfaceSecondary),
             contentAlignment = Alignment.Center
         ) {
@@ -311,13 +319,13 @@ private fun EventDetailsSheetContent(
         // Event ID Badge
         Row(
             modifier = Modifier
-                .background(SurfaceSecondary, SquircleShape(100, CornerSmoothingDefault))
+                .background(SurfaceSecondary, EventIdBadgeShape)
                 .border(
                     width = 1.dp,
                     color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                    shape = SquircleShape(100, CornerSmoothingDefault)
+                    shape = EventIdBadgeShape
                 )
-                .clip(shape = SquircleShape(100, CornerSmoothingDefault))
+                .clip(shape = EventIdBadgeShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null

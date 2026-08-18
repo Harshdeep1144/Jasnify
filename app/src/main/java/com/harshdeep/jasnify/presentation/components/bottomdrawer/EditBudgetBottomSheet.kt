@@ -2,10 +2,25 @@ package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -23,8 +38,30 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.inputfield.BudgetInput
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import kotlinx.coroutines.yield
+import java.math.BigDecimal
+
+private val QuickAddOptions = listOf(
+    5000L to "+ ₹5,000",
+    10000L to "+ ₹10,000",
+    50000L to "+ ₹50,000",
+    200000L to "+ ₹2,00,000"
+)
+
+private val WhitespaceRegex = Regex("\\s+")
+
+private val Units = arrayOf(
+    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
+    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
+)
+
+private val Tens = arrayOf(
+    "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,10 +73,8 @@ fun EditBudgetBottomSheet(
     modifier: Modifier = Modifier,
     onProgress: ((Float) -> Unit)? = null
 ) {
-    // Reverted back to simple String state to match BudgetInput's clean signature
     var budgetValue by remember { mutableStateOf(initialBudgetValue) }
 
-    // Derive currency prefix (e.g. "INR", "USD", "JPY") and raw numeric parts
     val currencyCode = remember(budgetValue) {
         budgetValue.takeWhile { !it.isDigit() && it != '.' }
     }
@@ -50,7 +85,6 @@ fun EditBudgetBottomSheet(
         numericString.toDoubleOrNull() ?: 0.0
     }
 
-    // Convert numeric state to Indian numbering system in words, adaptive to currency code
     val budgetInWords = remember(numericValue, currencyCode) {
         if (numericValue > 0.0) {
             convertToIndianCurrencyInWords(numericValue, currencyCode)
@@ -67,27 +101,16 @@ fun EditBudgetBottomSheet(
         }
     }
 
-    // --- DYNAMIC HEIGHT CALCULATION ---
     val dynamicSheetHeight = remember(budgetInWords) {
         val baseHeight = 226
-        // On average portrait mobile displays, approx 32 chars fit in one row
         val charsPerLine = 45
         if (budgetInWords.length > charsPerLine) {
             val extraLines = (budgetInWords.length - charsPerLine) / charsPerLine + 1
-            // Adding 18.dp extra space per estimated wrapped line, capped at a safe maximum
             (baseHeight + (extraLines * 18)).coerceAtMost(300).dp
         } else {
             baseHeight.dp
         }
     }
-
-    // Quick-addition offset configurations
-    val quickAddOptions = listOf(
-        5000L to "+ ₹5,000",
-        10000L to "+ ₹10,000",
-        50000L to "+ ₹50,000",
-        200000L to "+ ₹2,00,000"
-    )
 
     CustomBottomSheet(
         heading = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
@@ -95,7 +118,6 @@ fun EditBudgetBottomSheet(
         onProgress = onProgress,
         sheetHeight = dynamicSheetHeight
     ) {
-        // --- INSTANT KEYBOARD & FOCUS FLOW ---
         val focusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -120,7 +142,8 @@ fun EditBudgetBottomSheet(
                     onValueChange = { newValue ->
                         budgetValue = newValue
                     },
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp)
                         .focusRequester(focusRequester)
                 )
 
@@ -160,7 +183,7 @@ fun EditBudgetBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    quickAddOptions.forEach { (amountToAdd, labelText) ->
+                    QuickAddOptions.forEach { (amountToAdd, labelText) ->
                         FilterChip(
                             label = labelText,
                             isSelected = false,
@@ -169,8 +192,7 @@ fun EditBudgetBottomSheet(
                             hasStroke = true,
                             onClick = {
                                 val updatedValue = (numericValue + amountToAdd).coerceAtMost(999999999999.0)
-                                // Use java.math.BigDecimal to avoid scientific notation
-                                val plainString = java.math.BigDecimal.valueOf(updatedValue).toPlainString()
+                                val plainString = BigDecimal.valueOf(updatedValue).toPlainString()
                                 val cleanString = if (plainString.endsWith(".0")) plainString.substringBefore(".0") else plainString
                                 budgetValue = currencyCode + cleanString
                             },
@@ -197,9 +219,6 @@ fun EditBudgetBottomSheet(
     }
 }
 
-/**
- * Utility function to convert double amounts to Indian currency verbal notation.
- */
 private fun convertToIndianCurrencyInWords(amount: Double, currencyCode: String): String {
     if (amount.isNaN() || amount.isInfinite() || amount < 0.0) return "Zero Only"
     if (amount > 999999999999.0) return "Amount Too Large"
@@ -236,7 +255,7 @@ private fun convertToIndianCurrencyInWords(amount: Double, currencyCode: String)
         result.append(convertLessThanThousand(finalRemainingUnits))
     }
 
-    val words = result.toString().trim().replace("\\s+".toRegex(), " ")
+    val words = result.toString().trim().replace(WhitespaceRegex, " ")
     if (words.isEmpty()) return ""
 
     val capitalizedWords = words.split(" ").joinToString(" ") { word ->
@@ -259,14 +278,6 @@ private fun convertToIndianCurrencyInWords(amount: Double, currencyCode: String)
     }
 }
 
-private val units = arrayOf(
-    "", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten",
-    "Eleven", "Twelve", "Thirteen", "Fourteen", "Fifteen", "Sixteen", "Seventeen", "Eighteen", "Nineteen"
-)
-private val tens = arrayOf(
-    "", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"
-)
-
 private fun convertThousandsAndBelow(number: Long): String {
     val result = StringBuilder()
     val thousands = number / 1000L
@@ -285,21 +296,22 @@ private fun convertLessThanThousand(number: Long): String {
     val result = StringBuilder()
     if (n >= 100) {
         val hundredIndex = (n / 100).toInt()
-        if (hundredIndex in units.indices) {
-            result.append(units[hundredIndex]).append(" Hundred ")
+        if (hundredIndex in Units.indices) {
+            result.append(Units[hundredIndex]).append(" Hundred ")
         }
         n %= 100
     }
     if (n >= 20) {
         val tensIndex = (n / 10).toInt()
-        if (tensIndex in tens.indices) {
-            result.append(tens[tensIndex]).append(" ")
+        if (tensIndex in Tens.indices) {
+            result.append(Tens[tensIndex]).append(" ")
         }
         n %= 10
     }
     if (n > 0) {
-        if (n in units.indices) {
-            result.append(units[n.toInt()]).append(" ")
+        val unitIndex = n.toInt()
+        if (unitIndex in Units.indices) {
+            result.append(Units[unitIndex]).append(" ")
         }
     }
     return result.toString().trim()

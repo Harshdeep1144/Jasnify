@@ -1,16 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import android.os.Build
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -30,7 +22,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
@@ -45,12 +36,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,10 +48,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
@@ -78,18 +64,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.DialogWindowProvider
-import androidx.compose.ui.zIndex
-import androidx.core.graphics.ColorUtils
-import androidx.core.view.WindowCompat
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
@@ -102,7 +81,6 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -110,11 +88,16 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import java.text.NumberFormat
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+
+private val IndianLocale = Locale("en", "IN")
+
+private val AmountContainerShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+private val ReceiverInputShape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
+private val EmojiButtonShape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault)
 
 class ThousandsSeparatorVisualTransformation : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
@@ -125,8 +108,8 @@ class ThousandsSeparatorVisualTransformation : VisualTransformation {
 
         val formatted = try {
             val parsed = originalText.toLong()
-            NumberFormat.getNumberInstance(Locale("en", "IN")).format(parsed)
-        } catch (e: Exception) {
+            NumberFormat.getNumberInstance(IndianLocale).format(parsed)
+        } catch (_: Exception) {
             originalText
         }
 
@@ -198,7 +181,7 @@ fun AddExpenseBottomSheet(
         )
     }
     var amountTextFieldValue by amountTextFieldValueState
-    
+
     var receiverName by remember(initialReceiver) { mutableStateOf(initialReceiver) }
     var selectedCategory by remember(initialCategory) { mutableStateOf(initialCategory) }
     var selectedEmoji by remember(initialEmoji) { mutableStateOf(initialEmoji) }
@@ -206,7 +189,6 @@ fun AddExpenseBottomSheet(
     var note by remember(initialNote) { mutableStateOf(initialNote) }
 
     var dynamicCategories by remember(categories) { mutableStateOf(categories) }
-
     var showCustomCategoryUI by remember { mutableStateOf(false) }
 
     val headingTitle = remember(showCustomCategoryUI, initialReceiver) {
@@ -215,11 +197,13 @@ fun AddExpenseBottomSheet(
 
     val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
 
+    val currentSheetHeight = if (showCustomCategoryUI) 161.dp else 560.dp
+
     CustomBottomSheet(
         heading = headingTitle,
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = 560.dp,
+        sheetHeight = currentSheetHeight,
         showDragHandle = true,
         showCloseButton = true,
         hasToast = toastData.message != null,
@@ -310,8 +294,7 @@ fun AddCustomCategoryBottomSheet(
         showCloseButton = true
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -357,6 +340,14 @@ fun AddExpenseSheetContent(
     modifier: Modifier = Modifier
 ) {
     val emojiFocusRequester = remember { FocusRequester() }
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+
+    val textStyle = JasnifyTheme.typography.displayLarge.copy(
+        fontWeight = FontWeight.Medium,
+        color = ContentPrimary,
+        textAlign = TextAlign.Start
+    )
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -381,11 +372,11 @@ fun AddExpenseSheetContent(
                         .border(
                             1.dp,
                             MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                            SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            AmountContainerShape
                         )
                         .background(
                             color = SurfaceSecondary,
-                            shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                            shape = AmountContainerShape
                         )
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.Center
@@ -408,27 +399,20 @@ fun AddExpenseSheetContent(
                             } else {
                                 try {
                                     val parsed = amountTextFieldValue.text.toLong()
-                                    NumberFormat.getNumberInstance(Locale("en", "IN")).format(parsed)
-                                } catch (e: Exception) {
+                                    NumberFormat.getNumberInstance(IndianLocale).format(parsed)
+                                } catch (_: Exception) {
                                     amountTextFieldValue.text
                                 }
                             }
                         }
 
-                        val textStyle = JasnifyTheme.typography.displayLarge.copy(
-                            fontWeight = FontWeight.Medium,
-                            color = ContentPrimary,
-                            textAlign = TextAlign.Start
-                        )
-
-                        val textMeasurer = rememberTextMeasurer()
-                        val textLayoutResult = remember(displayAmountText, textStyle) {
-                            textMeasurer.measure(
+                        val textWidthDp = remember(displayAmountText, textStyle, density) {
+                            val textLayoutResult = textMeasurer.measure(
                                 text = displayAmountText,
                                 style = textStyle
                             )
+                            with(density) { textLayoutResult.size.width.toDp() }
                         }
-                        val textWidthDp = with(LocalDensity.current) { textLayoutResult.size.width.toDp() }
 
                         BasicTextField(
                             value = amountTextFieldValue,
@@ -442,15 +426,14 @@ fun AddExpenseSheetContent(
                             cursorBrush = SolidColor(ContentPrimary),
                             singleLine = true,
                             visualTransformation = visualTransformation,
-                            modifier = Modifier
-                                .width(textWidthDp + 6.dp),
+                            modifier = Modifier.width(textWidthDp + 6.dp),
                             decorationBox = { innerTextField ->
                                 Box(contentAlignment = Alignment.CenterStart) {
                                     if (amountTextFieldValue.text.isEmpty()) {
                                         Text(
                                             text = "0",
                                             style = JasnifyTheme.typography.displayLarge.copy(fontWeight = FontWeight.Medium),
-                                            color = ContentPrimary.copy(alpha = 0.5f) // Set as hint
+                                            color = ContentPrimary.copy(alpha = 0.5f)
                                         )
                                     }
                                     innerTextField()
@@ -503,21 +486,21 @@ fun AddExpenseSheetContent(
                         onValueChange = onReceiverChange,
                         modifier = Modifier.weight(1f),
                         placeholder = "Enter Receiver's Name",
-                        shape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
+                        shape = ReceiverInputShape
                     )
 
                     Box(
                         modifier = Modifier
                             .width(56.dp)
                             .fillMaxHeight()
-                            .clip(shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault))
+                            .clip(shape = EmojiButtonShape)
                             .background(
                                 SurfaceSecondary,
-                                shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault)
+                                shape = EmojiButtonShape
                             )
                             .border(
                                 BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                                shape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault)
+                                shape = EmojiButtonShape
                             )
                             .clickable {
                                 emojiFocusRequester.requestFocus()
@@ -760,7 +743,7 @@ fun AddCustomCategorySheetContent(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(focusRequester) {
-        delay(50)
+        delay(50.milliseconds)
         focusRequester.requestFocus()
     }
 
@@ -795,7 +778,8 @@ fun AddCustomCategorySheetContent(
             size = ButtonSize.Medium,
             type = ButtonType.Primary,
             shapeStyle = ButtonShapeStyle.Square,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
                 .navigationBarsPadding(),
         )
     }

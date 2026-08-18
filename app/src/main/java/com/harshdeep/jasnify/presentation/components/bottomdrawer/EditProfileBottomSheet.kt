@@ -121,11 +121,14 @@ fun EditProfileBottomSheet(
         }
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(modifier = Modifier.fillMaxWidth().heightIn(max = 600.dp)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 600.dp)
+            ) {
                 EditProfileContent(
                     userName = userName,
                     userHandle = userHandle,
@@ -154,8 +157,8 @@ fun EditProfileContent(
     isUpdating: Boolean = false,
     onUpdateProfile: (String, String, Uri?, Boolean) -> Unit
 ) {
-    var name by remember { mutableStateOf(userName) }
-    var handle by remember { mutableStateOf(userHandle.removePrefix("@")) }
+    var name by remember(userName) { mutableStateOf(userName) }
+    var handle by remember(userHandle) { mutableStateOf(userHandle.removePrefix("@")) }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var shouldRemovePhoto by remember { mutableStateOf(false) }
 
@@ -168,23 +171,18 @@ fun EditProfileContent(
         }
     }
 
-    // Image that should be displayed in the preview
-    val displayImage = remember(selectedImageUri, shouldRemovePhoto, profilePic) {
-        when {
+    val (displayImage, hasImageToRemove) = remember(selectedImageUri, shouldRemovePhoto, profilePic) {
+        val resolvedImage = when {
             shouldRemovePhoto -> R.drawable.ic_user_profile
             selectedImageUri != null -> selectedImageUri
             else -> profilePic
         }
-    }
-
-    // Check if there is an image to remove (either original is not placeholder or a new one is selected)
-    val hasImageToRemove = remember(selectedImageUri, shouldRemovePhoto, profilePic) {
-        (selectedImageUri != null || (profilePic != R.drawable.ic_user_profile && profilePic != "")) && !shouldRemovePhoto
+        val canRemove = (selectedImageUri != null || (profilePic != R.drawable.ic_user_profile && profilePic != "")) && !shouldRemovePhoto
+        Pair(resolvedImage, canRemove)
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
     ) {
         Column(
             modifier = Modifier

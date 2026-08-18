@@ -63,13 +63,11 @@ import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
-/**
- * Validates whether the search query matches a standard email format.
- */
-private fun isValidEmail(email: String): Boolean {
-    val emailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
-    return email.matches(emailRegex)
-}
+private val EmailRegex = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$".toRegex()
+
+private val UserSearchItemShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+
+private fun isValidEmail(email: String): Boolean = email.matches(EmailRegex)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +87,6 @@ fun RoomAccessBottomSheet(
     val isShowingInvite = searchQuery.isNotEmpty() && searchResults.isEmpty() && hasValidEmail && selectedUser == null
     val isUserSelected = selectedUser != null
 
-    // Determine target height dynamically based on state and search result count
     val targetHeight = when {
         isShowingResults -> {
             val dynamicHeight = 220.dp + (searchResults.size * 72).dp
@@ -99,7 +96,6 @@ fun RoomAccessBottomSheet(
         else -> 220.dp
     }
 
-    // Smoothly animate height transitions
     val animatedSheetHeight by animateDpAsState(
         targetValue = targetHeight,
         animationSpec = spring(
@@ -152,7 +148,6 @@ fun RoomAccessBottomSheetContent(
 ) {
     val focusRequester = remember { FocusRequester() }
 
-    // Auto-focus input and raise keyboard when bottom sheet opens
     LaunchedEffect(Unit) {
         delay(150.milliseconds)
         focusRequester.requestFocus()
@@ -164,7 +159,6 @@ fun RoomAccessBottomSheetContent(
             .padding(12.dp)
             .navigationBarsPadding()
     ) {
-        // Top-anchored input keeps the Compose layout node stable across recompositions
         PrimaryInput(
             value = searchQuery,
             onValueChange = onSearchQueryChange,
@@ -174,7 +168,6 @@ fun RoomAccessBottomSheetContent(
                 .focusRequester(focusRequester)
         )
 
-        // Dynamic result list container
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -188,7 +181,11 @@ fun RoomAccessBottomSheetContent(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        items(searchResults) { user ->
+                        items(
+                            items = searchResults,
+                            key = { it.uid.ifEmpty { it.email } },
+                            contentType = { "user_search_item" }
+                        ) { user ->
                             UserSearchItem(
                                 user = user,
                                 onClick = { onSelectedUserChange(user) }
@@ -199,7 +196,7 @@ fun RoomAccessBottomSheetContent(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(UserSearchItemShape)
                             .background(SurfaceSecondary.copy(alpha = 0.5f))
                             .clickable {
                                 onSelectedUserChange(
@@ -235,13 +232,12 @@ fun RoomAccessBottomSheetContent(
                     onClick = { onSelectedUserChange(null) },
                     modifier = Modifier.background(
                         SurfaceBrandSecondary,
-                        SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+                        UserSearchItemShape
                     )
                 )
             }
         }
 
-        // Footer action controls
         Column(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -294,7 +290,7 @@ fun UserSearchItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(SquircleShape(CornerLargeIncrease))
+            .clip(UserSearchItemShape)
             .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically

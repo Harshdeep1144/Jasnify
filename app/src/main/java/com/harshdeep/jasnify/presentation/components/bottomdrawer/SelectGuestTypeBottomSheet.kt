@@ -44,12 +44,14 @@ fun SelectGuestTypeBottomSheet(
         imageUrls.take(3)
     }
 
+    val showClearButton = tempSelectedTypes.size > 1
+
     CustomBottomSheet(
         heading = "Select Guest Type",
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
-        showDragHandle = false
+        showDragHandle = false,
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             HorizontalDivider(
@@ -66,7 +68,8 @@ fun SelectGuestTypeBottomSheet(
             ) {
                 items(
                     items = guestTypes,
-                    key = { it.name } // Stable key prevents item recreation
+                    key = { it.name },
+                    contentType = { "guest_type_card" }
                 ) { type ->
                     val isSelected = tempSelectedTypes.contains(type.name)
 
@@ -101,13 +104,13 @@ fun SelectGuestTypeBottomSheet(
             ) {
                 CustomTextButton(
                     onClick = {
-                        if (tempSelectedTypes.size > 1) {
+                        if (showClearButton) {
                             tempSelectedTypes = emptySet()
                         } else {
                             onDismiss()
                         }
                     },
-                    text = if (tempSelectedTypes.size > 1) "Clear" else "Cancel",
+                    text = if (showClearButton) "Clear" else "Cancel",
                     modifier = Modifier.weight(1f),
                     size = ButtonSize.Medium,
                     type = ButtonType.Tertiary,
@@ -122,5 +125,19 @@ fun SelectGuestTypeBottomSheet(
                 )
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SelectGuestTypeBottomSheetPreview() {
+    JasnifyTheme {
+        SelectGuestTypeBottomSheet(
+            guestTypes = listOf(
+            ),
+            initialSelectedTypes = listOf("Family", "Friends"),
+            onDismiss = {},
+            onApply = {}
+        )
     }
 }

@@ -57,17 +57,47 @@ import com.harshdeep.jasnify.presentation.components.others.OptionSelector
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomNavBarContent
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.Neutral300
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+
+private val PreviewContainerShape = RoundedCornerShape(CornerExtraLarge)
+
+private val MockupOuterShape = RoundedCornerShape(
+    topStart = 0.dp,
+    topEnd = 0.dp,
+    bottomStart = CornerExtraLarge,
+    bottomEnd = CornerExtraLarge
+)
+
+private val MockupInnerShape = RoundedCornerShape(
+    topStart = 0.dp,
+    topEnd = 0.dp,
+    bottomStart = CornerLargeIncrease,
+    bottomEnd = CornerLargeIncrease
+)
+
+private val StaticNavItems = listOf(
+    Screen.HomeTabScreen.Home,
+    Screen.HomeTabScreen.Vendors,
+    Screen.HomeTabScreen.Checklists,
+    Screen.HomeTabScreen.Guests,
+    Screen.HomeTabScreen.Profile
+)
+
+private val TopInnerShadowBrush = Brush.verticalGradient(
+    colors = listOf(
+        ContentPrimary.copy(alpha = 0.15f),
+        ContentPrimary.copy(alpha = 0.04f),
+        Color.Transparent
+    )
+)
 
 enum class NavBarStyleOption(val label: String) {
     PILL_SHAPED("Pill Shaped"),
@@ -107,14 +137,6 @@ fun NavBarStyleContent(
     var selectedStyle by remember { mutableStateOf(currentStyle) }
     var selectedNavIndex by remember { mutableIntStateOf(0) }
 
-    val navItems = listOf(
-        Screen.HomeTabScreen.Home,
-        Screen.HomeTabScreen.Vendors,
-        Screen.HomeTabScreen.Checklists,
-        Screen.HomeTabScreen.Guests,
-        Screen.HomeTabScreen.Profile
-    )
-
     Column(
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -127,10 +149,10 @@ fun NavBarStyleContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(CornerExtraLarge))
+                    .clip(PreviewContainerShape)
                     .background(SurfaceBrandSecondary)
                     .innerShadow(
-                        shape = RoundedCornerShape(CornerExtraLarge),
+                        shape = PreviewContainerShape,
                         color = ContentPrimary.copy(alpha = 0.05f),
                         blur = 10.dp,
                         spread = 6.dp
@@ -146,28 +168,14 @@ fun NavBarStyleContent(
                         modifier = Modifier
                             .fillMaxWidth(0.90f)
                             .height(145.dp)
-                            .clip(
-                                RoundedCornerShape(
-                                    topStart = 0.dp,
-                                    topEnd = 0.dp,
-                                    bottomStart = CornerExtraLarge,
-                                    bottomEnd = CornerExtraLarge,
-                                )
-                            )
+                            .clip(MockupOuterShape)
                             .background(ContentInvPrimary)
                             .padding(start = 8.dp, end = 8.dp, bottom = 8.dp, top = 0.dp)
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clip(
-                                    RoundedCornerShape(
-                                        topStart = 0.dp,
-                                        topEnd = 0.dp,
-                                        bottomStart = CornerLargeIncrease,
-                                        bottomEnd = CornerLargeIncrease
-                                    )
-                                )
+                                .clip(MockupInnerShape)
                                 .background(SurfaceSecondary)
                         ) {
                             // Main Mockup Content
@@ -182,8 +190,7 @@ fun NavBarStyleContent(
                             ) { targetStyle ->
                                 if (targetStyle == NavBarStyleOption.PILL_SHAPED) {
                                     Box(
-                                        modifier = Modifier
-                                            .fillMaxSize(),
+                                        modifier = Modifier.fillMaxSize(),
                                         contentAlignment = Alignment.BottomCenter
                                     ) {
                                         Column(
@@ -196,12 +203,12 @@ fun NavBarStyleContent(
                                                 BottomNavBarContent(
                                                     selectedIndex = selectedNavIndex,
                                                     onItemSelected = { selectedScreen ->
-                                                        val index = navItems.indexOf(selectedScreen)
+                                                        val index = StaticNavItems.indexOf(selectedScreen)
                                                         if (index != -1) {
                                                             selectedNavIndex = index
                                                         }
                                                     },
-                                                    navItems = navItems,
+                                                    navItems = StaticNavItems,
                                                     style = NavBarStyleOption.PILL_SHAPED,
                                                     applyPadding = false,
                                                     modifier = Modifier
@@ -251,12 +258,12 @@ fun NavBarStyleContent(
                                                     BottomNavBarContent(
                                                         selectedIndex = selectedNavIndex,
                                                         onItemSelected = { selectedScreen ->
-                                                            val index = navItems.indexOf(selectedScreen)
+                                                            val index = StaticNavItems.indexOf(selectedScreen)
                                                             if (index != -1) {
                                                                 selectedNavIndex = index
                                                             }
                                                         },
-                                                        navItems = navItems,
+                                                        navItems = StaticNavItems,
                                                         style = NavBarStyleOption.BASIC,
                                                         applyPadding = false,
                                                         modifier = Modifier
@@ -308,20 +315,12 @@ fun NavBarStyleContent(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Top vertical gradient inner shadow overlay preserved at the top
+                // Top vertical gradient inner shadow overlay
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(36.dp)
-                        .background(
-                            brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    ContentPrimary.copy(alpha = 0.15f),
-                                    ContentPrimary.copy(alpha = 0.04f),
-                                    Color.Transparent
-                                )
-                            )
-                        )
+                        .background(brush = TopInnerShadowBrush)
                 )
             }
 
@@ -354,7 +353,7 @@ fun NavBarStyleContent(
 
         HorizontalDivider(
             thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
         )
 
         Column(
@@ -386,9 +385,9 @@ fun Modifier.innerShadow(
     drawContent()
 
     val outline = shape.createOutline(size, layoutDirection, this)
+    val shadowPath = Path().apply { addOutline(outline) }
 
-    // Clip all inner shadow drawing within the bounding shape path
-    clipPath(Path().apply { addOutline(outline) }) {
+    clipPath(shadowPath) {
         drawIntoCanvas { canvas ->
             val strokeWidth = blur.toPx() * 2f + spread.toPx()
 
@@ -398,7 +397,6 @@ fun Modifier.innerShadow(
                 this.strokeWidth = strokeWidth
             }
 
-            // Apply blur filter on the inner stroke edge
             shadowPaint.asFrameworkPaint().apply {
                 isAntiAlias = true
                 if (blur.toPx() > 0) {
@@ -409,11 +407,6 @@ fun Modifier.innerShadow(
                 }
             }
 
-            val shadowPath = Path().apply {
-                addOutline(outline)
-            }
-
-            // Offset canvas if needed for directional inner shadows
             if (offsetX.toPx() != 0f || offsetY.toPx() != 0f) {
                 canvas.save()
                 canvas.translate(offsetX.toPx(), offsetY.toPx())

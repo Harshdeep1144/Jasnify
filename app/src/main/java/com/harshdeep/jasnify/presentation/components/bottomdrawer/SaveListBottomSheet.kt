@@ -41,22 +41,40 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.inputfield.TimeLineInput
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val SavedListSingleCardShape = SquircleShape(CornerLargeIncrease)
+private val SavedListMiddleCardShape = RoundedCornerShape(CornerExtraSmall)
+
+private val SavedListTopCardShape = SquircleShape(
+    topStart = CornerLargeIncrease,
+    topEnd = CornerLargeIncrease,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+
+private val SavedListBottomCardShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLargeIncrease,
+    bottomEnd = CornerLargeIncrease,
+    cornerSmoothing = CornerSmoothingDefault
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -100,11 +118,11 @@ fun SaveListBottomSheet(
                     .fillMaxWidth(),
                 contentPadding = PaddingValues(12.dp)
             ) {
-                item {
+                item(key = "my_saved_list", contentType = "saved_list_card") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(SquircleShape(CornerLargeIncrease))
+                            .clip(SavedListSingleCardShape)
                             .background(SurfaceSecondary)
                             .clickable { onMySavedListToggled(!isMySavedListChecked) }
                             .padding(16.dp),
@@ -124,14 +142,14 @@ fun SaveListBottomSheet(
                     }
                 }
 
-                item {
+                item(key = "or_divider", contentType = "divider") {
                     OrDivider(
                         text = "OR",
                         dividerGap = 24.dp,
                     )
                 }
 
-                item {
+                item(key = "header_save_for_event", contentType = "section_header") {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -192,7 +210,7 @@ fun SaveListBottomSheet(
                 }
 
                 if (draftNewEvent != null) {
-                    item {
+                    item(key = "draft_new_event", contentType = "timeline_input") {
                         TimeLineInput(
                             item = draftNewEvent!!,
                             onUpdate = { updatedItem ->
@@ -215,14 +233,18 @@ fun SaveListBottomSheet(
                     }
                 }
 
-                itemsIndexed(timelineEvents) { index, eventItem ->
+                itemsIndexed(
+                    items = timelineEvents,
+                    key = { _, eventItem -> eventItem.id },
+                    contentType = { _, _ -> "timeline_event_item" }
+                ) { index, eventItem ->
                     val isSelected = selectedEventId == eventItem.id
 
                     val cardShape = when {
-                        timelineEvents.size == 1 -> RoundedCornerShape(CornerLargeIncrease)
-                        index == 0 -> SquircleShape(CornerLargeIncrease, CornerLargeIncrease, CornerExtraSmall, CornerExtraSmall)
-                        index == timelineEvents.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLargeIncrease, CornerLargeIncrease)
-                        else -> RoundedCornerShape(CornerExtraSmall)
+                        timelineEvents.size == 1 -> SavedListSingleCardShape
+                        index == 0 -> SavedListTopCardShape
+                        index == timelineEvents.lastIndex -> SavedListBottomCardShape
+                        else -> SavedListMiddleCardShape
                     }
 
                     Row(

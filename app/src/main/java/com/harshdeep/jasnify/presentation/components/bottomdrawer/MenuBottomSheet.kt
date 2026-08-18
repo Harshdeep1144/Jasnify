@@ -18,6 +18,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,14 +33,11 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
-import sv.lib.squircleshape.SquircleShape
 
 enum class IconPlacement {
     Left,
@@ -60,7 +58,6 @@ data class MenuSheetActionItem(
 fun MenuBottomSheet(
     items: List<List<MenuSheetActionItem>>,
     onCancelClick: () -> Unit,
-    modifier: Modifier = Modifier,
     onProgress: ((Float) -> Unit)? = null
 ) {
     CustomBottomSheet(
@@ -69,7 +66,7 @@ fun MenuBottomSheet(
         sheetHeight = null,
         containerColor = SurfaceSecondary,
         showDragHandle = true,
-        showCloseButton = false
+        showCloseButton = false,
     ) {
         MenuBottomSheetContent(
             items = items,
@@ -90,7 +87,6 @@ fun MenuBottomSheetContent(
             .navigationBarsPadding(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Stacked and grouped items matching your precise visual specifications
         Column(
             verticalArrangement = Arrangement.spacedBy(2.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -106,18 +102,21 @@ fun MenuBottomSheetContent(
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     rowItems.forEachIndexed { colIndex, item ->
-                        val roundedShape = calculateItemShape(
-                            rowIndex = rowIndex,
-                            totalRows = totalRows,
-                            colIndex = colIndex,
-                            totalCols = totalCols
-                        )
+                        val roundedShape = remember(rowIndex, totalRows, colIndex, totalCols) {
+                            calculateItemShape(
+                                rowIndex = rowIndex,
+                                totalRows = totalRows,
+                                colIndex = colIndex,
+                                totalCols = totalCols
+                            )
+                        }
 
+                        val isSingleCol = totalCols <= 1
                         val itemModifier = Modifier
-                            .then(if (totalCols > 1) Modifier.weight(1f) else Modifier.fillMaxWidth())
+                            .then(if (isSingleCol) Modifier.fillMaxWidth() else Modifier.weight(1f))
                             .background(color = item.containerColor, shape = roundedShape)
                             .clip(shape = roundedShape)
-                            .clickable { item.onClick() }
+                            .clickable(onClick = item.onClick)
                             .padding(16.dp)
 
                         if (item.iconPlacement == IconPlacement.Top) {
@@ -173,14 +172,12 @@ fun MenuBottomSheetContent(
                 type = ButtonType.Tertiary,
                 shapeStyle = ButtonShapeStyle.Square,
                 contentColor = ContentSecondary,
-                modifier = Modifier
-                    .fillMaxWidth()
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
 }
 
-@Composable
 private fun calculateItemShape(
     rowIndex: Int,
     totalRows: Int,
@@ -200,31 +197,26 @@ private fun calculateItemShape(
     )
 }
 
-
-
 // ----------------------------------------------- Preview ------------------------------------------------
 
 @Preview(showBackground = true)
 @Composable
 fun MenuBottomSheetPreview() {
-    // Recreates the exact grid scenario represented in image_ed0f82.png and image_ed0fda.png
     val mockItems = listOf(
-        // Row 1: Side-by-side with icons on top (Grid View style)
         listOf(
             MenuSheetActionItem(
                 text = "List View",
-                icon = painterResource(id = R.drawable.ic_list), // Replace with your actual drawable resource id
+                icon = painterResource(id = R.drawable.ic_list),
                 iconPlacement = IconPlacement.Top,
                 onClick = { }
             ),
             MenuSheetActionItem(
                 text = "View Archives",
-                icon = painterResource(id = R.drawable.ic_box), // Replace with your actual drawable resource id
+                icon = painterResource(id = R.drawable.ic_box),
                 iconPlacement = IconPlacement.Top,
                 onClick = { }
             )
         ),
-        // Row 2: Full width item (Row Style)
         listOf(
             MenuSheetActionItem(
                 text = "Manage Room Access",
@@ -233,18 +225,16 @@ fun MenuBottomSheetPreview() {
                 onClick = { }
             )
         ),
-        // Row 3: Full width item (Row Style)
         listOf(
             MenuSheetActionItem(
                 text = "Help & Feedback",
-                icon = painterResource(id = R.drawable.ic_info), // Replace with your actual drawable resource id
+                icon = painterResource(id = R.drawable.ic_info),
                 iconPlacement = IconPlacement.Left,
                 onClick = { }
             )
         )
     )
 
-    // Previewing the content directly enables effortless preview design cycle without dealing with Dialog wrapper state!
     MenuBottomSheetContent(
         items = mockItems,
         onCancelClick = { }

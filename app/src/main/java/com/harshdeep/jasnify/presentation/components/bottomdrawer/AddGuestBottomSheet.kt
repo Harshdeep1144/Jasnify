@@ -43,7 +43,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +67,8 @@ import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 import java.util.UUID
+
+private val GuestTypeSelectorShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 
 @Composable
 fun AddGuestInfoBottomSheet(
@@ -134,7 +135,7 @@ fun AddGuestInfoBottomSheet(
                         .clip(CircleShape)
                         .background(ContentSecondary),
                     contentAlignment = Alignment.Center
-                ){
+                ) {
                     val displayImage = localImageUri ?: imageUrl
                     if (displayImage != null) {
                         AsyncImage(
@@ -193,7 +194,7 @@ fun AddGuestInfoBottomSheet(
                         )
                         Spacer(Modifier.width(4.dp))
                     }
-                    
+
                     CustomTextButton(
                         onClick = { photoPickerLauncher.launch("image/*") },
                         text = if (localImageUri == null && imageUrl == null) "Upload" else "Change",
@@ -246,8 +247,12 @@ fun AddGuestInfoBottomSheet(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(56.dp)
-                                .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                .clip(GuestTypeSelectorShape)
+                                .border(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                    GuestTypeSelectorShape
+                                )
                                 .clickable { expanded = true },
                             color = SurfaceSecondary
                         ) {
@@ -273,17 +278,17 @@ fun AddGuestInfoBottomSheet(
                             expanded = expanded,
                             onDismissRequest = { expanded = false },
                             modifier = Modifier
-                                .fillMaxWidth(0.8f) // Increased width for better visibility
+                                .fillMaxWidth(0.8f)
                                 .background(BackgroundPrimary)
                         ) {
                             guestTypes.forEach { type ->
                                 DropdownMenuItem(
-                                    text = { 
+                                    text = {
                                         Text(
                                             text = type.name,
                                             style = JasnifyTheme.typography.labelXLarge,
                                             color = ContentPrimary
-                                        ) 
+                                        )
                                     },
                                     onClick = {
                                         selectedType = type.name
@@ -324,9 +329,9 @@ fun AddGuestInfoBottomSheet(
             }
         }
 
-        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+        HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
-        Column{
+        Column {
             CustomTextButton(
                 onClick = {
                     if (name.isBlank()) {
@@ -365,7 +370,8 @@ fun AddGuestInfoBottomSheet(
                     }
                 },
                 text = if (initialGuest == null) "Add Details" else "Update Details",
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
                     .padding(12.dp),
                 shapeStyle = ButtonShapeStyle.Square,
                 enabled = !isUploading
@@ -373,7 +379,6 @@ fun AddGuestInfoBottomSheet(
         }
     }
 }
-
 
 @Composable
 fun AddGuestTypeBottomSheet(
@@ -437,7 +442,7 @@ fun PreviewAddGuestSheets() {
                 onAddNewTypeClick = {},
                 guestTypes = emptyList()
             )
-            
+
             AddGuestTypeBottomSheet(
                 onDismiss = {},
                 onAddType = {}

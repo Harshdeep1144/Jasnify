@@ -22,14 +22,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.times
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.presentation.components.cards.OfferCard
 import com.harshdeep.jasnify.presentation.components.cards.OfferCardType
@@ -38,7 +34,8 @@ import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 
 enum class OfferSheetState {
-    OFFER_LIST, OFFER_DETAILS
+    OFFER_LIST,
+    OFFER_DETAILS
 }
 
 @Composable
@@ -48,10 +45,10 @@ fun OfferBottomSheet(
     onDismiss: () -> Unit,
     onProgress: (Float) -> Unit,
 ) {
-    var currentState by remember { 
-        mutableStateOf(if (initialOffer != null) OfferSheetState.OFFER_DETAILS else OfferSheetState.OFFER_LIST) 
+    var currentState by remember(initialOffer) {
+        mutableStateOf(if (initialOffer != null) OfferSheetState.OFFER_DETAILS else OfferSheetState.OFFER_LIST)
     }
-    var selectedOffer by remember { mutableStateOf(initialOffer) }
+    var selectedOffer by remember(initialOffer) { mutableStateOf(initialOffer) }
     var searchQuery by remember { mutableStateOf("") }
     val clipboardManager = LocalClipboardManager.current
 
@@ -66,10 +63,14 @@ fun OfferBottomSheet(
     BackHandler(enabled = currentState == OfferSheetState.OFFER_DETAILS, onBack = handleBackPress)
 
     val filteredOffers = remember(searchQuery, offers) {
-        if (searchQuery.isBlank()) offers
-        else offers.filter {
-            it.title.contains(searchQuery, ignoreCase = true) ||
-                    it.description.contains(searchQuery, ignoreCase = true)
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            offers
+        } else {
+            offers.filter {
+                it.title.contains(query, ignoreCase = true) ||
+                        it.description.contains(query, ignoreCase = true)
+            }
         }
     }
 
@@ -101,7 +102,11 @@ fun OfferBottomSheet(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            items(filteredOffers) { offer ->
+                            items(
+                                items = filteredOffers,
+                                key = { it.id ?: (it.title + it.code) },
+                                contentType = { "offer_card" }
+                            ) { offer ->
                                 OfferCard(
                                     title = offer.title,
                                     description = offer.description,
@@ -133,7 +138,7 @@ fun OfferBottomSheet(
                                 type = OfferCardType.FULL,
                                 onCopyCodeClick = {
                                     offer.code?.let { text -> clipboardManager.setText(AnnotatedString(text)) }
-                                },
+                                }
                             )
 
                             Spacer(modifier = Modifier.height(16.dp))
@@ -148,14 +153,18 @@ fun OfferBottomSheet(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             LazyColumn(
-                                modifier = Modifier.weight(1 - 0.001f),
+                                modifier = Modifier.weight(1f),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                items(offer.termsAndConditions) { term ->
+                                items(
+                                    items = offer.termsAndConditions,
+                                    key = { it },
+                                    contentType = { "term_item" }
+                                ) { term ->
                                     Text(
                                         text = "• $term",
                                         style = JasnifyTheme.typography.labelMedium,
-                                        color = ContentSecondary,
+                                        color = ContentSecondary
                                     )
                                 }
                             }
