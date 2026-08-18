@@ -89,7 +89,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectGuestTypeBottomSheet
+import com.harshdeep.jasnify.presentation.components.filter.FilterGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -1158,7 +1158,7 @@ fun GuestsTab(
         }
 
         if (showTypeFilterSheet) {
-            SelectGuestTypeBottomSheet(
+            FilterGuestTypeBottomSheet(
                 guestTypes = guestTypes.map { typeName ->
                     GuestType(
                         name = typeName,

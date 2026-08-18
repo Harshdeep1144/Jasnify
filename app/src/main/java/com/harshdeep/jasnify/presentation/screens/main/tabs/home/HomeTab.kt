@@ -155,6 +155,11 @@ fun HomeTab(
         savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
     }
 
+    LaunchedEffect(Unit) {
+        eventViewModel.fetchUserEvents()
+    }
+
+    // 2. Propagate event ID to related ViewModels once activeEvent is available
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)

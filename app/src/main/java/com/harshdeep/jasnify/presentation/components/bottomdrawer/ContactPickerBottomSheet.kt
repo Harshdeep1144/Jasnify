@@ -146,8 +146,8 @@ fun ContactPickerBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         showCloseButton = true,
-        sheetGesturesEnabled = true,
-        showDragHandle = false,
+        sheetGesturesEnabled = false,
+        showDragHandle = true,
         sheetHeight = currentSheetHeight,
         hasToast = hasToast,
         toast = toast

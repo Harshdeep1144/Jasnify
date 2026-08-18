@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -120,7 +121,8 @@ fun CardFullView(
                 backIcon = TopIcon.Predefined.BACK_2,
                 menuIcon = TopIcon.CustomPainter(sharePainter),
                 textColor = ContentInvPrimary,
-                buttonStyle = ButtonBackground.TRANSLUCENT
+                buttonStyle = ButtonBackground.OPAQUE,
+                buttonColor = Color(0xE53D3D3D)
             )
         }
 

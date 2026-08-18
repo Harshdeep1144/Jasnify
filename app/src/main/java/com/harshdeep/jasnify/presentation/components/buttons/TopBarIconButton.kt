@@ -8,15 +8,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.ArrowRightAlt
-import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
@@ -25,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposeRenderEffect
@@ -36,11 +30,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
-import com.harshdeep.jasnify.R
 
 enum class ButtonBackground {
     TRANSPARENT,
@@ -74,6 +67,7 @@ fun TopBarIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     backgroundStyle: ButtonBackground = ButtonBackground.TRANSPARENT,
+    buttonColor: Color = SurfaceSecondary,
     iconColor: Color = ContentPrimary,
     borderColor: Color? = null,
     borderGradientColors: List<Color>? = null,
@@ -88,7 +82,7 @@ fun TopBarIconButton(
     val backgroundColor = when (backgroundStyle) {
         ButtonBackground.TRANSPARENT -> Color.Transparent
         ButtonBackground.TRANSLUCENT -> Color.White.copy(alpha = translucentAlpha)
-        ButtonBackground.OPAQUE -> SurfaceSecondary
+        ButtonBackground.OPAQUE -> buttonColor
     }
 
     val painter: Painter = when (icon) {
@@ -115,35 +109,38 @@ fun TopBarIconButton(
         else -> iconColor
     }
 
-    // Determine the border gradient colors based on custom input or defaults
-    val resolvedGradientColors = when {
-        borderGradientColors != null -> borderGradientColors
-        borderColor != null -> listOf(
-            borderColor,
-            borderColor.copy(alpha = 0.4f)
+    // Border applies only for TRANSLUCENT style
+    val borderModifier = if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
+        val resolvedGradientColors = when {
+            borderGradientColors != null -> borderGradientColors
+            borderColor != null -> listOf(
+                borderColor,
+                borderColor.copy(alpha = 0.4f)
+            )
+            else -> listOf(
+                Color.White.copy(alpha = 0.6f),
+                Color.White.copy(alpha = 0.1f)
+            )
+        }
+        Modifier.border(
+            width = borderWidth,
+            brush = Brush.verticalGradient(resolvedGradientColors),
+            shape = SquircleShape(100, 0f)
         )
-        else -> listOf(
-            SurfaceSecondary,
-            SurfaceSecondary.copy(alpha = 0.4f)
-        )
+    } else {
+        Modifier
     }
-
-    val borderBrush = Brush.verticalGradient(resolvedGradientColors)
 
     Box(
         modifier = modifier
             .size(size)
             .clip(shape = SquircleShape(100, 0f))
             .background(backgroundColor)
-            .border(
-                width = borderWidth,
-                brush = borderBrush,
-                shape = SquircleShape(100, 0f)
-            )
+            .then(borderModifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        // Icon Drop Shadow (rendered behind the main icon only when TRANSPARENT)
+        // Drop Shadow behind icon in TRANSPARENT mode
         if (backgroundStyle == ButtonBackground.TRANSPARENT && iconShadowColor != Color.Transparent) {
             Icon(
                 painter = painter,
@@ -180,7 +177,6 @@ fun TopBarIconButton(
     }
 }
 
-
 @Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun TopBarIconButtonPreview() {
@@ -213,7 +209,7 @@ private fun TopBarIconButtonPreview() {
                     onClick = {},
                     backgroundStyle = ButtonBackground.TRANSPARENT,
                     iconColor = Color.White,
-                    iconShadowColor = Color.Black.copy(alpha = 0.5f),
+                    iconShadowColor = Color.Black.copy(alpha = 0.5f)
                 )
 
                 Spacer(Modifier.size(16.dp))
@@ -222,7 +218,8 @@ private fun TopBarIconButtonPreview() {
                     icon = icon,
                     onClick = {},
                     backgroundStyle = ButtonBackground.TRANSLUCENT,
-                    iconColor = Color.White
+                    iconColor = Color.White,
+                    borderColor = Color.White.copy(alpha = 0.5f)
                 )
 
                 Spacer(Modifier.size(16.dp))
@@ -231,7 +228,8 @@ private fun TopBarIconButtonPreview() {
                     icon = icon,
                     onClick = {},
                     backgroundStyle = ButtonBackground.OPAQUE,
-                    borderColor = Color.Red
+                    buttonColor = Color(0xFF1E1E1E),
+                    iconColor = Color.White
                 )
             }
         }

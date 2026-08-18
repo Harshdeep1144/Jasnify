@@ -270,7 +270,7 @@ fun FilterChip(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = null,
                     modifier = Modifier.size(styles.iconSize),
-                    tint = ContentPrimary
+                    tint = if(isSelected && hasStroke) ContentBrandDark else ContentPrimary
                 )
             }
 
@@ -459,7 +459,7 @@ private fun ChipPreview() {
                 ChipRow {
                     FilterChip(
                         label = "Label",
-                        isSelected = false,
+                        isSelected = true,
                         size = ChipSize.Small,
                         leadingIcon = Icons.Default.FilterList,
                         hasDropdown = true,
@@ -520,7 +520,8 @@ private fun ChipPreview() {
                     )
                     FilterChip(
                         label = "Label",
-                        isSelected = true,
+                        isSelected = false,
+                        hasDropdown = true,
                         shapeStyle = ChipShapeStyle.Round,
                         size = ChipSize.Large,
                         leadingIcon = Icons.Default.FilterList,

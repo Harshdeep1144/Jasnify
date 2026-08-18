@@ -148,6 +148,8 @@ fun SelectableListBottomSheet(
         heading = heading,
         onDismiss = onDismiss,
         onProgress = onProgress,
+        showDragHandle = true,
+        sheetGesturesEnabled = false,
         sheetHeight = sheetHeight
     ) {
         Column(

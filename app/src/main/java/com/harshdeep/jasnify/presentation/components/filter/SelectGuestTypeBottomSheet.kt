@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.bottomdrawer
+package com.harshdeep.jasnify.presentation.components.filter
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.GuestType
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -28,7 +29,7 @@ import com.harshdeep.jasnify.presentation.components.cards.GuestTypeCard
 import com.harshdeep.jasnify.theme.JasnifyTheme
 
 @Composable
-fun SelectGuestTypeBottomSheet(
+fun FilterGuestTypeBottomSheet(
     guestTypes: List<GuestType>,
     initialSelectedTypes: List<String>,
     onDismiss: () -> Unit,
@@ -132,7 +133,7 @@ fun SelectGuestTypeBottomSheet(
 @Composable
 private fun SelectGuestTypeBottomSheetPreview() {
     JasnifyTheme {
-        SelectGuestTypeBottomSheet(
+        FilterGuestTypeBottomSheet(
             guestTypes = listOf(
             ),
             initialSelectedTypes = listOf("Family", "Friends"),
