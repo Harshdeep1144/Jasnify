@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrand
@@ -78,6 +80,9 @@ fun CustomSearchBar(
     type: SearchBarType = SearchBarType.DEFAULT,
     isAiSearch: Boolean = false,
     backgroundColor: Color = SurfaceSecondary,
+    borderColor: Color? = null,
+    borderGradientColors: List<Color>? = null,
+    borderWidth: Dp = 1.dp,
     isTranslucent: Boolean = false,
     translucentAlpha: Float = 0.2f,
     isTransparent: Boolean = false,
@@ -165,6 +170,23 @@ fun CustomSearchBar(
         }
     }
 
+    // Gradient used strictly when the search bar is inactive
+    val defaultOutline = MaterialTheme.colorScheme.outline
+    val inactiveGradientColors = remember(borderGradientColors, borderColor, defaultOutline) {
+        when {
+            borderGradientColors != null -> borderGradientColors
+            borderColor != null -> listOf(
+                borderColor,
+                borderColor.copy(alpha = 0.4f)
+            )
+            else -> listOf(
+                defaultOutline.copy(alpha = 0.16f),
+                defaultOutline.copy(alpha = 0.16f)
+            )
+        }
+    }
+    val inactiveBorderBrush = Brush.verticalGradient(inactiveGradientColors)
+
     AnimatedContent(
         targetState = isExpanded,
         modifier = modifier.animateContentSize(
@@ -197,24 +219,34 @@ fun CustomSearchBar(
                         shape = RoundedCornerShape(100)
                     )
                     .then(
-                        if (effectiveIsAiSearch) {
-                            Modifier
-                                .border(
+                        when {
+                            effectiveIsAiSearch -> {
+                                Modifier
+                                    .border(
+                                        width = 1.dp,
+                                        color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
+                                        shape = RoundedCornerShape(100)
+                                    )
+                                    .border(
+                                        width = 1.dp,
+                                        brush = aiGradientBrush,
+                                        shape = RoundedCornerShape(100)
+                                    )
+                            }
+                            isFocused -> {
+                                Modifier.border(
                                     width = 1.dp,
-                                    color = ContentSecondary.copy(alpha = (1f - borderAlphaAnimatable.value) * 0.3f),
+                                    color = ContentPrimary,
                                     shape = RoundedCornerShape(100)
                                 )
-                                .border(
-                                    width = 1.dp,
-                                    brush = aiGradientBrush,
+                            }
+                            else -> {
+                                Modifier.border(
+                                    width = borderWidth,
+                                    brush = inactiveBorderBrush,
                                     shape = RoundedCornerShape(100)
                                 )
-                        } else {
-                            Modifier.border(
-                                width = 1.dp,
-                                color = if (isFocused) ContentPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                                shape = RoundedCornerShape(100)
-                            )
+                            }
                         }
                     )
             ) {
@@ -341,8 +373,8 @@ fun CustomSearchBar(
                                 )
                         } else {
                             Modifier.border(
-                                width = 1.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
+                                width = borderWidth,
+                                brush = inactiveBorderBrush,
                                 shape = RoundedCornerShape(100)
                             )
                         }

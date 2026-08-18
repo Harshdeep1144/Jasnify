@@ -21,6 +21,7 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
@@ -49,6 +50,9 @@ fun CustomTopBar(
     backIcon: TopIcon = TopIcon.Predefined.BACK,
     menuIcon: TopIcon = TopIcon.Predefined.MENU_VERTICAL,
     buttonStyle: ButtonBackground = ButtonBackground.OPAQUE,
+    borderColor: Color? = null,
+    borderGradientColors: List<Color>? = null,
+    borderWidth: Dp = 1.dp,
     translucentAlpha: Float = 0.2f,
     isLeftAligned: Boolean = false,
     titleIcon: Painter? = null,
@@ -74,6 +78,9 @@ fun CustomTopBar(
                         icon = backIcon,
                         onClick = onBackClick,
                         backgroundStyle = buttonStyle,
+                        borderColor = borderColor,
+                        borderGradientColors = borderGradientColors,
+                        borderWidth = borderWidth,
                         size = 40.dp,
                         iconSize = 24.dp,
                         iconColor = textColor,
@@ -214,6 +221,9 @@ fun CustomTopBar(
                             icon = secondaryIcon,
                             onClick = onSecondaryClick,
                             backgroundStyle = buttonStyle,
+                            borderColor = borderColor,
+                            borderGradientColors = borderGradientColors,
+                            borderWidth = borderWidth,
                             size = 40.dp,
                             iconSize = 24.dp,
                             iconColor = textColor,
@@ -225,6 +235,9 @@ fun CustomTopBar(
                             icon = menuIcon,
                             onClick = onMenuClick,
                             backgroundStyle = buttonStyle,
+                            borderColor = borderColor,
+                            borderGradientColors = borderGradientColors,
+                            borderWidth = borderWidth,
                             size = 40.dp,
                             iconSize = 24.dp,
                             iconColor = textColor,
@@ -242,6 +255,9 @@ fun CustomTopBar(
                             icon = backIcon,
                             onClick = onBackClick,
                             backgroundStyle = buttonStyle,
+                            borderColor = borderColor,
+                            borderGradientColors = borderGradientColors,
+                            borderWidth = borderWidth,
                             size = 40.dp,
                             iconSize = 18.dp,
                             iconColor = textColor,
@@ -291,6 +307,9 @@ fun CustomTopBar(
                                 icon = secondaryIcon,
                                 onClick = onSecondaryClick,
                                 backgroundStyle = buttonStyle,
+                                borderColor = borderColor,
+                                borderGradientColors = borderGradientColors,
+                                borderWidth = borderWidth,
                                 size = 40.dp,
                                 iconSize = 24.dp,
                                 iconColor = textColor,
@@ -302,6 +321,9 @@ fun CustomTopBar(
                                 icon = menuIcon,
                                 onClick = onMenuClick,
                                 backgroundStyle = buttonStyle,
+                                borderColor = borderColor,
+                                borderGradientColors = borderGradientColors,
+                                borderWidth = borderWidth,
                                 size = 40.dp,
                                 iconSize = 24.dp,
                                 iconColor = textColor,
@@ -603,14 +625,14 @@ fun CustomTopBarVariantsPreview() {
             buttonStyle = ButtonBackground.OPAQUE
         )
 
+        // 8. Translucent with custom gradient border
         CustomTopBar(
             onBackClick = {},
             secondaryIcon = TopIcon.Predefined.PIN,
             onSecondaryClick = {},
             onMenuClick = {},
             buttonStyle = ButtonBackground.TRANSLUCENT,
-            translucentAlpha = 0.25f,
-            textColor = Color.Black
+            borderColor = Color.Red
         )
 
         // 9. Custom Color top bar (Purple/Blue text styling)

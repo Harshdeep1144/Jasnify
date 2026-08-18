@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -42,13 +41,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomCheckbox
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.presentation.components.others.OptionSelector
+import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -56,9 +56,8 @@ import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
-import sv.lib.squircleshape.SquircleShape
 
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+private val TAB_TITLES = listOf("Sort by", "Filter by")
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,6 +106,18 @@ fun SortFilterBottomSheetContent(
 
     val hasSelectedFilters = tempFilterOptions.isNotEmpty()
 
+    val dynamicFilterOptions = remember(filterByOptions, filterSearchText) {
+        val trimmed = filterSearchText.trim()
+        if (trimmed.isEmpty()) {
+            filterByOptions
+        } else {
+            filterByOptions.filter { it.contains(trimmed, ignoreCase = true) }
+        }
+    }
+
+    val sortTabInteractionSource = remember { MutableInteractionSource() }
+    val filterTabInteractionSource = remember { MutableInteractionSource() }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -119,11 +130,9 @@ fun SortFilterBottomSheetContent(
             // Tab Header System with Adaptive Width & Smooth Slider Animation
             val horizontalPadding = 12.dp
             BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                // Dynamically calculate the track size and width of a single tab
                 val totalWidth = maxWidth - (horizontalPadding * 2)
                 val tabWidth = totalWidth / 2
 
-                // Smooth offset physics using Spring spec
                 val indicatorOffset by animateDpAsState(
                     targetValue = if (activeTab == 0) 0.dp else tabWidth,
                     animationSpec = spring(
@@ -140,12 +149,13 @@ fun SortFilterBottomSheetContent(
                             .padding(horizontal = horizontalPadding, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        listOf("Sort by", "Filter by").forEachIndexed { index, title ->
+                        TAB_TITLES.forEachIndexed { index, title ->
+                            val interactionSource = if (index == 0) sortTabInteractionSource else filterTabInteractionSource
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
                                     .clickable(
-                                        interactionSource = remember { MutableInteractionSource() },
+                                        interactionSource = interactionSource,
                                         indication = null
                                     ) { activeTab = index },
                                 contentAlignment = Alignment.Center
@@ -172,7 +182,8 @@ fun SortFilterBottomSheetContent(
                                 .width(tabWidth)
                                 .fillMaxHeight()
                                 .offset(x = indicatorOffset)
-                                .clip(RoundedCornerShape(
+                                .clip(
+                                    RoundedCornerShape(
                                         CornerExtraLarge, CornerExtraLarge,
                                         CornerExtraSmall, CornerExtraSmall
                                     )
@@ -183,7 +194,7 @@ fun SortFilterBottomSheetContent(
                 }
             }
 
-            // Integrates CustomSearchBar seamlessly below tabs for Filtering
+            // Search Bar for Filtering
             if (activeTab == 1) {
                 CustomSearchBar(
                     value = filterSearchText,
@@ -205,7 +216,11 @@ fun SortFilterBottomSheetContent(
                 contentPadding = PaddingValues(bottom = 110.dp)
             ) {
                 if (activeTab == 0) {
-                    items(sortOptions) { option ->
+                    items(
+                        items = sortOptions,
+                        key = { it },
+                        contentType = { "sort_option" }
+                    ) { option ->
                         val isSelected = tempSortOption == option
                         OptionSelector(
                             label = option,
@@ -217,13 +232,11 @@ fun SortFilterBottomSheetContent(
                         )
                     }
                 } else {
-                    val dynamicFilterOptions = if (filterSearchText.isBlank()) {
-                        filterByOptions
-                    } else {
-                        filterByOptions.filter { it.contains(filterSearchText, ignoreCase = true) }
-                    }
-
-                    items(dynamicFilterOptions) { option ->
+                    items(
+                        items = dynamicFilterOptions,
+                        key = { it },
+                        contentType = { "filter_option" }
+                    ) { option ->
                         val isSelected = tempFilterOptions.contains(option)
                         CustomCheckbox(
                             text = option,
@@ -272,8 +285,7 @@ fun SortFilterBottomSheetContent(
                             }
                         },
                         text = if (hasSelectedFilters) "Clear" else "Cancel",
-                        modifier = Modifier
-                            .weight(1f),
+                        modifier = Modifier.weight(1f),
                         type = ButtonType.Tertiary,
                         shapeStyle = ButtonShapeStyle.Square
                     )
@@ -281,8 +293,7 @@ fun SortFilterBottomSheetContent(
                     CustomTextButton(
                         onClick = { onApply(tempSortOption, tempFilterOptions) },
                         text = "Apply",
-                        modifier = Modifier
-                            .weight(1.2f),
+                        modifier = Modifier.weight(1f),
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Square
                     )

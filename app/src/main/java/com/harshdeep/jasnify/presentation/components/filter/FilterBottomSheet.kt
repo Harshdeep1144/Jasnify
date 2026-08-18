@@ -1,8 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.filter
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +12,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -31,24 +27,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomCheckbox
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.SearchBarType
 import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
-import sv.lib.squircleshape.SquircleShape
-
-
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
@@ -101,6 +92,15 @@ fun FilterBottomSheetContent(
     // Clear action is only available in multi-select mode and when at least one option is chosen
     val showClearButton = isMultiSelect && tempSelectedOptions.isNotEmpty()
 
+    val filteredOptions = remember(options, searchText, showSearchBar) {
+        val trimmedQuery = searchText.trim()
+        if (showSearchBar && trimmedQuery.isNotEmpty()) {
+            options.filter { it.contains(trimmedQuery, ignoreCase = true) }
+        } else {
+            options
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -143,13 +143,11 @@ fun FilterBottomSheetContent(
                     .heightIn(min = 280.dp, max = 450.dp),
                 contentPadding = PaddingValues(bottom = 100.dp) // Offset to ensure scrolling clear of pinned action buttons
             ) {
-                val filteredOptions = if (showSearchBar && searchText.isNotBlank()) {
-                    options.filter { it.contains(searchText, ignoreCase = true) }
-                } else {
-                    options
-                }
-
-                items(filteredOptions) { option ->
+                items(
+                    items = filteredOptions,
+                    key = { it },
+                    contentType = { "filter_option" }
+                ) { option ->
                     val isSelected = tempSelectedOptions.contains(option)
 
                     CustomCheckbox(
@@ -157,14 +155,12 @@ fun FilterBottomSheetContent(
                         checked = isSelected,
                         onCheckedChange = { checked ->
                             tempSelectedOptions = if (isMultiSelect) {
-                                // Multi-select behavior: add or remove item from the set
                                 if (checked) {
                                     tempSelectedOptions + option
                                 } else {
                                     tempSelectedOptions - option
                                 }
                             } else {
-                                // Single-select behavior: replace the entire set or clear it
                                 if (checked) {
                                     setOf(option)
                                 } else {
@@ -298,7 +294,7 @@ fun FilterBottomSheetWithoutSearchPreview() {
                     ),
                     initialSelectedOptions = setOf("Main Course"),
                     showSearchBar = false,
-                    isMultiSelect = false, // Configured for single select
+                    isMultiSelect = false,
                     onDismiss = {},
                     onApply = {}
                 )
