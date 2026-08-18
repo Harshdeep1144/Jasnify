@@ -7,16 +7,16 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,9 +101,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.net.toUri
-import coil.compose.AsyncImage
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
@@ -116,11 +116,9 @@ import com.harshdeep.jasnify.domain.model.VendorPricingItem
 import com.harshdeep.jasnify.domain.model.VendorReview
 import com.harshdeep.jasnify.domain.model.VendorReviewsData
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.cards.OfferCard
-import com.harshdeep.jasnify.presentation.components.cards.OfferCardType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -129,13 +127,15 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
+import com.harshdeep.jasnify.presentation.components.cards.OfferCard
+import com.harshdeep.jasnify.presentation.components.cards.OfferCardType
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
@@ -244,10 +244,8 @@ fun VendorDetailScreen(
     var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
     var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
-    // Shared states for sheets and scroll position
     val listState = rememberLazyListState()
 
-    // Persistent state for Hero slider offset and Media Pager across navigation stack switches
     val density = LocalDensity.current
     val statusBarHeightPx = WindowInsets.statusBars.getTop(density).toFloat()
     val topBarHeightPx = with(density) { 56.dp.toPx() }
@@ -255,11 +253,9 @@ fun VendorDetailScreen(
     val minOffsetPx = statusBarHeightPx + topBarHeightPx + stickyMarginPx
     val maxOffsetPx = with(density) { 320.dp.toPx() }
 
-    // Remember sheet offset so returning to DETAIL screen retains collapsed/expanded slider offset
     var sheetOffsetPx by rememberSaveable { mutableFloatStateOf(Float.NaN) }
     val currentSheetOffsetPx = if (sheetOffsetPx.isNaN()) maxOffsetPx else sheetOffsetPx.coerceIn(minOffsetPx, maxOffsetPx)
 
-    // Remember media pager state and mute state across navigation screen changes
     val pagerState = rememberPagerState(pageCount = { vendorDetail.mediaItems.size })
     var isMuted by rememberSaveable { mutableStateOf(true) }
 
@@ -291,9 +287,8 @@ fun VendorDetailScreen(
 
     val dynamicReviewsData = remember(vendorDetail.reviewsData, vendorReviews) {
         val base = vendorDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
-        // Combine base reviews with live ones, preferring live ones if IDs match (or user IDs)
         val combinedReviews = (vendorReviews.map { it.toUiModel() } + base.reviews)
-            .distinctBy { it.id.ifBlank { it.userName } } // Simple deduplication
+            .distinctBy { it.id.ifBlank { it.userName } }
 
         base.copy(reviews = combinedReviews)
     }
@@ -412,11 +407,7 @@ fun VendorDetailScreen(
                                 screenStack = screenStack + VendorActiveScreen.POST
                             },
                             onLeaveReview = {
-                                if (userExistingReview != null) {
-                                    initialRatingForSheet = userExistingReview.rating.toInt()
-                                } else {
-                                    initialRatingForSheet = 0
-                                }
+                                initialRatingForSheet = userExistingReview?.rating?.toInt() ?: 0
                                 showReviewSheet = true
                             },
                             leaveReviewButtonText = if (userExistingReview != null) "Edit review" else "Leave a review"
@@ -668,7 +659,6 @@ private fun VendorDetailContent(
                         val reviewsIdx = listKeys.indexOf("reviews").takeIf { it != -1 } ?: Int.MAX_VALUE
                         val firstContentIdx = minOf(pricingsIdx, highlightsIdx, offersIdx, aboutIdx, askAiIdx, galleryIdx, reviewsIdx)
                         if (itemIndex < firstContentIdx) 0 else {
-                            // If we are past all content sections (e.g. footer), select the last tab
                             activeTabs.size - 1
                         }
                     }
@@ -746,18 +736,18 @@ private fun VendorDetailContent(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item(key = "info") {
+                item(key = "info", contentType = "info_section") {
                     VendorInfoSection(
                         vendor = vendorDetail,
                         onAddressClick = onAddressClick
                     )
                 }
 
-                stickyHeader(key = "tabs") {
+                stickyHeader(key = "tabs", contentType = "sticky_tabs") {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = SurfacePrimary,
-                        shadowElevation = if (listState.firstVisibleItemIndex >= (if(hasUserReviewed) 1 else 2)) 4.dp else 0.dp
+                        shadowElevation = if (listState.firstVisibleItemIndex >= (if (hasUserReviewed) 1 else 2)) 4.dp else 0.dp
                     ) {
                         VendorTabs(
                             tabs = activeTabs,
@@ -788,94 +778,94 @@ private fun VendorDetailContent(
                 }
 
                 if (vendorDetail.pricingItems.isNotEmpty()) {
-                    item(key = "pricings") {
+                    item(key = "pricings", contentType = "pricings_section") {
                         VendorPricingsSection(
                             vendor = vendorDetail,
                             pricingItems = vendorDetail.pricingItems
                         )
                     }
-                    item(key = "div_pricings") {
+                    item(key = "div_pricings", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
                 if (vendorDetail.highlightItems.isNotEmpty()) {
-                    item(key = "highlights") {
+                    item(key = "highlights", contentType = "highlights_section") {
                         VendorHighlightsSection(
                             highlightItems = vendorDetail.highlightItems
                         )
                     }
-                    item(key = "div_highlights") {
+                    item(key = "div_highlights", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
                 if (vendorDetail.offers.isNotEmpty()) {
-                    item(key = "offers") {
+                    item(key = "offers", contentType = "offers_section") {
                         VendorOffersSection(
                             offers = vendorDetail.offers,
                             onOfferClick = onOfferClick
                         )
                     }
-                    item(key = "div_offers") {
+                    item(key = "div_offers", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
                 if (vendorDetail.aboutText != null) {
-                    item(key = "about") {
+                    item(key = "about", contentType = "about_section") {
                         VendorAboutSection(
                             vendor = vendorDetail,
                             aboutText = vendorDetail.aboutText!!,
                             onReadMoreClick = onAboutClick
                         )
                     }
-                    item(key = "div_about") {
+                    item(key = "div_about", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
-                item(key = "ask_ai") {
+                item(key = "ask_ai", contentType = "ask_ai_section") {
                     VendorAskAISection()
                 }
 
-                item(key = "div_ask_ai") {
+                item(key = "div_ask_ai", contentType = "divider") {
                     DashedDivider(
-                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                         modifier = Modifier.padding(horizontal = 12.dp)
                     )
                 }
 
                 if (vendorDetail.galleryCategories.isNotEmpty()) {
-                    item(key = "gallery") {
+                    item(key = "gallery", contentType = "gallery_section") {
                         GallerySection(
                             galleryCategories = vendorDetail.galleryCategories.map { it.toUiModel() },
                             onSeeAllClick = onSeeAllGalleryClick,
                             onMediaClick = onMediaClick
                         )
                     }
-                    item(key = "div_gallery") {
+                    item(key = "div_gallery", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
                 if (reviewsData.reviews.isNotEmpty() || !hasUserReviewed) {
-                    item(key = "reviews") {
+                    item(key = "reviews", contentType = "reviews_section") {
                         ReviewsSection(
                             rating = vendorDetail.rating,
                             totalReviews = vendorDetail.totalReviews,
@@ -886,15 +876,15 @@ private fun VendorDetailContent(
                             hasUserReviewed = hasUserReviewed
                         )
                     }
-                    item(key = "div_reviews") {
+                    item(key = "div_reviews", contentType = "divider") {
                         DashedDivider(
-                            color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                     }
                 }
 
-                item(key = "explore_more") {
+                item(key = "explore_more", contentType = "explore_more_section") {
                     val similarVendors = remember(vendorDetail.id) {
                         MockData.sampleVendors.filter { it.id != vendorDetail.id }.take(6)
                     }
@@ -904,18 +894,19 @@ private fun VendorDetailContent(
                     )
                 }
 
-                item(key = "footer") {
+                item(key = "footer", contentType = "footer") {
                     FooterJansify()
                     Spacer(Modifier.height(100.dp))
                 }
             }
         }
 
-        val secondaryIcon = if (vendorDetail.favorite) {
-            painterResource(R.drawable.ic_heart_filled)
-        } else {
-            painterResource(R.drawable.ic_top_bar_heart)
+        val heartFilledPainter = painterResource(R.drawable.ic_heart_filled)
+        val heartOutlinePainter = painterResource(R.drawable.ic_top_bar_heart)
+        val secondaryIcon = remember(vendorDetail.favorite) {
+            if (vendorDetail.favorite) heartFilledPainter else heartOutlinePainter
         }
+        val sharePainter = painterResource(R.drawable.ic_share)
 
         val dynamicButtonStyle = if (scrollFraction > 0.8f) {
             ButtonBackground.OPAQUE
@@ -933,7 +924,7 @@ private fun VendorDetailContent(
                 isLeftAligned = true,
                 onBackClick = onBackClick,
                 secondaryIcon = TopIcon.CustomPainter(painter = secondaryIcon, isTinted = false),
-                menuIcon = TopIcon.CustomPainter(painter = painterResource(R.drawable.ic_share)),
+                menuIcon = TopIcon.CustomPainter(painter = sharePainter),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
                     onFavoriteToggle(vendorDetail)
@@ -1015,7 +1006,7 @@ private fun AddressSheet(
             Spacer(Modifier.height(12.dp))
             HorizontalDivider(
                 thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
 
             Column(
@@ -1060,7 +1051,7 @@ private fun AddressSheet(
 
             HorizontalDivider(
                 thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
 
             CustomTextButton(
@@ -1122,7 +1113,7 @@ private fun AboutSheet(
 
         HorizontalDivider(
             thickness = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(0.16f)
+            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
         )
 
         Column {
@@ -1185,6 +1176,12 @@ fun VendorMediaSlider(
             }
         }
 
+        val muteIconPainter = painterResource(R.drawable.ic_mute)
+        val volumeIconPainter = painterResource(R.drawable.ic_volume)
+        val volumeIcon = remember(isMuted) {
+            if (isMuted) muteIconPainter else volumeIconPainter
+        }
+
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -1195,9 +1192,7 @@ fun VendorMediaSlider(
         ) {
             if (mediaItems.getOrNull(pagerState.currentPage)?.video == true) {
                 TopBarIconButton(
-                    icon = TopIcon.CustomPainter(
-                        painter = if (isMuted) painterResource(R.drawable.ic_mute) else painterResource(R.drawable.ic_volume)
-                    ),
+                    icon = TopIcon.CustomPainter(painter = volumeIcon),
                     onClick = onMuteToggle,
                     backgroundStyle = ButtonBackground.TRANSLUCENT,
                     translucentAlpha = 0.5f
@@ -1260,8 +1255,7 @@ fun VendorInfoSection(
                     imageVector = Icons.Default.KeyboardArrowDown,
                     contentDescription = "Expand",
                     tint = ContentSecondary,
-                    modifier = Modifier
-                        .align(Alignment.Bottom)
+                    modifier = Modifier.align(Alignment.Bottom)
                 )
             }
         }
@@ -1270,7 +1264,7 @@ fun VendorInfoSection(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(CornerMedium))
-                .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), RoundedCornerShape(CornerMedium)),
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), RoundedCornerShape(CornerMedium)),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             RatingSurface(
@@ -1296,9 +1290,10 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
         pricingItems.forEachIndexed { index, item ->
-            val shape = when (index) {
-                0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
-                pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
+            val shape = when {
+                pricingItems.size == 1 -> SquircleShape(CornerLarge)
+                index == 0 -> SquircleShape(CornerLarge, CornerLarge, CornerExtraSmall, CornerExtraSmall)
+                index == pricingItems.lastIndex -> SquircleShape(CornerExtraSmall, CornerExtraSmall, CornerLarge, CornerLarge)
                 else -> SquircleShape(CornerExtraSmall)
             }
             PricingCard(
@@ -1311,7 +1306,7 @@ fun VendorPricingsSection(vendor: Vendor, pricingItems: List<VendorPricingItem>)
             )
         }
 
-        if(pricingItems.size > 3){
+        if (pricingItems.size > 3) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1360,7 +1355,11 @@ fun VendorOffersSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth()
         ) {
-            itemsIndexed(offers) { index, offer ->
+            itemsIndexed(
+                items = offers,
+                key = { index, offer -> offer.title + index },
+                contentType = { _, _ -> "offer_card" }
+            ) { index, offer ->
                 OfferCard(
                     title = offer.title,
                     description = offer.description,
@@ -1492,7 +1491,8 @@ fun VendorAskAISection() {
         ) {
             items(
                 items = suggestions,
-                key = { "suggestion_$it" }
+                key = { "suggestion_$it" },
+                contentType = { "suggestion_chip" }
             ) { suggestion ->
                 FilterChip(
                     label = suggestion,
@@ -1501,37 +1501,6 @@ fun VendorAskAISection() {
                     onClick = { }
                 )
             }
-        }
-    }
-}
-
-@Composable
-fun SuggestionChipsSection(onClickSuggestion: (String) -> Unit = {}) {
-    val suggestions = listOf(
-        "What's good here?",
-        "View popular dishes",
-        "Any ongoing offers?",
-        "Check real-time crowd status"
-    )
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.padding(vertical = 8.dp)
-    ) {
-        items(
-            items = suggestions,
-            key = { "quick_suggest_$it" }
-        ) { suggestion ->
-            FilterChip(
-                label = suggestion,
-                isSelected = false,
-                shapeStyle = ChipShapeStyle.Round,
-                size = ChipSize.Small,
-                leadingIcon = ImageVector.vectorResource(id = R.drawable.ic_ai),
-                onClick = { onClickSuggestion(suggestion) },
-                hasStroke = true,
-                isAiMode = true
-            )
         }
     }
 }
@@ -1714,7 +1683,7 @@ fun VendorExploreMoreSection(
             "Available now"
         )
     }
-    var selectedFilterIndex by remember { mutableStateOf(0) }
+    var selectedFilterIndex by remember { mutableIntStateOf(0) }
 
     Column(
         modifier = modifier
@@ -1734,7 +1703,11 @@ fun VendorExploreMoreSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            itemsIndexed(filters) { index, filterText ->
+            itemsIndexed(
+                items = filters,
+                key = { _, filterText -> filterText },
+                contentType = { _, _ -> "filter_chip" }
+            ) { index, filterText ->
                 FilterChip(
                     label = filterText,
                     isSelected = selectedFilterIndex == index,
@@ -1761,7 +1734,7 @@ fun VendorExploreMoreSection(
             HorizontalDivider(
                 modifier = Modifier.weight(1f),
                 thickness = 1.dp,
-                color = MaterialTheme.colorScheme.outline.copy(0.16f)
+                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
             )
         }
 
@@ -1771,7 +1744,11 @@ fun VendorExploreMoreSection(
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(similarVendors) { vendorItem ->
+            items(
+                items = similarVendors,
+                key = { it.id },
+                contentType = { "similar_vendor_card" }
+            ) { vendorItem ->
                 VendorCardCompact(
                     vendor = vendorItem,
                     compactCardSize = CompactCardSize.MEDIUM

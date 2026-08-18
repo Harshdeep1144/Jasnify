@@ -1,20 +1,39 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.*
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -47,9 +66,12 @@ import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
-import java.util.*
+import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class CardsView {
@@ -64,6 +86,14 @@ enum class CardsTab {
     EXPLORE,
     MY_CARDS
 }
+
+private val InitialCardThemes = listOf(
+    CardTheme(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
+    CardTheme(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
+    CardTheme(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
+    CardTheme(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
+    CardTheme(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -93,10 +123,8 @@ fun CardsScreen(
     var activeTransitionKey by remember { mutableStateOf<String?>(null) }
     var editingCard by remember { mutableStateOf<CardData?>(null) }
 
-    // Remembered tab state across screen transitions
     var selectedTab by remember { mutableStateOf(CardsTab.EXPLORE) }
 
-    // Persistent scroll & pager states across navigation
     val exploreLazyListState = rememberLazyListState()
     val myCardsGridState = rememberLazyGridState()
     val explorePagerState = rememberPagerState(
@@ -112,9 +140,13 @@ fun CardsScreen(
     var toastData by remember { mutableStateOf(ToastData()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
-    var selectedCardIds by remember { mutableStateOf(setOf<String>()) }
+    var selectedCardIds by remember { mutableStateOf(emptySet<String>()) }
 
-    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation
+    val isAnySheetVisible by remember {
+        derivedStateOf {
+            showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation
+        }
+    }
 
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
@@ -139,18 +171,21 @@ fun CardsScreen(
                 if (currentView != CardsView.MAIN || isAnySheetVisible || selectedCardIds.isNotEmpty()) return Offset.Zero
 
                 val delta = available.y
-                val canScroll = if (selectedTab == CardsTab.EXPLORE) exploreLazyListState.canScrollForward || exploreLazyListState.canScrollBackward
-                else myCardsGridState.canScrollForward || myCardsGridState.canScrollBackward
+                val canScroll = if (selectedTab == CardsTab.EXPLORE) {
+                    exploreLazyListState.canScrollForward || exploreLazyListState.canScrollBackward
+                } else {
+                    myCardsGridState.canScrollForward || myCardsGridState.canScrollBackward
+                }
 
                 if (!canScroll) {
                     isBottomTabVisible = true
                     return Offset.Zero
                 }
 
-                if (delta > 0) { // Scrolling up (showing)
+                if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
-                } else if (delta < 0) { // Scrolling down (hiding)
+                } else if (delta < 0) {
                     if (scrollAccumulator > 0) scrollAccumulator = 0f
                     scrollAccumulator += delta
                 }
@@ -170,23 +205,17 @@ fun CardsScreen(
 
     LaunchedEffect(activeEventId, cardRoomData) {
         if (activeEventId != null && cardRoomData == null) {
-            val defaultThemes = listOf(
-                CardTheme(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
-                CardTheme(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
-                CardTheme(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
-                CardTheme(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
-                CardTheme(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
-            )
-            cardViewModel.initializeRoom(defaultThemes)
+            cardViewModel.initializeRoom(InitialCardThemes)
         }
     }
 
     LaunchedEffect(activeEventId) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-        if (activeEventId != null) {
-            roomViewModel.verifyAccess(activeEventId!!, "Cards", uid)
-            roomViewModel.loadRoomUsers(activeEventId!!, "Cards")
-            cardViewModel.setEventId(activeEventId!!)
+        val uid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+        val currentEventId = activeEventId
+        if (currentEventId != null) {
+            roomViewModel.verifyAccess(currentEventId, "Cards", uid)
+            roomViewModel.loadRoomUsers(currentEventId, "Cards")
+            cardViewModel.setEventId(currentEventId)
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -383,7 +412,19 @@ fun CardsScreen(
                     }
                 }
 
-                // Animated Bottom Tab: Hidden when in FULL_VIEW or Selection Mode or Scrolling
+                val bottomTabItems = listOf(
+                    TabItem(
+                        label = "Explore",
+                        value = CardsTab.EXPLORE,
+                        icon = painterResource(R.drawable.ic_share_card)
+                    ),
+                    TabItem(
+                        label = "My Edits",
+                        value = CardsTab.MY_CARDS,
+                        icon = painterResource(R.drawable.ic_edit)
+                    )
+                )
+
                 AnimatedVisibility(
                     visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
                     enter = slideInVertically(
@@ -399,18 +440,7 @@ fun CardsScreen(
                         .zIndex(10f)
                 ) {
                     BottomTab(
-                        items = listOf(
-                            TabItem(
-                                label = "Explore",
-                                value = CardsTab.EXPLORE,
-                                icon = painterResource(R.drawable.ic_share_card)
-                            ),
-                            TabItem(
-                                label = "My Edits",
-                                value = CardsTab.MY_CARDS,
-                                icon = painterResource(R.drawable.ic_edit)
-                            )
-                        ),
+                        items = bottomTabItems,
                         selectedValue = selectedTab,
                         onItemSelected = { selectedTab = it },
                         style = BottomTabStyle.FLOATING,
@@ -421,7 +451,6 @@ fun CardsScreen(
             }
         }
 
-        // Toasts and Overlays
         AnimatedVisibility(
             visible = toastData.message != null && !isAnySheetVisible,
             enter = slideInVertically(initialOffsetY = { -it - 500 }),
@@ -437,49 +466,53 @@ fun CardsScreen(
         }
 
         if (showMenuSheet) {
-            MenuBottomSheet(
-                items = listOf(
-                    listOf(
-                        MenuSheetActionItem(
-                            text = "Saved Cards",
-                            icon = painterResource(R.drawable.ic_top_bar_heart),
-                            onClick = {
-                                showMenuSheet = false
-                                currentView = CardsView.LIKED_CARDS
-                            }
-                        )
-                    ),
-                    listOf(
-                        MenuSheetActionItem(
-                            text = "Manage Room Access",
-                            icon = painterResource(R.drawable.ic_user_default),
-                            onClick = {
-                                showMenuSheet = false
-                                currentView = CardsView.ROOM
-                            }
-                        )
+            val menuItems = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Saved Cards",
+                        icon = painterResource(R.drawable.ic_top_bar_heart),
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = CardsView.LIKED_CARDS
+                        }
                     )
                 ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = painterResource(R.drawable.ic_user_default),
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = CardsView.ROOM
+                        }
+                    )
+                )
+            )
+
+            MenuBottomSheet(
+                items = menuItems,
                 onCancelClick = { showMenuSheet = false },
                 onProgress = { sheetMotionProgress = it }
             )
         }
 
         if (showRoomMenuBottomSheet) {
-            MenuBottomSheet(
-                items = listOf(
-                    listOf(
-                        MenuSheetActionItem(
-                            text = "Leave Room",
-                            icon = painterResource(R.drawable.ic_logout),
-                            contentColor = MaterialTheme.colorScheme.error,
-                            onClick = {
-                                showRoomMenuBottomSheet = false
-                                showLeaveConfirmation = true
-                            }
-                        )
+            val roomMenuItems = listOf(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Leave Room",
+                        icon = painterResource(R.drawable.ic_logout),
+                        contentColor = MaterialTheme.colorScheme.error,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            showLeaveConfirmation = true
+                        }
                     )
-                ),
+                )
+            )
+
+            MenuBottomSheet(
+                items = roomMenuItems,
                 onCancelClick = { showRoomMenuBottomSheet = false },
                 onProgress = { sheetMotionProgress = it }
             )
@@ -508,16 +541,17 @@ fun CardsScreen(
             )
         }
 
-        userToRemove?.let {
+        userToRemove?.let { targetUser ->
             ConfirmationBottomSheet(
-                heading = "Remove ${it.name}?",
+                heading = "Remove ${targetUser.name}?",
                 subHeading = "They will not be able to access this room anymore.",
                 confirmButtonText = "Remove",
                 onDismiss = { userToRemove = null },
                 onConfirm = {
-                    if (activeEventId != null) {
-                        roomViewModel.removeAccess(activeEventId!!, "Cards", it.uid)
-                        toastData = ToastData("${it.name} removed", ToastType.ERROR)
+                    val eventId = activeEventId
+                    if (eventId != null) {
+                        roomViewModel.removeAccess(eventId, "Cards", targetUser.uid)
+                        toastData = ToastData("${targetUser.name} removed", ToastType.ERROR)
                     }
                     userToRemove = null
                 },
@@ -533,7 +567,7 @@ fun CardsScreen(
                 onDismiss = { showLeaveConfirmation = false },
                 onConfirm = {
                     activeEventId?.let { eventId ->
-                        roomViewModel.removeAccess(eventId, "Cards", FirebaseAuth.getInstance().currentUser?.uid ?: "")
+                        roomViewModel.removeAccess(eventId, "Cards", FirebaseAuth.getInstance().currentUser?.uid.orEmpty())
                     }
                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                     currentView = CardsView.MAIN

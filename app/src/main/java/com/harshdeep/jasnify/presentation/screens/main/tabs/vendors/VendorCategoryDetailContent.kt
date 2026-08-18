@@ -9,9 +9,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -95,7 +93,11 @@ import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
+import com.harshdeep.jasnify.presentation.screens.venues.KEY_RECENT_SEARCHES
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+
+private val FilterOptions = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
+private val ViewOptions = listOf("By Timeline", "All Saved")
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -138,32 +140,33 @@ fun VendorCategoryDetailContent(
         }
     }
 
-    val viewOptions = listOf("By Timeline", "All Saved")
     var isSearchActive by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-
     var recentSearchesNames by remember { mutableStateOf(getCategoryRecentSearches(context, category.name)) }
 
-    val filters = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
-    var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
-    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, appliedFilterOptions, vendorSavedDestinations) {
+    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, vendorSavedDestinations, category.name) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
-        var result = baseList.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.locality.contains(searchQuery, ignoreCase = true) ||
-                    it.city.contains(searchQuery, ignoreCase = true)
+        val query = searchQuery.trim()
+        val searched = if (query.isEmpty()) {
+            baseList
+        } else {
+            baseList.filter {
+                it.name.contains(query, ignoreCase = true) ||
+                        it.locality.contains(query, ignoreCase = true) ||
+                        it.city.contains(query, ignoreCase = true)
+            }
         }
 
-        result = when (selectedFilterIndex) {
-            1 -> result.sortedByDescending { it.rating }
-            2 -> result.sortedByDescending { parsePrice(it.priceStartsFrom) }
-            3 -> result.sortedBy { parsePrice(it.priceStartsFrom) }
-            else -> result
+        val sorted = when (selectedFilterIndex) {
+            1 -> searched.sortedByDescending { it.rating }
+            2 -> searched.sortedByDescending { parsePrice(it.priceStartsFrom) }
+            3 -> searched.sortedBy { parsePrice(it.priceStartsFrom) }
+            else -> searched
         }.distinctBy { it.id }
 
-        result.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
+        sorted.map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
     }
 
     LaunchedEffect(isSearchActive) {
@@ -214,14 +217,12 @@ fun VendorCategoryDetailContent(
     }
 
     val recentVendorsList = remember(recentSearchesNames, allVendors) {
-        recentSearchesNames.mapNotNull { name ->
-            allVendors.find { it.name == name }
-        }
+        val vendorMap = allVendors.associateBy { it.name }
+        recentSearchesNames.mapNotNull { name -> vendorMap[name] }
     }
 
     var searchBarOnlyHeightPx by remember { mutableIntStateOf(0) }
 
-    // Dynamically calculate when inline filter chips reach the bottom edge of sticky search bar
     val isChipsSticky by remember {
         derivedStateOf {
             val inlineFilterItem = listState.layoutInfo.visibleItemsInfo.find { it.key == "filters_inline_item" }
@@ -255,7 +256,6 @@ fun VendorCategoryDetailContent(
                     .fillMaxSize()
                     .padding(paddingValues)
             ) {
-                // Pinned status bar background overlay
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -284,7 +284,7 @@ fun VendorCategoryDetailContent(
                                 .statusBarsPadding(),
                             state = listState
                         ) {
-                            item(key = "top_bar") {
+                            item(key = "top_bar", contentType = "header") {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -319,7 +319,7 @@ fun VendorCategoryDetailContent(
                                 }
                             }
 
-                            stickyHeader(key = "search_and_sticky_filters_header") {
+                            stickyHeader(key = "search_and_sticky_filters_header", contentType = "sticky_search_header") {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -350,13 +350,13 @@ fun VendorCategoryDetailContent(
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             itemsIndexed(
-                                                items = filters,
-                                                key = { _, filter -> "sticky_filter_$filter" }
+                                                items = FilterOptions,
+                                                key = { _, filter -> "sticky_filter_$filter" },
+                                                contentType = { _, _ -> "filter_chip" }
                                             ) { index, filter ->
-                                                val isSelected = selectedFilterIndex == index
                                                 FilterChip(
                                                     label = filter,
-                                                    isSelected = isSelected,
+                                                    isSelected = selectedFilterIndex == index,
                                                     hasStroke = true,
                                                     shapeStyle = ChipShapeStyle.Round,
                                                     onClick = { selectedFilterIndex = index }
@@ -369,14 +369,15 @@ fun VendorCategoryDetailContent(
 
                             if (isSearchActive && searchQuery.isNotEmpty()) {
                                 if (filteredVendors.isEmpty()) {
-                                    item(key = "empty_category_search") {
+                                    item(key = "empty_category_search", contentType = "empty_state") {
                                         EmptyState(message = "No matches for \"$searchQuery\"")
                                         Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 } else {
                                     items(
                                         items = filteredVendors.take(8),
-                                        key = { "cat_search_${it.id}" }
+                                        key = { "cat_search_${it.id}" },
+                                        contentType = { "suggestion_item" }
                                     ) { vendor ->
                                         SearchSuggestionItem(
                                             title = vendor.name,
@@ -392,7 +393,8 @@ fun VendorCategoryDetailContent(
                             } else if (!isSearchActive && searchQuery.isNotEmpty()) {
                                 items(
                                     items = filteredVendors,
-                                    key = { "cat_filtered_${it.id}" }
+                                    key = { "cat_filtered_${it.id}" },
+                                    contentType = { "vendor_full_card" }
                                 ) { vendor ->
                                     VendorCardFull(
                                         vendor = vendor,
@@ -408,10 +410,13 @@ fun VendorCategoryDetailContent(
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
                             } else if (!isSearchActive) {
-                                item(key = "top_rated_carousel") {
+                                item(key = "top_rated_carousel", contentType = "vendor_carousel") {
+                                    val topRatedVendors = remember(filteredVendors) {
+                                        filteredVendors.filter { it.rating >= 4.5 }
+                                    }
                                     VendorCarousel(
                                         title = "Top-Rated ${category.name}",
-                                        vendors = filteredVendors.filter { it.rating >= 4.5 },
+                                        vendors = topRatedVendors,
                                         isLoading = isLoading,
                                         onVendorClick = { vendor ->
                                             saveCategoryRecentSearch(context, category.name, vendor.name)
@@ -424,25 +429,25 @@ fun VendorCategoryDetailContent(
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
 
-                                item(key = "cat_explore_divider") {
+                                item(key = "cat_explore_divider", contentType = "divider") {
                                     OrDivider(text = "EXPLORE", dividerGap = 0.dp, modifier = Modifier.padding(horizontal = 24.dp))
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
 
-                                item(key = "filters_inline_item") {
+                                item(key = "filters_inline_item", contentType = "inline_filters") {
                                     if (!isChipsSticky) {
                                         LazyRow(
                                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             itemsIndexed(
-                                                items = filters,
-                                                key = { _, filter -> "inline_filter_$filter" }
+                                                items = FilterOptions,
+                                                key = { _, filter -> "inline_filter_$filter" },
+                                                contentType = { _, _ -> "filter_chip" }
                                             ) { index, filter ->
-                                                val isSelected = selectedFilterIndex == index
                                                 FilterChip(
                                                     label = filter,
-                                                    isSelected = isSelected,
+                                                    isSelected = selectedFilterIndex == index,
                                                     hasStroke = true,
                                                     shapeStyle = ChipShapeStyle.Round,
                                                     onClick = { selectedFilterIndex = index }
@@ -456,7 +461,7 @@ fun VendorCategoryDetailContent(
                                 }
 
                                 if (isLoading && filteredVendors.isEmpty()) {
-                                    items(5, key = { "loading_$it" }) {
+                                    items(5, key = { "loading_$it" }, contentType = { "loading_card" }) {
                                         VendorCardFull(
                                             vendor = Vendor(),
                                             isLoading = true,
@@ -465,14 +470,15 @@ fun VendorCategoryDetailContent(
                                         Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 } else if (filteredVendors.isEmpty()) {
-                                    item(key = "no_vendors_found") {
+                                    item(key = "no_vendors_found", contentType = "empty_state") {
                                         EmptyState(message = "No vendors found in this category")
                                         Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 } else {
                                     items(
                                         items = filteredVendors,
-                                        key = { it.id }
+                                        key = { it.id },
+                                        contentType = { "vendor_full_card" }
                                     ) { vendor ->
                                         VendorCardFull(
                                             vendor = vendor,
@@ -489,12 +495,12 @@ fun VendorCategoryDetailContent(
                                     }
                                 }
 
-                                item(key = "cat_footer") {
+                                item(key = "cat_footer", contentType = "footer") {
                                     FooterJansify()
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
                             } else {
-                                item(key = "cat_trending") {
+                                item(key = "cat_trending", contentType = "trending_searches") {
                                     TrendingAiSearchesSection(onTrendingClick = { query ->
                                         searchQuery = query
                                         focusManager.clearFocus()
@@ -502,7 +508,7 @@ fun VendorCategoryDetailContent(
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
                                 if (recentVendorsList.isNotEmpty()) {
-                                    item(key = "cat_recent_searches") {
+                                    item(key = "cat_recent_searches", contentType = "recent_searches") {
                                         RecentSearchesSection(
                                             recentVendors = recentVendorsList,
                                             onVendorClick = { vendor ->
@@ -521,25 +527,31 @@ fun VendorCategoryDetailContent(
                                         Spacer(modifier = Modifier.height(12.dp))
                                     }
                                 }
-                                item(key = "cat_bottom_spacer") { Spacer(Modifier.height(24.dp)) }
-                                item(key = "cat_extra_spacer") { Spacer(Modifier.height(100.dp)) }
+                                item(key = "cat_bottom_spacer", contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
+                                item(key = "cat_extra_spacer", contentType = "spacer") { Spacer(Modifier.height(100.dp)) }
                             }
                         }
                     } else {
                         val savedVendorsList = remember(savedVendorsForCategory, allVendors) {
-                            allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name } }.map { it.copy(favorite = true) }
+                            val savedNames = savedVendorsForCategory.map { it.vendorName }.toSet()
+                            allVendors.filter { it.name in savedNames }.map { it.copy(favorite = true) }
                         }
 
                         val savedTimelineEvents = remember(savedVendorsForCategory, timelineEvents, allVendors) {
                             val list = mutableListOf<TimelineEvent>()
-                            val defaultSaved = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == "mysaved" } }.map { it.copy(favorite = true) }
+                            val defaultSaved = allVendors.filter { v ->
+                                savedVendorsForCategory.any { it.vendorName == v.name && it.destination == "mysaved" }
+                            }.map { it.copy(favorite = true) }
 
                             if (defaultSaved.isNotEmpty()) {
                                 list.add(TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List", venues = emptyList()))
                             }
 
                             timelineEvents.forEach { event ->
-                                val eventVendors = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == event.id } }.map { it.copy(favorite = true) }
+                                val eventVendors = allVendors.filter { v ->
+                                    savedVendorsForCategory.any { it.vendorName == v.name && it.destination == event.id }
+                                }.map { it.copy(favorite = true) }
+
                                 if (eventVendors.isNotEmpty()) {
                                     list.add(event.copy(venues = emptyList()))
                                 }
@@ -557,7 +569,7 @@ fun VendorCategoryDetailContent(
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            item(span = { GridItemSpan(2) }, key = "saved_top_bar") {
+                            item(span = { GridItemSpan(2) }, key = "saved_top_bar", contentType = "header") {
                                 CustomTopBar(
                                     title = category.name,
                                     subtitle = selectedCity,
@@ -569,18 +581,20 @@ fun VendorCategoryDetailContent(
                                 )
                             }
 
-                            item(span = { GridItemSpan(2) }) {
+                            item(span = { GridItemSpan(2) }, key = "saved_segmented_control", contentType = "segmented_control") {
                                 IosSegmentedControl(
-                                    options = viewOptions,
+                                    options = ViewOptions,
                                     selectedOption = selectedViewType,
                                     onOptionSelected = onSelectedViewTypeChange,
-                                    modifier = Modifier.padding(top = 12.dp).height(44.dp)
+                                    modifier = Modifier
+                                        .padding(top = 12.dp)
+                                        .height(44.dp)
                                 )
                             }
 
                             if (selectedViewType == "All Saved") {
                                 if (isLoading) {
-                                    items(6) {
+                                    items(6, contentType = { "loading_card" }) {
                                         VendorCardCompact(
                                             vendor = Vendor(),
                                             isLoading = true,
@@ -589,13 +603,14 @@ fun VendorCategoryDetailContent(
                                         )
                                     }
                                 } else if (savedVendorsList.isEmpty()) {
-                                    item(span = { GridItemSpan(2) }) {
+                                    item(span = { GridItemSpan(2) }, key = "empty_saved_all", contentType = "empty_state") {
                                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                     }
                                 } else {
                                     items(
                                         items = savedVendorsList,
-                                        key = { it.id }
+                                        key = { it.id },
+                                        contentType = { "compact_vendor_card" }
                                     ) { vendor ->
                                         VendorCardCompact(
                                             vendor = vendor,
@@ -608,7 +623,7 @@ fun VendorCategoryDetailContent(
                                 }
                             } else {
                                 if (isLoading) {
-                                    items(3, span = { GridItemSpan(2) }) {
+                                    items(3, span = { GridItemSpan(2) }, contentType = { "loading_timeline" }) {
                                         TimelineSection(
                                             date = "Loading...",
                                             event = "Fetching your plans",
@@ -616,16 +631,20 @@ fun VendorCategoryDetailContent(
                                         )
                                     }
                                 } else if (savedTimelineEvents.isEmpty()) {
-                                    item(span = { GridItemSpan(2) }) {
+                                    item(span = { GridItemSpan(2) }, key = "empty_saved_timeline", contentType = "empty_state") {
                                         StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                                     }
                                 } else {
                                     items(
                                         items = savedTimelineEvents,
                                         key = { it.id },
-                                        span = { GridItemSpan(2) }
+                                        span = { GridItemSpan(2) },
+                                        contentType = { "timeline_section" }
                                     ) { timelineItem ->
-                                        val vendorsForEvent = allVendors.filter { v -> savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id } }.map { it.copy(favorite = true) }
+                                        val vendorsForEvent = allVendors.filter { v ->
+                                            savedVendorsForCategory.any { it.vendorName == v.name && it.destination == timelineItem.id }
+                                        }.map { it.copy(favorite = true) }
+
                                         TimelineSection(
                                             date = timelineItem.date,
                                             event = timelineItem.event,
@@ -637,8 +656,8 @@ fun VendorCategoryDetailContent(
                                     }
                                 }
                             }
-                            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(24.dp)) }
-                            item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(100.dp)) }
+                            item(span = { GridItemSpan(2) }, contentType = "spacer") { Spacer(Modifier.height(24.dp)) }
+                            item(span = { GridItemSpan(2) }, contentType = "spacer") { Spacer(Modifier.height(100.dp)) }
                         }
                     }
                 }

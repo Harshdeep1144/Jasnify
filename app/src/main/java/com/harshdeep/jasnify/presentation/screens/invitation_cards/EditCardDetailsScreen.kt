@@ -75,7 +75,6 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Code
-import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.FormatAlignCenter
 import androidx.compose.material.icons.rounded.FormatAlignJustify
 import androidx.compose.material.icons.rounded.OpenInFull
@@ -114,22 +113,26 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -149,6 +152,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
@@ -218,6 +222,32 @@ data class CardThemeItem(
     val isDefault: Boolean = false
 )
 
+private val DefaultThemeItems = listOf(
+    CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
+    CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
+    CardThemeItem(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
+    CardThemeItem(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
+    CardThemeItem(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+)
+
+private val ColorPaletteHexes = listOf(
+    0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
+    0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
+    0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
+    0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
+    0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
+    0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
+    0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
+    0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
+)
+
+private val AlignmentOptionsList: List<Pair<CardTextAlign, ImageVector>> = listOf(
+    CardTextAlign.LEFT to Icons.AutoMirrored.Rounded.FormatAlignLeft,
+    CardTextAlign.CENTER to Icons.Rounded.FormatAlignCenter,
+    CardTextAlign.RIGHT to Icons.AutoMirrored.Rounded.FormatAlignRight,
+    CardTextAlign.JUSTIFY to Icons.Rounded.FormatAlignJustify
+)
+
 private fun TextElement.normalizeAlpha(): TextElement {
     val hex = this.colorHex
     return if ((hex and 0xFF000000L) == 0L && hex > 0L) {
@@ -250,7 +280,6 @@ fun EditCardDetailsScreen(
     var historyIndex by remember { mutableIntStateOf(0) }
     val currentCard = history.getOrElse(historyIndex) { normalizedInitialData }
 
-    // Track the currently saved reference state
     var savedCardState by remember(normalizedInitialData) { mutableStateOf(normalizedInitialData) }
 
     var selectedElementId by remember { mutableStateOf<String?>(null) }
@@ -269,7 +298,6 @@ fun EditCardDetailsScreen(
     var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
     var cardToDownload by remember { mutableStateOf<CardData?>(null) }
 
-    // Evaluates against savedCardState rather than the initial entry data
     val hasUnsavedChanges by remember(currentCard, savedCardState, pendingImageUri) {
         derivedStateOf {
             currentCard != savedCardState || pendingImageUri != null
@@ -310,7 +338,7 @@ fun EditCardDetailsScreen(
     val coroutineScope = rememberCoroutineScope()
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val focusManager = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val isImeVisible = WindowInsets.isImeVisible
@@ -590,7 +618,6 @@ fun EditCardDetailsScreen(
                                         isUploading = false
                                         pendingImageUri = null
                                         val finalCard = currentCard.copy(backgroundUrl = url)
-                                        // Save immediately
                                         onDataChange(finalCard)
                                         savedCardState = finalCard
                                         showSuccessSheet = true
@@ -599,7 +626,6 @@ fun EditCardDetailsScreen(
                                         toastData = ToastData(error, ToastType.ERROR)
                                     })
                                 } else {
-                                    // Save immediately
                                     onDataChange(currentCard)
                                     savedCardState = currentCard
                                     showSuccessSheet = true
@@ -625,12 +651,11 @@ fun EditCardDetailsScreen(
                                 Popup(
                                     onDismissRequest = { isMenuExpanded = false },
                                     offset = IntOffset(0, with(LocalDensity.current) { 48.dp.roundToPx() }),
-                                    properties = androidx.compose.ui.window.PopupProperties(focusable = true),
+                                    properties = PopupProperties(focusable = true),
                                     alignment = Alignment.TopEnd
                                 ) {
                                     Surface(
                                         modifier = Modifier
-                                            .width(280.dp)
                                             .height(64.dp)
                                             .shadow(8.dp, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                             .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
@@ -639,7 +664,6 @@ fun EditCardDetailsScreen(
                                     ) {
                                         Row(
                                             modifier = Modifier
-                                                .fillMaxWidth()
                                                 .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                                 .clickable {
                                                     isMenuExpanded = false
@@ -658,7 +682,7 @@ fun EditCardDetailsScreen(
                                                 tint = ContentInvPrimary,
                                                 modifier = Modifier.size(24.dp)
                                             )
-
+                                            Spacer(Modifier.width(8.dp))
                                             Text(
                                                 text = "Reset to Defaults",
                                                 style = JasnifyTheme.typography.labelXLarge,
@@ -885,7 +909,7 @@ fun EditCardDetailsScreen(
 
                         val tabPositions = remember { mutableStateListOf<Float>() }
                         val tabWidths = remember { mutableStateListOf<Float>() }
-                        var containerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+                        var containerCords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
                         Box(
                             modifier = Modifier
@@ -929,7 +953,7 @@ fun EditCardDetailsScreen(
                                                     tabWidths.add(0f)
                                                 }
                                                 containerCords?.let { parent ->
-                                                    val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
+                                                    val pos = parent.localPositionOf(cords, Offset.Zero).x
                                                     tabPositions[index] = (pos / density.density)
                                                     tabWidths[index] = (cords.size.width / density.density)
                                                 }
@@ -995,7 +1019,7 @@ fun EditCardDetailsScreen(
                                             currentCard = currentCard,
                                             cardRoomData = cardRoomData,
                                             isUploading = isUploading,
-                                            onSelectTheme = { resId, url, defaultName ->
+                                            onSelectTheme = { resId, url, _ ->
                                                 val updated = currentCard.copy(
                                                     backgroundRes = resId,
                                                     backgroundUrl = url,
@@ -1032,22 +1056,9 @@ fun EditCardDetailsScreen(
                                                 normalizedInitialData.elements.find { it.id == selectedElement.id }
                                             }
 
-                                            val palette = remember {
-                                                listOf(
-                                                    0xFF8A5A00L, 0xFFFFFFFFL, 0xFFE5E5E5L, 0xFF9E9E9EL, 0xFF8C3B2BL,
-                                                    0xFF000000L, 0xFF005D5DL, 0xFF1B5E20L, 0xFF01579BL, 0xFF311B92L,
-                                                    0xFFFFB300L, 0xFFFFC107L, 0xFFFFD54FL, 0xFFFF8F00L, 0xFFE65100L,
-                                                    0xFFF4511EL, 0xFFD84315L, 0xFFB71C1CL, 0xFFC62828L, 0xFFAD1457L,
-                                                    0xFFD81B60L, 0xFF6A1B9AL, 0xFF4527A0L, 0xFF283593L, 0xFF1565C0L,
-                                                    0xFF0277BDL, 0xFF00838FL, 0xFF00695CL, 0xFF2E7D32L, 0xFF558B2FL,
-                                                    0xFF7CB342L, 0xFF827717L, 0xFFAFB42BL, 0xFF795548L, 0xFF6D4C41L,
-                                                    0xFF455A64L, 0xFF37474FL, 0xFF78909CL, 0xFFBDBDBDL, 0xFF424242L
-                                                )
-                                            }
-
                                             LaunchedEffect(selectedElement.id) {
                                                 val activeRgb = selectedElement.colorHex and 0x00FFFFFFL
-                                                val matchIndex = palette.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
+                                                val matchIndex = ColorPaletteHexes.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
                                                 if (matchIndex >= 0) {
                                                     colorRowLazyListState.animateScrollToItem(matchIndex + 2)
                                                 }
@@ -1069,7 +1080,7 @@ fun EditCardDetailsScreen(
                                                     contentPadding = PaddingValues(horizontal = 16.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    item {
+                                                    item(key = "eyedropper") {
                                                         Box(
                                                             modifier = Modifier
                                                                 .size(56.dp)
@@ -1088,13 +1099,13 @@ fun EditCardDetailsScreen(
                                                         }
                                                     }
 
-                                                    item {
+                                                    item(key = "wheel_picker") {
                                                         Box(
                                                             modifier = Modifier
                                                                 .size(56.dp)
                                                                 .clip(CircleShape)
                                                                 .background(
-                                                                    brush = androidx.compose.ui.graphics.Brush.sweepGradient(
+                                                                    brush = Brush.sweepGradient(
                                                                         listOf(
                                                                             Color.Red,
                                                                             Color.Yellow,
@@ -1120,7 +1131,10 @@ fun EditCardDetailsScreen(
                                                         }
                                                     }
 
-                                                    items(palette) { hex ->
+                                                    items(
+                                                        items = ColorPaletteHexes,
+                                                        key = { it }
+                                                    ) { hex ->
                                                         val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
                                                         val swatchColor = Color(hex.toInt())
 
@@ -1428,7 +1442,6 @@ fun EditCardDetailsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    // Top & Center Content
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1458,7 +1471,6 @@ fun EditCardDetailsScreen(
                         )
                     }
 
-                    // Bottom Actions
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1598,7 +1610,10 @@ fun ProfessionalFontSelector(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                itemsIndexed(fontTypes) { index, fontType ->
+                itemsIndexed(
+                    items = fontTypes,
+                    key = { _, fontType -> fontType.name }
+                ) { index, fontType ->
                     val isCentered = centerItemIndex == index
 
                     val fontBgColor by animateColorAsState(
@@ -1675,97 +1690,13 @@ fun ProfessionalFontSelector(
                 .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                 .background(SurfacePrimary)
         ) {
-            val alignmentOptions = remember {
-                listOf(
-                    CardTextAlign.LEFT to Icons.AutoMirrored.Rounded.FormatAlignLeft,
-                    CardTextAlign.CENTER to Icons.Rounded.FormatAlignCenter,
-                    CardTextAlign.RIGHT to Icons.AutoMirrored.Rounded.FormatAlignRight,
-                    CardTextAlign.JUSTIFY to Icons.Rounded.FormatAlignJustify
-                )
-            }
             val currentAlignIndex = remember(selectedElement.textAlign) {
-                alignmentOptions.indexOfFirst { it.first == selectedElement.textAlign }.coerceAtLeast(0)
+                AlignmentOptionsList.indexOfFirst { it.first == selectedElement.textAlign }.coerceAtLeast(0)
             }
 
             val alignPositions = remember { mutableStateListOf<Float>() }
             val alignWidths = remember { mutableStateListOf<Float>() }
-            var alignContainerCords by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
-
-            @Composable
-            fun AlignmentSelectorPill() {
-                Box(
-                    modifier = Modifier
-                        .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                        .background(color = SurfaceSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
-                        .padding(4.dp)
-                        .onGloballyPositioned { alignContainerCords = it }
-                ) {
-                    if (alignPositions.size == alignmentOptions.size) {
-                        val indicatorOffset by animateFloatAsState(
-                            targetValue = alignPositions[currentAlignIndex],
-                            animationSpec = spring(stiffness = Spring.StiffnessLow),
-                            label = "AlignIndicatorOffset"
-                        )
-                        val indicatorWidth by animateFloatAsState(
-                            targetValue = alignWidths[currentAlignIndex],
-                            animationSpec = spring(stiffness = Spring.StiffnessLow),
-                            label = "AlignIndicatorWidth"
-                        )
-
-                        Box(
-                            modifier = Modifier
-                                .offset(x = indicatorOffset.dp)
-                                .width(indicatorWidth.dp)
-                                .height(48.dp)
-                                .background(
-                                    color = SurfaceBrandPrimary,
-                                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-                                )
-                        )
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        alignmentOptions.forEachIndexed { index, (align, icon) ->
-                            val isSelected = selectedElement.textAlign == align
-                            val animateIconColor by animateColorAsState(
-                                targetValue = if (isSelected) ContentInvPrimary else ContentSecondary,
-                                animationSpec = tween(durationMillis = 200),
-                                label = "IconColorAnimation"
-                            )
-
-                            Box(
-                                modifier = Modifier
-                                    .onGloballyPositioned { cords ->
-                                        if (alignPositions.size <= index) {
-                                            alignPositions.add(0f)
-                                            alignWidths.add(0f)
-                                        }
-                                        alignContainerCords?.let { parent ->
-                                            val pos = parent.localPositionOf(cords, androidx.compose.ui.geometry.Offset.Zero).x
-                                            alignPositions[index] = (pos / density.density)
-                                            alignWidths[index] = (cords.size.width / density.density)
-                                        }
-                                    }
-                                    .size(48.dp)
-                                    .noRippleClickable {
-                                        onUpdateElement(selectedElement.id) { it.copy(textAlign = align) }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = animateIconColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            var alignContainerCords by remember { mutableStateOf<LayoutCoordinates?>(null) }
 
             if (isSheetScaleIncreased) {
                 Column(
@@ -1804,7 +1735,18 @@ fun ProfessionalFontSelector(
                         thickness = 1.dp
                     )
 
-                    AlignmentSelectorPill()
+                    AlignmentSelectorBar(
+                        selectedTextAlign = selectedElement.textAlign,
+                        currentAlignIndex = currentAlignIndex,
+                        alignPositions = alignPositions,
+                        alignWidths = alignWidths,
+                        alignContainerCords = alignContainerCords,
+                        onCordsChange = { alignContainerCords = it },
+                        density = density,
+                        onAlignSelected = { align ->
+                            onUpdateElement(selectedElement.id) { it.copy(textAlign = align) }
+                        }
+                    )
                 }
             } else {
                 val formatContainerScrollState = rememberScrollState()
@@ -1847,7 +1789,101 @@ fun ProfessionalFontSelector(
                             .background(MaterialTheme.colorScheme.outline.copy(0.16f))
                     )
 
-                    AlignmentSelectorPill()
+                    AlignmentSelectorBar(
+                        selectedTextAlign = selectedElement.textAlign,
+                        currentAlignIndex = currentAlignIndex,
+                        alignPositions = alignPositions,
+                        alignWidths = alignWidths,
+                        alignContainerCords = alignContainerCords,
+                        onCordsChange = { alignContainerCords = it },
+                        density = density,
+                        onAlignSelected = { align ->
+                            onUpdateElement(selectedElement.id) { it.copy(textAlign = align) }
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlignmentSelectorBar(
+    selectedTextAlign: CardTextAlign,
+    currentAlignIndex: Int,
+    alignPositions: MutableList<Float>,
+    alignWidths: MutableList<Float>,
+    alignContainerCords: LayoutCoordinates?,
+    onCordsChange: (LayoutCoordinates) -> Unit,
+    density: androidx.compose.ui.unit.Density,
+    onAlignSelected: (CardTextAlign) -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .clip(shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .background(color = SurfaceSecondary, shape = SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .padding(4.dp)
+            .onGloballyPositioned { onCordsChange(it) }
+    ) {
+        if (alignPositions.size == AlignmentOptionsList.size) {
+            val indicatorOffset by animateFloatAsState(
+                targetValue = alignPositions[currentAlignIndex],
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "AlignIndicatorOffset"
+            )
+            val indicatorWidth by animateFloatAsState(
+                targetValue = alignWidths[currentAlignIndex],
+                animationSpec = spring(stiffness = Spring.StiffnessLow),
+                label = "AlignIndicatorWidth"
+            )
+
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset.dp)
+                    .width(indicatorWidth.dp)
+                    .height(48.dp)
+                    .background(
+                        color = SurfaceBrandPrimary,
+                        shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                    )
+            )
+        }
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlignmentOptionsList.forEachIndexed { index, (align, icon) ->
+                val isSelected = selectedTextAlign == align
+                val animateIconColor by animateColorAsState(
+                    targetValue = if (isSelected) ContentInvPrimary else ContentSecondary,
+                    animationSpec = tween(durationMillis = 200),
+                    label = "IconColorAnimation"
+                )
+
+                Box(
+                    modifier = Modifier
+                        .onGloballyPositioned { cords ->
+                            if (alignPositions.size <= index) {
+                                alignPositions.add(0f)
+                                alignWidths.add(0f)
+                            }
+                            alignContainerCords?.let { parent ->
+                                val pos = parent.localPositionOf(cords, Offset.Zero).x
+                                alignPositions[index] = (pos / density.density)
+                                alignWidths[index] = (cords.size.width / density.density)
+                            }
+                        }
+                        .size(48.dp)
+                        .noRippleClickable { onAlignSelected(align) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = animateIconColor,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
             }
         }
@@ -1919,7 +1955,7 @@ fun InteractiveCardCanvas(
     zoomScale: Float = 1f,
     modifier: Modifier = Modifier
 ) {
-    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    val focusManager = LocalFocusManager.current
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     Box(
         modifier = modifier
@@ -1960,8 +1996,12 @@ fun InteractiveCardCanvas(
             }
         }
 
-        val editableElements = card.elements.filter { it.isEditable }.sortedBy { it.yRatio }
-        val uneditableElements = card.elements.filter { !it.isEditable }
+        val editableElements = remember(card.elements) {
+            card.elements.filter { it.isEditable }.sortedBy { it.yRatio }
+        }
+        val uneditableElements = remember(card.elements) {
+            card.elements.filter { !it.isEditable }
+        }
 
         Column(
             modifier = Modifier
@@ -2323,14 +2363,6 @@ fun ThemeSelectorSection(
     onUploadClick: () -> Unit
 ) {
     val themes = remember(cardRoomData) {
-        val defaults = listOf(
-            CardThemeItem(id = "default_1", name = "Classic Elegance", resId = R.drawable.bg_invitation_card_01, isDefault = true),
-            CardThemeItem(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
-            CardThemeItem(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
-            CardThemeItem(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
-            CardThemeItem(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
-        )
-
         val uploaded = cardRoomData?.themes?.filter { !it.isDefault }?.map {
             CardThemeItem(
                 id = it.id,
@@ -2341,14 +2373,14 @@ fun ThemeSelectorSection(
             )
         } ?: emptyList()
 
-        uploaded + defaults
+        uploaded + DefaultThemeItems
     }
 
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
-        item {
+        item(key = "custom_upload") {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -2403,7 +2435,10 @@ fun ThemeSelectorSection(
             }
         }
 
-        items(themes) { theme ->
+        items(
+            items = themes,
+            key = { it.id }
+        ) { theme ->
             val isSelected = if (theme.isDefault) {
                 currentCard.backgroundRes == theme.resId
             } else {

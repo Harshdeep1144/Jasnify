@@ -96,6 +96,37 @@ import java.util.UUID
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
+private val DefaultChecklistColors = listOf(
+    Color(0xFFD0E0D0), // Soft Green
+    Color(0xFFC5E2D3), // Mint
+    Color(0xFFD8D0E5), // Lavender
+    Color(0xFFC5DCF0), // Sky Blue
+    Color(0xFFF0D1C0), // Peach
+    Color(0xFFC9E8F5), // Light Cyan
+    Color(0xFFCFE5D1), // Green
+    Color(0xFFF2DFC5), // Warm Orange
+    Color(0xFFF0D0DB), // Pink
+    Color(0xFFDCD3E9), // Purple
+    Color(0xFFC5E6E9), // Teal
+    Color(0xFFF1EDC8)  // Yellow
+)
+
+private val BaseColorPalette = listOf(
+    Color(0xFFC9E8F5),
+    Color(0xFFCFE5D1),
+    Color(0xFFF2DFC5),
+    Color(0xFFF0D0DB),
+    Color(0xFFDCD3E9),
+    Color(0xFFC5E6E9),
+    Color(0xFFF1EDC8),
+    Color(0xFFE2CCE5),
+    Color(0xFFD2D6E8),
+    Color(0xFFC5E8DD),
+    Color(0xFFF0CACA),
+    Color(0xFFCFE3D4),
+    Color(0xFFF2E4B8),
+    Color(0xFFC8DCEC),
+)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalSharedTransitionApi::class)
 @Composable
 fun ChecklistDetailScreen(
@@ -125,20 +156,12 @@ fun ChecklistDetailScreen(
         )
     }
 
-    val checklistColors = remember {
-        listOf(
-            CloudWhisper, SoftMint, PaleLavender, LightSkyBlue, SoftPeach,
-            Color(0xFFE1F5FE), Color(0xFFE8F5E9), Color(0xFFFFF3E0), Color(0xFFFCE4EC),
-            Color(0xFFEDE7F6), Color(0xFFE0F7FA), Color(0xFFFFFDE7)
-        )
-    }
-
     var bgColor by remember(checklist?.id) {
         mutableStateOf(
             if (checklist != null) {
                 Color(checklist.bgColorHex)
             } else {
-                checklistColors.random()
+                DefaultChecklistColors.random()
             }
         )
     }
@@ -239,32 +262,30 @@ fun ChecklistDetailScreen(
         onBackClick(result)
     }
 
-    val sharedBoundsModifier =
-        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            with(sharedTransitionScope) {
-                Modifier.sharedBounds(
-                    sharedContentState = rememberSharedContentState(key = "bounds-${checklist?.id ?: "new_checklist_bounds"}"),
-                    animatedVisibilityScope = animatedVisibilityScope,
-                    boundsTransform = BoundsTransform { _, _ ->
-                        tween(durationMillis = 350, easing = FastOutSlowInEasing)
-                    }
-                )
-            }
-        } else {
-            Modifier
+    val sharedBoundsModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedBounds(
+                sharedContentState = rememberSharedContentState(key = "bounds-${checklist?.id ?: "new_checklist_bounds"}"),
+                animatedVisibilityScope = animatedVisibilityScope,
+                boundsTransform = BoundsTransform { _, _ ->
+                    tween(durationMillis = 350, easing = FastOutSlowInEasing)
+                }
+            )
         }
+    } else {
+        Modifier
+    }
 
-    val sharedTitleModifier =
-        if (sharedTransitionScope != null && animatedVisibilityScope != null) {
-            with(sharedTransitionScope) {
-                Modifier.sharedElement(
-                    sharedContentState = rememberSharedContentState(key = "title-${checklist?.id ?: "new_title_element"}"),
-                    animatedVisibilityScope = animatedVisibilityScope
-                )
-            }
-        } else {
-            Modifier
+    val sharedTitleModifier = if (sharedTransitionScope != null && animatedVisibilityScope != null) {
+        with(sharedTransitionScope) {
+            Modifier.sharedElement(
+                sharedContentState = rememberSharedContentState(key = "title-${checklist?.id ?: "new_title_element"}"),
+                animatedVisibilityScope = animatedVisibilityScope
+            )
         }
+    } else {
+        Modifier
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -368,7 +389,7 @@ fun ChecklistDetailScreen(
                         decorationBox = { innerTextField ->
                             if (title.isEmpty()) {
                                 Text(
-                                    "Title",
+                                    text = "Title",
                                     style = JasnifyTheme.typography.headingXLarge.copy(
                                         fontWeight = if (isBoldActive) FontWeight.Bold else FontWeight.Medium,
                                         fontStyle = if (isItalicActive) FontStyle.Italic else FontStyle.Normal,
@@ -389,9 +410,12 @@ fun ChecklistDetailScreen(
                         state = listState,
                         modifier = Modifier.weight(1f)
                     ) {
-                        itemsIndexed(items, key = { _, item -> item.id }) { index, item ->
-                            val focusRequester =
-                                if (index == 0) firstItemFocusRequester else remember { FocusRequester() }
+                        itemsIndexed(
+                            items = items,
+                            key = { _, item -> item.id },
+                            contentType = { _, _ -> "checklist_item" }
+                        ) { index, item ->
+                            val focusRequester = if (index == 0) firstItemFocusRequester else remember { FocusRequester() }
 
                             LaunchedEffect(itemToFocusId) {
                                 if (itemToFocusId == item.id) {
@@ -459,14 +483,11 @@ fun ChecklistDetailScreen(
 
                                                     val activeIndex = draggedItemIndex
                                                     if (activeIndex != null) {
-                                                        val targetIndex =
-                                                            if (dragOffset > itemHeightPx) {
-                                                                activeIndex + 1
-                                                            } else if (dragOffset < -itemHeightPx) {
-                                                                activeIndex - 1
-                                                            } else {
-                                                                activeIndex
-                                                            }
+                                                        val targetIndex = when {
+                                                            dragOffset > itemHeightPx -> activeIndex + 1
+                                                            dragOffset < -itemHeightPx -> activeIndex - 1
+                                                            else -> activeIndex
+                                                        }
 
                                                         if (targetIndex in items.indices && targetIndex != activeIndex) {
                                                             val newList = items.toMutableList()
@@ -498,7 +519,7 @@ fun ChecklistDetailScreen(
                             }
                         }
 
-                        item {
+                        item(key = "add_item_button", contentType = "add_item_button") {
                             if (!isViewer) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -669,27 +690,11 @@ fun ColorPickerBottomSheet(
     var selectedColor by remember { mutableStateOf(initialColor) }
 
     val colors = remember(initialColor) {
-        val basePalette = listOf(
-            Color(0xFFE1F5FE),
-            Color(0xFFE8F5E9),
-            Color(0xFFFFF3E0),
-            Color(0xFFFCE4EC),
-            Color(0xFFEDE7F6),
-            Color(0xFFE0F7FA),
-            Color(0xFFFFFDE7),
-            Color(0xFFF3E5F5),
-            Color(0xFFE8EAF6),
-            Color(0xFFD7F9F1),
-            Color(0xFFFFE0E0),
-            Color(0xFFE6F4EA),
-            Color(0xFFFFF4CC),
-            Color(0xFFDDEBF7),
-        )
-        val matchesExisting = basePalette.any { areColorsEqual(it, initialColor) }
+        val matchesExisting = BaseColorPalette.any { areColorsEqual(it, initialColor) }
         if (matchesExisting) {
-            basePalette
+            BaseColorPalette
         } else {
-            listOf(initialColor) + basePalette
+            listOf(initialColor) + BaseColorPalette
         }
     }
 

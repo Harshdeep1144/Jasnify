@@ -9,11 +9,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -75,7 +72,6 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
@@ -94,7 +90,13 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class VendorScreenState {
-    MAIN, CATEGORY_DETAIL, ALL_SAVED, ROOM, VENDOR_DETAIL, LOCATION_SELECTOR, TIMELINE_DETAIL
+    MAIN,
+    CATEGORY_DETAIL,
+    ALL_SAVED,
+    ROOM,
+    VENDOR_DETAIL,
+    LOCATION_SELECTOR,
+    TIMELINE_DETAIL
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -138,7 +140,8 @@ fun VendorsTab(
     var selectedCategoryTab by remember(selectedCategory) { mutableStateOf("explore") }
     var selectedSavedViewType by remember(selectedCategory) { mutableStateOf("By Timeline") }
 
-    val selectedCategoryNameFromHome by (internalNavController ?: mainNavController).currentBackStackEntry
+    val navEntry = internalNavController ?: mainNavController
+    val selectedCategoryNameFromHome by navEntry.currentBackStackEntry
         ?.savedStateHandle
         ?.getStateFlow<String?>("selected_category_name", null)
         ?.collectAsState() ?: remember { mutableStateOf(null) }
@@ -148,8 +151,8 @@ fun VendorsTab(
             val cat = vendorCategories.find { it.name == name }
             if (cat != null) {
                 selectedCategory = cat
-                screenStack += VendorScreenState.CATEGORY_DETAIL
-                (internalNavController ?: mainNavController).currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
+                screenStack = screenStack + VendorScreenState.CATEGORY_DETAIL
+                navEntry.currentBackStackEntry?.savedStateHandle?.remove<String>("selected_category_name")
             }
         }
     }
@@ -170,7 +173,7 @@ fun VendorsTab(
     var toastData by remember { mutableStateOf(ToastData()) }
     var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
 
-    val isSavedListToast = remember(toastData, lastSavedVendor) {
+    val isSavedListToast = remember(toastData.message, lastSavedVendor) {
         toastData.message?.contains("Saved List") == true && lastSavedVendor != null
     }
 
@@ -186,11 +189,12 @@ fun VendorsTab(
     }
 
     LaunchedEffect(activeEventId) {
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-        if (activeEventId != null) {
-            roomViewModel.verifyAccess(activeEventId!!, "Vendors", uid)
-            roomViewModel.loadRoomUsers(activeEventId!!, "Vendors")
-            vendorViewModel.setEventId(activeEventId!!)
+        val currentEventId = activeEventId
+        val uid = FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+        if (currentEventId != null) {
+            roomViewModel.verifyAccess(currentEventId, "Vendors", uid)
+            roomViewModel.loadRoomUsers(currentEventId, "Vendors")
+            vendorViewModel.setEventId(currentEventId)
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -208,9 +212,8 @@ fun VendorsTab(
     val allSampleVendors = MockData.sampleVendors
 
     val recentVendorsList = remember(recentSearchesNames, allSampleVendors) {
-        recentSearchesNames.mapNotNull { name ->
-            allSampleVendors.find { it.name == name }
-        }
+        val vendorMap = allSampleVendors.associateBy { it.name }
+        recentSearchesNames.mapNotNull { name -> vendorMap[name] }
     }
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
@@ -218,9 +221,9 @@ fun VendorsTab(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
+            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
                     sdf.format(Date(timestamp))
                 } ?: "Date TBD"
 
@@ -235,8 +238,9 @@ fun VendorsTab(
     }
 
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
-    val isOwner = activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid
-    val currentUserInRoom = roomUsers.find { it.uid == FirebaseAuth.getInstance().currentUser?.uid }
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+    val isOwner = activeEvent?.ownerId == currentUserId
+    val currentUserInRoom = roomUsers.find { it.uid == currentUserId }
     val currentUserRole = when {
         isOwner -> UserRole.OWNER
         currentUserInRoom != null -> currentUserInRoom.role
@@ -249,25 +253,24 @@ fun VendorsTab(
     }
 
     val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
-        val baseEvent = if (selectedTimelineEventId == "mysaved") {
+        if (selectedTimelineEventId == "mysaved") {
             TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
         } else {
             timelineEvents.find { it.id == selectedTimelineEventId }
         }
-        baseEvent
     }
 
     val currentSelectedTimelineVendors = remember(selectedTimelineEventId, selectedCategory, vendorSavedDestinations, exploreVendors) {
-        if (selectedTimelineEventId == null) return@remember emptyList<Vendor>()
+        val targetId = selectedTimelineEventId ?: return@remember emptyList<Vendor>()
 
         val categoryFiltered = if (selectedCategory != null) {
-            exploreVendors.filter { it.category == selectedCategory!!.name }
+            exploreVendors.filter { it.category == selectedCategory?.name }
         } else {
             exploreVendors
         }
 
         categoryFiltered.filter { v ->
-            vendorSavedDestinations["${v.name}-${v.category}"] == selectedTimelineEventId
+            vendorSavedDestinations["${v.name}-${v.category}"] == targetId
         }.map { it.copy(favorite = true) }
     }
 
@@ -328,28 +331,32 @@ fun VendorsTab(
     }
 
     LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible) {
-        val isBottomBarVisibleEffective = isBottomBarVisible && hasAccess == true && !showMenuSheet && !showRoomMenuBottomSheet && !isSearchActive && !showSaveListBottomSheet && currentScreenState == VendorScreenState.MAIN
+        val isBottomBarVisibleEffective = isBottomBarVisible &&
+                hasAccess == true &&
+                !showMenuSheet &&
+                !showRoomMenuBottomSheet &&
+                !isSearchActive &&
+                !showSaveListBottomSheet &&
+                currentScreenState == VendorScreenState.MAIN
         onBottomBarVisibilityChange(isBottomBarVisibleEffective)
     }
 
     BackHandler {
-        if (showSaveListBottomSheet) {
-            showSaveListBottomSheet = false
-        } else if (showRoomMenuBottomSheet) {
-            showRoomMenuBottomSheet = false
-        } else if (isSearchActive) {
-            isSearchActive = false
-            searchQuery = ""
-            focusManager.clearFocus()
-        } else {
-            if (screenStack.size > 1) {
+        when {
+            showSaveListBottomSheet -> showSaveListBottomSheet = false
+            showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
+            isSearchActive -> {
+                isSearchActive = false
+                searchQuery = ""
+                focusManager.clearFocus()
+            }
+            screenStack.size > 1 -> {
                 if (currentScreenState == VendorScreenState.CATEGORY_DETAIL) {
                     selectedCategory = null
                 }
                 screenStack = screenStack.dropLast(1)
-            } else {
-                onBackClick()
             }
+            else -> onBackClick()
         }
     }
 
@@ -648,7 +655,7 @@ fun VendorsTab(
                                 iconPlacement = IconPlacement.Top,
                                 onClick = {
                                     showMenuSheet = false
-                                    screenStack += VendorScreenState.ALL_SAVED
+                                    screenStack = screenStack + VendorScreenState.ALL_SAVED
                                 },
                             )
                         )
@@ -666,7 +673,6 @@ fun VendorsTab(
                         )
                     )
                 },
-
                 listOf(
                     MenuSheetActionItem(
                         text = "Manage Room Access",
@@ -674,11 +680,10 @@ fun VendorsTab(
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
-                            screenStack += VendorScreenState.ROOM
+                            screenStack = screenStack + VendorScreenState.ROOM
                         }
                     )
                 ),
-
                 listOf(
                     MenuSheetActionItem(
                         text = "Help & Feedback",
@@ -779,19 +784,19 @@ fun VendorsTab(
             )
         }
 
-        userToRemove?.let {
+        userToRemove?.let { targetUser ->
             ConfirmationBottomSheet(
-                heading = "Remove ${it.name} from Vendor Room?",
+                heading = "Remove ${targetUser.name} from Vendor Room?",
                 subHeading = "They will not be able to access this room anymore.",
                 confirmButtonText = "Remove",
                 onDismiss = {
                     userToRemove = null
                 },
                 onConfirm = {
-                    val target = userToRemove
-                    if (target != null && activeEvent != null) {
-                        roomViewModel.removeAccess(activeEvent!!.id, "Vendors", target.uid)
-                        toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
+                    val activeId = activeEvent?.id
+                    if (activeId != null) {
+                        roomViewModel.removeAccess(activeId, "Vendors", targetUser.uid)
+                        toastData = ToastData("${targetUser.name} removed from room", ToastType.SUCCESS)
                     }
                     userToRemove = null
                 },
@@ -809,7 +814,7 @@ fun VendorsTab(
                 },
                 onConfirm = {
                     activeEvent?.id?.let { eventId ->
-                        roomViewModel.removeAccess(eventId, "Vendors", FirebaseAuth.getInstance().currentUser?.uid ?: "")
+                        roomViewModel.removeAccess(eventId, "Vendors", FirebaseAuth.getInstance().currentUser?.uid.orEmpty())
                     }
                     toastData = ToastData("You left the room", ToastType.DEFAULT)
                     screenStack = listOf(VendorScreenState.MAIN)

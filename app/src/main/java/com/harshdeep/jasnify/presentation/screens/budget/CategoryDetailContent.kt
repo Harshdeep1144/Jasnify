@@ -3,7 +3,18 @@ package com.harshdeep.jasnify.presentation.screens.budget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -14,7 +25,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,8 +44,33 @@ import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val SingleCardShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+private val TopCardShape = SquircleShape(
+    topStart = CornerLarge,
+    topEnd = CornerLarge,
+    bottomStart = CornerExtraSmall,
+    bottomEnd = CornerExtraSmall,
+    cornerSmoothing = CornerSmoothingDefault
+)
+private val BottomCardShape = SquircleShape(
+    topStart = CornerExtraSmall,
+    topEnd = CornerExtraSmall,
+    bottomStart = CornerLarge,
+    bottomEnd = CornerLarge,
+    cornerSmoothing = CornerSmoothingDefault
+)
+private val MiddleCardShape = SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
 
 @Composable
 fun CategoryDetailContent(
@@ -52,6 +89,12 @@ fun CategoryDetailContent(
     onModifyExpenseClick: (ExpenseItem) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+
+    val editPainter = painterResource(R.drawable.ic_edit)
+    val receiptPainter = painterResource(R.drawable.ic_receipt)
+    val clockForwardVector = ImageVector.vectorResource(R.drawable.ic_clock_forward)
+    val lineChartUpVector = ImageVector.vectorResource(R.drawable.ic_line_chart_up)
+    val lineChartDownVector = ImageVector.vectorResource(R.drawable.ic_line_chart_down)
 
     Column(
         modifier = Modifier
@@ -76,7 +119,7 @@ fun CategoryDetailContent(
                 .fillMaxSize()
                 .weight(1f)
         ) {
-            item {
+            item(key = "category_header_summary", contentType = "header") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -101,7 +144,7 @@ fun CategoryDetailContent(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_edit),
+                                    painter = editPainter,
                                     contentDescription = "Rename Category",
                                     tint = ContentPrimary,
                                     modifier = Modifier
@@ -145,14 +188,14 @@ fun CategoryDetailContent(
                 }
             }
 
-            item {
+            item(key = "category_filter_chips", contentType = "filters") {
                 LazyRow(
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    item {
+                    item(key = "chip_recent", contentType = "filter_chip") {
                         val isRecentActive = selectedCategoryChips.contains("Recent First")
                         FilterChip(
                             label = "Recent First",
@@ -160,7 +203,7 @@ fun CategoryDetailContent(
                             shapeStyle = ChipShapeStyle.Round,
                             size = ChipSize.Small,
                             hasStroke = true,
-                            leadingIcon = ImageVector.vectorResource(R.drawable.ic_clock_forward),
+                            leadingIcon = clockForwardVector,
                             trailingIcon = if (isRecentActive) Icons.Default.Close else null,
                             onClick = {
                                 onCategoryChipsChange(
@@ -174,7 +217,7 @@ fun CategoryDetailContent(
                         )
                     }
 
-                    item {
+                    item(key = "chip_most_expensive", contentType = "filter_chip") {
                         val isMostActive = selectedCategoryChips.contains("Most Expensive")
                         FilterChip(
                             label = "Most Expensive",
@@ -182,7 +225,7 @@ fun CategoryDetailContent(
                             shapeStyle = ChipShapeStyle.Round,
                             size = ChipSize.Small,
                             hasStroke = true,
-                            leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_up),
+                            leadingIcon = lineChartUpVector,
                             trailingIcon = if (isMostActive) Icons.Default.Close else null,
                             onClick = {
                                 onCategoryChipsChange(
@@ -196,7 +239,7 @@ fun CategoryDetailContent(
                         )
                     }
 
-                    item {
+                    item(key = "chip_least_expensive", contentType = "filter_chip") {
                         val isLeastActive = selectedCategoryChips.contains("Least Expensive")
                         FilterChip(
                             label = "Least Expensive",
@@ -204,7 +247,7 @@ fun CategoryDetailContent(
                             shapeStyle = ChipShapeStyle.Round,
                             size = ChipSize.Small,
                             hasStroke = true,
-                            leadingIcon = ImageVector.vectorResource(R.drawable.ic_line_chart_down),
+                            leadingIcon = lineChartDownVector,
                             trailingIcon = if (isLeastActive) Icons.Default.Close else null,
                             onClick = {
                                 onCategoryChipsChange(
@@ -221,7 +264,7 @@ fun CategoryDetailContent(
             }
 
             if (sortedCategoryExpenses.isEmpty()) {
-                item {
+                item(key = "empty_category_expenses", contentType = "empty_state") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -230,7 +273,7 @@ fun CategoryDetailContent(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.ic_receipt),
+                            painter = receiptPainter,
                             contentDescription = "No expenses",
                             tint = ContentTertiary,
                             modifier = Modifier.size(84.dp)
@@ -249,24 +292,16 @@ fun CategoryDetailContent(
                 items(
                     items = sortedCategoryExpenses,
                     key = { it.id },
-                    contentType = { "expense" }
+                    contentType = { "category_expense_card" }
                 ) { item ->
                     val isFirst = sortedCategoryExpenses.firstOrNull()?.id == item.id
                     val isLast = sortedCategoryExpenses.lastOrNull()?.id == item.id
 
-                    val itemShape = remember(isFirst, isLast) {
-                        when {
-                            isFirst && isLast -> SquircleShape(CornerLarge, CornerSmoothingDefault)
-                            isFirst -> SquircleShape(
-                                CornerLarge, CornerLarge,
-                                CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault
-                            )
-                            isLast -> SquircleShape(
-                                CornerExtraSmall, CornerExtraSmall,
-                                CornerLarge, CornerLarge, CornerSmoothingDefault
-                            )
-                            else -> SquircleShape(CornerExtraSmall, CornerSmoothingDefault)
-                        }
+                    val itemShape = when {
+                        isFirst && isLast -> SingleCardShape
+                        isFirst -> TopCardShape
+                        isLast -> BottomCardShape
+                        else -> MiddleCardShape
                     }
 
                     ExpenseCard(
@@ -295,7 +330,7 @@ fun CategoryDetailContent(
                 }
             }
 
-            item {
+            item(key = "category_detail_bottom_spacer", contentType = "spacer") {
                 Spacer(modifier = Modifier.height(100.dp))
             }
         }

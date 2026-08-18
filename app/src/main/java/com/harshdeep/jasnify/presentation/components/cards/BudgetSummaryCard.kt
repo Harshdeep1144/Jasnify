@@ -19,6 +19,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,6 +54,10 @@ import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
+private val NotSetCardShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
+private val BudgetSetCardShape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+private val DashedBorderPathEffect = PathEffect.dashPathEffect(floatArrayOf(18f, 18f), 0f)
+
 @Composable
 fun BudgetSummaryCard(
     isBudgetNotSet: Boolean,
@@ -68,18 +73,12 @@ fun BudgetSummaryCard(
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                .clip(NotSetCardShape)
                 .background(SurfaceSecondary)
                 .drawBehind {
-                    val dashLength = 6.dp.toPx()
-                    val gapLength = 6.dp.toPx()
-
                     val stroke = Stroke(
                         width = 2.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(
-                            intervals = floatArrayOf(dashLength, gapLength),
-                            phase = 0f
-                        )
+                        pathEffect = DashedBorderPathEffect
                     )
 
                     drawRoundRect(
@@ -116,7 +115,7 @@ fun BudgetSummaryCard(
                         color = ContentPrimary
                     )
                 }
-                
+
                 if (showEditButton) {
                     Spacer(Modifier.height(16.dp))
 
@@ -131,23 +130,20 @@ fun BudgetSummaryCard(
             }
         }
     } else {
+        val editPainter = painterResource(R.drawable.ic_edit)
+        val editButtonIcon = remember(editPainter) {
+            TopIcon.CustomPainter(editPainter)
+        }
+
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .clip(
-                    SquircleShape(
-                        CornerExtraLarge,
-                        CornerSmoothingDefault
-                    )
-                )
+                .clip(BudgetSetCardShape)
                 .background(SurfaceBrandSecondary)
                 .border(
                     1.dp,
                     MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    SquircleShape(
-                        CornerExtraLarge,
-                        CornerSmoothingDefault
-                    )
+                    BudgetSetCardShape
                 )
         ) {
             Image(
@@ -189,9 +185,7 @@ fun BudgetSummaryCard(
 
                     if (showEditButton) {
                         TopBarIconButton(
-                            icon = TopIcon.CustomPainter(
-                                painterResource(R.drawable.ic_edit)
-                            ),
+                            icon = editButtonIcon,
                             onClick = onEditBudgetClick,
                             backgroundStyle = ButtonBackground.TRANSPARENT,
                             iconSize = 20.dp,
@@ -201,15 +195,11 @@ fun BudgetSummaryCard(
 
                 HorizontalDivider(
                     thickness = 1.dp,
-                    color = MaterialTheme.colorScheme.outline.copy(
-                        0.16f
-                    )
+                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
                 )
 
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(
-                        8.dp
-                    )
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Text(
                         text = "REMAINING FUNDS",
@@ -222,9 +212,7 @@ fun BudgetSummaryCard(
 
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(
-                            8.dp
-                        )
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = formattedRemaining,
@@ -248,9 +236,7 @@ fun BudgetSummaryCard(
                             .height(4.dp)
                             .clip(CircleShape),
                         color = ContentBrand,
-                        trackColor = MaterialTheme.colorScheme.outline.copy(
-                            alpha = 0.16f
-                        ),
+                        trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
                     )
                 }
 
@@ -267,16 +253,12 @@ fun BudgetSummaryCard(
     }
 }
 
-
-
-
 @Preview(showBackground = true, name = "Budget Set")
 @Composable
 fun BudgetSummaryCard_Set_Preview() {
     JasnifyTheme {
         Row(
-            modifier = Modifier
-                .padding(16.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             BudgetSummaryCard(
@@ -290,7 +272,6 @@ fun BudgetSummaryCard_Set_Preview() {
                 showEditButton = true
             )
 
-            // State 2: Low Remaining Budget (e.g., 15% left)
             BudgetSummaryCard(
                 isBudgetNotSet = false,
                 formattedTotalBudget = "$2,500.00",
@@ -301,7 +282,6 @@ fun BudgetSummaryCard_Set_Preview() {
                 modifier = Modifier.weight(1f),
                 showEditButton = true
             )
-
         }
     }
 }

@@ -65,7 +65,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -179,6 +178,7 @@ enum class CateringMenuView {
     MENU,
     MANAGE_ROOM_ACCESS
 }
+
 fun Modifier.detectCombinedClicks(
     key: Any,
     onTap: () -> Unit,
@@ -352,11 +352,9 @@ fun CateringMenuScreen(
         }
     }
 
-    // Search state
     var searchText by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
 
-    // Multi-Selection State
     var isMultiSelectActive by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
@@ -663,7 +661,7 @@ fun CateringMenuScreen(
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                item(contentType = "chip") {
+                                                item(key = "all_items_chip", contentType = "chip") {
                                                     FilterChip(
                                                         label = "All Items",
                                                         isSelected = selectedFilterTab == "All Items" && selectedCuisines.isEmpty() && selectedTypes.isEmpty(),
@@ -678,7 +676,7 @@ fun CateringMenuScreen(
                                                         isTransparent = true
                                                     )
                                                 }
-                                                item(contentType = "chip") {
+                                                item(key = "veg_chip", contentType = "chip") {
                                                     FoodChip(
                                                         foodType = Dietary.Veg,
                                                         isSelected = selectedFilterTab == "Veg",
@@ -690,7 +688,7 @@ fun CateringMenuScreen(
                                                         isTransparent = true
                                                     )
                                                 }
-                                                item(contentType = "chip") {
+                                                item(key = "non_veg_chip", contentType = "chip") {
                                                     FoodChip(
                                                         foodType = Dietary.NonVeg,
                                                         isSelected = selectedFilterTab == "Non-Veg",
@@ -702,7 +700,7 @@ fun CateringMenuScreen(
                                                         isTransparent = true
                                                     )
                                                 }
-                                                item(contentType = "chip") {
+                                                item(key = "cuisine_chip", contentType = "chip") {
                                                     val hasSelectedCuisines = selectedCuisines.isNotEmpty()
                                                     val cuisineLabel = if (hasSelectedCuisines) {
                                                         "Cuisine (${selectedCuisines.size})"
@@ -722,7 +720,7 @@ fun CateringMenuScreen(
                                                         isTransparent = true
                                                     )
                                                 }
-                                                item(contentType = "chip") {
+                                                item(key = "type_chip", contentType = "chip") {
                                                     val hasSelectedTypes = selectedTypes.isNotEmpty()
                                                     val typeLabel = if (hasSelectedTypes) {
                                                         "Type (${selectedTypes.size})"
@@ -747,7 +745,7 @@ fun CateringMenuScreen(
                                     }
 
                                     if (isLoading) {
-                                        items(3, contentType = { "skeleton" }) {
+                                        items(count = 3, contentType = { "skeleton" }) {
                                             Spacer(Modifier.height(12.dp))
                                             SkeletonMenuCategoryCard(brush = shimmerBrush())
                                         }
@@ -783,7 +781,7 @@ fun CateringMenuScreen(
                                             }
                                         }
                                     } else {
-                                        item(key = "spacer_top") {
+                                        item(key = "spacer_top", contentType = "spacer") {
                                             Spacer(Modifier.height(12.dp))
                                         }
                                         categorizedItems.forEach { (category, items) ->
@@ -1223,13 +1221,17 @@ fun CateringMenuScreen(
     }
 
     if (showMenuBottomSheet) {
+        val plusPainter = painterResource(R.drawable.ic_plus)
+        val checkPainter = painterResource(R.drawable.ic_check)
+        val userDefaultPainter = painterResource(R.drawable.ic_user_default)
+
         MenuBottomSheet(
             items = listOfNotNull(
                 if (!isViewer) {
                     listOf(
                         MenuSheetActionItem(
                             text = "Add an item",
-                            icon = painterResource(R.drawable.ic_plus),
+                            icon = plusPainter,
                             onClick = {
                                 showMenuBottomSheet = false
                                 showAddItemSheet = true
@@ -1237,7 +1239,7 @@ fun CateringMenuScreen(
                         ),
                         MenuSheetActionItem(
                             text = "Select items",
-                            icon = painterResource(R.drawable.ic_check),
+                            icon = checkPainter,
                             onClick = {
                                 showMenuBottomSheet = false
                                 isMultiSelectActive = true
@@ -1248,7 +1250,7 @@ fun CateringMenuScreen(
                 listOf(
                     MenuSheetActionItem(
                         text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(R.drawable.ic_user_default),
+                        icon = userDefaultPainter,
                         onClick = {
                             showMenuBottomSheet = false
                             currentView = CateringMenuView.MANAGE_ROOM_ACCESS
@@ -1264,12 +1266,13 @@ fun CateringMenuScreen(
     }
 
     if (showRoomMenuBottomSheet) {
+        val logoutPainter = painterResource(R.drawable.ic_logout)
         MenuBottomSheet(
             items = listOf(
                 listOf(
                     MenuSheetActionItem(
                         text = "Leave Room",
-                        icon = painterResource(R.drawable.ic_logout),
+                        icon = logoutPainter,
                         contentColor = MaterialTheme.colorScheme.error,
                         onClick = {
                             showRoomMenuBottomSheet = false

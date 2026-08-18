@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -105,7 +106,6 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -165,10 +165,11 @@ fun GuestsTab(
     }
 
     LaunchedEffect(activeEvent) {
-        if (activeEvent != null) {
-            roomViewModel.verifyAccess(activeEvent!!.id, "Guest", currentUserUid)
-            roomViewModel.loadRoomUsers(activeEvent!!.id, "Guest")
-            guestViewModel.setEventId(activeEvent!!.id)
+        val event = activeEvent
+        if (event != null) {
+            roomViewModel.verifyAccess(event.id, "Guest", currentUserUid)
+            roomViewModel.loadRoomUsers(event.id, "Guest")
+            guestViewModel.setEventId(event.id)
         } else {
             roomViewModel.setAccessState(true)
         }
@@ -407,8 +408,9 @@ fun GuestsTab(
 
     val filteredGuests by remember(searchQuery, selectedTypesFilter, inviteFilter, guests) {
         derivedStateOf {
+            val query = searchQuery.trim()
             guests.filter { guest ->
-                val matchesSearch = guest.name.contains(searchQuery, ignoreCase = true)
+                val matchesSearch = query.isEmpty() || guest.name.contains(query, ignoreCase = true)
                 val matchesType = selectedTypesFilter.isEmpty() || selectedTypesFilter.contains(guest.type)
                 val matchesInvite = when (inviteFilter) {
                     "Yet to invite" -> !guest.invited
@@ -527,7 +529,7 @@ fun GuestsTab(
                                             .statusBarsPadding(),
                                         state = mainListState,
                                     ) {
-                                        item {
+                                        item(key = "top_bar", contentType = "header") {
                                             Box(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -570,7 +572,7 @@ fun GuestsTab(
                                         }
 
                                         if (guests.isNotEmpty()) {
-                                            stickyHeader {
+                                            stickyHeader(key = "search_and_filters", contentType = "sticky_filter_header") {
                                                 Column(
                                                     modifier = Modifier
                                                         .background(BackgroundPrimary)
@@ -611,7 +613,7 @@ fun GuestsTab(
                                                         contentPadding = PaddingValues(horizontal = 12.dp),
                                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                     ) {
-                                                        item {
+                                                        item(key = "type_filter_chip", contentType = "filter_chip") {
                                                             FilterChip(
                                                                 label = when {
                                                                     selectedTypesFilter.isEmpty() -> "Guest Type"
@@ -625,7 +627,7 @@ fun GuestsTab(
                                                                 hasStroke = true
                                                             )
                                                         }
-                                                        item {
+                                                        item(key = "yet_to_invite_chip", contentType = "filter_chip") {
                                                             FilterChip(
                                                                 label = "Yet to invite",
                                                                 isSelected = inviteFilter == "Yet to invite",
@@ -636,7 +638,7 @@ fun GuestsTab(
                                                                 hasStroke = true
                                                             )
                                                         }
-                                                        item {
+                                                        item(key = "already_invited_chip", contentType = "filter_chip") {
                                                             FilterChip(
                                                                 label = "Already invited",
                                                                 isSelected = inviteFilter == "Already invited",
@@ -654,7 +656,7 @@ fun GuestsTab(
                                         }
 
                                         if (guests.isEmpty()) {
-                                            item {
+                                            item(key = "empty_state", contentType = "empty_state") {
                                                 GuestEmptyState(
                                                     modifier = Modifier.fillParentMaxHeight(0.80f),
                                                     hasContactPermission = hasContactPermission,
@@ -666,7 +668,7 @@ fun GuestsTab(
                                                 )
                                             }
                                         } else if (filteredGuests.isEmpty()) {
-                                            item {
+                                            item(key = "no_guests_found", contentType = "empty_state") {
                                                 Box(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -697,7 +699,7 @@ fun GuestsTab(
                                             }
                                         } else {
                                             if (!hasContactPermission && !isBannerDismissed) {
-                                                item {
+                                                item(key = "contacts_banner", contentType = "banner") {
                                                     ImportContactsBanner(
                                                         onAllowAccessClick = {
                                                             permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
@@ -711,8 +713,9 @@ fun GuestsTab(
                                             }
 
                                             itemsIndexed(
-                                                filteredGuests,
-                                                key = { _, guest -> guest.id }
+                                                items = filteredGuests,
+                                                key = { _, guest -> guest.id },
+                                                contentType = { _, _ -> "guest_card" }
                                             ) { index, guest ->
 
                                                 val isExpanded = expandedGuestId == guest.id
@@ -776,7 +779,7 @@ fun GuestsTab(
                                             }
 
                                             if (guests.size > 10) {
-                                                item {
+                                                item(key = "footer", contentType = "footer") {
                                                     FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
                                                 }
                                             }
@@ -974,8 +977,9 @@ fun GuestsTab(
         }
 
         guestToDeleteForInfo?.let { guest ->
-            val formattedName = guest.name.trim().split("\\s+".toRegex()).let { parts ->
-                if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts[0]
+            val formattedName = remember(guest.name) {
+                val parts = guest.name.trim().split(" ").filter { it.isNotBlank() }
+                if (parts.size >= 2) "${parts[0]} ${parts[1].take(1)}." else parts.firstOrNull() ?: ""
             }
             ConfirmationBottomSheet(
                 heading = "Are you sure?",
@@ -996,8 +1000,8 @@ fun GuestsTab(
                 selectedGuests.size == 1 -> "${selectedGuests[0].name} will be removed from the guest list."
                 selectedGuests.size == 2 -> "${selectedGuests[0].name} and ${selectedGuests[1].name} will be removed from the guest list."
                 selectedGuests.size > 2 -> {
-                    val n1 = selectedGuests[0].name.trim().split("\\s+".toRegex())[0]
-                    val n2 = selectedGuests[1].name.trim().split("\\s+".toRegex())[0]
+                    val n1 = selectedGuests[0].name.trim().split(" ").firstOrNull { it.isNotBlank() } ?: ""
+                    val n2 = selectedGuests[1].name.trim().split(" ").drop(1).firstOrNull { it.isNotBlank() } ?: ""
                     "$n1, $n2 & ${selectedGuests.size - 2} other guests will be removed from the guest list."
                 }
                 else -> ""
@@ -1269,7 +1273,7 @@ fun GuestsTab(
                             text = "Leave Room",
                             icon = painterResource(R.drawable.ic_logout),
                             iconPlacement = IconPlacement.Left,
-                            contentColor = Color.Red,
+                            contentColor = MaterialTheme.colorScheme.error,
                             onClick = {
                                 showRoomMenuBottomSheet = false
                                 showLeaveConfirmation = true
@@ -1314,8 +1318,9 @@ fun GuestsTab(
                 },
                 onConfirm = {
                     val target = userToRemove
-                    if (target != null && activeEvent != null) {
-                        roomViewModel.removeAccess(activeEvent!!.id, "Guest", target.uid)
+                    val eventId = activeEvent?.id
+                    if (target != null && eventId != null) {
+                        roomViewModel.removeAccess(eventId, "Guest", target.uid)
                         toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
                     userToRemove = null

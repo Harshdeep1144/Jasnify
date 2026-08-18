@@ -1,11 +1,29 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
@@ -18,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -44,6 +63,43 @@ import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
+import kotlin.math.abs
+
+private val CardDrawables = listOf(
+    R.drawable.bg_invitation_card_01,
+    R.drawable.bg_invitation_card_03,
+    R.drawable.bg_invitation_card_02,
+    R.drawable.bg_invitation_card_04,
+    R.drawable.bg_invitation_card_05,
+    R.drawable.bg_invitation_card_01,
+    R.drawable.bg_invitation_card_03,
+    R.drawable.bg_invitation_card_02
+)
+
+private val FontItems = listOf(
+    "Grenz Gotisch" to FontStyleType.PATTAYA,
+    "Cal Sans" to FontStyleType.DEFAULT,
+    "Grenze Gotisch" to FontStyleType.PATTAYA,
+    "Pacifico" to FontStyleType.PATTAYA,
+    "Marcellus" to FontStyleType.SERIF
+)
+
+private val DisplayFontItems = FontItems + FontItems + FontItems
+
+private val RadialGradientColorStops = arrayOf(
+    0.00f to Color(0xFFFFDFD0).copy(alpha = 0.70f),
+    0.25f to Color(0xFFFFE2D5).copy(alpha = 0.64f),
+    0.50f to Color(0xFFFFEAE0).copy(alpha = 0.50f),
+    0.75f to Color(0xFFFFEFE8).copy(alpha = 0.40f),
+    0.90f to Color(0xFFFFF8F4).copy(alpha = 0.15f),
+    1.00f to BackgroundPrimary
+)
+
+private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
+private val TextBoxShape = SquircleShape(CornerExtraSmall)
+private val CodeBadgeShape = RoundedCornerShape(100)
+private val FontPillShape = RoundedCornerShape(100)
+private val FontPillBorder = BorderStroke(1.dp, ContentSecondary)
 
 @Composable
 fun MyCardsEmptyState(
@@ -54,7 +110,6 @@ fun MyCardsEmptyState(
     val density = LocalDensity.current
     val infiniteTransition = rememberInfiniteTransition(label = "EmptyStateLoop")
 
-    // 1. Continuous Left-to-Right Card Arc Progress (0f -> 1f)
     val cardScrollProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -65,7 +120,6 @@ fun MyCardsEmptyState(
         label = "CardArcLoop"
     )
 
-    // 2. Continuous Left-to-Right Font Pills Marquee Progress
     val fontScrollProgress by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -76,7 +130,6 @@ fun MyCardsEmptyState(
         label = "FontMarqueeLoop"
     )
 
-    // 3. Water Floating/Buoyancy Animation for Text Box (Y-drift, X-sway, slight tilt)
     val textBoxFloatY by infiniteTransition.animateFloat(
         initialValue = -8f,
         targetValue = 8f,
@@ -105,7 +158,6 @@ fun MyCardsEmptyState(
         label = "TextBoxRotation"
     )
 
-    // 4. Cursor Blink Animation
     val cursorBlink by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
@@ -116,23 +168,21 @@ fun MyCardsEmptyState(
         label = "CursorBlink"
     )
 
+    val penPainter = painterResource(R.drawable.ic_pen)
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color(0xFFFFDFD0).copy(alpha = 0.70f),
-                        Color(0xFFFFE2D5).copy(alpha = 0.64f),
-                        Color(0xFFFFEAE0).copy(alpha = 0.50f),
-                        Color(0xFFFFEFE8).copy(alpha = 0.40f),
-                        Color(0xFFFFF8F4).copy(alpha = 0.15f),
-                        BackgroundPrimary
-                    ),
-                    center = Offset.Unspecified,
-                    radius = with(density) { 450.dp.toPx() }
+            .drawWithCache {
+                val radialBrush = Brush.radialGradient(
+                    colorStops = RadialGradientColorStops,
+                    center = Offset(size.width / 2f, size.height / 2f),
+                    radius = 450.dp.toPx()
                 )
-            ),
+                onDrawBehind {
+                    drawRect(brush = radialBrush)
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -142,20 +192,7 @@ fun MyCardsEmptyState(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // -------------------------------------------------------------
-            // 1. Gentle Curved Card Arc (Moving L -> R) - Shadow Removed
-            // -------------------------------------------------------------
-            val cardDrawables = listOf(
-                R.drawable.bg_invitation_card_01,
-                R.drawable.bg_invitation_card_03,
-                R.drawable.bg_invitation_card_02,
-                R.drawable.bg_invitation_card_04,
-                R.drawable.bg_invitation_card_05,
-                R.drawable.bg_invitation_card_01,
-                R.drawable.bg_invitation_card_03,
-                R.drawable.bg_invitation_card_02
-            )
-
+            // 1. Curved Card Arc
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -163,11 +200,11 @@ fun MyCardsEmptyState(
                     .clipToBounds(),
                 contentAlignment = Alignment.Center
             ) {
-                val totalCards = cardDrawables.size
+                val totalCards = CardDrawables.size
                 val cardSpacingDp = 120f
                 val totalWidth = totalCards * cardSpacingDp
 
-                cardDrawables.forEachIndexed { index, drawableRes ->
+                CardDrawables.forEachIndexed { index, drawableRes ->
                     Box(
                         modifier = Modifier
                             .graphicsLayer {
@@ -176,15 +213,15 @@ fun MyCardsEmptyState(
 
                                 val yPos = (xPos * xPos) / 1250f
                                 val rotationDeg = xPos * 0.082f
-                                val edgeFade = (1f - (kotlin.math.abs(xPos) - 130f) / 100f).coerceIn(0f, 1f)
+                                val edgeFade = (1f - (abs(xPos) - 130f) / 100f).coerceIn(0f, 1f)
 
                                 translationX = xPos * density.density
                                 translationY = (yPos - 6f) * density.density
                                 rotationZ = rotationDeg
-                                alpha = if (kotlin.math.abs(xPos) < 230f) edgeFade else 0f
+                                alpha = if (abs(xPos) < 230f) edgeFade else 0f
                             }
                             .size(91.53.dp, 122.04.dp)
-                            .clip(SquircleShape(CornerMedium, CornerSmoothingDefault)) // Shadow modifier removed
+                            .clip(CardShape)
                     ) {
                         Image(
                             painter = painterResource(id = drawableRes),
@@ -198,9 +235,7 @@ fun MyCardsEmptyState(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // -------------------------------------------------------------
-            // 2. Water Floating Text Box
-            // -------------------------------------------------------------
+            // 2. Floating Text Box
             Box(
                 modifier = Modifier
                     .graphicsLayer {
@@ -210,11 +245,10 @@ fun MyCardsEmptyState(
                     }
                     .wrapContentSize()
             ) {
-                // Main Text Box
                 Box(
                     modifier = Modifier
-                        .background(Color.Transparent, SquircleShape(CornerExtraSmall))
-                        .border(2.dp, Color(0xFF6750A4), SquircleShape(CornerExtraSmall))
+                        .background(Color.Transparent, TextBoxShape)
+                        .border(2.dp, Color(0xFF6750A4), TextBoxShape)
                         .padding(horizontal = 20.dp, vertical = 12.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
@@ -240,13 +274,12 @@ fun MyCardsEmptyState(
                     }
                 }
 
-                // Code Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .offset(x = 12.dp)
                         .size(width = 24.dp, height = 16.dp)
-                        .background(Color(0xFF6750A4), RoundedCornerShape(100)),
+                        .background(Color(0xFF6750A4), CodeBadgeShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -257,9 +290,8 @@ fun MyCardsEmptyState(
                     )
                 }
 
-                // Pen Icon
                 Icon(
-                    painter = painterResource(R.drawable.ic_pen),
+                    painter = penPainter,
                     contentDescription = null,
                     tint = Color(0xFF6750A4),
                     modifier = Modifier
@@ -271,24 +303,15 @@ fun MyCardsEmptyState(
 
             Spacer(modifier = Modifier.height(36.dp))
 
-            val fontItems = listOf(
-                "Grenz Gotisch" to FontStyleType.PATTAYA,
-                "Cal Sans" to FontStyleType.DEFAULT,
-                "Grenze Gotisch" to FontStyleType.PATTAYA,
-                "Pacifico" to FontStyleType.PATTAYA,
-                "Marcellus" to FontStyleType.SERIF
-            )
-
             InfiniteHorizontalMarquee(
                 progress = fontScrollProgress,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val displayList = fontItems + fontItems + fontItems
-                displayList.forEach { (name, type) ->
+                DisplayFontItems.forEach { (name, type) ->
                     Surface(
                         color = Color(0x40FFFFFF),
-                        shape = RoundedCornerShape(100),
-                        border = BorderStroke(1.dp, ContentSecondary),
+                        shape = FontPillShape,
+                        border = FontPillBorder,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     ) {
                         Text(

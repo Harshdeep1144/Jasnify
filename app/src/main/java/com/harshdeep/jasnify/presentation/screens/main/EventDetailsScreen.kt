@@ -129,8 +129,13 @@ import java.time.Month
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 import java.time.format.TextStyle as JavaTextStyle
+
+private val DateParserFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+private val DateStandardFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+private val PickDateOptions = listOf(true, false)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -174,7 +179,6 @@ fun EventDetailsScreen(
 
     var showEventTypeTooltip by remember { mutableStateOf(false) }
 
-    // Bottom Sheet Control States
     var showBottomSheet by remember { mutableStateOf(false) }
     var isTimelineInfoSheetVisible by remember { mutableStateOf(false) }
 
@@ -345,6 +349,14 @@ fun EventDetailsScreen(
         }
     }
 
+    val infoPainter = painterResource(id = R.drawable.ic_info)
+    val copyPainter = painterResource(id = R.drawable.ic_copy)
+    val editPainter = painterResource(id = R.drawable.ic_edit)
+    val calendarPainter = painterResource(id = R.drawable.ic_calendar)
+    val plusPainter = painterResource(id = R.drawable.ic_plus)
+    val appPainter = painterResource(id = R.drawable.ic_app)
+    val leftPainter = painterResource(id = R.drawable.ic_left)
+
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -391,7 +403,7 @@ fun EventDetailsScreen(
                                 .weight(1f),
                             verticalArrangement = Arrangement.spacedBy(0.dp)
                         ) {
-                            item {
+                            item(key = "event_info_half_cards", contentType = "header_cards") {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -401,7 +413,7 @@ fun EventDetailsScreen(
                                     EventInfoHalfCard(
                                         title = "Event Type :",
                                         value = eventType,
-                                        icon = painterResource(id = R.drawable.ic_info),
+                                        icon = infoPainter,
                                         modifier = Modifier.weight(1f),
                                         onClick = { showEventTypeTooltip = true },
                                         tooltipContent = {
@@ -416,7 +428,7 @@ fun EventDetailsScreen(
                                     EventInfoHalfCard(
                                         title = "Event ID :",
                                         value = eventId,
-                                        icon = painterResource(id = R.drawable.ic_copy),
+                                        icon = copyPainter,
                                         modifier = Modifier.weight(1f),
                                         onClick = {
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
@@ -430,7 +442,7 @@ fun EventDetailsScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                             }
 
-                            item {
+                            item(key = "event_name_and_timeline_type", contentType = "primary_inputs") {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -509,7 +521,7 @@ fun EventDetailsScreen(
                                                     pickDateSegmentSelected = singleDaySelectedDate != "Not yet decided"
                                                     showBottomSheet = true
                                                 },
-                                                icon = painterResource(id = R.drawable.ic_edit),
+                                                icon = editPainter,
                                                 containerColor = SurfacePrimary,
                                                 contentColor = ContentPrimary,
                                                 size = ButtonSize.Small
@@ -565,7 +577,7 @@ fun EventDetailsScreen(
                                                                 showBottomSheet = true
                                                             }
                                                         },
-                                                        icon = painterResource(id = R.drawable.ic_edit),
+                                                        icon = editPainter,
                                                         containerColor = SurfacePrimary,
                                                         contentColor = ContentPrimary,
                                                         size = ButtonSize.Small
@@ -605,7 +617,7 @@ fun EventDetailsScreen(
                             }
 
                             if (timelineType == "Multi-day") {
-                                item {
+                                item(key = "timeline_header", contentType = "section_header") {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -625,7 +637,7 @@ fun EventDetailsScreen(
 
                                             CustomIconButton(
                                                 onClick = { isTimelineInfoSheetVisible = true },
-                                                icon = painterResource(R.drawable.ic_info),
+                                                icon = infoPainter,
                                                 containerColor = BackgroundSecondary,
                                                 contentColor = ContentPrimary,
                                                 size = ButtonSize.Small
@@ -639,7 +651,7 @@ fun EventDetailsScreen(
                                                         timelineItems.add(
                                                             0,
                                                             SubEventItem(
-                                                                id = java.util.UUID.randomUUID().toString(),
+                                                                id = UUID.randomUUID().toString(),
                                                                 dateString = "",
                                                                 name = "",
                                                                 isExisting = false,
@@ -651,7 +663,7 @@ fun EventDetailsScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Icon(
-                                                    painter = painterResource(id = R.drawable.ic_plus),
+                                                    painter = plusPainter,
                                                     contentDescription = "Add Timeline",
                                                     tint = if (hasUnsavedEditingItem) ContentSecondary else ContentBrandDark,
                                                     modifier = Modifier.size(20.dp)
@@ -670,7 +682,8 @@ fun EventDetailsScreen(
 
                                 itemsIndexed(
                                     items = timelineItems,
-                                    key = { _, item -> item.id }
+                                    key = { _, item -> item.id },
+                                    contentType = { _, _ -> "timeline_input_item" }
                                 ) { index, item ->
                                     val isEditing = item.isEditing
 
@@ -760,8 +773,8 @@ fun EventDetailsScreen(
                                             backgroundColor = SurfacePrimary,
                                             hasBorder = false,
                                             isEditable = isAdmin,
-                                            onShowDatePicker = { item ->
-                                                selectedTimelineItem = item
+                                            onShowDatePicker = { targetItem ->
+                                                selectedTimelineItem = targetItem
                                                 showTimelineDatePicker = true
                                             },
                                             modifier = Modifier.fillMaxWidth(),
@@ -770,11 +783,11 @@ fun EventDetailsScreen(
                                 }
                             }
 
-                            item {
+                            item(key = "spacer_end", contentType = "spacer") {
                                 Spacer(Modifier.height(46.dp))
                             }
 
-                            item {
+                            item(key = "footer_branding", contentType = "footer") {
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -783,7 +796,7 @@ fun EventDetailsScreen(
                                     verticalArrangement = Arrangement.Center
                                 ) {
                                     Icon(
-                                        painter = painterResource(R.drawable.ic_app),
+                                        painter = appPainter,
                                         contentDescription = null,
                                         tint = ContentSecondary
                                     )
@@ -910,7 +923,7 @@ fun EventDetailsScreen(
                                         )
                                     }
 
-                                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+                                    HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
                                     CustomTextButton(
                                         onClick = {
@@ -961,10 +974,9 @@ fun EventDetailsScreen(
                                 )
 
                                 Spacer(Modifier.height(24.dp))
-                                val options = listOf(true, false)
 
                                 IosSegmentedControl(
-                                    options = options,
+                                    options = PickDateOptions,
                                     selectedOption = pickDateSegmentSelected,
                                     onOptionSelected = { isPickDate ->
                                         pickDateSegmentSelected = isPickDate
@@ -988,7 +1000,7 @@ fun EventDetailsScreen(
                                         },
                                         onValueChange = {},
                                         placeholder = "Select a date",
-                                        trailingIcon = painterResource(id = R.drawable.ic_calendar),
+                                        trailingIcon = calendarPainter,
                                         trailingIconEnabled = hasSelectedValue,
                                         textStyle = JasnifyTheme.typography.labelXLarge.copy(color = inputTextColor),
                                         readOnly = true,
@@ -1027,7 +1039,7 @@ fun EventDetailsScreen(
                                     }
                                 }
                             }
-                            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+                            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
                             Column(
                                 modifier = Modifier
@@ -1203,7 +1215,8 @@ fun EventDetailsScreen(
                                             ) {
                                                 itemsIndexed(
                                                     items = validSavedTimelines,
-                                                    key = { _, item -> item.id }
+                                                    key = { _, item -> item.id },
+                                                    contentType = { _, _ -> "saved_timeline_picker_item" }
                                                 ) { index, item ->
                                                     val isDateSelected = draftSavedDateString == item.dateString
 
@@ -1279,7 +1292,7 @@ fun EventDetailsScreen(
                                     }
                                 }
 
-                                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
+                                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f))
 
                                 Row(
                                     modifier = Modifier
@@ -1301,7 +1314,7 @@ fun EventDetailsScreen(
                                         shapeStyle = ButtonShapeStyle.Square,
                                         containerColor = SurfacePrimary,
                                         contentColor = ContentPrimary,
-                                        leadingIcon = painterResource(id = R.drawable.ic_left),
+                                        leadingIcon = leftPainter,
                                         modifier = Modifier.weight(1f)
                                     )
 
@@ -1361,7 +1374,6 @@ fun EventDetailsScreen(
             )
         }
 
-        // Render DatePickerSheet LAST so it sits on top of all other sheets in the Box layer stack
         DatePickerSheet(
             isVisible = showDatePickerSheet,
             onDismiss = { showDatePickerSheet = false },
@@ -1377,8 +1389,7 @@ fun EventDetailsScreen(
             onDismiss = { showTimelineDatePicker = false },
             onDateSelected = { date ->
                 selectedTimelineItem?.let { item ->
-                    val formatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-                    val formattedDate = date.format(formatter)
+                    val formattedDate = date.format(DateStandardFormatter)
                     val timestamp = date.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
                     val indexToUpdate = timelineItems.indexOfFirst { it.id == item.id }
@@ -1419,9 +1430,8 @@ fun parseFormattedDate(dateStr: String?): LocalDate {
             .trim()
 
         val cleanedStr = "${dayPart.padStart(2, '0')} $cleanedRemaining"
-        val formatterWithoutComma = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
-        LocalDate.parse(cleanedStr, formatterWithoutComma)
-    } catch (e: Exception) {
+        LocalDate.parse(cleanedStr, DateParserFormatter)
+    } catch (_: Exception) {
         LocalDate.MAX
     }
 }
@@ -1479,7 +1489,7 @@ private fun EventInfoHalfCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .basicMarquee(
-                        iterations = Int.MAX_VALUE // Infinite marquee
+                        iterations = Int.MAX_VALUE
                     )
             )
         }

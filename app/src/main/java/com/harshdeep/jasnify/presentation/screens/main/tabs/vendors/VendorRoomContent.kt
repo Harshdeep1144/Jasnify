@@ -1,9 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -22,19 +22,22 @@ fun VendorRoomContent(
     onLeave: () -> Unit,
     onShowToast: (ToastData) -> Unit
 ) {
-    val roomUsers by roomViewModel.roomUsers.collectAsState()
-    val searchResults by roomViewModel.searchResults.collectAsState()
-    val currentUser = FirebaseAuth.getInstance().currentUser
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = remember(auth.currentUser) { auth.currentUser }
 
-    val currentUserRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
+    val currentUserRole = remember(roomUsers, currentUser) {
+        roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
+    }
 
-    val displayUsers = remember(roomUsers, currentUser) {
+    val displayUsers = remember(roomUsers, currentUser, currentUserRole) {
         if (currentUser == null) return@remember roomUsers
 
         val self = User(
             uid = currentUser.uid,
             name = currentUser.displayName ?: "Me",
-            email = currentUser.email ?: "",
+            email = currentUser.email.orEmpty(),
             role = roomUsers.find { it.uid == currentUser.uid }?.role ?: currentUserRole,
             username = currentUser.email?.substringBefore("@") ?: "me"
         )

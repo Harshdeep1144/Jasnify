@@ -24,17 +24,20 @@ fun CardRoomContent(
 ) {
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
-    val currentUser = FirebaseAuth.getInstance().currentUser
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUser = remember(auth.currentUser) { auth.currentUser }
 
-    val currentUserRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
+    val currentUserRole = remember(roomUsers, currentUser) {
+        roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
+    }
 
-    val displayUsers = remember(roomUsers, currentUser) {
+    val displayUsers = remember(roomUsers, currentUser, currentUserRole) {
         if (currentUser == null) return@remember roomUsers
 
         val self = User(
             uid = currentUser.uid,
             name = currentUser.displayName ?: "Me",
-            email = currentUser.email ?: "",
+            email = currentUser.email.orEmpty(),
             role = roomUsers.find { it.uid == currentUser.uid }?.role ?: currentUserRole,
             username = currentUser.email?.substringBefore("@") ?: "me"
         )

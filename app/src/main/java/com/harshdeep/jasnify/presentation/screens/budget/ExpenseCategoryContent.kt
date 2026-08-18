@@ -3,7 +3,17 @@ package com.harshdeep.jasnify.presentation.screens.budget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.Composable
@@ -21,7 +31,9 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.CategoryCard
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 
 @Composable
 fun ExpenseCategoryContent(
@@ -96,7 +108,7 @@ fun ExpenseCategoryContent(
                     items(
                         items = filteredCategorySummary,
                         key = { it.name },
-                        contentType = { "category" }
+                        contentType = { "category_item" }
                     ) { categoryItem ->
                         Box(
                             modifier = Modifier
@@ -114,7 +126,9 @@ fun ExpenseCategoryContent(
                         }
                     }
 
-                    item { Spacer(modifier = Modifier.height(12.dp)) }
+                    item(key = "bottom_spacer", contentType = "spacer") {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                 }
 
                 Row(

@@ -10,13 +10,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,8 +57,32 @@ import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.carousels.CardCarousel
 import com.harshdeep.jasnify.presentation.components.explore.ExploreTrendingCards
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
+
+private val CardCarouselShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
+private val GridTopShape = SquircleShape(
+    CornerLargeIncrease,
+    CornerLargeIncrease,
+    0.dp,
+    0.dp,
+    CornerSmoothingDefault
+)
+private val GridBackgroundBrush = Brush.verticalGradient(
+    colorStops = arrayOf(
+        0.0f to SurfacePrimary.copy(alpha = 0.50f),
+        0.40f to SurfacePrimary.copy(alpha = 0.70f),
+        0.80f to SurfacePrimary.copy(alpha = 0.90f),
+        1.0f to SurfacePrimary
+    )
+)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -74,7 +111,6 @@ fun ExploreTabContent(
             }
         }
 
-        // Ambient radial glow behind trending header
         trendingOffset?.let { offsetPx ->
             Box(
                 modifier = Modifier
@@ -109,6 +145,14 @@ fun ExploreTabContent(
             )
         }
 
+        val editPainter = painterResource(id = R.drawable.ic_edit)
+        val sharePainter = painterResource(id = R.drawable.ic_share)
+        val whatsappPainter = painterResource(id = R.drawable.ic_whatsapp)
+
+        val chunkedTemplates = remember(templates) {
+            templates.chunked(2)
+        }
+
         LazyColumn(
             state = lazyListState,
             modifier = Modifier
@@ -116,77 +160,76 @@ fun ExploreTabContent(
                 .nestedScroll(nestedScrollConnection),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            item(key = "carousel_section") {
+            item(key = "carousel_section", contentType = "carousel") {
                 Column(
                     modifier = Modifier.padding(vertical = 36.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val currentCarouselCard = templates[pagerState.currentPage % templates.size]
-                    val carouselKey = "carousel_${currentCarouselCard.id}"
+                    if (templates.isNotEmpty()) {
+                        val currentCarouselCard = templates[pagerState.currentPage % templates.size]
+                        val carouselKey = "carousel_${currentCarouselCard.id}"
 
-                    with(sharedTransitionScope) {
-                        Box(
-                            modifier = Modifier.sharedBounds(
-                                sharedContentState = rememberSharedContentState(key = carouselKey),
-                                animatedVisibilityScope = animatedVisibilityScope,
-                                zIndexInOverlay = 1f,
-                                clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
-                            )
+                        with(sharedTransitionScope) {
+                            Box(
+                                modifier = Modifier.sharedBounds(
+                                    sharedContentState = rememberSharedContentState(key = carouselKey),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    zIndexInOverlay = 1f,
+                                    clipInOverlayDuringTransition = OverlayClip(CardCarouselShape)
+                                )
+                            ) {
+                                CardCarousel(
+                                    cardData = currentCarouselCard,
+                                    pagerState = pagerState,
+                                    isLiked = { resId -> likedCards.any { it.backgroundRes == resId } },
+                                    onLikeClick = onLikeToggle,
+                                    onCardClick = { card -> onCardClick(card, carouselKey) }
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            CardCarousel(
-                                cardData = currentCarouselCard,
-                                pagerState = pagerState,
-                                isLiked = { resId -> likedCards.any { it.backgroundRes == resId } },
-                                onLikeClick = onLikeToggle,
-                                onCardClick = { card -> onCardClick(card, carouselKey) }
+                            if (canEdit) {
+                                CustomIconButton(
+                                    icon = editPainter,
+                                    onClick = { onEditDetailsClick(currentCarouselCard) },
+                                    type = ButtonType.Secondary
+                                )
+                            }
+
+                            CustomTextButton(
+                                text = "Share Card",
+                                onClick = { onShareTrigger(currentCarouselCard) },
+                                containerColor = ContentPrimary,
+                                contentColor = ContentInvPrimary,
+                                trailingIcon = sharePainter,
+                                modifier = Modifier.padding(horizontal = 8.dp)
                             )
-                        }
-                    }
 
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        val currentTemplate = templates[pagerState.currentPage % templates.size]
-
-                        if (canEdit) {
                             CustomIconButton(
-                                icon = painterResource(id = R.drawable.ic_edit),
-                                onClick = { onEditDetailsClick(currentTemplate) },
-                                type = ButtonType.Secondary
+                                icon = whatsappPainter,
+                                onClick = { onWhatsappShare(currentCarouselCard) },
+                                containerColor = Color(0xFF1BA911),
+                                contentColor = ContentInvPrimary
                             )
                         }
-
-                        CustomTextButton(
-                            text = "Share Card",
-                            onClick = { onShareTrigger(currentTemplate) },
-                            containerColor = ContentPrimary,
-                            contentColor = ContentInvPrimary,
-                            trailingIcon = painterResource(id = R.drawable.ic_share),
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        CustomIconButton(
-                            icon = painterResource(id = R.drawable.ic_whatsapp),
-                            onClick = { onWhatsappShare(currentTemplate) },
-                            containerColor = Color(0xFF1BA911),
-                            contentColor = ContentInvPrimary
-                        )
                     }
                 }
             }
 
-            item(key = "trending_header") {
+            item(key = "trending_header", contentType = "trending_header") {
                 ExploreTrendingCards()
             }
 
-            // Enclosed Template Grid Container
-            item(key = "template_grid") {
+            item(key = "template_grid", contentType = "template_grid") {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,32 +250,14 @@ fun ExploreTabContent(
                                 )
                             )
                         }
-                        .clip(
-                            SquircleShape(
-                                CornerLargeIncrease,
-                                CornerLargeIncrease,
-                                0.dp,
-                                0.dp,
-                                CornerSmoothingDefault
-                            )
-                        )
-                        .background(
-                            Brush.verticalGradient(
-                                colorStops = arrayOf(
-                                    0.0f to SurfacePrimary.copy(alpha = 0.50f),
-                                    0.40f to SurfacePrimary.copy(alpha = 0.70f),
-                                    0.80f to SurfacePrimary.copy(alpha = 0.90f),
-                                    1.0f to SurfacePrimary
-                                )
-                            )
-                        )
+                        .clip(GridTopShape)
+                        .background(GridBackgroundBrush)
                         .padding(12.dp)
                 ) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        val chunkedTemplates = templates.chunked(2)
                         chunkedTemplates.forEach { rowItems ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -257,7 +282,7 @@ fun ExploreTabContent(
                                                     sharedContentState = rememberSharedContentState(key = trendingKey),
                                                     animatedVisibilityScope = animatedVisibilityScope,
                                                     zIndexInOverlay = 1f,
-                                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                                    clipInOverlayDuringTransition = OverlayClip(CardCarouselShape)
                                                 )
                                         ) {
                                             Box(
@@ -267,7 +292,7 @@ fun ExploreTabContent(
                                                         scaleX = scale
                                                         scaleY = scale
                                                     }
-                                                    .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                                    .clip(CardCarouselShape)
                                                     .clickable(
                                                         interactionSource = interactionSource,
                                                         indication = null
@@ -294,7 +319,7 @@ fun ExploreTabContent(
                 }
             }
 
-            item(key = "footer") {
+            item(key = "footer", contentType = "footer") {
                 Spacer(modifier = Modifier.height(16.dp))
                 FooterJansify()
             }

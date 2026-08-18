@@ -2,7 +2,17 @@ package com.harshdeep.jasnify.presentation.screens.main
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -14,9 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -33,12 +41,13 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+
+private val SkeletonSquircleShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
@@ -113,7 +122,7 @@ fun MainSkeletonContent(
                         modifier = Modifier
                             .width(180.dp)
                             .height(30.dp)
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(SkeletonSquircleShape)
                             .background(brush)
                     )
                     Box(
@@ -131,7 +140,7 @@ fun MainSkeletonContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(200.dp)
-                        .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                        .clip(SkeletonSquircleShape)
                         .background(brush)
                 )
 
@@ -143,14 +152,14 @@ fun MainSkeletonContent(
                         modifier = Modifier
                             .weight(1f)
                             .height(172.dp)
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(SkeletonSquircleShape)
                             .background(brush)
                     )
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(172.dp)
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(SkeletonSquircleShape)
                             .background(brush)
                     )
                 }
@@ -163,18 +172,17 @@ fun MainSkeletonContent(
                         modifier = Modifier
                             .weight(1f)
                             .height(172.dp)
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(SkeletonSquircleShape)
                             .background(brush)
                     )
                     Box(
                         modifier = Modifier
                             .weight(1f)
                             .height(172.dp)
-                            .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                            .clip(SkeletonSquircleShape)
                             .background(brush)
                     )
                 }
-
             }
 
             Box(

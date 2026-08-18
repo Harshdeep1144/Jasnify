@@ -7,7 +7,14 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -24,8 +31,14 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerMedium
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
+
+private val LikedCardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -56,7 +69,11 @@ fun LikedCardsContent(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "No Saved cards yet.", style = JasnifyTheme.typography.bodyLarge, color = ContentSecondary)
+                Text(
+                    text = "No Saved cards yet.",
+                    style = JasnifyTheme.typography.bodyLarge,
+                    color = ContentSecondary
+                )
             }
         } else {
             LazyVerticalGrid(
@@ -68,7 +85,11 @@ fun LikedCardsContent(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                items(cards, key = { it.id }) { card ->
+                items(
+                    items = cards,
+                    key = { it.id },
+                    contentType = { "liked_card_item" }
+                ) { card ->
                     val interactionSource = remember { MutableInteractionSource() }
                     val isPressed by interactionSource.collectIsPressedAsState()
                     val scale by animateFloatAsState(
@@ -84,13 +105,13 @@ fun LikedCardsContent(
                                 .sharedBounds(
                                     sharedContentState = rememberSharedContentState(key = likedKey),
                                     animatedVisibilityScope = animatedVisibilityScope,
-                                    clipInOverlayDuringTransition = OverlayClip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                    clipInOverlayDuringTransition = OverlayClip(LikedCardShape)
                                 )
                                 .graphicsLayer {
                                     scaleX = scale
                                     scaleY = scale
                                 }
-                                .clip(SquircleShape(CornerMedium, CornerSmoothingDefault))
+                                .clip(LikedCardShape)
                                 .clickable(
                                     interactionSource = interactionSource,
                                     indication = null

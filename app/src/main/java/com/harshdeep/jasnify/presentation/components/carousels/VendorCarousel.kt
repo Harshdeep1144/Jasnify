@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
@@ -48,6 +47,7 @@ fun VendorCarousel(
     cardSize: CompactCardSize = CompactCardSize.SMALL
 ) {
     val shimmerBrush = if (isLoading) shimmerBrush() else null
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -58,12 +58,9 @@ fun VendorCarousel(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                .then(
-                    if (onSeeAllClick != null && !isLoading) {
-                        Modifier.clickable { onSeeAllClick() }
-                    } else {
-                        Modifier
-                    }
+                .clickable(
+                    enabled = onSeeAllClick != null && !isLoading,
+                    onClick = { onSeeAllClick?.invoke() }
                 ),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -85,7 +82,7 @@ fun VendorCarousel(
                     color = ContentPrimary,
                 )
             }
-            // Show arrow icon only if onSeeAllClick callback is provided
+
             if (onSeeAllClick != null && !isLoading) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
@@ -105,13 +102,17 @@ fun VendorCarousel(
             userScrollEnabled = !isLoading
         ) {
             if (isLoading && shimmerBrush != null) {
-                items(5) {
+                items(
+                    count = 5,
+                    contentType = { "loading_card" }
+                ) {
                     CompactCardLoading(cardSize = cardSize, shimmerBrush = shimmerBrush)
                 }
             } else {
                 items(
                     items = vendors,
-                    key = { it.id }
+                    key = { it.id },
+                    contentType = { "vendor_card" }
                 ) { vendor ->
                     VendorCardCompact(
                         vendor = vendor,
@@ -125,6 +126,3 @@ fun VendorCarousel(
         }
     }
 }
-
-
-

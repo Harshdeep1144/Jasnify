@@ -19,13 +19,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.TimelineEvent
+import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VenueCardCompact
 import com.harshdeep.jasnify.presentation.components.others.IosSegmentedControl
-import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.components.sections.TimelineSection
+import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
+
+private val VenueSavedViewOptions = listOf("By Timeline", "All Saved")
 
 @Composable
 fun VenueSavedContent(
@@ -39,8 +41,6 @@ fun VenueSavedContent(
     isLoading: Boolean,
     gridState: LazyGridState = rememberLazyGridState()
 ) {
-    val viewOptions = listOf("By Timeline", "All Saved")
-
     LazyVerticalGrid(
         columns = GridCells.Fixed(2),
         contentPadding = PaddingValues(bottom = 100.dp),
@@ -52,9 +52,9 @@ fun VenueSavedContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        item(span = { GridItemSpan(2) }) {
+        item(span = { GridItemSpan(2) }, key = "segmented_control", contentType = "control") {
             IosSegmentedControl(
-                options = viewOptions,
+                options = VenueSavedViewOptions,
                 selectedOption = selectedViewType,
                 onOptionSelected = onSelectedViewTypeChange,
                 modifier = Modifier
@@ -65,7 +65,11 @@ fun VenueSavedContent(
 
         if (selectedViewType == "By Timeline") {
             if (isLoading) {
-                items(3, span = { GridItemSpan(2) }) {
+                items(
+                    count = 3,
+                    span = { GridItemSpan(2) },
+                    contentType = { "loading_timeline" }
+                ) {
                     TimelineSection(
                         date = "Loading...",
                         event = "Fetching your plans",
@@ -73,11 +77,16 @@ fun VenueSavedContent(
                     )
                 }
             } else if (savedTimelineEvents.isEmpty()) {
-                item(span = { GridItemSpan(2) }) {
+                item(span = { GridItemSpan(2) }, key = "empty_timeline", contentType = "empty_state") {
                     StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                 }
             } else {
-                items(savedTimelineEvents, span = { GridItemSpan(2) }) { timelineItem ->
+                items(
+                    items = savedTimelineEvents,
+                    key = { it.id },
+                    span = { GridItemSpan(2) },
+                    contentType = { "timeline_item" }
+                ) { timelineItem ->
                     TimelineSection(
                         date = timelineItem.date,
                         event = timelineItem.event,
@@ -92,7 +101,10 @@ fun VenueSavedContent(
             }
         } else {
             if (isLoading) {
-                items(6) {
+                items(
+                    count = 6,
+                    contentType = { "loading_card" }
+                ) {
                     VenueCardCompact(
                         venue = Venue(),
                         isLoading = true,
@@ -101,14 +113,14 @@ fun VenueSavedContent(
                     )
                 }
             } else if (savedVenuesList.isEmpty()) {
-                item(span = { GridItemSpan(2) }) {
+                item(span = { GridItemSpan(2) }, key = "empty_all_saved", contentType = "empty_state") {
                     StandaloneEmptyState(message = "No plans here yet", iconRes = R.drawable.ic_receipt)
                 }
             } else {
                 items(
                     items = savedVenuesList,
                     key = { it.id.ifEmpty { it.name } },
-                    contentType = { "venue" }
+                    contentType = { "venue_card" }
                 ) { venueItem ->
                     VenueCardCompact(
                         venue = venueItem,
@@ -120,6 +132,9 @@ fun VenueSavedContent(
                 }
             }
         }
-        item(span = { GridItemSpan(2) }) { Spacer(Modifier.height(6.dp)) }
+
+        item(span = { GridItemSpan(2) }, contentType = "spacer") {
+            Spacer(Modifier.height(6.dp))
+        }
     }
 }
