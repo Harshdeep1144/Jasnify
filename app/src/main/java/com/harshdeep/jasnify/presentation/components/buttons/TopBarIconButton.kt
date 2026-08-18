@@ -5,8 +5,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -119,8 +121,8 @@ fun TopBarIconButton(
                 if (backgroundStyle == ButtonBackground.TRANSLUCENT) {
                     Modifier.border(
                         width = 1.dp,
-                        color = SurfaceSecondary.copy(alpha = translucentAlpha * 0.5f),
-                        shape = SquircleShape(100, CornerSmoothingDefault)
+                        color = SurfaceSecondary.copy(alpha = translucentAlpha * 2f),
+                        shape = SquircleShape(100, 0f)
                     )
                 } else {
                     Modifier
@@ -166,7 +168,7 @@ fun TopBarIconButton(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 private fun TopBarIconButtonPreview() {
     val iconList = listOf(
@@ -182,8 +184,10 @@ private fun TopBarIconButtonPreview() {
         TopIcon.Predefined.CHECKLIST
     )
 
-    androidx.compose.foundation.layout.Column(
-        modifier = Modifier.padding(16.dp),
+    Column(
+        modifier = Modifier
+            .background(Color.Black)
+            .padding(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         iconList.forEach { icon ->
@@ -193,17 +197,17 @@ private fun TopBarIconButtonPreview() {
             ) {
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { },
+                    onClick = {},
                     backgroundStyle = ButtonBackground.TRANSPARENT,
                     iconColor = Color.White,
-                    iconShadowColor = Color.Black.copy(0.5f),
+                    iconShadowColor = Color.Black.copy(alpha = 0.5f),
                 )
 
                 Spacer(Modifier.size(16.dp))
 
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { },
+                    onClick = {},
                     backgroundStyle = ButtonBackground.TRANSLUCENT,
                     iconColor = Color.White
                 )
@@ -212,7 +216,7 @@ private fun TopBarIconButtonPreview() {
 
                 TopBarIconButton(
                     icon = icon,
-                    onClick = { },
+                    onClick = {},
                     backgroundStyle = ButtonBackground.OPAQUE,
                 )
             }

@@ -78,6 +78,9 @@ fun CustomSearchBar(
     type: SearchBarType = SearchBarType.DEFAULT,
     isAiSearch: Boolean = false,
     backgroundColor: Color = SurfaceSecondary,
+    isTranslucent: Boolean = false,
+    translucentAlpha: Float = 0.2f,
+    isTransparent: Boolean = false,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -90,10 +93,14 @@ fun CustomSearchBar(
     val duration = 50
     val transitionEasing = FastOutSlowInEasing
 
-    // AI active status only applies when the text field is actively focused
+    val effectiveBackgroundColor = when {
+        isTransparent -> Color.Transparent
+        isTranslucent -> backgroundColor.copy(alpha = backgroundColor.alpha * translucentAlpha)
+        else -> backgroundColor
+    }
+
     val effectiveIsAiSearch = isAiSearch && isFocused
 
-    // Sync external active state and collapse COMPACT mode on focus loss
     LaunchedEffect(isFocused) {
         onActiveChange(isFocused)
         if (!isFocused && type == SearchBarType.COMPACT) {
@@ -101,7 +108,6 @@ fun CustomSearchBar(
         }
     }
 
-    // Dynamic rotation angle and alpha/fade state animations
     val rotationAnimatable = remember { Animatable(0f) }
     val borderAlphaAnimatable = remember { Animatable(1f) }
 
@@ -118,10 +124,7 @@ fun CustomSearchBar(
                 )
             }
         } else {
-            // Reset to visible gradient on focus loss before starting the decay transition
             borderAlphaAnimatable.snapTo(1f)
-
-            // Perform smooth decelerating 720-degree rotation over 3 seconds
             val rotationJob = launch {
                 rotationAnimatable.animateTo(
                     targetValue = rotationAnimatable.value + 720f,
@@ -132,7 +135,6 @@ fun CustomSearchBar(
                 )
             }
 
-            // After 2.5 seconds, start fading out gradient
             delay(2500.milliseconds)
             borderAlphaAnimatable.animateTo(
                 targetValue = 0f,
@@ -143,7 +145,6 @@ fun CustomSearchBar(
         }
     }
 
-    // Sweep gradient brush for AI search focus state
     val aiGradientBrush = remember(rotationAnimatable.value, borderAlphaAnimatable.value) {
         object : ShaderBrush() {
             override fun createShader(size: Size): android.graphics.Shader {
@@ -192,7 +193,7 @@ fun CustomSearchBar(
                     .fillMaxWidth()
                     .heightIn(min = 56.dp)
                     .background(
-                        color = backgroundColor,
+                        color = effectiveBackgroundColor,
                         shape = RoundedCornerShape(100)
                     )
                     .then(
@@ -235,7 +236,6 @@ fun CustomSearchBar(
                                 .padding(horizontal = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Leading Icon Wrapper
                             Box(
                                 modifier = Modifier.padding(end = 4.dp),
                                 contentAlignment = Alignment.Center
@@ -279,7 +279,6 @@ fun CustomSearchBar(
                                 }
                             }
 
-                            // Dynamic Text Area
                             Box(
                                 modifier = Modifier.weight(1f),
                                 contentAlignment = Alignment.CenterStart
@@ -294,7 +293,6 @@ fun CustomSearchBar(
                                 innerTextField()
                             }
 
-                            // Trailing Icon Wrapper
                             if (value.isNotEmpty()) {
                                 Box(
                                     modifier = Modifier.padding(start = 4.dp),
@@ -318,7 +316,6 @@ fun CustomSearchBar(
                 )
             }
 
-            // Autofocus when expanding from COMPACT mode
             LaunchedEffect(Unit) {
                 if (type == SearchBarType.COMPACT) {
                     focusRequester.requestFocus()
@@ -326,7 +323,6 @@ fun CustomSearchBar(
             }
 
         } else {
-            // COMPACT Mode
             Box(
                 modifier = modifier
                     .size(56.dp)
@@ -352,7 +348,7 @@ fun CustomSearchBar(
                         }
                     )
                     .background(
-                        color = SurfaceSecondary,
+                        color = effectiveBackgroundColor,
                         shape = RoundedCornerShape(100)
                     )
                     .clickable(

@@ -1,5 +1,12 @@
 package com.harshdeep.jasnify.presentation.components.chip
 
+import android.graphics.Matrix
+import android.graphics.SweepGradient
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,10 +21,15 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
@@ -25,19 +37,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import android.graphics.Matrix
-import android.graphics.SweepGradient
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.toArgb
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.theme.*
@@ -74,16 +73,17 @@ fun getChipStyles(
     shapeStyle: ChipShapeStyle,
     size: ChipSize,
     hasStroke: Boolean = false,
-    foodType: Dietary? = null
+    foodType: Dietary? = null,
+    isTranslucent: Boolean = false,
+    translucentAlpha: Float = 0.5f,
+    isTransparent: Boolean = false
 ): ChipStyles {
-    // Shape
     val shape = when (shapeStyle) {
-        ChipShapeStyle.Square -> SquircleShape(CornerLarge, CornerSmoothingDefault)
+        ChipShapeStyle.Square -> RoundedCornerShape(CornerLarge)
         ChipShapeStyle.Round -> CircleShape
     }
 
-    // Colors (Container & Content)
-    val (containerColor, contentColor) = if (foodType != null) {
+    val (rawContainerColor, contentColor) = if (foodType != null) {
         val container = when {
             !isSelected -> SurfaceSecondary
             foodType == Dietary.Veg -> Color(0x1A008E11)
@@ -109,7 +109,13 @@ fun getChipStyles(
         container to content
     }
 
-    // Border
+    val containerColor = when {
+        isSelected -> rawContainerColor
+        isTransparent -> Color.Transparent
+        isTranslucent -> rawContainerColor.copy(alpha = rawContainerColor.alpha * translucentAlpha)
+        else -> rawContainerColor
+    }
+
     val border = when {
         foodType != null -> {
             if (isSelected) {
@@ -133,12 +139,11 @@ fun getChipStyles(
         else -> null
     }
 
-    // Sizing Configurations
     val height = if (size == ChipSize.Small) 40.dp else 56.dp
     val iconSize = if (size == ChipSize.Small) 20.dp else 24.dp
-    val horizontalPadding = if (size == ChipSize.Small) 16.dp else 16.dp
+    val horizontalPadding = 16.dp
     val verticalPadding = if (size == ChipSize.Small) 10.dp else 16.dp
-    val gap = if (size == ChipSize.Small) 8.dp else 8.dp
+    val gap = 8.dp
     val textStyle = if (size == ChipSize.Small) JasnifyTheme.typography.labelLarge else JasnifyTheme.typography.labelXLarge
 
     return ChipStyles(
@@ -163,6 +168,9 @@ fun FilterChip(
     shapeStyle: ChipShapeStyle = ChipShapeStyle.Square,
     size: ChipSize = ChipSize.Small,
     hasStroke: Boolean = false,
+    isTranslucent: Boolean = false,
+    translucentAlpha: Float = 0.5f,
+    isTransparent: Boolean = false,
     leadingIcon: ImageVector? = null,
     trailingIcon: ImageVector? = null,
     hasDropdown: Boolean = false,
@@ -174,7 +182,10 @@ fun FilterChip(
         isSelected = isSelected,
         shapeStyle = shapeStyle,
         size = size,
-        hasStroke = hasStroke
+        hasStroke = hasStroke,
+        isTranslucent = isTranslucent,
+        translucentAlpha = translucentAlpha,
+        isTransparent = isTransparent
     )
 
     val rotationAnimatable = remember { Animatable(0f) }
@@ -211,10 +222,7 @@ fun FilterChip(
     }
 
     val finalBorder = if (isAiMode) {
-        BorderStroke(
-            width = 1.dp,
-            brush = aiBorderBrush
-        )
+        BorderStroke(width = 1.dp, brush = aiBorderBrush)
     } else {
         styles.border
     }
@@ -288,13 +296,19 @@ fun FoodChip(
     isSelected: Boolean = false,
     shapeStyle: ChipShapeStyle = ChipShapeStyle.Square,
     size: ChipSize = ChipSize.Small,
+    isTranslucent: Boolean = false,
+    translucentAlpha: Float = 0.5f,
+    isTransparent: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     val styles = getChipStyles(
         isSelected = isSelected,
         shapeStyle = shapeStyle,
         size = size,
-        foodType = foodType
+        foodType = foodType,
+        isTranslucent = isTranslucent,
+        translucentAlpha = translucentAlpha,
+        isTransparent = isTransparent
     )
     val label = if (foodType == Dietary.Veg) "Veg" else "Non-Veg"
 
@@ -344,21 +358,27 @@ fun CateringItemChip(
     modifier: Modifier = Modifier,
     isMultiSelect: Boolean = true,
     checked: Boolean = false,
+    isTranslucent: Boolean = false,
+    translucentAlpha: Float = 0.5f,
+    isTransparent: Boolean = false,
     onCheckedChange: ((Boolean) -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
-    val containerColor = Color.Transparent
-    val contentColor = ContentPrimary
-    val height = 40.dp
-    val iconSize = 20.dp
+    val baseContainerColor = Color.Transparent
+    val containerColor = when {
+        isTransparent -> Color.Transparent
+        isTranslucent -> baseContainerColor.copy(alpha = translucentAlpha)
+        else -> baseContainerColor
+    }
 
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
-            .height(height),
+            .height(40.dp),
+        shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
         color = containerColor,
-        contentColor = contentColor
+        contentColor = ContentPrimary
     ) {
         Row(
             modifier = Modifier.padding(8.dp),
@@ -373,13 +393,13 @@ fun CateringItemChip(
                     Dietary.Veg -> Icon(
                         painter = painterResource(id = R.drawable.ic_veg),
                         contentDescription = "Veg",
-                        modifier = Modifier.size(iconSize),
+                        modifier = Modifier.size(20.dp),
                         tint = Color(0xFF008216)
                     )
                     Dietary.NonVeg -> Icon(
                         painter = painterResource(id = R.drawable.ic_non_veg),
                         contentDescription = "Non-Veg",
-                        modifier = Modifier.size(iconSize),
+                        modifier = Modifier.size(20.dp),
                         tint = Color(0xFF8B2000)
                     )
                 }
@@ -389,7 +409,7 @@ fun CateringItemChip(
                 Text(
                     text = label,
                     style = JasnifyTheme.typography.labelXLarge,
-                    color = contentColor
+                    color = ContentPrimary
                 )
             }
 
@@ -405,12 +425,7 @@ fun CateringItemChip(
     }
 }
 
-
-
 // ==================================================== Preview =========================================================
-
-
-
 
 @Preview(showBackground = true, name = "FilterChip & FoodChip Preview Layout")
 @Composable
@@ -477,6 +492,25 @@ private fun ChipPreview() {
                     )
                 }
 
+                // Translucent Chips Preview Row
+                Text("Translucent Chips", style = JasnifyTheme.typography.labelSmall, color = Color.Gray)
+                ChipRow {
+                    FilterChip(
+                        label = "Translucent 50%",
+                        isSelected = true,
+                        isTranslucent = true,
+                        size = ChipSize.Small
+                    )
+                    FilterChip(
+                        label = "Translucent 30%",
+                        isSelected = false,
+                        isTranslucent = true,
+                        translucentAlpha = 0.3f,
+                        hasStroke = true,
+                        size = ChipSize.Small
+                    )
+                }
+
                 ChipRow {
                     FilterChip(
                         label = "Label",
@@ -515,12 +549,14 @@ private fun ChipPreview() {
                             foodType = Dietary.Veg,
                             isSelected = false,
                             shapeStyle = ChipShapeStyle.Square,
+                            isTranslucent = true,
                             size = ChipSize.Small
                         )
                         FoodChip(
                             foodType = Dietary.NonVeg,
                             isSelected = true,
                             shapeStyle = ChipShapeStyle.Round,
+                            isTranslucent = true,
                             size = ChipSize.Small
                         )
                     }
@@ -588,7 +624,6 @@ private fun ChipSectionHeader(title: String) {
         text = title,
         style = JasnifyTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 14.sp
         ),
         color = Color(0xFF6750A4),
         modifier = Modifier.padding(bottom = 12.dp)
