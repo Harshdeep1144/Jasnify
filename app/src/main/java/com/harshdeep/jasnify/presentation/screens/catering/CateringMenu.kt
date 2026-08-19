@@ -82,7 +82,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -947,7 +946,7 @@ fun CateringMenuScreen(
                                                         vendors = MockData.sampleFood,
                                                         headerImage = painterResource(id = R.drawable.ill_vendor_food_serve),
                                                         buttonText = "View all",
-                                                        buttonTrailingIcon = rememberVectorPainter(Icons.AutoMirrored.Rounded.ArrowRightAlt),
+                                                        buttonTrailingIcon = painterResource(id = R.drawable.ic_arrow_right),
                                                         onButtonClick = {
                                                             focusManager.clearFocus()
                                                         },

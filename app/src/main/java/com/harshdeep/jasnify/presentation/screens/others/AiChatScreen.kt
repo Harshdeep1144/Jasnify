@@ -5,15 +5,23 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,7 +30,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
@@ -47,6 +57,8 @@ import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import java.text.SimpleDateFormat
 import java.util.*
+import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.PropertyName
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistDetailScreen
@@ -54,22 +66,28 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBo
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
 
 // Data class for Chat Messages
+@IgnoreExtraProperties
 data class AiMessage(
-    val id: String,
-    val text: String,
-    val isUser: Boolean,
-    val timestamp: Long = System.currentTimeMillis(),
-    val venueIds: List<String> = emptyList(),
-    val vendorIds: List<String> = emptyList(),
-    val guestIds: List<String> = emptyList(),
-    val expenseIds: List<String> = emptyList(),
-    val checklistIds: List<String> = emptyList(),
-    val showBudgetSummary: Boolean = false
+    var id: String = "",
+    var text: String = "",
+    @get:PropertyName("isUser")
+    @set:PropertyName("isUser")
+    var isUser: Boolean = false,
+    var timestamp: Long = 0,
+    var venueIds: List<String> = emptyList(),
+    var vendorIds: List<String> = emptyList(),
+    var guestIds: List<String> = emptyList(),
+    var expenseIds: List<String> = emptyList(),
+    var checklistIds: List<String> = emptyList(),
+    @get:PropertyName("showBudgetSummary")
+    @set:PropertyName("showBudgetSummary")
+    var showBudgetSummary: Boolean = false
 )
 
-@Composable 
+@Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
+    eventId: String? = null,
     initialContext: String? = null,
     viewModel: GenerativeViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -81,49 +99,46 @@ fun AiChatScreen(
     guestViewModel: GuestViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
     onMoreClick: () -> Unit = {},
-    onVenueClick: (Venue) -> Unit = {}, // Still here for other purposes maybe
+    onVenueClick: (Venue) -> Unit = {},
     onVendorClick: (Vendor) -> Unit = {}
 ) {
     var inputText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }
     var isMicMuted by remember { mutableStateOf(false) }
+    var isDrawerOpen by remember { mutableStateOf(false) }
 
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
+    val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
+    val currentChatId by viewModel.currentChatId.collectAsStateWithLifecycle()
 
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val expenses by budgetViewModel.expenses.collectAsStateWithLifecycle()
     val budgetSettings by budgetViewModel.budgetSettings.collectAsStateWithLifecycle()
-    val cateringItems by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
-    val savedVenues by venueViewModel.savedVenues.collectAsStateWithLifecycle()
-    val savedVendors by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
     val checklists by checklistViewModel.checklists.collectAsStateWithLifecycle()
     val guests by guestViewModel.guests.collectAsStateWithLifecycle()
 
     val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
     val allVendors by vendorViewModel.allVendors.collectAsStateWithLifecycle()
 
-    val auth = remember { FirebaseAuth.getInstance() }
-    val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
-    val isOwner = activeEvent?.ownerId == currentUserUid
-    val isViewer = !isOwner && activeEvent != null
-
-    // Overlay States for direct composable usage
+    // Overlay States
     var selectedVenueDetail by remember { mutableStateOf<Venue?>(null) }
     var selectedVendorDetail by remember { mutableStateOf<Vendor?>(null) }
     var selectedChecklistDetail by remember { mutableStateOf<Checklist?>(null) }
     var selectedGuestDetail by remember { mutableStateOf<Guest?>(null) }
     var selectedExpenseDetail by remember { mutableStateOf<ExpenseEntity?>(null) }
 
-    LaunchedEffect(activeEvent) {
-        val eventId = activeEvent?.id ?: return@LaunchedEffect
-        viewModel.setEventId(eventId)
-        budgetViewModel.setEventId(eventId)
-        cateringViewModel.setEventId(eventId)
-        venueViewModel.setEventId(eventId)
-        vendorViewModel.setEventId(eventId)
-        checklistViewModel.setEventId(eventId)
-        guestViewModel.setEventId(eventId)
+    val targetEventId = eventId ?: activeEvent?.id
+    LaunchedEffect(targetEventId) {
+        if (!targetEventId.isNullOrBlank()) {
+            viewModel.setEventId(targetEventId)
+            budgetViewModel.setEventId(targetEventId)
+            cateringViewModel.setEventId(targetEventId)
+            venueViewModel.setEventId(targetEventId)
+            vendorViewModel.setEventId(targetEventId)
+            checklistViewModel.setEventId(targetEventId)
+            guestViewModel.setEventId(targetEventId)
+        }
     }
 
     val listState = rememberLazyListState()
@@ -134,12 +149,16 @@ fun AiChatScreen(
         }
     }
 
-    BackHandler(enabled = selectedVenueDetail != null || selectedVendorDetail != null || selectedChecklistDetail != null || selectedGuestDetail != null || selectedExpenseDetail != null) {
-        selectedVenueDetail = null
-        selectedVendorDetail = null
-        selectedChecklistDetail = null
-        selectedGuestDetail = null
-        selectedExpenseDetail = null
+    BackHandler(enabled = isDrawerOpen || selectedVenueDetail != null || selectedVendorDetail != null || selectedChecklistDetail != null || selectedGuestDetail != null || selectedExpenseDetail != null) {
+        if (isDrawerOpen) {
+            isDrawerOpen = false
+        } else {
+            selectedVenueDetail = null
+            selectedVendorDetail = null
+            selectedChecklistDetail = null
+            selectedGuestDetail = null
+            selectedExpenseDetail = null
+        }
     }
 
     Box(
@@ -149,7 +168,9 @@ fun AiChatScreen(
     ) {
         if (messages.isEmpty()) {
             Column(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
@@ -165,9 +186,15 @@ fun AiChatScreen(
                     style = JasnifyTheme.typography.headingMedium,
                     color = ContentSecondary
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Ask anything about your expenses, guest lists, vendors, or event planning.",
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentSecondary.copy(alpha = 0.7f),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         } else {
-            // Chat Message List (Edge-to-Edge scrolling behind gradients)
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -179,7 +206,7 @@ fun AiChatScreen(
                     bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
                 )
             ) {
-                items(messages) { message ->
+                items(messages, key = { it.id.ifEmpty { UUID.randomUUID().toString() } }) { message ->
                     if (message.isUser) {
                         UserMessageBubble(message = message)
                     } else {
@@ -208,7 +235,6 @@ fun AiChatScreen(
             }
         }
 
-        // Floating Top Bar with Top Gradient
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -220,14 +246,13 @@ fun AiChatScreen(
             CustomTopBar(
                 title = "",
                 onBackClick = onBackClick,
-                onMenuClick = onMoreClick,
+                onMenuClick = { isDrawerOpen = true },
                 backIcon = TopIcon.Predefined.DOWN,
                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                 buttonStyle = ButtonBackground.OPAQUE
             )
         }
 
-        // Floating AI Input Area with Bottom Gradient
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -244,11 +269,12 @@ fun AiChatScreen(
                 isVoiceMode = isVoiceMode,
                 isMicMuted = isMicMuted,
                 isGenerating = isGenerating,
-                placeholder = "Ask more about expenses",
+                placeholder = "Ask about expenses, vendors, guests...",
                 onSendClick = {
                     if (inputText.isNotBlank()) {
-                        viewModel.sendMessage(inputText)
+                        val query = inputText
                         inputText = ""
+                        viewModel.sendMessage(query)
                     }
                 },
                 onStopClick = { },
@@ -256,6 +282,39 @@ fun AiChatScreen(
                 onToggleMicMute = { isMicMuted = !isMicMuted },
                 onCancelVoice = { isVoiceMode = false }
             )
+        }
+
+        if (isDrawerOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable { isDrawerOpen = false }
+                    .zIndex(25f)
+            )
+
+            AnimatedVisibility(
+                visible = isDrawerOpen,
+                enter = slideInHorizontally(initialOffsetX = { -it }),
+                exit = slideOutHorizontally(targetOffsetX = { -it }),
+                modifier = Modifier.zIndex(30f)
+            ) {
+                ChatSidebarDrawer(
+                    sessions = chatSessions,
+                    currentChatId = currentChatId,
+                    onSelectChat = { chatId ->
+                        viewModel.selectChatSession(chatId)
+                        isDrawerOpen = false
+                    },
+                    onNewChatClick = {
+                        viewModel.createNewChatSession("New Chat")
+                        isDrawerOpen = false
+                    },
+                    onDeleteChat = { chatId ->
+                        viewModel.deleteChatSession(chatId)
+                    }
+                )
+            }
         }
 
         // Direct Composable Overlays
@@ -269,7 +328,7 @@ fun AiChatScreen(
                 VenueDetailScreen(
                     venueDetail = venue,
                     onBackClick = { selectedVenueDetail = null },
-                    onChatClick = { /* Already in chat */ },
+                    onChatClick = { selectedVenueDetail = null },
                     venueViewModel = venueViewModel
                 )
             }
@@ -285,7 +344,7 @@ fun AiChatScreen(
                 VendorDetailScreen(
                     vendorDetail = vendor,
                     onBackClick = { selectedVendorDetail = null },
-                    onChatClick = { /* Already in chat */ },
+                    onChatClick = { selectedVendorDetail = null },
                     vendorViewModel = vendorViewModel
                 )
             }
@@ -315,15 +374,15 @@ fun AiChatScreen(
         }
     }
 
-    // Bottom Sheets (Non-full screen overlays)
+    // Bottom Sheets
     if (selectedGuestDetail != null) {
         GuestDetailsBottomSheet(
             guest = selectedGuestDetail!!,
             onDismiss = { selectedGuestDetail = null },
-            isViewer = false, // Assuming active role here or fetch from state
-            onEditClick = { /* Handle if needed */ },
-            onInviteClick = { /* Handle if needed */ },
-            onDeleteClick = { /* Handle if needed */ }
+            isViewer = false,
+            onEditClick = { },
+            onInviteClick = { },
+            onDeleteClick = { }
         )
     }
 
@@ -333,12 +392,19 @@ fun AiChatScreen(
             onDismiss = { selectedExpenseDetail = null },
             onSave = { amount, receiver, category, emoji, phone, notes ->
                 budgetViewModel.updateExpense(
-                    expense.id, receiver, category, amount.toDouble(), emoji, "User", phone, notes
+                    expense.id,
+                    receiver,
+                    category,
+                    amount.toString().toDoubleOrNull() ?: expense.amount,
+                    emoji,
+                    "User",
+                    phone,
+                    notes
                 )
                 selectedExpenseDetail = null
             },
             categories = listOf("Venue", "Catering", "Vendors", "Staff & Crew", "Gifts"),
-            onAddCategory = { /* Optional: handle adding category if needed */ },
+            onAddCategory = { },
             initialAmount = expense.amount.toString(),
             initialReceiver = expense.title,
             initialCategory = expense.category,
@@ -350,11 +416,217 @@ fun AiChatScreen(
 }
 
 @Composable
+fun ChatSidebarDrawer(
+    sessions: List<ChatSession>,
+    currentChatId: String?,
+    onSelectChat: (String) -> Unit,
+    onNewChatClick: () -> Unit,
+    onDeleteChat: (String) -> Unit
+) {
+    var searchQuery by remember { mutableStateOf("") }
+    var isSearchActive by remember { mutableStateOf(false) }
+
+    val filteredSessions = remember(sessions, searchQuery) {
+        if (searchQuery.isBlank()) sessions
+        else sessions.filter { it.title.contains(searchQuery, ignoreCase = true) }
+    }
+
+    val groupedSessions = remember(filteredSessions) {
+        val calendar = Calendar.getInstance()
+        val nowMillis = System.currentTimeMillis()
+
+        calendar.timeInMillis = nowMillis
+        val todayYear = calendar.get(Calendar.YEAR)
+        val todayDay = calendar.get(Calendar.DAY_OF_YEAR)
+
+        calendar.add(Calendar.DAY_OF_YEAR, -1)
+        val yesterdayYear = calendar.get(Calendar.YEAR)
+        val yesterdayDay = calendar.get(Calendar.DAY_OF_YEAR)
+
+        val groups = LinkedHashMap<String, MutableList<ChatSession>>()
+
+        filteredSessions.forEach { session ->
+            val sessCal = Calendar.getInstance().apply { timeInMillis = session.timestamp }
+            val sessYear = sessCal.get(Calendar.YEAR)
+            val sessDay = sessCal.get(Calendar.DAY_OF_YEAR)
+
+            val groupKey = when {
+                sessYear == todayYear && sessDay == todayDay -> "TODAY"
+                sessYear == yesterdayYear && sessDay == yesterdayDay -> "YESTERDAY"
+                else -> SimpleDateFormat("d'TH' MMM, yyyy", Locale.US).format(Date(session.timestamp)).uppercase()
+            }
+
+            groups.getOrPut(groupKey) { mutableListOf() }.add(session)
+        }
+        groups
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(310.dp),
+        color = Color(0xFFF3F3F3)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            // Header Row: Jasnify Logo & Search Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Jasnify",
+                    style = TextStyle(
+                        fontFamily = FontFamily.Cursive,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1C1B1F)
+                    )
+                )
+
+                IconButton(
+                    onClick = { isSearchActive = !isSearchActive },
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE2E2E2))
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF1C1B1F)
+                    )
+                }
+            }
+
+            // Search Bar Input
+            AnimatedVisibility(visible = isSearchActive) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        textStyle = TextStyle(color = Color.Black, fontSize = 14.sp),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text("Search chat history...", color = Color.Gray, fontSize = 14.sp)
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // + New Chat Pill Button
+            Button(
+                onClick = onNewChatClick,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFFD2E5E4)
+                ),
+                shape = RoundedCornerShape(28.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "New Chat",
+                        tint = Color(0xFF13504E),
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "New Chat",
+                        color = Color(0xFF13504E),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Chat Session History List grouped by Date
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                groupedSessions.forEach { (dateHeader, sessionList) ->
+                    item(key = dateHeader) {
+                        Text(
+                            text = dateHeader,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF8E8E93),
+                            letterSpacing = 0.5.sp,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                    }
+
+                    items(sessionList, key = { it.id }) { session ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (session.id == currentChatId) Color(0xFFE4ECEB) else Color.Transparent)
+                                .clickable { onSelectChat(session.id) }
+                                .padding(vertical = 10.dp, horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = session.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = Color(0xFF1C1B1F),
+                                maxLines = 1,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            IconButton(
+                                onClick = { onDeleteChat(session.id) },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Delete",
+                                    tint = Color(0xFF1C1B1F),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun GeneratingIndicator() {
     Row(
-        modifier = Modifier.padding(vertical = 12.dp),
+        modifier = Modifier.padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         repeat(3) { index ->
             val infiniteTransition = rememberInfiniteTransition(label = "generating")
@@ -369,7 +641,7 @@ fun GeneratingIndicator() {
             )
             Box(
                 modifier = Modifier
-                    .size(4.dp)
+                    .size(6.dp)
                     .clip(CircleShape)
                     .background(ContentPrimary.copy(alpha = alpha))
             )
@@ -377,9 +649,6 @@ fun GeneratingIndicator() {
     }
 }
 
-/**
- * User Prompt Bubble with Sparkle prefix
- */
 @Composable
 fun UserMessageBubble(
     message: AiMessage,
@@ -393,23 +662,12 @@ fun UserMessageBubble(
     ) {
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(20.dp))
                 .background(SurfaceBrandSecondary)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .widthIn(max = 300.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .widthIn(max = 280.dp),
             verticalAlignment = Alignment.Top
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_ai),
-                contentDescription = null,
-                tint = Color.Transparent,
-                modifier = Modifier
-                    .padding(top = 2.dp)
-                    .size(18.dp)
-            )
-
-            Spacer(modifier = Modifier.width(8.dp))
-
             Text(
                 text = message.text,
                 color = ContentPrimary,
@@ -419,9 +677,6 @@ fun UserMessageBubble(
     }
 }
 
-/**
- * Structured Markdown-Style AI Response with Action Feedback Buttons and Rich Cards
- */
 @Composable
 fun AiMessageContent(
     message: AiMessage,
@@ -521,43 +776,39 @@ fun AiMessageContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // Feedback Buttons (Thumbs Up / Thumbs Down)
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
-                onClick = { /* Handle positive feedback */ },
+                onClick = { },
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_thumbs_up),
                     contentDescription = "Helpful",
                     tint = ContentSecondary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             IconButton(
-                onClick = { /* Handle negative feedback */ },
+                onClick = { },
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_thumbs_down),
                     contentDescription = "Unhelpful",
                     tint = ContentSecondary,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
 }
 
-/**
- * Parses bold mark down annotations `**bold**` and formats bullets/headers cleanly
- */
 @Composable
 fun FormattedAiText(
     text: String,
