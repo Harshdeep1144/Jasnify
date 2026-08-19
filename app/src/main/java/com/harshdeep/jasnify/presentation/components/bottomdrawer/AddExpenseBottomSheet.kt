@@ -94,7 +94,6 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val IndianLocale = Locale("en", "IN")
-
 private val AmountContainerShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 private val ReceiverInputShape = SquircleShape(CornerLarge, CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerSmoothingDefault)
 private val EmojiButtonShape = SquircleShape(CornerExtraSmall, CornerLarge, CornerExtraSmall, CornerLarge, CornerSmoothingDefault)

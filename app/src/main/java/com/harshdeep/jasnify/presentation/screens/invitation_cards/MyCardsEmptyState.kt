@@ -385,14 +385,16 @@ fun MyCardsEmptyState(
                 append("\nhowever you like.")
             }
 
+            val typography = JasnifyTheme.typography.displayMedium
+
             Text(
                 text = annotatedTitle,
-                style = JasnifyTheme.typography.displayMedium.copy(
+                style = typography.copy(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    lineHeight = 24.sp,
+                    lineHeight = typography.fontSize, // 100% line height
+                    color = ContentPrimary,
                 ),
-                color = ContentPrimary,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
 

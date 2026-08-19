@@ -106,6 +106,8 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -430,292 +432,298 @@ fun ChecklistsTab(
                             }
 
                             ChecklistScreenState.List -> {
-                                Scaffold(
-                                    topBar = {
-                                        Column(
-                                            modifier = Modifier
-                                                .background(BackgroundPrimary)
-                                                .fillMaxWidth()
-                                                .statusBarsPadding()
-                                        ) {
-                                            AnimatedContent(
-                                                targetState = isSearchActive,
-                                                transitionSpec = {
-                                                    if (targetState) {
-                                                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
-                                                            slideOutHorizontally { width -> -width } + fadeOut()
-                                                        )
-                                                    } else {
-                                                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
-                                                            slideOutHorizontally { width -> width } + fadeOut()
-                                                        )
-                                                    }
-                                                },
-                                                label = "SearchBarTransition"
-                                            ) { active ->
-                                                if (active) {
-                                                    Row(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(
-                                                                start = 12.dp,
-                                                                end = 12.dp,
-                                                                top = 12.dp
-                                                            ),
-                                                        verticalAlignment = Alignment.CenterVertically
-                                                    ) {
-                                                        CustomSearchBar(
-                                                            value = searchQuery,
-                                                            onValueChange = { searchQuery = it },
-                                                            modifier = Modifier
-                                                                .weight(1f)
-                                                                .focusRequester(searchFocusRequester)
-                                                                .onFocusChanged { focusState ->
-                                                                    if (focusState.isFocused) {
-                                                                        wasFocused = true
-                                                                    } else if (wasFocused) {
-                                                                        isSearchActive = false
-                                                                        searchQuery = ""
-                                                                        wasFocused = false
-                                                                    }
-                                                                },
-                                                            onActiveChange = {},
-                                                        )
-                                                    }
-                                                } else {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .noRippleClickable {
-                                                                focusManager.clearFocus()
-                                                            }
-                                                    ) {
-                                                        CustomTopBar(
-                                                            title = "Checklist",
-                                                            titleIcon = painterResource(R.drawable.ic_checklists),
-                                                            menuIcon = TopIcon.Predefined.MENU_MODERN,
-                                                            isLeftAligned = true,
-                                                            isLargeTitle = true,
-                                                            secondaryIcon = TopIcon.Predefined.SEARCH,
-                                                            onSecondaryClick = {
-                                                                isSearchActive = true
-                                                            },
-                                                            onMenuClick = {
-                                                                focusManager.clearFocus()
-                                                                showMenuSheet = true
-                                                            },
-                                                            buttonStyle = ButtonBackground.OPAQUE
-                                                        )
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                    floatingActionButton = {
-                                        if (!isViewer) {
-                                            val fabOffset = if (navBarStyle == NavBarStyleOption.PILL_SHAPED) (-104).dp else (-12).dp
-
-                                            CustomIconButton(
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    isAddingNew = true
-                                                },
-                                                icon = painterResource(R.drawable.ic_plus),
-                                                size = ButtonSize.Large,
-                                                modifier = Modifier
-                                                    .offset(x = (-24).dp, y = fabOffset)
-                                                    .shadow(16.dp, CircleShape)
-                                            )
-                                        }
-                                    },
-                                    containerColor = BackgroundPrimary,
+                                Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .noRippleClickable {
-                                            focusManager.clearFocus()
-                                        }
-                                ) { paddingValues ->
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(top = paddingValues.calculateTopPadding())
-                                            .noRippleClickable {
-                                                focusManager.clearFocus()
-                                            }
-                                    ) {
-                                        Spacer(Modifier.height(24.dp))
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 12.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            FilterChip(
-                                                label = "All",
-                                                isSelected = selectedFilter == "All",
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    selectedFilter = "All"
-                                                },
-                                                hasStroke = true,
-                                                shapeStyle = ChipShapeStyle.Round
-                                            )
-                                            FilterChip(
-                                                label = "Recent First",
-                                                isSelected = selectedFilter == "Recent First",
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    selectedFilter = "Recent First"
-                                                },
-                                                hasStroke = true,
-                                                shapeStyle = ChipShapeStyle.Round
-                                            )
-                                            FilterChip(
-                                                label = "Oldest First",
-                                                isSelected = selectedFilter == "Oldest First",
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    selectedFilter = "Oldest First"
-                                                },
-                                                hasStroke = true,
-                                                shapeStyle = ChipShapeStyle.Round
-                                            )
-                                        }
-
-                                        val filteredAndSortedChecklists = remember(searchQuery, checklists, selectedFilter) {
-                                            val query = searchQuery.trim()
-                                            val searched = if (query.isEmpty()) {
-                                                checklists
-                                            } else {
-                                                checklists.filter {
-                                                    it.title.contains(query, ignoreCase = true) ||
-                                                            it.items.any { item -> item.text.contains(query, ignoreCase = true) }
-                                                }
-                                            }
-
-                                            when (selectedFilter) {
-                                                "Recent First" -> searched.sortedWith(
-                                                    compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated }
-                                                )
-                                                "Oldest First" -> searched.sortedWith(
-                                                    compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated }
-                                                )
-                                                else -> searched.sortedWith(
-                                                    compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt }
-                                                )
-                                            }
-                                        }
-
-                                        val boundsTransformSpec = remember {
-                                            BoundsTransform { _, _ ->
-                                                tween(
-                                                    durationMillis = 500,
-                                                    easing = FastOutSlowInEasing
-                                                )
-                                            }
-                                        }
-
-                                        if (filteredAndSortedChecklists.isEmpty()) {
-                                            Box(
+                                        .background(BackgroundPrimary)
+                                ) {
+                                    Scaffold(
+                                        topBar = {
+                                            Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(320.dp),
-                                                contentAlignment = Alignment.Center
+                                                    .statusBarsPadding()
                                             ) {
-                                                Column(
-                                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                                    verticalArrangement = Arrangement.Top
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(id = R.drawable.ic_receipt),
-                                                        contentDescription = null,
-                                                        tint = ContentTertiary,
-                                                        modifier = Modifier.size(84.dp)
-                                                    )
-                                                    Spacer(modifier = Modifier.height(12.dp))
-                                                    Text(
-                                                        text = if (checklists.isEmpty()) "Your checklists will \n appear here" else "No checklists Found",
-                                                        style = JasnifyTheme.typography.displayMedium.copy(
-                                                            fontWeight = FontWeight.Medium
-                                                        ),
-                                                        color = ContentTertiary,
-                                                        textAlign = TextAlign.Center
-                                                    )
-                                                }
-                                            }
-                                        } else {
-                                            if (isGridView) {
-                                                LazyVerticalGrid(
-                                                    columns = GridCells.Fixed(2),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                                    contentPadding = PaddingValues(bottom = 12.dp),
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .padding(
-                                                            start = 12.dp,
-                                                            end = 12.dp,
-                                                            top = 12.dp
-                                                        )
-                                                ) {
-                                                    items(
-                                                        items = filteredAndSortedChecklists,
-                                                        key = { it.id },
-                                                        contentType = { "checklist_card" }
-                                                    ) { checklist ->
-                                                        Box(
-                                                            modifier = Modifier.sharedBounds(
-                                                                sharedContentState = rememberSharedContentState(
-                                                                    key = "bounds-${checklist.id}"
-                                                                ),
-                                                                animatedVisibilityScope = this@AnimatedContent,
-                                                                boundsTransform = boundsTransformSpec
+                                                AnimatedContent(
+                                                    targetState = isSearchActive,
+                                                    transitionSpec = {
+                                                        if (targetState) {
+                                                            (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                                                                slideOutHorizontally { width -> -width } + fadeOut()
                                                             )
+                                                        } else {
+                                                            (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                                                                slideOutHorizontally { width -> width } + fadeOut()
+                                                            )
+                                                        }
+                                                    },
+                                                    label = "SearchBarTransition"
+                                                ) { active ->
+                                                    if (active) {
+                                                        Row(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .padding(
+                                                                    start = 12.dp,
+                                                                    end = 12.dp,
+                                                                    top = 12.dp
+                                                                ),
+                                                            verticalAlignment = Alignment.CenterVertically
                                                         ) {
-                                                            ChecklistCard(
-                                                                checklist = checklist,
-                                                                onClick = {
+                                                            CustomSearchBar(
+                                                                value = searchQuery,
+                                                                onValueChange = { searchQuery = it },
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .focusRequester(searchFocusRequester)
+                                                                    .onFocusChanged { focusState ->
+                                                                        if (focusState.isFocused) {
+                                                                            wasFocused = true
+                                                                        } else if (wasFocused) {
+                                                                            isSearchActive = false
+                                                                            searchQuery = ""
+                                                                            wasFocused = false
+                                                                        }
+                                                                    },
+                                                                onActiveChange = {},
+                                                                backgroundColor = SurfacePrimary
+                                                            )
+                                                        }
+                                                    } else {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxWidth()
+                                                                .noRippleClickable {
                                                                     focusManager.clearFocus()
-                                                                    selectedChecklist = checklist
                                                                 }
+                                                        ) {
+                                                            CustomTopBar(
+                                                                title = "Checklist",
+                                                                titleIcon = painterResource(R.drawable.ill_checklists),
+                                                                menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                                                isLeftAligned = true,
+                                                                isLargeTitle = true,
+                                                                secondaryIcon = TopIcon.Predefined.SEARCH,
+                                                                onSecondaryClick = {
+                                                                    isSearchActive = true
+                                                                },
+                                                                onMenuClick = {
+                                                                    focusManager.clearFocus()
+                                                                    showMenuSheet = true
+                                                                },
+                                                                buttonStyle = ButtonBackground.OPAQUE
                                                             )
                                                         }
                                                     }
                                                 }
-                                            } else {
-                                                LazyColumn(
-                                                    contentPadding = PaddingValues(bottom = 12.dp),
-                                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            }
+                                        },
+                                        floatingActionButton = {
+                                            if (!isViewer) {
+                                                val fabOffset = if (navBarStyle == NavBarStyleOption.PILL_SHAPED) (-104).dp else (-12).dp
+
+                                                CustomIconButton(
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        isAddingNew = true
+                                                    },
+                                                    icon = painterResource(R.drawable.ic_plus),
+                                                    size = ButtonSize.Large,
                                                     modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .padding(
-                                                            start = 12.dp,
-                                                            end = 12.dp,
-                                                            top = 12.dp
-                                                        )
+                                                        .offset(x = (-24).dp, y = fabOffset)
+                                                        .shadow(16.dp, CircleShape)
+                                                )
+                                            }
+                                        },
+                                        containerColor = Color.Transparent,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .noRippleClickable {
+                                                focusManager.clearFocus()
+                                            }
+                                    ) { paddingValues ->
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(top = paddingValues.calculateTopPadding())
+                                                .noRippleClickable {
+                                                    focusManager.clearFocus()
+                                                }
+                                        ) {
+                                            Spacer(Modifier.height(16.dp))
+
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 12.dp),
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                FilterChip(
+                                                    label = "All",
+                                                    isSelected = selectedFilter == "All",
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        selectedFilter = "All"
+                                                    },
+                                                    hasStroke = true,
+                                                    shapeStyle = ChipShapeStyle.Round
+                                                )
+                                                FilterChip(
+                                                    label = "Recent First",
+                                                    isSelected = selectedFilter == "Recent First",
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        selectedFilter = "Recent First"
+                                                    },
+                                                    hasStroke = true,
+                                                    shapeStyle = ChipShapeStyle.Round
+                                                )
+                                                FilterChip(
+                                                    label = "Oldest First",
+                                                    isSelected = selectedFilter == "Oldest First",
+                                                    onClick = {
+                                                        focusManager.clearFocus()
+                                                        selectedFilter = "Oldest First"
+                                                    },
+                                                    hasStroke = true,
+                                                    shapeStyle = ChipShapeStyle.Round
+                                                )
+                                            }
+
+                                            val filteredAndSortedChecklists = remember(searchQuery, checklists, selectedFilter) {
+                                                val query = searchQuery.trim()
+                                                val searched = if (query.isEmpty()) {
+                                                    checklists
+                                                } else {
+                                                    checklists.filter {
+                                                        it.title.contains(query, ignoreCase = true) ||
+                                                                it.items.any { item -> item.text.contains(query, ignoreCase = true) }
+                                                    }
+                                                }
+
+                                                when (selectedFilter) {
+                                                    "Recent First" -> searched.sortedWith(
+                                                        compareByDescending<Checklist> { it.pinned }.thenByDescending { it.lastUpdated }
+                                                    )
+                                                    "Oldest First" -> searched.sortedWith(
+                                                        compareByDescending<Checklist> { it.pinned }.thenBy { it.lastUpdated }
+                                                    )
+                                                    else -> searched.sortedWith(
+                                                        compareByDescending<Checklist> { it.pinned }.thenByDescending { it.createdAt }
+                                                    )
+                                                }
+                                            }
+
+                                            val boundsTransformSpec = remember {
+                                                BoundsTransform { _, _ ->
+                                                    tween(
+                                                        durationMillis = 500,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                }
+                                            }
+
+                                            if (filteredAndSortedChecklists.isEmpty()) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(320.dp),
+                                                    contentAlignment = Alignment.Center
                                                 ) {
-                                                    items(
-                                                        items = filteredAndSortedChecklists,
-                                                        key = { it.id },
-                                                        contentType = { "checklist_card" }
-                                                    ) { checklist ->
-                                                        Box(
-                                                            modifier = Modifier.sharedBounds(
-                                                                sharedContentState = rememberSharedContentState(
-                                                                    key = "bounds-${checklist.id}"
-                                                                ),
-                                                                animatedVisibilityScope = this@AnimatedContent,
-                                                                boundsTransform = boundsTransformSpec
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Top
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.ic_receipt),
+                                                            contentDescription = null,
+                                                            tint = ContentTertiary,
+                                                            modifier = Modifier.size(84.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.height(12.dp))
+                                                        Text(
+                                                            text = if (checklists.isEmpty()) "Your checklists will \n appear here" else "No checklists Found",
+                                                            style = JasnifyTheme.typography.displayMedium.copy(
+                                                                fontWeight = FontWeight.Medium
+                                                            ),
+                                                            color = ContentTertiary,
+                                                            textAlign = TextAlign.Center
+                                                        )
+                                                    }
+                                                }
+                                            } else {
+                                                if (isGridView) {
+                                                    LazyVerticalGrid(
+                                                        columns = GridCells.Fixed(2),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                        contentPadding = PaddingValues(bottom = 12.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .padding(
+                                                                start = 12.dp,
+                                                                end = 12.dp,
+                                                                top = 12.dp
                                                             )
-                                                        ) {
-                                                            ChecklistCard(
-                                                                checklist = checklist,
-                                                                onClick = {
-                                                                    focusManager.clearFocus()
-                                                                    selectedChecklist = checklist
-                                                                }
+                                                    ) {
+                                                        items(
+                                                            items = filteredAndSortedChecklists,
+                                                            key = { it.id },
+                                                            contentType = { "checklist_card" }
+                                                        ) { checklist ->
+                                                            Box(
+                                                                modifier = Modifier.sharedBounds(
+                                                                    sharedContentState = rememberSharedContentState(
+                                                                        key = "bounds-${checklist.id}"
+                                                                    ),
+                                                                    animatedVisibilityScope = this@AnimatedContent,
+                                                                    boundsTransform = boundsTransformSpec
+                                                                )
+                                                            ) {
+                                                                ChecklistCard(
+                                                                    checklist = checklist,
+                                                                    onClick = {
+                                                                        focusManager.clearFocus()
+                                                                        selectedChecklist = checklist
+                                                                    }
+                                                                )
+                                                            }
+                                                        }
+                                                    }
+                                                } else {
+                                                    LazyColumn(
+                                                        contentPadding = PaddingValues(bottom = 12.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                                        modifier = Modifier
+                                                            .fillMaxSize()
+                                                            .padding(
+                                                                start = 12.dp,
+                                                                end = 12.dp,
+                                                                top = 12.dp
                                                             )
+                                                    ) {
+                                                        items(
+                                                            items = filteredAndSortedChecklists,
+                                                            key = { it.id },
+                                                            contentType = { "checklist_card" }
+                                                        ) { checklist ->
+                                                            Box(
+                                                                modifier = Modifier.sharedBounds(
+                                                                    sharedContentState = rememberSharedContentState(
+                                                                        key = "bounds-${checklist.id}"
+                                                                    ),
+                                                                    animatedVisibilityScope = this@AnimatedContent,
+                                                                    boundsTransform = boundsTransformSpec
+                                                                )
+                                                            ) {
+                                                                ChecklistCard(
+                                                                    checklist = checklist,
+                                                                    onClick = {
+                                                                        focusManager.clearFocus()
+                                                                        selectedChecklist = checklist
+                                                                    }
+                                                                )
+                                                            }
                                                         }
                                                     }
                                                 }

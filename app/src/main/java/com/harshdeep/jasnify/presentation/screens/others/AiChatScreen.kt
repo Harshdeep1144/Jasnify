@@ -45,10 +45,8 @@ import com.harshdeep.jasnify.domain.model.*
 import com.harshdeep.jasnify.presentation.components.cards.*
 import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
-import java.text.NumberFormat
 import java.text.SimpleDateFormat
 import java.util.*
-
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistDetailScreen

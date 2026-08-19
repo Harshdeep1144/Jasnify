@@ -474,6 +474,7 @@ fun BudgetScreen(
                                     isSearchBarFocused = isSearchBarFocused,
                                     onSearchBarFocusChange = { isSearchBarFocused = it }
                                 )
+
                                 BudgetScreenView.EXPENSE_SUMMARY -> ExpenseSummaryContent(
                                     pieSlices = pieSlices,
                                     centerTextPrimaryValue = centerTextPrimaryValue,
@@ -509,6 +510,7 @@ fun BudgetScreen(
                                     },
                                     formatAmount = { formatter.format(it.toLong()) }
                                 )
+
                                 BudgetScreenView.EXPENSE_CATEGORY -> ExpenseCategoryContent(
                                     categorySearchQuery = categorySearchQuery,
                                     onCategorySearchQueryChange = { categorySearchQuery = it },
@@ -529,6 +531,7 @@ fun BudgetScreen(
                                         showAddCustomCategorySheet = true
                                     }
                                 )
+
                                 BudgetScreenView.CATEGORY_DETAIL -> {
                                     val catName = selectedCategoryForDetails ?: "Category"
                                     val catExpenses = allExpenses.filter { it.category == catName }
@@ -565,6 +568,7 @@ fun BudgetScreen(
                                         }
                                     )
                                 }
+
                                 BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetRoomContent(
                                     eventId = activeEventId.orEmpty(),
                                     roomUsers = roomUsers,

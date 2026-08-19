@@ -412,8 +412,7 @@ fun CustomBottomSheet(
                                         TopBarIconButton(
                                             backgroundStyle = closeButtonBackgroundStyle,
                                             icon = TopIcon.Predefined.CLOSE,
-                                            iconSize = 18.dp,
-                                            onClick = { dismissWithAnimation(0f) }
+                                            onClick = { dismissWithAnimation(0f) },
                                         )
                                     }
                                 }

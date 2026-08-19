@@ -1,10 +1,12 @@
 package com.harshdeep.jasnify
 
 import android.app.Application
+import android.util.Log
 import com.cloudinary.android.MediaManager
 import com.google.firebase.Firebase
 import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
+import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.initialize
 import dagger.hilt.android.HiltAndroidApp
 
@@ -13,13 +15,21 @@ class JasnifyApplication: Application() {
     override fun onCreate() {
         super.onCreate()
 
+        Firebase.initialize(this)
+
         // Initialize Firebase App Check for local development
         if (BuildConfig.DEBUG) {
-            Firebase.initialize(this)
+            // For local development on your own machine
             Firebase.appCheck.installAppCheckProviderFactory(
-                DebugAppCheckProviderFactory.getInstance(),
+                DebugAppCheckProviderFactory.getInstance()
+            )
+        } else {
+            // Automatically attests legitimate users via Google Play
+            Firebase.appCheck.installAppCheckProviderFactory(
+                PlayIntegrityAppCheckProviderFactory.getInstance()
             )
         }
+
         // Initialize Cloudinary
         val config: Map<String, Any> = mapOf(
             "cloud_name" to BuildConfig.CLOUDINARY_CLOUD_NAME,
