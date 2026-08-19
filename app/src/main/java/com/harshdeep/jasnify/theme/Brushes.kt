@@ -25,3 +25,15 @@ val TopGradientBrush = Brush.verticalGradient(
         fraction to Color.Black.copy(alpha = alpha)
     }
 )
+
+val TopGradientBrushLightTheme = Brush.verticalGradient(
+    colorStops = Array(16) { index ->
+        val fraction = index / 15f
+        val x = 1f - fraction
+        // Smoothstep interpolation formula: fading from black at top to transparent at bottom
+        val easedAlpha = x * x * (3f - 2f * x)
+        val alpha = easedAlpha * 0.95f
+
+        fraction to Color.White.copy(alpha = alpha)
+    }
+)
