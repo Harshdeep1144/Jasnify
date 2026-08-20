@@ -505,48 +505,50 @@ fun GuestsTab(
                                     .fillMaxSize()
                                     .background(BackgroundPrimary)
                             ) {
+                                var expandedGuestId by remember { mutableStateOf<String?>(null) }
+
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .statusBarsPadding(),
                                     state = mainListState
                                 ) {
-                                    // 1. Scrollable Top Bar with Scroll Interpolation
-                                    item(key = "top_bar", contentType = "header") {
-                                        AnimatedVisibility(
-                                            visible = !isSearchActive,
-                                            enter = expandVertically(
-                                                animationSpec = spring(
-                                                    stiffness = Spring.StiffnessLow,
-                                                    dampingRatio = 0.85f
+                                    // 1. Scrollable Standard Top Bar (Normal Mode)
+                                    if (!isMultiSelectMode) {
+                                        item(key = "top_bar", contentType = "header") {
+                                            AnimatedVisibility(
+                                                visible = !isSearchActive,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(
+                                                    animationSpec = tween(
+                                                        durationMillis = 280,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                ),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(
+                                                    animationSpec = tween(
+                                                        durationMillis = 200,
+                                                        easing = FastOutSlowInEasing
+                                                    )
                                                 )
-                                            ) + fadeIn(
-                                                animationSpec = tween(
-                                                    durationMillis = 280,
-                                                    easing = FastOutSlowInEasing
-                                                )
-                                            ),
-                                            exit = shrinkVertically(
-                                                animationSpec = spring(
-                                                    stiffness = Spring.StiffnessMediumLow,
-                                                    dampingRatio = 0.9f
-                                                )
-                                            ) + fadeOut(
-                                                animationSpec = tween(
-                                                    durationMillis = 200,
-                                                    easing = FastOutSlowInEasing
-                                                )
-                                            )
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .graphicsLayer {
-                                                        alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
-                                                        translationY = -topBarScrollProgress * 30f
-                                                    }
                                             ) {
-                                                if (!isMultiSelectMode) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .graphicsLayer {
+                                                            alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                                            translationY = -topBarScrollProgress * 30f
+                                                        }
+                                                ) {
                                                     CustomTopBar(
                                                         title = "Guests",
                                                         titleIcon = painterResource(R.drawable.ill_guests),
@@ -559,88 +561,121 @@ fun GuestsTab(
                                                         },
                                                         buttonStyle = ButtonBackground.OPAQUE
                                                     )
-                                                } else {
-                                                    CustomTopBar(
-                                                        title = "${selectedGuestIds.size} selected",
-                                                        onBackClick = {
-                                                            isMultiSelectMode = false
-                                                            selectedGuestIds.clear()
-                                                        },
-                                                        menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
-                                                        onMenuClick = if (selectedGuestIds.isNotEmpty()) {
-                                                            {
-                                                                focusManager.clearFocus()
-                                                                showMultiDeleteConfirmation = true
-                                                            }
-                                                        } else null,
-                                                        buttonStyle = ButtonBackground.OPAQUE
-                                                    )
                                                 }
                                             }
                                         }
                                     }
 
-                                    // 2. Sticky Header: Search Bar, Add Button, & Filter Chips
-                                    stickyHeader(key = "sticky_search_filters", contentType = "sticky_controls") {
+                                    // 2. Sticky Header: Multi-Select Top Bar, Search Bar, & Filter Chips
+                                    stickyHeader(key = "sticky_controls", contentType = "sticky_controls") {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .background(BackgroundPrimary)
                                                 .zIndex(10f)
                                         ) {
-                                            // Search Bar + Add Button Row
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(start = 12.dp, top = 12.dp, end = 12.dp,bottom=  0.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                            // Sticky Multi-Select Top Bar
+                                            AnimatedVisibility(
+                                                visible = isMultiSelectMode,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
                                             ) {
-                                                CustomSearchBar(
-                                                    value = searchQuery,
-                                                    onValueChange = { searchQuery = it },
-                                                    placeholder = "Search Guests",
-                                                    modifier = Modifier.weight(1f),
-                                                    backgroundColor = SurfaceSecondary,
-                                                    onActiveChange = { active ->
-                                                        isSearchActive = active
-                                                        if (!active) {
+                                                CustomTopBar(
+                                                    title = "${selectedGuestIds.size} selected",
+                                                    onBackClick = {
+                                                        isMultiSelectMode = false
+                                                        selectedGuestIds.clear()
+                                                    },
+                                                    menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
+                                                    onMenuClick = if (selectedGuestIds.isNotEmpty()) {
+                                                        {
                                                             focusManager.clearFocus()
+                                                            showMultiDeleteConfirmation = true
                                                         }
-                                                    }
+                                                    } else null,
+                                                    buttonStyle = ButtonBackground.OPAQUE
                                                 )
+                                            }
 
-                                                AnimatedVisibility(
-                                                    visible = !isSearchActive && !isViewer && !isMultiSelectMode,
-                                                    enter = expandHorizontally(
-                                                        animationSpec = spring(
-                                                            stiffness = Spring.StiffnessLow,
-                                                            dampingRatio = 0.85f
-                                                        ),
-                                                        expandFrom = Alignment.Start
-                                                    ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
-                                                    exit = shrinkHorizontally(
-                                                        animationSpec = spring(
-                                                            stiffness = Spring.StiffnessMediumLow,
-                                                            dampingRatio = 0.9f
-                                                        ),
-                                                        shrinkTowards = Alignment.Start
-                                                    ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                            // Search Bar + Add Button Row (Hidden in Multi-Select Mode)
+                                            AnimatedVisibility(
+                                                visible = !isMultiSelectMode,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(all = 12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Row {
-                                                        Spacer(modifier = Modifier.width(8.dp))
-                                                        CustomTextButton(
-                                                            onClick = onAddGuestClick,
-                                                            text = "Add",
-                                                            leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                                            shapeStyle = ButtonShapeStyle.Round
-                                                        )
+                                                    CustomSearchBar(
+                                                        value = searchQuery,
+                                                        onValueChange = { searchQuery = it },
+                                                        placeholder = "Search Guests",
+                                                        modifier = Modifier.weight(1f),
+                                                        backgroundColor = SurfaceSecondary,
+                                                        onActiveChange = { active ->
+                                                            isSearchActive = active
+                                                            if (!active) {
+                                                                focusManager.clearFocus()
+                                                            }
+                                                        }
+                                                    )
+
+                                                    AnimatedVisibility(
+                                                        visible = !isSearchActive && !isViewer,
+                                                        enter = expandHorizontally(
+                                                            animationSpec = spring(
+                                                                stiffness = Spring.StiffnessLow,
+                                                                dampingRatio = 0.85f
+                                                            ),
+                                                            expandFrom = Alignment.Start
+                                                        ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                        exit = shrinkHorizontally(
+                                                            animationSpec = spring(
+                                                                stiffness = Spring.StiffnessMediumLow,
+                                                                dampingRatio = 0.9f
+                                                            ),
+                                                            shrinkTowards = Alignment.Start
+                                                        ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                                    ) {
+                                                        Row {
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            CustomTextButton(
+                                                                onClick = onAddGuestClick,
+                                                                text = "Add",
+                                                                leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                                                shapeStyle = ButtonShapeStyle.Round
+                                                            )
+                                                        }
                                                     }
                                                 }
                                             }
 
-                                            // Filter Chips Row
+                                            // Filter Chips Row (Kept Sticky in Both Modes)
                                             AnimatedVisibility(
-                                                visible = !isSearchActive && guests.isNotEmpty() && !isMultiSelectMode,
+                                                visible = !isSearchActive && guests.isNotEmpty(),
                                                 enter = expandVertically(
                                                     animationSpec = spring(
                                                         stiffness = Spring.StiffnessLow,
@@ -667,7 +702,10 @@ fun GuestsTab(
                                                 LazyRow(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
-                                                        .padding(vertical = 12.dp),
+                                                        .padding(
+                                                            top = if (isMultiSelectMode) 4.dp else 0.dp,
+                                                            bottom = 12.dp
+                                                        ),
                                                     contentPadding = PaddingValues(horizontal = 12.dp),
                                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
@@ -791,7 +829,7 @@ fun GuestsTab(
                                                         )
                                                         Spacer(modifier = Modifier.height(12.dp))
                                                         Text(
-                                                            text = "No guests to invite",
+                                                            text = "No guest found",
                                                             style = JasnifyTheme.typography.displayMedium.copy(
                                                                 textAlign = TextAlign.Center,
                                                                 fontWeight = FontWeight.Medium
@@ -863,7 +901,7 @@ fun GuestsTab(
                                                         verticalArrangement = Arrangement.Center,
                                                     ) {
                                                         Icon(
-                                                            painter = painterResource(id = R.drawable.ic_cross_arrow),
+                                                            painterResource(id = R.drawable.ic_cross_arrow),
                                                             contentDescription = null,
                                                             tint = ContentTertiary,
                                                             modifier = Modifier.size(84.dp)
@@ -900,11 +938,13 @@ fun GuestsTab(
                                                 key = { _, guest -> guest.id },
                                                 contentType = { _, _ -> "guest_card" }
                                             ) { index, guest ->
-                                                val isExpanded = guest.id == selectedGuestForInfo?.id
+
+                                                val isExpanded = expandedGuestId == guest.id
                                                 val isSelected = selectedGuestIds.contains(guest.id)
 
                                                 val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
-                                                val bottomRadius = if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
+                                                val bottomRadius =
+                                                    if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
 
                                                 val itemShape = SquircleShape(
                                                     topStart = topRadius,
@@ -938,7 +978,7 @@ fun GuestsTab(
                                                             if (isMultiSelectMode) {
                                                                 if (isSelected) selectedGuestIds.remove(guest.id) else selectedGuestIds.add(guest.id)
                                                             } else {
-                                                                selectedGuestForInfo = if (isExpanded) null else guest
+                                                                expandedGuestId = if (isExpanded) null else guest.id
                                                             }
                                                         },
                                                         onSelectToggle = { selected ->
@@ -948,8 +988,12 @@ fun GuestsTab(
                                                                 selectedGuestIds.remove(guest.id)
                                                             }
                                                         },
-                                                        onViewDetailsClick = { selectedGuestForInfo = guest },
-                                                        onInviteClick = { onInviteToggle(guest.id) },
+                                                        onViewDetailsClick = {
+                                                            selectedGuestForInfo = guest
+                                                        },
+                                                        onInviteClick = {
+                                                            onInviteToggle(guest.id)
+                                                        },
                                                         cardShape = itemShape
                                                     )
                                                 }

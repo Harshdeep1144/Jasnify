@@ -485,8 +485,7 @@ fun ChecklistsTab(
                                                                             wasFocused = false
                                                                         }
                                                                     },
-                                                                onActiveChange = {},
-                                                                backgroundColor = SurfacePrimary
+                                                                onActiveChange = {}
                                                             )
                                                         }
                                                     } else {

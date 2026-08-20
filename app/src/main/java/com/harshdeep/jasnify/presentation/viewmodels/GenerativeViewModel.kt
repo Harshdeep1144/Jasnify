@@ -11,17 +11,38 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.SetOptions
 import com.harshdeep.jasnify.data.local.ExpenseEntity
-import com.harshdeep.jasnify.domain.model.*
-import com.harshdeep.jasnify.domain.repository.*
+import com.harshdeep.jasnify.domain.model.Checklist
+import com.harshdeep.jasnify.domain.model.Event
+import com.harshdeep.jasnify.domain.model.Guest
+import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.domain.repository.BudgetRepository
+import com.harshdeep.jasnify.domain.repository.ChecklistRepository
+import com.harshdeep.jasnify.domain.repository.GuestRepository
+import com.harshdeep.jasnify.domain.repository.VendorRepository
+import com.harshdeep.jasnify.domain.repository.VenueRepository
 import com.harshdeep.jasnify.presentation.screens.others.AiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
 import javax.inject.Inject
 
 @IgnoreExtraProperties
@@ -141,7 +162,12 @@ class GenerativeViewModel @Inject constructor(
                 }
 
                 if (snapshot != null) {
-                    val msgs = snapshot.toObjects(AiMessage::class.java)
+                    val msgs = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(AiMessage::class.java)?.apply {
+                            // Ensure id is always populated even if not in the document body
+                            if (id.isBlank()) id = doc.id
+                        }
+                    }
                     _messages.value = msgs
 
                     val history = msgs.filter { it.text.isNotBlank() }.map { msg ->
@@ -152,9 +178,9 @@ class GenerativeViewModel @Inject constructor(
             }
     }
 
-    fun createNewChatSession(initialTitle: String = "New Chat") {
+    fun createNewChatSession(initialTitle: String = "New Chat", customChatId: String? = null) {
         val eventId = _eventId.value ?: return
-        val newChatId = UUID.randomUUID().toString()
+        val newChatId = customChatId ?: UUID.randomUUID().toString()
         val session = ChatSession(
             id = newChatId,
             title = initialTitle,
@@ -191,6 +217,24 @@ class GenerativeViewModel @Inject constructor(
                         createNewChatSession("New Chat")
                     }
                 }
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("GenerativeViewModel", "Failed to delete chat session", e)
+            }
+    }
+
+    fun restoreChatSession(session: ChatSession) {
+        val eventId = _eventId.value ?: return
+        firestore.collection("events")
+            .document(eventId)
+            .collection("aiChatHistory")
+            .document(session.id)
+            .set(session)
+            .addOnSuccessListener {
+                selectChatSession(session.id)
+            }
+            .addOnFailureListener { e ->
+                android.util.Log.e("GenerativeViewModel", "Failed to restore chat session", e)
             }
     }
 
@@ -306,10 +350,11 @@ class GenerativeViewModel @Inject constructor(
         }
 
         if (chatId == null) {
-            chatId = UUID.randomUUID().toString()
-            _currentChatId.value = chatId
+            val newChatId = UUID.randomUUID().toString()
+            _currentChatId.value = newChatId
+            chatId = newChatId
             val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
-            createNewChatSession(autoTitle)
+            createNewChatSession(autoTitle, customChatId = newChatId)
         } else {
             val currentSession = _chatSessions.value.find { it.id == chatId }
             if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title == "Welcome Chat")) {
@@ -368,6 +413,42 @@ class GenerativeViewModel @Inject constructor(
         }
     }
 
+    fun toggleMessageFeedback(messageId: String, newFeedback: Int) {
+        if (messageId.isBlank()) {
+            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: messageId is blank")
+            return
+        }
+
+        val eventId = _eventId.value ?: run {
+            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: eventId is null")
+            return
+        }
+        val chatId = _currentChatId.value ?: run {
+            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: chatId is null")
+            return
+        }
+
+        val currentMsg = _messages.value.find { it.id == messageId }
+        val targetFeedback = if (currentMsg?.feedback == newFeedback) 0 else newFeedback
+
+        _messages.update { list ->
+            list.map { msg ->
+                if (msg.id == messageId) msg.copy(feedback = targetFeedback) else msg
+            }
+        }
+
+        firestore.collection("events")
+            .document(eventId)
+            .collection("aiChatHistory")
+            .document(chatId)
+            .collection("messages")
+            .document(messageId)
+            .set(mapOf("feedback" to targetFeedback), SetOptions.merge())
+            .addOnFailureListener { e ->
+                android.util.Log.e("GenerativeViewModel", "Failed to update feedback in Firestore", e)
+            }
+    }
+
     fun updateMessageText(messageId: String, newText: String) {
         val eventId = _eventId.value ?: return
         val chatId = _currentChatId.value ?: return
@@ -403,7 +484,8 @@ class GenerativeViewModel @Inject constructor(
             "guestIds" to message.guestIds,
             "expenseIds" to message.expenseIds,
             "checklistIds" to message.checklistIds,
-            "showBudgetSummary" to message.showBudgetSummary
+            "showBudgetSummary" to message.showBudgetSummary,
+            "feedback" to message.feedback
         )
 
         firestore.collection("events")

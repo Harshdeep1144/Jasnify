@@ -50,8 +50,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowRightAlt
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -148,6 +146,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -193,7 +192,8 @@ data class MenuItem(
 
 enum class CateringMenuView {
     MENU,
-    MANAGE_ROOM_ACCESS
+    MANAGE_ROOM_ACCESS,
+    AI_CHAT
 }
 
 @Composable
@@ -313,7 +313,6 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
-    onAskAiClick: (String) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
@@ -412,6 +411,7 @@ fun CateringMenuScreen(
     }
 
     var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
+    var aiChatContext by remember { mutableStateOf("") }
 
     BackHandler(enabled = currentView != CateringMenuView.MENU) {
         currentView = CateringMenuView.MENU
@@ -1013,14 +1013,14 @@ fun CateringMenuScreen(
                                                 CustomTextButton(
                                                     onClick = {
                                                         focusManager.clearFocus()
-                                                        val context = """
+                                                        aiChatContext = """
                                                             Catering Menu for ${activeEvent?.name ?: "Event"}:
                                                             Total Items: ${allMenuItems.size}
                                                             
                                                             Menu items:
                                                             ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
                                                         """.trimIndent()
-                                                        onAskAiClick(context)
+                                                        currentView = CateringMenuView.AI_CHAT
                                                     },
                                                     text = "Ask AI",
                                                     type = ButtonType.Secondary,
@@ -1079,6 +1079,17 @@ fun CateringMenuScreen(
                                     onShowToast = { toastData = it }
                                 )
                             }
+                        }
+
+                        CateringMenuView.AI_CHAT -> {
+                            AiChatScreen(
+                                eventId = activeEvent?.id,
+                                initialContext = aiChatContext,
+                                onBackClick = {
+                                    currentView = CateringMenuView.MENU
+                                    focusManager.clearFocus()
+                                }
+                            )
                         }
                     }
                 }
@@ -1525,6 +1536,7 @@ fun CateringMenuScreen(
         )
     }
 }
+
 
 @Composable
 fun MenuCategoryCard(

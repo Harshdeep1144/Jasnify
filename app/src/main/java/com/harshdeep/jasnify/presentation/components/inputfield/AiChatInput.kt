@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.inputfield
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -18,9 +19,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.animations.CyclingText
@@ -31,13 +35,14 @@ import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClick
 import com.harshdeep.jasnify.theme.*
 
 val DefaultDynamicPlaceholders = listOf(
-    "fixed and variable expenses",
+    "fixed expenses",
     "vendors and caterers",
     "venue availability",
-    "guest invitations & RSVPs",
+    "guest invitations",
     "checklist progress"
 )
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun AiChatInput(
     value: String,
@@ -48,33 +53,36 @@ fun AiChatInput(
     dynamicPlaceholders: List<String> = DefaultDynamicPlaceholders,
     isGenerating: Boolean = false,
     isVoiceMode: Boolean = false,
+    hasSpokenFirstMessage: Boolean = false,
     isMicMuted: Boolean = false,
     isAiSpeaking: Boolean = false,
+    audioRms: Float = 0f,
     onStopClick: () -> Unit = {},
     onVoiceClick: () -> Unit = {},
     onToggleMicMute: () -> Unit = {},
     onCancelVoice: () -> Unit = {}
 ) {
-    var hasSettled by remember(isVoiceMode) { mutableStateOf(!isVoiceMode) }
-    LaunchedEffect(isVoiceMode) {
-        if (isVoiceMode) {
-            hasSettled = false
-            kotlinx.coroutines.delay(250)
-            hasSettled = true
-        }
-    }
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp.dp
 
-    val animatedOrbSize by animateDpAsState(
-        targetValue = when {
-            !hasSettled -> 240.dp
-            isAiSpeaking -> 210.dp
-            else -> 170.dp
-        },
+    // Move down and shrink ONLY after meaningful speech is detected
+    val dockProgress by animateFloatAsState(
+        targetValue = if (hasSpokenFirstMessage) 1f else 0f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
+            dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessLow
         ),
-        label = "OrbScaleTransition"
+        label = "DockProgress"
+    )
+
+    val initialCenterOffsetY = -(screenHeight * 0.28f)
+    val currentOrbOffsetY = lerp(initialCenterOffsetY, 0.dp, dockProgress)
+    val currentOrbSize = lerp(260.dp, 160.dp, dockProgress)
+
+    val controlsAlpha by animateFloatAsState(
+        targetValue = if (isVoiceMode) 1f else 0f,
+        animationSpec = tween(400),
+        label = "ControlsAlpha"
     )
 
     Box(
@@ -92,15 +100,21 @@ fun AiChatInput(
                 VoiceOrb(
                     isMuted = isMicMuted,
                     isAiSpeaking = isAiSpeaking,
-                    pointCount = if (isAiSpeaking || !hasSettled) 1300 else 1000,
+                    audioRms = audioRms,
+                    pointCount = 1800,
                     userActiveColor = Color(0xFF9F4D1B),
                     aiActiveColor = Color(0xFF006363),
-                    modifier = Modifier.size(animatedOrbSize)
+                    modifier = Modifier
+                        .offset(y = currentOrbOffsetY)
+                        .size(currentOrbSize)
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
+                    modifier = Modifier.graphicsLayer {
+                        alpha = controlsAlpha
+                    },
                     horizontalArrangement = Arrangement.spacedBy(32.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
