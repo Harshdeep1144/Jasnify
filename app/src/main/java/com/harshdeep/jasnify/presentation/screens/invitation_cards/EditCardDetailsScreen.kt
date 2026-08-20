@@ -304,6 +304,8 @@ fun EditCardDetailsScreen(
         }
     }
 
+    SetStatusBarTheme(useDarkIcons = false)
+
     BackHandler(enabled = hasUnsavedChanges) {
         showDiscardDialog = true
     }

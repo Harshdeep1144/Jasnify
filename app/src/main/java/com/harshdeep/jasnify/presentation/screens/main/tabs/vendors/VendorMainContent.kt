@@ -31,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -59,7 +58,7 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.TopBrandGradientBrush
+import com.harshdeep.jasnify.theme.SurfacePrimary
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -93,6 +92,21 @@ fun VendorMainContent(
             } else {
                 (listState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
             }
+        }
+    }
+
+    val dynamicVendorPlaceholders = remember(categories) {
+        if (categories.isNotEmpty()) {
+            categories.map { it.name.lowercase() }
+        } else {
+            listOf(
+                "photographers",
+                "makeup artists",
+                "mehendi artists",
+                "decorators",
+                "caterers",
+                "djs & music"
+            )
         }
     }
 
@@ -188,7 +202,7 @@ fun VendorMainContent(
                 stickyHeader(key = "search_header", contentType = "sticky_search") {
                     Column(
                         modifier = Modifier
-                            .background(Color.Transparent)
+                            .background(SurfacePrimary)
                             .fillMaxWidth()
                             .zIndex(10f)
                             .padding(bottom = 4.dp)
@@ -198,9 +212,11 @@ fun VendorMainContent(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
                             onActiveChange = onSearchActiveChange,
-                            placeholder = "Search",
+                            placeholderPrefix = "Search for ",
+                            dynamicPlaceholders = dynamicVendorPlaceholders,
+                            cycleIntervalMs = 2800L,
                             isAiSearch = true,
-                            modifier = Modifier.padding(horizontal = 12.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp)
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                     }

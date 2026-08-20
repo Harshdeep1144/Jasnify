@@ -1,14 +1,22 @@
 package com.harshdeep.jasnify.presentation.screens.others
 
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -21,51 +29,58 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.PropertyName
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.local.BudgetEntity
 import com.harshdeep.jasnify.data.local.ExpenseEntity
+import com.harshdeep.jasnify.domain.model.*
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.inputfield.AiChatInput
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.viewmodels.*
-import com.harshdeep.jasnify.theme.*
-import com.harshdeep.jasnify.domain.model.*
 import com.harshdeep.jasnify.presentation.components.cards.*
 import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
+import com.harshdeep.jasnify.presentation.components.inputfield.AiChatInput
+import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
+import com.harshdeep.jasnify.presentation.viewmodels.*
+import com.harshdeep.jasnify.theme.*
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.google.firebase.firestore.PropertyName
-import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
-import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
-import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistDetailScreen
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
 
-// Data class for Chat Messages
 @IgnoreExtraProperties
 data class AiMessage(
     var id: String = "",
@@ -102,10 +117,24 @@ fun AiChatScreen(
     onVenueClick: (Venue) -> Unit = {},
     onVendorClick: (Vendor) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
+
     var inputText by remember { mutableStateOf("") }
     var isVoiceMode by remember { mutableStateOf(false) }
     var isMicMuted by remember { mutableStateOf(false) }
+    var isAiSpeaking by remember { mutableStateOf(false) }
+    var isTtsReady by remember { mutableStateOf(false) }
     var isDrawerOpen by remember { mutableStateOf(false) }
+
+    // Streaming buffer and interruption tracking
+    var activeSpeakingMessageId by remember { mutableStateOf<String?>(null) }
+    var wasInterrupted by remember { mutableStateOf(false) }
+    var streamedDisplayMessage by remember { mutableStateOf<AiMessage?>(null) }
+    var streamJob by remember { mutableStateOf<Job?>(null) }
+    var processedMessageIds by remember { mutableStateOf(setOf<String>()) }
+    var fullyCompletedMessageIds by remember { mutableStateOf(setOf<String>()) }
 
     val messages by viewModel.messages.collectAsStateWithLifecycle()
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
@@ -121,12 +150,281 @@ fun AiChatScreen(
     val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
     val allVendors by vendorViewModel.allVendors.collectAsStateWithLifecycle()
 
-    // Overlay States
     var selectedVenueDetail by remember { mutableStateOf<Venue?>(null) }
     var selectedVendorDetail by remember { mutableStateOf<Vendor?>(null) }
     var selectedChecklistDetail by remember { mutableStateOf<Checklist?>(null) }
     var selectedGuestDetail by remember { mutableStateOf<Guest?>(null) }
     var selectedExpenseDetail by remember { mutableStateOf<ExpenseEntity?>(null) }
+
+    var ttsEngine by remember { mutableStateOf<TextToSpeech?>(null) }
+    var speechRecognizer by remember { mutableStateOf<SpeechRecognizer?>(null) }
+
+    val recognizerIntent = remember {
+        Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 800L)
+        }
+    }
+
+    fun startListeningSafe() {
+        mainHandler.post {
+            try {
+                if (isVoiceMode && !isMicMuted) {
+                    speechRecognizer?.cancel()
+                    speechRecognizer?.startListening(recognizerIntent)
+                }
+            } catch (e: Exception) {
+                Log.e("AiChatScreen", "Error starting recognizer: ${e.message}")
+            }
+        }
+    }
+
+    fun stopListeningSafe() {
+        mainHandler.post {
+            try {
+                speechRecognizer?.stopListening()
+                speechRecognizer?.cancel()
+            } catch (e: Exception) {
+                Log.e("AiChatScreen", "Error stopping recognizer: ${e.message}")
+            }
+        }
+    }
+
+    // Handles user speech barge-in and permanently marks the message as interrupted
+    fun interruptAndSaveSpokenPortion() {
+        if (isAiSpeaking || activeSpeakingMessageId != null) {
+            wasInterrupted = true
+            ttsEngine?.stop()
+            isAiSpeaking = false
+            streamJob?.cancel()
+
+            val currentStreamed = streamedDisplayMessage
+            if (currentStreamed != null && currentStreamed.text.isNotBlank()) {
+                viewModel.updateMessageText(currentStreamed.id, currentStreamed.text.trim())
+            }
+
+            activeSpeakingMessageId = null
+        }
+    }
+
+    DisposableEffect(Unit) {
+        var tts: TextToSpeech? = null
+        tts = TextToSpeech(context) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val result = tts?.setLanguage(Locale.US)
+                if (result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED) {
+                    isTtsReady = true
+                }
+                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {
+                        mainHandler.post {
+                            isAiSpeaking = true
+                            wasInterrupted = false
+                        }
+                    }
+                    override fun onDone(utteranceId: String?) {
+                        mainHandler.post {
+                            isAiSpeaking = false
+                            if (!wasInterrupted && utteranceId != null) {
+                                fullyCompletedMessageIds = fullyCompletedMessageIds + utteranceId
+                            }
+                            activeSpeakingMessageId = null
+                            startListeningSafe()
+                        }
+                    }
+                    override fun onError(utteranceId: String?) {
+                        mainHandler.post {
+                            isAiSpeaking = false
+                            activeSpeakingMessageId = null
+                            startListeningSafe()
+                        }
+                    }
+                })
+            }
+        }
+        ttsEngine = tts
+
+        val sr = SpeechRecognizer.createSpeechRecognizer(context)
+        sr.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {}
+
+            override fun onError(error: Int) {
+                mainHandler.postDelayed({
+                    if (isVoiceMode && !isMicMuted) {
+                        startListeningSafe()
+                    }
+                }, 300)
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val spokenText = matches[0].trim()
+                    if (spokenText.length >= 2) {
+                        mainHandler.post {
+                            interruptAndSaveSpokenPortion()
+                            viewModel.sendMessage(spokenText)
+                        }
+                    }
+                }
+                mainHandler.postDelayed({
+                    if (isVoiceMode && !isMicMuted) {
+                        startListeningSafe()
+                    }
+                }, 200)
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val partialText = matches[0].trim()
+                    // Filter out transient background clicks/pops - require meaningful multi-character voice tokens
+                    val words = partialText.split("\\s+".toRegex()).filter { it.isNotBlank() }
+                    if (words.isNotEmpty() && (words.size >= 2 || partialText.length >= 4)) {
+                        mainHandler.post {
+                            interruptAndSaveSpokenPortion()
+                        }
+                    }
+                }
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        })
+        speechRecognizer = sr
+
+        onDispose {
+            tts?.stop()
+            tts?.shutdown()
+            sr.destroy()
+        }
+    }
+
+    val audioPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        isVoiceMode = isGranted
+    }
+
+    LaunchedEffect(isVoiceMode, isMicMuted) {
+        if (isVoiceMode && !isMicMuted) {
+            startListeningSafe()
+        } else {
+            stopListeningSafe()
+            if (!isVoiceMode) {
+                interruptAndSaveSpokenPortion()
+            }
+        }
+    }
+
+    // Process new AI messages in Voice Mode: sequential audio play + progressive word stream
+    val latestMessage = messages.lastOrNull()
+    LaunchedEffect(latestMessage?.id, isVoiceMode, isTtsReady) {
+        if (isVoiceMode && latestMessage != null && !latestMessage.isUser && latestMessage.text.isNotBlank()) {
+            if (!processedMessageIds.contains(latestMessage.id) && activeSpeakingMessageId != latestMessage.id) {
+                processedMessageIds = processedMessageIds + latestMessage.id
+                activeSpeakingMessageId = latestMessage.id
+                wasInterrupted = false
+
+                isAiSpeaking = true
+                streamedDisplayMessage = latestMessage.copy(
+                    text = "",
+                    venueIds = emptyList(),
+                    vendorIds = emptyList(),
+                    guestIds = emptyList(),
+                    expenseIds = emptyList(),
+                    checklistIds = emptyList(),
+                    showBudgetSummary = false
+                )
+
+                startListeningSafe()
+
+                val params = Bundle().apply {
+                    putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, latestMessage.id)
+                }
+                ttsEngine?.speak(latestMessage.text, TextToSpeech.QUEUE_FLUSH, params, latestMessage.id)
+
+                streamJob?.cancel()
+                streamJob = coroutineScope.launch {
+                    val words = latestMessage.text.split(" ")
+                    val stringBuilder = StringBuilder()
+                    for (i in words.indices) {
+                        if (!isAiSpeaking || wasInterrupted) break
+                        if (i > 0) stringBuilder.append(" ")
+                        stringBuilder.append(words[i])
+                        streamedDisplayMessage = streamedDisplayMessage?.copy(text = stringBuilder.toString())
+                        delay(280L)
+                    }
+                    if (isAiSpeaking && !wasInterrupted) {
+                        streamedDisplayMessage = latestMessage.copy(
+                            text = latestMessage.text,
+                            venueIds = emptyList(),
+                            vendorIds = emptyList(),
+                            guestIds = emptyList(),
+                            expenseIds = emptyList(),
+                            checklistIds = emptyList(),
+                            showBudgetSummary = false
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    // Mark non-voice messages completed immediately; enforce completion check for voice mode
+    LaunchedEffect(messages, isVoiceMode) {
+        if (!isVoiceMode) {
+            val allAiIds = messages.filter { !it.isUser }.map { it.id }.toSet()
+            fullyCompletedMessageIds = fullyCompletedMessageIds + allAiIds
+        }
+    }
+
+    val displayedMessages = remember(
+        messages,
+        isVoiceMode,
+        streamedDisplayMessage,
+        activeSpeakingMessageId,
+        fullyCompletedMessageIds
+    ) {
+        if (isVoiceMode) {
+            val nonUser = messages.filter { !it.isUser }.map { msg ->
+                val isCompleted = fullyCompletedMessageIds.contains(msg.id)
+                if (!isCompleted) {
+                    msg.copy(
+                        venueIds = emptyList(),
+                        vendorIds = emptyList(),
+                        guestIds = emptyList(),
+                        expenseIds = emptyList(),
+                        checklistIds = emptyList(),
+                        showBudgetSummary = false
+                    )
+                } else {
+                    msg
+                }
+            }
+
+            if (activeSpeakingMessageId != null && streamedDisplayMessage != null) {
+                val history = nonUser.filter { it.id != activeSpeakingMessageId }
+                if (streamedDisplayMessage!!.text.isNotBlank()) {
+                    history + streamedDisplayMessage!!
+                } else {
+                    history
+                }
+            } else {
+                nonUser
+            }
+        } else {
+            messages
+        }
+    }
 
     val targetEventId = eventId ?: activeEvent?.id
     LaunchedEffect(targetEventId) {
@@ -142,10 +440,61 @@ fun AiChatScreen(
     }
 
     val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val imeBottom = WindowInsets.ime.getBottom(density)
+    val rawKeyboardHeightDp = with(density) { imeBottom.toDp() }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            listState.animateScrollToItem(messages.size - 1)
+    val animatedKeyboardSpacerDp by animateDpAsState(
+        targetValue = rawKeyboardHeightDp,
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        label = "KeyboardSpacerAnimation"
+    )
+
+    val isAtBottom by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            if (totalItems == 0) true
+            else {
+                val lastVisibleItem = layoutInfo.visibleItemsInfo.lastOrNull()
+                val lastIndex = lastVisibleItem?.index ?: 0
+                lastIndex >= totalItems - 2
+            }
+        }
+    }
+
+    val showScrollToBottomButton by remember {
+        derivedStateOf {
+            val layoutInfo = listState.layoutInfo
+            val totalItems = layoutInfo.totalItemsCount
+            if (totalItems <= 1) false
+            else {
+                val lastVisibleIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                lastVisibleIndex < totalItems - 2
+            }
+        }
+    }
+
+    LaunchedEffect(displayedMessages.size, streamedDisplayMessage?.text?.length) {
+        if (displayedMessages.isNotEmpty()) {
+            listState.animateScrollToItem(displayedMessages.size - 1)
+        }
+    }
+
+    var wasAtBottomBeforeIme by remember { mutableStateOf(true) }
+    LaunchedEffect(imeBottom) {
+        if (imeBottom > 0) {
+            if (wasAtBottomBeforeIme && displayedMessages.isNotEmpty()) {
+                listState.animateScrollToItem(displayedMessages.size)
+            }
+        } else {
+            wasAtBottomBeforeIme = isAtBottom
+        }
+    }
+
+    LaunchedEffect(isAtBottom) {
+        if (imeBottom == 0) {
+            wasAtBottomBeforeIme = isAtBottom
         }
     }
 
@@ -166,7 +515,7 @@ fun AiChatScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        if (messages.isEmpty()) {
+        if (displayedMessages.isEmpty() && !isVoiceMode) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -191,7 +540,7 @@ fun AiChatScreen(
                     text = "Ask anything about your expenses, guest lists, vendors, or event planning.",
                     style = JasnifyTheme.typography.bodyMedium,
                     color = ContentSecondary.copy(alpha = 0.7f),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
         } else {
@@ -203,34 +552,45 @@ fun AiChatScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(
                     top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 68.dp,
-                    bottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 84.dp
+                    bottom = if (isVoiceMode) 270.dp else 120.dp
                 )
             ) {
-                items(messages, key = { it.id.ifEmpty { UUID.randomUUID().toString() } }) { message ->
+                items(displayedMessages, key = { it.id.ifEmpty { UUID.randomUUID().toString() } }) { message ->
                     if (message.isUser) {
                         UserMessageBubble(message = message)
                     } else {
-                        AiMessageContent(
-                            message = message,
-                            allVenues = allVenues,
-                            allVendors = allVendors,
-                            guests = guests,
-                            expenses = expenses,
-                            checklists = checklists,
-                            budgetSettings = budgetSettings,
-                            onVenueClick = { selectedVenueDetail = it },
-                            onVendorClick = { selectedVendorDetail = it },
-                            onGuestClick = { selectedGuestDetail = it },
-                            onExpenseClick = { selectedExpenseDetail = it },
-                            onChecklistClick = { selectedChecklistDetail = it }
-                        )
+                        if (message.text.isNotBlank()) {
+                            val allowAttachments = !isVoiceMode || fullyCompletedMessageIds.contains(message.id)
+                            AiMessageContent(
+                                message = message,
+                                allVenues = if (allowAttachments) allVenues else emptyList(),
+                                allVendors = if (allowAttachments) allVendors else emptyList(),
+                                guests = if (allowAttachments) guests else emptyList(),
+                                expenses = if (allowAttachments) expenses else emptyList(),
+                                checklists = if (allowAttachments) checklists else emptyList(),
+                                budgetSettings = if (allowAttachments) budgetSettings else null,
+                                onVenueClick = { selectedVenueDetail = it },
+                                onVendorClick = { selectedVendorDetail = it },
+                                onGuestClick = { selectedGuestDetail = it },
+                                onExpenseClick = { selectedExpenseDetail = it },
+                                onChecklistClick = { selectedChecklistDetail = it }
+                            )
+                        }
                     }
                 }
 
                 if (isGenerating) {
-                    item {
+                    item(key = "generating_indicator") {
                         GeneratingIndicator()
                     }
+                }
+
+                item(key = "keyboard_bottom_spacer") {
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(animatedKeyboardSpacerDp)
+                    )
                 }
             }
         }
@@ -253,13 +613,46 @@ fun AiChatScreen(
             )
         }
 
+        AnimatedVisibility(
+            visible = showScrollToBottomButton && !isVoiceMode,
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .imePadding()
+                .padding(end = 16.dp, bottom = 108.dp)
+                .zIndex(15f)
+        ) {
+            FloatingActionButton(
+                onClick = {
+                    coroutineScope.launch {
+                        if (displayedMessages.isNotEmpty()) {
+                            listState.animateScrollToItem(displayedMessages.size)
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .size(42.dp)
+                    .shadow(4.dp, CircleShape),
+                shape = CircleShape,
+                containerColor = SurfaceBrandPrimary,
+                contentColor = ContentInvPrimary
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Scroll to bottom",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .imePadding()
                 .background(brush = BottomGradientBrush)
                 .navigationBarsPadding()
-                .imePadding()
                 .padding(horizontal = 12.dp, vertical = 12.dp)
                 .zIndex(10f)
         ) {
@@ -268,8 +661,16 @@ fun AiChatScreen(
                 onValueChange = { inputText = it },
                 isVoiceMode = isVoiceMode,
                 isMicMuted = isMicMuted,
+                isAiSpeaking = isAiSpeaking,
                 isGenerating = isGenerating,
-                placeholder = "Ask about expenses, vendors, guests...",
+                placeholderPrefix = "Search for ",
+                dynamicPlaceholders = listOf(
+                    "fixed and variable expenses",
+                    "photographers & vendors",
+                    "venue availability",
+                    "guest invitations & RSVPs",
+                    "checklist progress"
+                ),
                 onSendClick = {
                     if (inputText.isNotBlank()) {
                         val query = inputText
@@ -278,9 +679,25 @@ fun AiChatScreen(
                     }
                 },
                 onStopClick = { },
-                onVoiceClick = { isVoiceMode = true },
-                onToggleMicMute = { isMicMuted = !isMicMuted },
-                onCancelVoice = { isVoiceMode = false }
+                onVoiceClick = {
+                    val hasPermission = ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.RECORD_AUDIO
+                    ) == PackageManager.PERMISSION_GRANTED
+
+                    if (hasPermission) {
+                        isVoiceMode = true
+                    } else {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                onToggleMicMute = {
+                    isMicMuted = !isMicMuted
+                },
+                onCancelVoice = {
+                    isVoiceMode = false
+                    interruptAndSaveSpokenPortion()
+                }
             )
         }
 
@@ -317,7 +734,6 @@ fun AiChatScreen(
             }
         }
 
-        // Direct Composable Overlays
         AnimatedVisibility(
             visible = selectedVenueDetail != null,
             enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
@@ -374,7 +790,6 @@ fun AiChatScreen(
         }
     }
 
-    // Bottom Sheets
     if (selectedGuestDetail != null) {
         GuestDetailsBottomSheet(
             guest = selectedGuestDetail!!,
@@ -473,7 +888,6 @@ fun ChatSidebarDrawer(
                 .statusBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
-            // Header Row: Jasnify Logo & Search Button
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -504,7 +918,6 @@ fun ChatSidebarDrawer(
                 }
             }
 
-            // Search Bar Input
             AnimatedVisibility(visible = isSearchActive) {
                 Box(
                     modifier = Modifier
@@ -531,7 +944,6 @@ fun ChatSidebarDrawer(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // + New Chat Pill Button
             Button(
                 onClick = onNewChatClick,
                 colors = ButtonDefaults.buttonColors(
@@ -565,7 +977,6 @@ fun ChatSidebarDrawer(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Chat Session History List grouped by Date
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)

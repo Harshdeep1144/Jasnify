@@ -2,19 +2,19 @@ package com.harshdeep.jasnify.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
-import com.google.firebase.firestore.Query
 import com.google.firebase.FirebaseApp
 import com.google.firebase.ai.FirebaseAI
 import com.google.firebase.ai.type.GenerationConfig
 import com.google.firebase.ai.type.content
-import com.harshdeep.jasnify.domain.repository.*
-import com.harshdeep.jasnify.domain.model.*
-import com.harshdeep.jasnify.data.local.ExpenseEntity
-import com.harshdeep.jasnify.presentation.screens.others.AiMessage
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.IgnoreExtraProperties
+import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.Query
+import com.harshdeep.jasnify.data.local.ExpenseEntity
+import com.harshdeep.jasnify.domain.model.*
+import com.harshdeep.jasnify.domain.repository.*
+import com.harshdeep.jasnify.presentation.screens.others.AiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -117,15 +117,8 @@ class GenerativeViewModel @Inject constructor(
                         doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
                     }
                     _chatSessions.value = sessions
-
-                    if (_currentChatId.value == null && sessions.isNotEmpty()) {
-                        selectChatSession(sessions.first().id)
-                    }
                 } else {
                     _chatSessions.value = emptyList()
-                    if (_currentChatId.value == null) {
-                        createNewChatSession("Welcome Chat")
-                    }
                 }
             }
     }
@@ -318,7 +311,6 @@ class GenerativeViewModel @Inject constructor(
             val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
             createNewChatSession(autoTitle)
         } else {
-            // Update session title if it's default
             val currentSession = _chatSessions.value.find { it.id == chatId }
             if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title == "Welcome Chat")) {
                 val newTitle = if (userText.length > 25) userText.take(25) + "..." else userText
@@ -374,6 +366,28 @@ class GenerativeViewModel @Inject constructor(
                 _isGenerating.value = false
             }
         }
+    }
+
+    fun updateMessageText(messageId: String, newText: String) {
+        val eventId = _eventId.value ?: return
+        val chatId = _currentChatId.value ?: return
+
+        _messages.update { currentList ->
+            currentList.map { msg ->
+                if (msg.id == messageId) msg.copy(text = newText) else msg
+            }
+        }
+
+        firestore.collection("events")
+            .document(eventId)
+            .collection("aiChatHistory")
+            .document(chatId)
+            .collection("messages")
+            .document(messageId)
+            .update("text", newText)
+            .addOnFailureListener { e ->
+                android.util.Log.e("GenerativeViewModel", "Failed to update interrupted message text", e)
+            }
     }
 
     private fun saveMessageToFirestore(chatId: String, message: AiMessage) {

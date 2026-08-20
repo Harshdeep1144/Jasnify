@@ -53,9 +53,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.animations.CyclingText
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -74,9 +76,11 @@ enum class SearchBarType {
 @Composable
 fun CustomSearchBar(
     value: String,
-    placeholder: String = "Search",
-    onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    placeholder: String = "Search",
+    placeholderPrefix: String = "",
+    dynamicPlaceholders: List<String> = emptyList(),
+    cycleIntervalMs: Long = 3000L,
     type: SearchBarType = SearchBarType.DEFAULT,
     isAiSearch: Boolean = false,
     backgroundColor: Color = SurfaceSecondary,
@@ -86,6 +90,7 @@ fun CustomSearchBar(
     isTranslucent: Boolean = false,
     translucentAlpha: Float = 0.2f,
     isTransparent: Boolean = false,
+    onValueChange: (String) -> Unit,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -170,7 +175,6 @@ fun CustomSearchBar(
         }
     }
 
-    // Gradient used only if borderGradientColors is provided; otherwise a SolidColor is used
     val defaultOutline = MaterialTheme.colorScheme.outline
     val inactiveBorderBrush: Brush = remember(borderGradientColors, borderColor, defaultOutline) {
         when {
@@ -309,11 +313,23 @@ fun CustomSearchBar(
                                 contentAlignment = Alignment.CenterStart
                             ) {
                                 if (value.isEmpty()) {
-                                    Text(
-                                        text = placeholder,
-                                        style = JasnifyTheme.typography.headingLarge,
-                                        color = ContentSecondary
-                                    )
+                                    if (dynamicPlaceholders.isNotEmpty()) {
+                                        CyclingText(
+                                            fixedPrefix = placeholderPrefix,
+                                            dynamicPhrases = dynamicPlaceholders,
+                                            cycleIntervalMs = cycleIntervalMs,
+                                            style = JasnifyTheme.typography.headingLarge,
+                                            color = ContentSecondary
+                                        )
+                                    } else {
+                                        Text(
+                                            text = placeholder,
+                                            style = JasnifyTheme.typography.headingLarge,
+                                            color = ContentSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
                                 }
                                 innerTextField()
                             }
