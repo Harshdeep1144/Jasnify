@@ -7,20 +7,28 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -31,12 +39,15 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -89,7 +100,6 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
-import com.harshdeep.jasnify.presentation.components.filter.FilterGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -99,6 +109,7 @@ import com.harshdeep.jasnify.presentation.components.cards.GuestCardType
 import com.harshdeep.jasnify.presentation.components.cards.ImportContactsBanner
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.filter.FilterGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
@@ -112,6 +123,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
@@ -121,6 +133,7 @@ import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
 import kotlinx.coroutines.delay
@@ -319,7 +332,7 @@ fun GuestsTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            hasAccess == true && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible
+            hasAccess == true && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible && !isSearchActive
         }
     }
 
@@ -435,8 +448,13 @@ fun GuestsTab(
 
     BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) {
         if (isSearchActive) {
+            if (searchQuery.isNotEmpty()) {
+                searchHistoryManager.addSearch(searchQuery)
+                recentSearches = searchHistoryManager.getRecentSearches()
+            }
             isSearchActive = false
             searchQuery = ""
+            focusManager.clearFocus()
         } else if (isMultiSelectMode) {
             isMultiSelectMode = false
             selectedGuestIds.clear()
@@ -487,61 +505,53 @@ fun GuestsTab(
                                     .fillMaxSize()
                                     .background(BackgroundPrimary)
                             ) {
-                                if (isSearchActive) {
-                                    GuestSearchScreen(
-                                        searchQuery = searchQuery,
-                                        onSearchQueryChange = { searchQuery = it },
-                                        onBackClick = {
-                                            if (searchQuery.isNotEmpty()) {
-                                                searchHistoryManager.addSearch(searchQuery)
-                                                recentSearches = searchHistoryManager.getRecentSearches()
-                                            }
-                                            isSearchActive = false
-                                            searchQuery = ""
-                                        },
-                                        recentSearches = recentSearches,
-                                        onClearRecent = {
-                                            searchHistoryManager.clearAll()
-                                            recentSearches = emptyList()
-                                        },
-                                        onRemoveRecent = { search ->
-                                            searchHistoryManager.removeSearch(search)
-                                            recentSearches = searchHistoryManager.getRecentSearches()
-                                        },
-                                        searchResults = filteredGuests,
-                                        onGuestClick = { guest ->
-                                            selectedGuestForInfo = guest
-                                            searchHistoryManager.addSearch(guest.name)
-                                            recentSearches = searchHistoryManager.getRecentSearches()
-                                        },
-                                        onAddGuestClick = onAddGuestClick,
-                                        getGuestTypeColor = { type -> typeColors.getOrDefault(type, Color.Gray) },
-                                        onInviteToggle = onInviteToggle
-                                    )
-                                } else if (isLoading) {
-                                    Box(modifier = Modifier.fillMaxSize())
-                                } else {
-                                    var expandedGuestId by remember { mutableStateOf<String?>(null) }
+                                var expandedGuestId by remember { mutableStateOf<String?>(null) }
 
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .statusBarsPadding(),
-                                        state = mainListState,
-                                    ) {
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .statusBarsPadding(),
+                                    state = mainListState
+                                ) {
+                                    // 1. Scrollable Standard Top Bar (Normal Mode)
+                                    if (!isMultiSelectMode) {
                                         item(key = "top_bar", contentType = "header") {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .graphicsLayer {
-                                                        alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
-                                                        translationY = -topBarScrollProgress * 30f
-                                                    }
+                                            AnimatedVisibility(
+                                                visible = !isSearchActive,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(
+                                                    animationSpec = tween(
+                                                        durationMillis = 280,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                ),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(
+                                                    animationSpec = tween(
+                                                        durationMillis = 200,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                )
                                             ) {
-                                                if (!isMultiSelectMode) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .graphicsLayer {
+                                                            alpha = (1f - topBarScrollProgress).coerceIn(0f, 1f)
+                                                            translationY = -topBarScrollProgress * 30f
+                                                        }
+                                                ) {
                                                     CustomTopBar(
                                                         title = "Guests",
-                                                        titleIcon = painterResource(R.drawable.ic_guests),
+                                                        titleIcon = painterResource(R.drawable.ill_guests),
                                                         menuIcon = TopIcon.Predefined.MENU_MODERN,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
@@ -551,110 +561,321 @@ fun GuestsTab(
                                                         },
                                                         buttonStyle = ButtonBackground.OPAQUE
                                                     )
-                                                } else {
-                                                    CustomTopBar(
-                                                        title = "${selectedGuestIds.size} selected",
-                                                        onBackClick = {
-                                                            isMultiSelectMode = false
-                                                            selectedGuestIds.clear()
-                                                        },
-                                                        menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
-                                                        onMenuClick = if (selectedGuestIds.isNotEmpty()) {
-                                                            {
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 2. Sticky Header: Multi-Select Top Bar, Search Bar, & Filter Chips
+                                    stickyHeader(key = "sticky_controls", contentType = "sticky_controls") {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .background(BackgroundPrimary)
+                                                .zIndex(10f)
+                                        ) {
+                                            // Sticky Multi-Select Top Bar
+                                            AnimatedVisibility(
+                                                visible = isMultiSelectMode,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                            ) {
+                                                CustomTopBar(
+                                                    title = "${selectedGuestIds.size} selected",
+                                                    onBackClick = {
+                                                        isMultiSelectMode = false
+                                                        selectedGuestIds.clear()
+                                                    },
+                                                    menuIcon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
+                                                    onMenuClick = if (selectedGuestIds.isNotEmpty()) {
+                                                        {
+                                                            focusManager.clearFocus()
+                                                            showMultiDeleteConfirmation = true
+                                                        }
+                                                    } else null,
+                                                    buttonStyle = ButtonBackground.OPAQUE
+                                                )
+                                            }
+
+                                            // Search Bar + Add Button Row (Hidden in Multi-Select Mode)
+                                            AnimatedVisibility(
+                                                visible = !isMultiSelectMode,
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(all = 12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    CustomSearchBar(
+                                                        value = searchQuery,
+                                                        onValueChange = { searchQuery = it },
+                                                        placeholder = "Search Guests",
+                                                        modifier = Modifier.weight(1f),
+                                                        backgroundColor = SurfaceSecondary,
+                                                        onActiveChange = { active ->
+                                                            isSearchActive = active
+                                                            if (!active) {
                                                                 focusManager.clearFocus()
-                                                                showMultiDeleteConfirmation = true
                                                             }
-                                                        } else null,
-                                                        buttonStyle = ButtonBackground.OPAQUE
+                                                        }
+                                                    )
+
+                                                    AnimatedVisibility(
+                                                        visible = !isSearchActive && !isViewer,
+                                                        enter = expandHorizontally(
+                                                            animationSpec = spring(
+                                                                stiffness = Spring.StiffnessLow,
+                                                                dampingRatio = 0.85f
+                                                            ),
+                                                            expandFrom = Alignment.Start
+                                                        ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
+                                                        exit = shrinkHorizontally(
+                                                            animationSpec = spring(
+                                                                stiffness = Spring.StiffnessMediumLow,
+                                                                dampingRatio = 0.9f
+                                                            ),
+                                                            shrinkTowards = Alignment.Start
+                                                        ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                                    ) {
+                                                        Row {
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            CustomTextButton(
+                                                                onClick = onAddGuestClick,
+                                                                text = "Add",
+                                                                leadingIcon = painterResource(id = R.drawable.ic_plus),
+                                                                shapeStyle = ButtonShapeStyle.Round
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Filter Chips Row (Kept Sticky in Both Modes)
+                                            AnimatedVisibility(
+                                                visible = !isSearchActive && guests.isNotEmpty(),
+                                                enter = expandVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessLow,
+                                                        dampingRatio = 0.85f
+                                                    )
+                                                ) + fadeIn(
+                                                    animationSpec = tween(
+                                                        durationMillis = 280,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                ),
+                                                exit = shrinkVertically(
+                                                    animationSpec = spring(
+                                                        stiffness = Spring.StiffnessMediumLow,
+                                                        dampingRatio = 0.9f
+                                                    )
+                                                ) + fadeOut(
+                                                    animationSpec = tween(
+                                                        durationMillis = 180,
+                                                        easing = FastOutSlowInEasing
+                                                    )
+                                                )
+                                            ) {
+                                                LazyRow(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(
+                                                            top = if (isMultiSelectMode) 4.dp else 0.dp,
+                                                            bottom = 12.dp
+                                                        ),
+                                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    item(key = "type_filter_chip") {
+                                                        FilterChip(
+                                                            label = when {
+                                                                selectedTypesFilter.isEmpty() -> "Guest Type"
+                                                                selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
+                                                                else -> "Guest Types (${selectedTypesFilter.size})"
+                                                            },
+                                                            hasDropdown = true,
+                                                            isSelected = selectedTypesFilter.isNotEmpty(),
+                                                            onClick = { showTypeFilterSheet = true },
+                                                            shapeStyle = ChipShapeStyle.Round,
+                                                            hasStroke = true
+                                                        )
+                                                    }
+                                                    item(key = "yet_to_invite_chip") {
+                                                        FilterChip(
+                                                            label = "Yet to invite",
+                                                            isSelected = inviteFilter == "Yet to invite",
+                                                            onClick = {
+                                                                inviteFilter = if (inviteFilter == "Yet to invite") null else "Yet to invite"
+                                                            },
+                                                            shapeStyle = ChipShapeStyle.Round,
+                                                            hasStroke = true
+                                                        )
+                                                    }
+                                                    item(key = "already_invited_chip") {
+                                                        FilterChip(
+                                                            label = "Already invited",
+                                                            isSelected = inviteFilter == "Already invited",
+                                                            onClick = {
+                                                                inviteFilter = if (inviteFilter == "Already invited") null else "Already invited"
+                                                            },
+                                                            shapeStyle = ChipShapeStyle.Round,
+                                                            hasStroke = true
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // 3. Content Details & List Rendering
+                                    if (isSearchActive) {
+                                        if (searchQuery.isEmpty() && recentSearches.isNotEmpty()) {
+                                            item(key = "recent_searches_section") {
+                                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.ic_clock_forward),
+                                                                contentDescription = null,
+                                                                tint = ContentPrimary,
+                                                                modifier = Modifier.size(24.dp)
+                                                            )
+                                                            Spacer(modifier = Modifier.width(8.dp))
+                                                            Text(
+                                                                text = "Recent Searches",
+                                                                style = JasnifyTheme.typography.headingMedium,
+                                                                fontWeight = FontWeight.Medium,
+                                                                color = ContentPrimary
+                                                            )
+                                                        }
+                                                        Text(
+                                                            text = "Clear all",
+                                                            style = JasnifyTheme.typography.labelXLarge,
+                                                            color = ContentBrandDark,
+                                                            modifier = Modifier.clickable {
+                                                                searchHistoryManager.clearAll()
+                                                                recentSearches = emptyList()
+                                                            }
+                                                        )
+                                                    }
+
+                                                    Spacer(modifier = Modifier.height(12.dp))
+
+                                                    FlowRow(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        recentSearches.forEach { search ->
+                                                            FilterChip(
+                                                                label = search,
+                                                                trailingIcon = Icons.Default.Close,
+                                                                hasStroke = true,
+                                                                shapeStyle = ChipShapeStyle.Round,
+                                                                onTrailingIconClick = {
+                                                                    searchHistoryManager.removeSearch(search)
+                                                                    recentSearches = searchHistoryManager.getRecentSearches()
+                                                                },
+                                                                onClick = { searchQuery = search }
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        } else if (filteredGuests.isEmpty()) {
+                                            item(key = "no_search_results") {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .height(320.dp),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Column(
+                                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                                        verticalArrangement = Arrangement.Top,
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.ic_book),
+                                                            contentDescription = null,
+                                                            tint = ContentTertiary,
+                                                            modifier = Modifier.size(84.dp)
+                                                        )
+                                                        Spacer(modifier = Modifier.height(12.dp))
+                                                        Text(
+                                                            text = "No guest found",
+                                                            style = JasnifyTheme.typography.displayMedium.copy(
+                                                                textAlign = TextAlign.Center,
+                                                                fontWeight = FontWeight.Medium
+                                                            ),
+                                                            color = ContentTertiary
+                                                        )
+                                                    }
+                                                }
+                                            }
+                                        } else {
+                                            itemsIndexed(
+                                                items = filteredGuests,
+                                                key = { _, guest -> "search_${guest.id}" }
+                                            ) { index, guest ->
+                                                val topRadius = if (index == 0) CornerLargeIncrease else CornerExtraSmall
+                                                val bottomRadius = if (index == filteredGuests.lastIndex) CornerLargeIncrease else CornerExtraSmall
+                                                val itemShape = SquircleShape(
+                                                    topStart = topRadius,
+                                                    topEnd = topRadius,
+                                                    bottomStart = bottomRadius,
+                                                    bottomEnd = bottomRadius,
+                                                    cornerSmoothing = CornerSmoothingDefault
+                                                )
+
+                                                Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 1.dp)) {
+                                                    GuestCard(
+                                                        name = guest.name,
+                                                        label = guest.type,
+                                                        imageUrl = guest.imageUrl,
+                                                        isInvited = guest.invited,
+                                                        invitedBy = guest.invitedBy,
+                                                        invitedAt = guest.invitedAt,
+                                                        type = if (isViewer) GuestCardType.DEFAULT else GuestCardType.INVITE_ACTION,
+                                                        labelColor = typeColors.getOrDefault(guest.type, Color.Gray),
+                                                        onCardClick = {
+                                                            selectedGuestForInfo = guest
+                                                            searchHistoryManager.addSearch(guest.name)
+                                                            recentSearches = searchHistoryManager.getRecentSearches()
+                                                        },
+                                                        onInviteClick = { onInviteToggle(guest.id) },
+                                                        cardShape = itemShape
                                                     )
                                                 }
                                             }
                                         }
-
-                                        if (guests.isNotEmpty()) {
-                                            stickyHeader(key = "search_and_filters", contentType = "sticky_filter_header") {
-                                                Column(
-                                                    modifier = Modifier
-                                                        .background(BackgroundPrimary)
-                                                        .fillMaxWidth()
-                                                        .zIndex(10f)
-                                                ) {
-                                                    if (!isMultiSelectMode) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .padding(start = 12.dp, top = 12.dp, bottom = 0.dp, end = 12.dp),
-                                                            verticalAlignment = Alignment.CenterVertically,
-                                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                        ) {
-                                                            CustomSearchBar(
-                                                                value = searchQuery,
-                                                                onValueChange = { searchQuery = it },
-                                                                placeholder = "Search Guests",
-                                                                modifier = Modifier.weight(1f),
-                                                                onActiveChange = { if (it) isSearchActive = true }
-                                                            )
-
-                                                            if (!isViewer) {
-                                                                CustomTextButton(
-                                                                    onClick = onAddGuestClick,
-                                                                    text = "Add",
-                                                                    leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                                                    shapeStyle = ButtonShapeStyle.Round
-                                                                )
-                                                            }
-                                                        }
-                                                    }
-
-                                                    LazyRow(
-                                                        modifier = Modifier
-                                                            .fillMaxWidth()
-                                                            .padding(top = 12.dp),
-                                                        contentPadding = PaddingValues(horizontal = 12.dp),
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        item(key = "type_filter_chip", contentType = "filter_chip") {
-                                                            FilterChip(
-                                                                label = when {
-                                                                    selectedTypesFilter.isEmpty() -> "Guest Type"
-                                                                    selectedTypesFilter.size == 1 -> selectedTypesFilter.first()
-                                                                    else -> "Guest Types (${selectedTypesFilter.size})"
-                                                                },
-                                                                hasDropdown = true,
-                                                                isSelected = selectedTypesFilter.isNotEmpty(),
-                                                                onClick = { showTypeFilterSheet = true },
-                                                                shapeStyle = ChipShapeStyle.Round,
-                                                                hasStroke = true
-                                                            )
-                                                        }
-                                                        item(key = "yet_to_invite_chip", contentType = "filter_chip") {
-                                                            FilterChip(
-                                                                label = "Yet to invite",
-                                                                isSelected = inviteFilter == "Yet to invite",
-                                                                onClick = {
-                                                                    inviteFilter = if (inviteFilter == "Yet to invite") null else "Yet to invite"
-                                                                },
-                                                                shapeStyle = ChipShapeStyle.Round,
-                                                                hasStroke = true
-                                                            )
-                                                        }
-                                                        item(key = "already_invited_chip", contentType = "filter_chip") {
-                                                            FilterChip(
-                                                                label = "Already invited",
-                                                                isSelected = inviteFilter == "Already invited",
-                                                                onClick = {
-                                                                    inviteFilter = if (inviteFilter == "Already invited") null else "Already invited"
-                                                                },
-                                                                shapeStyle = ChipShapeStyle.Round,
-                                                                hasStroke = true
-                                                            )
-                                                        }
-                                                    }
-                                                    Spacer(modifier = Modifier.height(12.dp))
-                                                }
-                                            }
-                                        }
-
+                                    } else {
                                         if (guests.isEmpty()) {
                                             item(key = "empty_state", contentType = "empty_state") {
                                                 GuestEmptyState(
@@ -680,7 +901,7 @@ fun GuestsTab(
                                                         verticalArrangement = Arrangement.Center,
                                                     ) {
                                                         Icon(
-                                                            painter = painterResource(id = R.drawable.ic_cross_arrow),
+                                                            painterResource(id = R.drawable.ic_cross_arrow),
                                                             contentDescription = null,
                                                             tint = ContentTertiary,
                                                             modifier = Modifier.size(84.dp)
@@ -778,86 +999,91 @@ fun GuestsTab(
                                                 }
                                             }
 
-                                            if (guests.size > 10) {
+                                            if (guests.size > 8) {
                                                 item(key = "footer", contentType = "footer") {
-                                                    FooterJansify(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                                                    FooterJansify(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .padding(top = 16.dp)
+                                                    )
                                                 }
                                             }
                                         }
                                     }
+                                }
 
-                                    if (isMultiSelectMode && selectedGuestIds.isNotEmpty() && inviteFilter != "Already invited") {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .align(Alignment.BottomCenter)
-                                                .background(
-                                                    brush = Brush.verticalGradient(
-                                                        colorStops = arrayOf(
-                                                            0.00f to Color.Transparent,
-                                                            0.25f to BackgroundPrimary.copy(alpha = 0.15f),
-                                                            0.55f to BackgroundPrimary.copy(alpha = 0.65f),
-                                                            0.80f to BackgroundPrimary.copy(alpha = 0.92f),
-                                                            1.00f to BackgroundPrimary
-                                                        )
+                                // Floating Multi-Select Bottom Bar
+                                if (isMultiSelectMode && selectedGuestIds.isNotEmpty() && inviteFilter != "Already invited") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .align(Alignment.BottomCenter)
+                                            .background(
+                                                brush = Brush.verticalGradient(
+                                                    colorStops = arrayOf(
+                                                        0.00f to Color.Transparent,
+                                                        0.25f to BackgroundPrimary.copy(alpha = 0.15f),
+                                                        0.55f to BackgroundPrimary.copy(alpha = 0.65f),
+                                                        0.80f to BackgroundPrimary.copy(alpha = 0.92f),
+                                                        1.00f to BackgroundPrimary
                                                     )
                                                 )
-                                                .navigationBarsPadding()
-                                                .padding(horizontal = 12.dp, vertical = 12.dp)
+                                            )
+                                            .navigationBarsPadding()
+                                            .padding(horizontal = 12.dp, vertical = 12.dp)
+                                    ) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(62.dp)
+                                                .pill360Shadow(
+                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                    ambientBlur = 12.dp,
+                                                    ambientSpread = 2.dp,
+                                                    spotColor = Color.Black.copy(alpha = 0.15f),
+                                                    spotBlur = 18.dp,
+                                                    spotOffsetY = 4.dp
+                                                ),
+                                            color = SurfacePrimary,
+                                            shape = CircleShape
                                         ) {
-                                            Surface(
+                                            Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .height(62.dp)
-                                                    .pill360Shadow(
-                                                        ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                        ambientBlur = 12.dp,
-                                                        ambientSpread = 2.dp,
-                                                        spotColor = Color.Black.copy(alpha = 0.15f),
-                                                        spotBlur = 18.dp,
-                                                        spotOffsetY = 4.dp
-                                                    ),
-                                                color = SurfacePrimary,
-                                                shape = CircleShape
+                                                    .padding(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Row(
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .padding(4.dp),
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    CustomTextButton(
-                                                        onClick = {
-                                                            val nameFromAuth = auth.currentUser?.displayName
-                                                            val nameFromRoom = currentUserInRoom?.name
-                                                            val currentUserName = when {
-                                                                !nameFromRoom.isNullOrBlank() -> nameFromRoom
-                                                                !nameFromAuth.isNullOrBlank() -> nameFromAuth
-                                                                else -> "User"
-                                                            }
+                                                CustomTextButton(
+                                                    onClick = {
+                                                        val nameFromAuth = auth.currentUser?.displayName
+                                                        val nameFromRoom = currentUserInRoom?.name
+                                                        val currentUserName = when {
+                                                            !nameFromRoom.isNullOrBlank() -> nameFromRoom
+                                                            !nameFromAuth.isNullOrBlank() -> nameFromAuth
+                                                            else -> "User"
+                                                        }
 
-                                                            val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
-                                                            selectedGuests.forEach { guest ->
-                                                                val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
-                                                                guestViewModel.updateGuest(
-                                                                    guest.copy(
-                                                                        invited = true,
-                                                                        invitedBy = currentUserName,
-                                                                        invitedAt = timestamp
-                                                                    )
+                                                        val selectedGuests = filteredGuests.filter { it.id in selectedGuestIds }
+                                                        selectedGuests.forEach { guest ->
+                                                            val timestamp = SimpleDateFormat("MMM dd, yyyy, hh:mma", Locale.getDefault()).format(Date())
+                                                            guestViewModel.updateGuest(
+                                                                guest.copy(
+                                                                    invited = true,
+                                                                    invitedBy = currentUserName,
+                                                                    invitedAt = timestamp
                                                                 )
-                                                            }
-                                                            selectedGuestIds.clear()
-                                                            isMultiSelectMode = false
-                                                        },
-                                                        text = "Mark all as invited",
-                                                        leadingIcon = painterResource(id = R.drawable.ic_users_tick),
-                                                        modifier = Modifier.fillMaxWidth(),
-                                                        containerColor = ContentPrimary,
-                                                        contentColor = ContentInvPrimary,
-                                                        shapeStyle = ButtonShapeStyle.Round
-                                                    )
-                                                }
+                                                            )
+                                                        }
+                                                        selectedGuestIds.clear()
+                                                        isMultiSelectMode = false
+                                                    },
+                                                    text = "Mark all as invited",
+                                                    leadingIcon = painterResource(id = R.drawable.ic_users_tick),
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    containerColor = ContentPrimary,
+                                                    contentColor = ContentInvPrimary,
+                                                    shapeStyle = ButtonShapeStyle.Round
+                                                )
                                             }
                                         }
                                     }

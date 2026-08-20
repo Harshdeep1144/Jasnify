@@ -10,10 +10,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +27,9 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Edit
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -36,29 +39,35 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.FontStyleType
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
-import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -77,7 +86,6 @@ private val CardDrawables = listOf(
 )
 
 private val FontItems = listOf(
-    "Grenz Gotisch" to FontStyleType.PATTAYA,
     "Cal Sans" to FontStyleType.DEFAULT,
     "Grenze Gotisch" to FontStyleType.PATTAYA,
     "Pacifico" to FontStyleType.PATTAYA,
@@ -87,19 +95,17 @@ private val FontItems = listOf(
 private val DisplayFontItems = FontItems + FontItems + FontItems
 
 private val RadialGradientColorStops = arrayOf(
-    0.00f to Color(0xFFFFDFD0).copy(alpha = 0.70f),
-    0.25f to Color(0xFFFFE2D5).copy(alpha = 0.64f),
-    0.50f to Color(0xFFFFEAE0).copy(alpha = 0.50f),
-    0.75f to Color(0xFFFFEFE8).copy(alpha = 0.40f),
-    0.90f to Color(0xFFFFF8F4).copy(alpha = 0.15f),
+    0.00f to Color(0xFFF7CBBA).copy(alpha = 0.75f),
+    0.28f to Color(0xFFF3C4B0).copy(alpha = 0.55f),
+    0.55f to Color(0xFFF6D6C7).copy(alpha = 0.25f),
+    0.75f to Color(0xFFFBF0EA).copy(alpha = 0.15f),
     1.00f to BackgroundPrimary
 )
 
 private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
-private val TextBoxShape = SquircleShape(CornerExtraSmall)
-private val CodeBadgeShape = RoundedCornerShape(100)
+private val SelectionPurple = Color(0xFF6750A4)
 private val FontPillShape = RoundedCornerShape(100)
-private val FontPillBorder = BorderStroke(1.dp, ContentSecondary)
+private val FontPillBorder = BorderStroke(1.dp, Color(0x2B000000))
 
 @Composable
 fun MyCardsEmptyState(
@@ -114,7 +120,7 @@ fun MyCardsEmptyState(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 50000, easing = LinearEasing),
+            animation = tween(durationMillis = 40000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "CardArcLoop"
@@ -124,15 +130,15 @@ fun MyCardsEmptyState(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 10000, easing = LinearEasing),
+            animation = tween(durationMillis = 12000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "FontMarqueeLoop"
     )
 
     val textBoxFloatY by infiniteTransition.animateFloat(
-        initialValue = -8f,
-        targetValue = 8f,
+        initialValue = -5f,
+        targetValue = 5f,
         animationSpec = infiniteRepeatable(
             animation = tween(2200, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -140,8 +146,8 @@ fun MyCardsEmptyState(
         label = "TextBoxFloatY"
     )
     val textBoxFloatX by infiniteTransition.animateFloat(
-        initialValue = -5f,
-        targetValue = 5f,
+        initialValue = -3f,
+        targetValue = 3f,
         animationSpec = infiniteRepeatable(
             animation = tween(2900, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -149,8 +155,8 @@ fun MyCardsEmptyState(
         label = "TextBoxFloatX"
     )
     val textBoxRotation by infiniteTransition.animateFloat(
-        initialValue = -2.2f,
-        targetValue = 2.2f,
+        initialValue = -1.5f,
+        targetValue = 1.5f,
         animationSpec = infiniteRepeatable(
             animation = tween(2600, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -168,16 +174,14 @@ fun MyCardsEmptyState(
         label = "CursorBlink"
     )
 
-    val penPainter = painterResource(R.drawable.ic_pen)
-
     Box(
         modifier = modifier
             .fillMaxSize()
             .drawWithCache {
+                // Darker and more concentrated gradient near top
                 val radialBrush = Brush.radialGradient(
                     colorStops = RadialGradientColorStops,
-                    center = Offset(size.width / 2f, size.height / 2f),
-                    radius = 450.dp.toPx()
+                    radius = 480.dp.toPx()
                 )
                 onDrawBehind {
                     drawRect(brush = radialBrush)
@@ -188,7 +192,7 @@ fun MyCardsEmptyState(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .offset(y = (-40).dp),
+                .offset(y = (-80).dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
@@ -196,7 +200,7 @@ fun MyCardsEmptyState(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(185.dp)
                     .clipToBounds(),
                 contentAlignment = Alignment.Center
             ) {
@@ -211,16 +215,18 @@ fun MyCardsEmptyState(
                                 val rawX = (cardScrollProgress * totalWidth + (index * cardSpacingDp)) % totalWidth
                                 val xPos = rawX - (totalWidth / 2f)
 
-                                val yPos = (xPos * xPos) / 1250f
+                                val yPos = (xPos * xPos) / 1300f
                                 val rotationDeg = xPos * 0.082f
                                 val edgeFade = (1f - (abs(xPos) - 130f) / 100f).coerceIn(0f, 1f)
 
                                 translationX = xPos * density.density
                                 translationY = (yPos - 6f) * density.density
                                 rotationZ = rotationDeg
-                                alpha = if (abs(xPos) < 230f) edgeFade else 0f
+
+                                // Reduced card opacity
+                                alpha = if (abs(xPos) < 230f) (edgeFade * 0.5f) else 0f
                             }
-                            .size(91.53.dp, 122.04.dp)
+                            .size(90.dp, 120.dp)
                             .clip(CardShape)
                     ) {
                         Image(
@@ -233,9 +239,9 @@ fun MyCardsEmptyState(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // 2. Floating Text Box
+            // 2. Floating Dashed Text Box with Transformation Handles
             Box(
                 modifier = Modifier
                     .graphicsLayer {
@@ -247,9 +253,16 @@ fun MyCardsEmptyState(
             ) {
                 Box(
                     modifier = Modifier
-                        .background(Color.Transparent, TextBoxShape)
-                        .border(2.dp, Color(0xFF6750A4), TextBoxShape)
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                        .padding(8.dp)
+                        .drawBehind {
+                            val strokeWidth = 2.dp.toPx()
+                            val pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+                            drawRect(
+                                color = SelectionPurple,
+                                style = Stroke(width = strokeWidth, pathEffect = pathEffect)
+                            )
+                        }
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -257,69 +270,95 @@ fun MyCardsEmptyState(
                             text = "New Text",
                             style = JasnifyTheme.typography.bodyLarge.copy(
                                 fontWeight = FontWeight.Normal,
-                                fontFamily = FontStyleType.DEFAULT.fontFamily,
-                                fontSize = 18.sp
+                                fontFamily = FontStyleType.SERIF.fontFamily,
+                                fontSize = 19.sp
                             ),
                             color = ContentPrimary
                         )
                         Text(
                             text = "|",
                             style = JasnifyTheme.typography.bodyLarge.copy(
-                                fontWeight = FontWeight.Normal,
+                                fontWeight = FontWeight.Light,
                                 fontSize = 20.sp
                             ),
                             color = if (cursorBlink > 0.45f) ContentPrimary else Color.Transparent
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
                     }
                 }
 
+                // Four Corner Handles
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = 4.dp, y = 4.dp)
+                        .size(8.dp)
+                        .background(SelectionPurple)
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = (-4).dp, y = 4.dp)
+                        .size(8.dp)
+                        .background(SelectionPurple)
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .offset(x = 4.dp, y = (-4).dp)
+                        .size(8.dp)
+                        .background(SelectionPurple)
+                )
+
+                // Code Pill Badge
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .offset(x = 12.dp)
+                        .offset(x = 4.dp)
                         .size(width = 24.dp, height = 16.dp)
-                        .background(Color(0xFF6750A4), CodeBadgeShape),
+                        .background(SelectionPurple, RoundedCornerShape(100)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Code,
                         contentDescription = null,
                         tint = ContentInvPrimary,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(12.dp)
                     )
                 }
 
+                // Grab Hand Icon
                 Icon(
-                    painter = penPainter,
+                    painter = painterResource(id = R.drawable.ic_grab_hand),
                     contentDescription = null,
-                    tint = Color(0xFF6750A4),
+                    tint = Color.Unspecified,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .offset(x = 24.dp, y = 24.dp)
+                        .offset(x = 12.dp, y = 12.dp)
                         .size(24.dp)
+                        .rotate(-15f)
                 )
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
+            // 3. Horizontal Font Pills Marquee
             InfiniteHorizontalMarquee(
                 progress = fontScrollProgress,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 DisplayFontItems.forEach { (name, type) ->
                     Surface(
-                        color = Color(0x40FFFFFF),
+                        color = Color(0x20FFFFFF),
                         shape = FontPillShape,
                         border = FontPillBorder,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     ) {
                         Text(
                             text = name,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                             style = JasnifyTheme.typography.labelLarge.copy(
                                 fontFamily = type.fontFamily,
-                                fontSize = 13.sp
+                                fontSize = 14.sp
                             ),
                             color = ContentSecondary
                         )
@@ -327,37 +366,59 @@ fun MyCardsEmptyState(
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
+
+            // 4. Highlighted Multi-color Title
+            val annotatedTitle = buildAnnotatedString {
+                append("Choose a ")
+                withStyle(SpanStyle(color = Color(0xFFA65C2B), fontWeight = FontWeight.Medium)) {
+                    append("Theme")
+                }
+                append(", Explore\n")
+                withStyle(SpanStyle(color = Color(0xFF3B82F6), fontWeight = FontWeight.Medium)) {
+                    append("Fonts")
+                }
+                append(", and Tweak ")
+                withStyle(SpanStyle(color = Color(0xFF6B53B4), fontWeight = FontWeight.Medium)) {
+                    append("Texts")
+                }
+                append("\nhowever you like.")
+            }
+
+            val typography = JasnifyTheme.typography.displayMedium
 
             Text(
-                text = "Choose a theme, Explore\nfonts, and Tweak texts\nhowever you like.",
-                style = JasnifyTheme.typography.displayMedium.copy(
+                text = annotatedTitle,
+                style = typography.copy(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    lineHeight = 24.sp,
+                    lineHeight = typography.fontSize, // 100% line height
+                    color = ContentPrimary,
                 ),
-                color = ContentPrimary,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
+
             Spacer(modifier = Modifier.height(20.dp))
 
+            // 5. Button
             if (canEdit) {
                 CustomTextButton(
-                    text = "Start Editing",
                     onClick = onStartEditing,
-                    modifier = Modifier
-                        .width(149.dp)
-                        .height(56.dp),
+                    text = "Start Editing",
+                    leadingIcon = painterResource(R.drawable.ic_pen),
                     containerColor = ContentPrimary,
-                    contentColor = ContentInvPrimary,
-                    shapeStyle = ButtonShapeStyle.Round
+                    contentColor = ContentInvPrimary
                 )
             }
-            Spacer(modifier = Modifier.height(14.dp))
 
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // 6. Subtitle
             Text(
                 text = "Choose a template and create\ncards that match your vibe.",
-                style = JasnifyTheme.typography.labelMedium,
+                style = JasnifyTheme.typography.labelMedium.copy(
+                    lineHeight = 14.sp
+                ),
                 color = ContentTertiary,
                 textAlign = TextAlign.Center,
             )

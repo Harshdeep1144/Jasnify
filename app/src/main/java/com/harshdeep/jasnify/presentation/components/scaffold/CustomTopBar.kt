@@ -102,16 +102,12 @@ fun CustomTopBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (titleIcon != null) {
+                        Spacer(Modifier.width(8.dp))
                         Surface(
                             modifier = Modifier
-                                .size(48.dp)
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
-                                    shape = SquircleShape(CornerMedium, CornerSmoothingDefault)
-                                ),
+                                .size(40.dp),
                             shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
-                            color = buttonColor
+                            color = Color.Transparent
                         ) {
                             Box(
                                 contentAlignment = Alignment.Center,
@@ -120,12 +116,12 @@ fun CustomTopBar(
                                 Icon(
                                     painter = titleIcon,
                                     contentDescription = null,
-                                    tint = textColor,
-                                    modifier = Modifier.size(24.dp)
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.fillMaxSize()
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                     }
 
                     Column(
@@ -619,7 +615,7 @@ fun CustomTopBarVariantsPreview() {
         // 7. Left Aligned layout with dropdown active on subtitle
         CustomTopBar(
             title = "Checklist",
-            titleIcon = painterResource(R.drawable.ic_checklists),
+            titleIcon = painterResource(R.drawable.ic_google),
             isLeftAligned = true,
             isLargeTitle = true,
             secondaryIcon = TopIcon.Predefined.SEARCH,

@@ -17,9 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -30,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.graphicsLayer
@@ -59,6 +58,7 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.states.EmptyState
 import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.SurfacePrimary
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -95,6 +95,21 @@ fun VendorMainContent(
         }
     }
 
+    val dynamicVendorPlaceholders = remember(categories) {
+        if (categories.isNotEmpty()) {
+            categories.map { it.name.lowercase() }
+        } else {
+            listOf(
+                "photographers",
+                "makeup artists",
+                "mehendi artists",
+                "decorators",
+                "caterers",
+                "djs & music"
+            )
+        }
+    }
+
     val filteredAllVendors = remember(allVendors, searchQuery) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         val query = searchQuery.trim()
@@ -127,7 +142,7 @@ fun VendorMainContent(
         }
     }
 
-    val vendorTitlePainter = painterResource(R.drawable.ic_vendor)
+    val vendorTitlePainter = painterResource(R.drawable.ill_vendors)
 
     Scaffold(
         containerColor = BackgroundPrimary,
@@ -138,15 +153,6 @@ fun VendorMainContent(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Pinned status bar background overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .windowInsetsTopHeight(WindowInsets.statusBars)
-                    .background(BackgroundPrimary)
-                    .zIndex(100f)
-            )
-
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -196,7 +202,7 @@ fun VendorMainContent(
                 stickyHeader(key = "search_header", contentType = "sticky_search") {
                     Column(
                         modifier = Modifier
-                            .background(BackgroundPrimary)
+                            .background(SurfacePrimary)
                             .fillMaxWidth()
                             .zIndex(10f)
                             .padding(bottom = 4.dp)
@@ -206,7 +212,9 @@ fun VendorMainContent(
                             value = searchQuery,
                             onValueChange = onSearchQueryChange,
                             onActiveChange = onSearchActiveChange,
-                            placeholder = "Search Vendors",
+                            placeholderPrefix = "Search for ",
+                            dynamicPlaceholders = dynamicVendorPlaceholders,
+                            cycleIntervalMs = 2800L,
                             isAiSearch = true,
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )

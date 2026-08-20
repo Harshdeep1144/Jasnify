@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -83,6 +84,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -209,7 +211,6 @@ fun VendorsTab(
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
     val categories = vendorCategories
-    val allSampleVendors = MockData.sampleVendors
 
     val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
         val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }

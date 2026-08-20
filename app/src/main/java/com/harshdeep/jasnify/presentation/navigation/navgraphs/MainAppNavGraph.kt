@@ -241,25 +241,11 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
 
         // AI Chat
         composable(
-            route = Screen.AiChatScreen.route,
-            arguments = listOf(
-                androidx.navigation.navArgument("initialContext") {
-                    type = androidx.navigation.NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
-            )
+            route = Screen.AiChatScreen.route
         ) { entry ->
             val initialContext = entry.arguments?.getString("initialContext")
             AiChatScreen(
-                initialContext = initialContext,
                 onBackClick = { mainNavController.popBackStack() },
-                onVenueClick = { venue ->
-                    mainNavController.navigate("venue_detail_screen/${venue.id}")
-                },
-                onVendorClick = { vendor ->
-                    mainNavController.navigate("vendor_detail_screen/${vendor.id}")
-                }
             )
         }
 
@@ -297,10 +283,6 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
-                onAskAiClick = { context ->
-                    val encodedContext = Uri.encode(context)
-                    mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
-                },
                 eventViewModel = eventViewModel
             )
         }
@@ -315,10 +297,6 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                },
-                onAiChatClick = { context ->
-                    val encodedContext = Uri.encode(context)
-                    mainNavController.navigate("ai_chat_screen?initialContext=$encodedContext")
                 },
                 eventViewModel = eventViewModel
             )

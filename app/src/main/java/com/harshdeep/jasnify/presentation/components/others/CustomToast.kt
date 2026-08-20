@@ -46,6 +46,7 @@ fun CustomToast(
     message: String,
     type: ToastType,
     leadingIcon: Painter? = null,
+    iconColor: Color = ContentInvPrimary,
     buttonText: String? = null,
     onButtonClick: (() -> Unit)? = null
 ) {
@@ -78,7 +79,7 @@ fun CustomToast(
                 painter = leadingIcon,
                 contentDescription = type.name,
                 modifier = iconModifier,
-                tint = Color.Unspecified
+                tint = iconColor
             )
         } else {
             val defaultIcon = when (type) {
@@ -89,7 +90,7 @@ fun CustomToast(
             Icon(
                 painter = defaultIcon,
                 contentDescription = type.name,
-                tint = contentColor,
+                tint = iconColor,
                 modifier = iconModifier
             )
         }

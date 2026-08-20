@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.components.cards
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -74,7 +73,7 @@ fun BudgetSummaryCard(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(NotSetCardShape)
-                .background(SurfaceSecondary)
+                .background(Color.White.copy(alpha = 0.5f))
                 .drawBehind {
                     val stroke = Stroke(
                         width = 2.dp.toPx(),
@@ -139,18 +138,14 @@ fun BudgetSummaryCard(
             modifier = modifier
                 .fillMaxWidth()
                 .clip(BudgetSetCardShape)
-                .background(SurfaceBrandSecondary)
-                .border(
-                    1.dp,
-                    MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                    BudgetSetCardShape
-                )
+                .background(Color.White.copy(alpha = 0.5f))
         ) {
             Image(
                 painter = painterResource(R.drawable.bg_budget_pattern),
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
+                alpha = 0.5f
             )
 
             Column(

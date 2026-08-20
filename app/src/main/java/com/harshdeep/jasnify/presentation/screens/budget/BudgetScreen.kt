@@ -68,6 +68,7 @@ import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -86,7 +87,8 @@ enum class BudgetScreenView {
     EXPENSE_SUMMARY,
     EXPENSE_CATEGORY,
     CATEGORY_DETAIL,
-    MANAGE_ROOM_ACCESS
+    MANAGE_ROOM_ACCESS,
+    AI_CHAT
 }
 
 private val DefaultCategoryList = listOf(
@@ -136,13 +138,13 @@ private fun parseExpenseAmount(amountStr: String): Double {
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
-    onAiChatClick: (String) -> Unit = {},
     viewModel: BudgetViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
+    var aiChatContext by remember { mutableStateOf("") }
 
     val expensesEntities by viewModel.expenses.collectAsStateWithLifecycle()
     val budgetEntity by viewModel.budgetSettings.collectAsStateWithLifecycle()
@@ -222,6 +224,7 @@ fun BudgetScreen(
             BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
             BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
             BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
+            BudgetScreenView.AI_CHAT -> BudgetScreenView.EXPENSE_SUMMARY
             BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
         }
     }
@@ -474,6 +477,7 @@ fun BudgetScreen(
                                     isSearchBarFocused = isSearchBarFocused,
                                     onSearchBarFocusChange = { isSearchBarFocused = it }
                                 )
+
                                 BudgetScreenView.EXPENSE_SUMMARY -> ExpenseSummaryContent(
                                     pieSlices = pieSlices,
                                     centerTextPrimaryValue = centerTextPrimaryValue,
@@ -493,7 +497,7 @@ fun BudgetScreen(
                                         showAddExpenseSheet = true
                                     },
                                     onAiOverviewClick = {
-                                        val context = """
+                                        aiChatContext = """
                                             Budget Summary for ${activeEvent?.name ?: "Event"}:
                                             Total Budget: ₹$formattedTotalBudget
                                             Total Spent: $formattedTotalSpent
@@ -505,10 +509,11 @@ fun BudgetScreen(
                                             Recent Expenses:
                                             ${allExpenses.take(10).joinToString("\n") { "- ${it.title}: ${it.amount} (${it.category})" }}
                                         """.trimIndent()
-                                        onAiChatClick(context)
+                                        currentView = BudgetScreenView.AI_CHAT
                                     },
                                     formatAmount = { formatter.format(it.toLong()) }
                                 )
+
                                 BudgetScreenView.EXPENSE_CATEGORY -> ExpenseCategoryContent(
                                     categorySearchQuery = categorySearchQuery,
                                     onCategorySearchQueryChange = { categorySearchQuery = it },
@@ -529,6 +534,7 @@ fun BudgetScreen(
                                         showAddCustomCategorySheet = true
                                     }
                                 )
+
                                 BudgetScreenView.CATEGORY_DETAIL -> {
                                     val catName = selectedCategoryForDetails ?: "Category"
                                     val catExpenses = allExpenses.filter { it.category == catName }
@@ -565,6 +571,7 @@ fun BudgetScreen(
                                         }
                                     )
                                 }
+
                                 BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetRoomContent(
                                     eventId = activeEventId.orEmpty(),
                                     roomUsers = roomUsers,
@@ -581,6 +588,17 @@ fun BudgetScreen(
                                     onLeaveClick = { showLeaveConfirmation = true },
                                     onToastShow = { toastData = it }
                                 )
+
+                                BudgetScreenView.AI_CHAT -> {
+                                    AiChatScreen(
+                                        eventId = activeEvent?.id,
+                                        initialContext = aiChatContext,
+                                        onBackClick = {
+                                            currentView = BudgetScreenView.EXPENSE_SUMMARY
+                                            focusManager.clearFocus()
+                                        }
+                                    )
+                                }
                             }
                         }
                     }

@@ -63,28 +63,34 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.Font
@@ -101,6 +107,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -117,8 +124,8 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.carousels.HighlightedVendors
 import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.ChipSize
@@ -139,6 +146,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -163,18 +171,6 @@ import kotlin.time.Duration.Companion.milliseconds
 private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
 private val DEFAULT_TYPES = listOf("Starters", "Beverages", "Main Course", "Desserts")
 
-private val TopHeaderGradientBrush = Brush.verticalGradient(
-    0.0f to Color(0xFFCCE3CB),
-    0.75f to Color(0xFFE1EFE0),
-    1.0f to BackgroundPrimary
-)
-
-private val StickyHeaderSolidBrush = Brush.verticalGradient(
-    0.0f to Color(0xFFD8EBD7),
-    0.45f to Color(0xFFE3F0E2),
-    1.0f to Color(0xFFF0F7EF)
-)
-
 private val CardTranslucentGradientBrush = Brush.verticalGradient(
     colors = listOf(
         Color.White.copy(alpha = 0.5f),
@@ -196,27 +192,35 @@ data class MenuItem(
 
 enum class CateringMenuView {
     MENU,
-    MANAGE_ROOM_ACCESS
+    MANAGE_ROOM_ACCESS,
+    AI_CHAT
 }
 
+@Composable
 fun Modifier.detectCombinedClicks(
-    key: Any,
     onTap: () -> Unit,
     onLongPress: () -> Unit
-): Modifier = this.pointerInput(key) {
-    awaitEachGesture {
-        val down = awaitFirstDown(pass = PointerEventPass.Initial)
-        val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+): Modifier {
+    val haptic = LocalHapticFeedback.current
+    val currentOnTap by rememberUpdatedState(onTap)
+    val currentOnLongPress by rememberUpdatedState(onLongPress)
 
-        try {
-            withTimeout(longPressTimeout) {
-                val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
-                if (up != null) {
-                    onTap()
+    return this.pointerInput(Unit) {
+        awaitEachGesture {
+            val down = awaitFirstDown(pass = PointerEventPass.Initial)
+            val longPressTimeout = viewConfiguration.longPressTimeoutMillis
+
+            try {
+                withTimeout(longPressTimeout) {
+                    val up = waitForUpOrCancellation(pass = PointerEventPass.Initial)
+                    if (up != null) {
+                        currentOnTap()
+                    }
                 }
+            } catch (_: PointerEventTimeoutCancellationException) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                currentOnLongPress()
             }
-        } catch (_: PointerEventTimeoutCancellationException) {
-            onLongPress()
         }
     }
 }
@@ -309,7 +313,6 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
-    onAskAiClick: (String) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel()
@@ -317,6 +320,7 @@ fun CateringMenuScreen(
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
     val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
@@ -407,6 +411,7 @@ fun CateringMenuScreen(
     }
 
     var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
+    var aiChatContext by remember { mutableStateOf("") }
 
     BackHandler(enabled = currentView != CateringMenuView.MENU) {
         currentView = CateringMenuView.MENU
@@ -415,9 +420,22 @@ fun CateringMenuScreen(
     var selectedFilterTab by remember { mutableStateOf("All Items") }
 
     var toastData by remember { mutableStateOf(ToastData()) }
-    LaunchedEffect(toastData.message) {
+    var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+
+    LaunchedEffect(toastData) {
         if (toastData.message != null) {
-            delay(2000L.milliseconds)
+            when {
+                toastData.message == "Please type or search a dish!" -> {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+                toastData.type == ToastType.ERROR -> {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
+            activeToastData = toastData
+            delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
@@ -434,6 +452,12 @@ fun CateringMenuScreen(
     var showAddItemSheet by remember { mutableStateOf(false) }
     var showSuccessSheet by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
+
+    LaunchedEffect(showSuccessSheet) {
+        if (showSuccessSheet) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
 
     var editingItem by remember { mutableStateOf<MenuItem?>(null) }
 
@@ -458,19 +482,60 @@ fun CateringMenuScreen(
 
     val topBarMaxScrollPx = remember(density) { with(density) { 56.dp.toPx() } }
 
-    val isAnyBottomSheetOpen = showDetailsBottomSheet ||
-            showDeleteConfirmationSheet ||
-            showCuisineBottomSheet ||
-            showTypeBottomSheet ||
-            showAddItemSheet ||
-            showSuccessSheet ||
-            showAddCuisineBottomSheet ||
-            showAddTypeBottomSheet ||
-            showMenuBottomSheet ||
-            showRoomMenuBottomSheet ||
-            showRoomAccessBottomSheet ||
-            userToRemove != null ||
-            showLeaveConfirmation
+    val isAnyBottomSheetOpen by remember {
+        derivedStateOf {
+            showDetailsBottomSheet ||
+                    showDeleteConfirmationSheet ||
+                    showCuisineBottomSheet ||
+                    showTypeBottomSheet ||
+                    showAddItemSheet ||
+                    showSuccessSheet ||
+                    showAddCuisineBottomSheet ||
+                    showAddTypeBottomSheet ||
+                    showMenuBottomSheet ||
+                    showRoomMenuBottomSheet ||
+                    showRoomAccessBottomSheet ||
+                    userToRemove != null ||
+                    showLeaveConfirmation
+        }
+    }
+
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember(mainListState, isAnyBottomSheetOpen, isSelectionMode, isSearchActive) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (isAnyBottomSheetOpen || isSelectionMode || isSearchActive) return Offset.Zero
+
+                val delta = available.y
+                val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
+
+                if (!canScroll) {
+                    isBottomBarVisible = true
+                    return Offset.Zero
+                }
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    isBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
 
     val targetScale = if (isAnyBottomSheetOpen) {
         0.92f + (0.08f * sheetMotionProgress)
@@ -573,28 +638,11 @@ fun CateringMenuScreen(
                                         detectTapGestures(onTap = { focusManager.clearFocus() })
                                     }
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(250.dp)
-                                        .graphicsLayer {
-                                            val progress = if (isSearchActive) {
-                                                0f
-                                            } else if (mainListState.firstVisibleItemIndex > 0) {
-                                                1f
-                                            } else {
-                                                (mainListState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
-                                            }
-                                            translationY = -progress * topBarMaxScrollPx
-                                        }
-                                        .background(brush = TopHeaderGradientBrush)
-                                        .zIndex(0f)
-                                )
-
                                 LazyColumn(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .statusBarsPadding(),
+                                        .statusBarsPadding()
+                                        .nestedScroll(nestedScrollConnection),
                                     state = mainListState,
                                 ) {
                                     item(key = "top_bar", contentType = "top_bar") {
@@ -659,11 +707,16 @@ fun CateringMenuScreen(
                                                     },
                                                     onMenuClick = {
                                                         focusManager.clearFocus()
-                                                        showMenuBottomSheet = true
+                                                        if (isSelectionMode) {
+                                                            selectedItemIds = emptySet()
+                                                            isMultiSelectActive = false
+                                                        } else {
+                                                            showMenuBottomSheet = true
+                                                        }
                                                     },
-                                                    menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                                                    menuIcon = if (isSelectionMode) TopIcon.Predefined.CLOSE else TopIcon.Predefined.MENU_VERTICAL,
                                                     isLargeTitle = true,
-                                                    buttonStyle = ButtonBackground.TRANSLUCENT
+                                                    buttonStyle = ButtonBackground.OPAQUE
                                                 )
                                             }
                                         }
@@ -673,36 +726,12 @@ fun CateringMenuScreen(
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .drawBehind {
-                                                    val alpha = if (isSearchActive) {
-                                                        1f
-                                                    } else if (mainListState.firstVisibleItemIndex > 0) {
-                                                        1f
-                                                    } else {
-                                                        (mainListState.firstVisibleItemScrollOffset / topBarMaxScrollPx).coerceIn(0f, 1f)
-                                                    }
-                                                    if (alpha > 0f) {
-                                                        drawRect(
-                                                            brush = if (alpha >= 1f) {
-                                                                StickyHeaderSolidBrush
-                                                            } else {
-                                                                Brush.verticalGradient(
-                                                                    0.0f to Color(0xFFD8EBD7).copy(alpha = alpha),
-                                                                    0.45f to Color(0xFFE3F0E2).copy(alpha = alpha),
-                                                                    1.0f to Color(0xFFF0F7EF).copy(alpha = alpha)
-                                                                )
-                                                            }
-                                                        )
-                                                    }
-                                                }
-                                                .zIndex(10f)
+                                                .background(SurfacePrimary)
                                         ) {
-                                            Spacer(Modifier.height(8.dp))
-
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(horizontal = 12.dp, vertical = 4.dp),
+                                                    .padding(start = 12.dp, top = 8.dp, end = 12.dp, bottom = 12.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
@@ -718,8 +747,7 @@ fun CateringMenuScreen(
                                                         }
                                                     },
                                                     placeholder = "Search Menu",
-                                                    modifier = Modifier.weight(1f),
-                                                    isTranslucent = true
+                                                    modifier = Modifier.weight(1f)
                                                 )
 
                                                 AnimatedVisibility(
@@ -733,22 +761,21 @@ fun CateringMenuScreen(
                                                         animationSpec = tween(150)
                                                     )
                                                 ) {
-                                                    TopBarIconButton(
+                                                    CustomIconButton(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             showDeleteConfirmationSheet = true
                                                         },
-                                                        icon = TopIcon.CustomPainter(painterResource(R.drawable.ic_delete)),
-                                                        borderColor = Color(0xFFB5CEB2),
-                                                        backgroundStyle = ButtonBackground.TRANSLUCENT,
-                                                        size = 56.dp,
-                                                        iconSize = 24.dp
+                                                        icon = painterResource(R.drawable.ic_delete),
+                                                        containerColor = MaterialTheme.colorScheme.error,
+                                                        contentColor = SurfacePrimary,
+                                                        modifier = Modifier.width(84.dp)
                                                     )
                                                 }
                                             }
 
                                             LazyRow(
-                                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                                contentPadding = PaddingValues(start = 12.dp, top = 0.dp, end = 12.dp, bottom = 8.dp),
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
@@ -763,8 +790,7 @@ fun CateringMenuScreen(
                                                             selectedFilterTab = "All Items"
                                                             selectedCuisines = emptySet()
                                                             selectedTypes = emptySet()
-                                                        },
-                                                        isTransparent = true
+                                                        }
                                                     )
                                                 }
                                                 item(key = "veg_chip", contentType = "chip") {
@@ -775,8 +801,7 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             selectedFilterTab = "Veg"
-                                                        },
-                                                        isTransparent = true
+                                                        }
                                                     )
                                                 }
                                                 item(key = "non_veg_chip", contentType = "chip") {
@@ -787,8 +812,7 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             selectedFilterTab = "Non-Veg"
-                                                        },
-                                                        isTransparent = true
+                                                        }
                                                     )
                                                 }
                                                 item(key = "cuisine_chip", contentType = "chip") {
@@ -807,8 +831,7 @@ fun CateringMenuScreen(
                                                         onClick = {
                                                             focusManager.clearFocus()
                                                             showCuisineBottomSheet = true
-                                                        },
-                                                        isTransparent = true
+                                                        }
                                                     )
                                                 }
                                                 item(key = "type_chip", contentType = "chip") {
@@ -828,7 +851,6 @@ fun CateringMenuScreen(
                                                             focusManager.clearFocus()
                                                             showTypeBottomSheet = true
                                                         },
-                                                        isTransparent = true
                                                     )
                                                 }
                                             }
@@ -875,7 +897,15 @@ fun CateringMenuScreen(
                                         item(key = "spacer_top", contentType = "spacer") {
                                             Spacer(Modifier.height(12.dp))
                                         }
-                                        categorizedItems.forEach { (category, items) ->
+
+                                        val categoryList = categorizedItems.entries.toList()
+                                        val highlightInsertIndex = if (categoryList.size <= 1) {
+                                            0
+                                        } else {
+                                            (categoryList.size - 1) / 2
+                                        }
+
+                                        categoryList.forEachIndexed { index, (category, items) ->
                                             item(key = "category_$category", contentType = "category_card") {
                                                 MenuCategoryCard(
                                                     categoryTitle = category,
@@ -907,6 +937,29 @@ fun CateringMenuScreen(
                                                 )
                                                 Spacer(Modifier.height(12.dp))
                                             }
+
+                                            if (index == highlightInsertIndex && !isSelectionMode && !isSearchActive) {
+                                                item(key = "highlighted_top_vendors", contentType = "carousel") {
+                                                    HighlightedVendors(
+                                                        title = "Top Vendors",
+                                                        subtitle = "Curated for you",
+                                                        vendors = MockData.sampleFood,
+                                                        headerImage = painterResource(id = R.drawable.ill_vendor_food_serve),
+                                                        buttonText = "View all",
+                                                        buttonTrailingIcon = painterResource(id = R.drawable.ic_arrow_right),
+                                                        onButtonClick = {
+                                                            focusManager.clearFocus()
+                                                        },
+                                                        onVendorClick = { vendor ->
+                                                            focusManager.clearFocus()
+                                                        },
+                                                        onFavoriteToggle = { vendor -> },
+                                                        onOfferClick = { vendor -> },
+                                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                                    )
+                                                    Spacer(Modifier.height(12.dp))
+                                                }
+                                            }
                                         }
 
                                         item(key = "footer", contentType = "footer") {
@@ -915,73 +968,87 @@ fun CateringMenuScreen(
                                     }
                                 }
 
-                                Box(
+                                AnimatedVisibility(
+                                    visible = !isSearchActive && !isSelectionMode && isBottomBarVisible,
+                                    enter = slideInVertically(
+                                        initialOffsetY = { it },
+                                        animationSpec = tween(durationMillis = 260)
+                                    ) + fadeIn(animationSpec = tween(durationMillis = 260)),
+                                    exit = slideOutVertically(
+                                        targetOffsetY = { it },
+                                        animationSpec = tween(durationMillis = 260)
+                                    ) + fadeOut(animationSpec = tween(durationMillis = 260)),
                                     modifier = Modifier
-                                        .fillMaxWidth()
                                         .align(Alignment.BottomCenter)
-                                        .background(brush = BottomGradientBrush)
-                                        .navigationBarsPadding()
-                                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                                        .zIndex(10f)
                                 ) {
-                                    Surface(
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .height(62.dp)
-                                            .pill360Shadow(
-                                                ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                ambientBlur = 12.dp,
-                                                ambientSpread = 2.dp,
-                                                spotColor = Color.Black.copy(alpha = 0.15f),
-                                                spotBlur = 18.dp,
-                                                spotOffsetY = 4.dp
-                                            ),
-                                        color = SurfacePrimary,
-                                        shape = CircleShape
+                                            .background(brush = BottomGradientBrush)
+                                            .navigationBarsPadding()
+                                            .padding(horizontal = 12.dp, vertical = 12.dp)
                                     ) {
-                                        Row(
+                                        Surface(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .padding(4.dp),
-                                            verticalAlignment = Alignment.CenterVertically
+                                                .height(62.dp)
+                                                .pill360Shadow(
+                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                    ambientBlur = 12.dp,
+                                                    ambientSpread = 2.dp,
+                                                    spotColor = Color.Black.copy(alpha = 0.15f),
+                                                    spotBlur = 18.dp,
+                                                    spotOffsetY = 4.dp
+                                                ),
+                                            color = SurfacePrimary,
+                                            shape = CircleShape
                                         ) {
-                                            CustomTextButton(
-                                                onClick = {
-                                                    focusManager.clearFocus()
-                                                    val context = """
-                                                        Catering Menu for ${activeEvent?.name ?: "Event"}:
-                                                        Total Items: ${allMenuItems.size}
-                                                        
-                                                        Menu items:
-                                                        ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
-                                                    """.trimIndent()
-                                                    onAskAiClick(context)
-                                                },
-                                                text = "Ask AI",
-                                                type = ButtonType.Secondary,
-                                                shapeStyle = ButtonShapeStyle.Round,
-                                                leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                                modifier = if (isViewer) Modifier.weight(1f) else Modifier
-                                            )
-
-                                            if (!isViewer) {
-                                                Spacer(Modifier.width(4.dp))
-
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(4.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
                                                 CustomTextButton(
                                                     onClick = {
                                                         focusManager.clearFocus()
-                                                        editingItem = null
-                                                        newItemName = ""
-                                                        newItemCuisine = "Indian"
-                                                        newItemType = "Starters"
-                                                        newItemDietary = Dietary.Veg
-                                                        showAddItemSheet = true
+                                                        aiChatContext = """
+                                                            Catering Menu for ${activeEvent?.name ?: "Event"}:
+                                                            Total Items: ${allMenuItems.size}
+                                                            
+                                                            Menu items:
+                                                            ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
+                                                        """.trimIndent()
+                                                        currentView = CateringMenuView.AI_CHAT
                                                     },
-                                                    text = "Add an Item",
-                                                    type = ButtonType.Primary,
+                                                    text = "Ask AI",
+                                                    type = ButtonType.Secondary,
                                                     shapeStyle = ButtonShapeStyle.Round,
-                                                    leadingIcon = painterResource(R.drawable.ic_plus),
-                                                    modifier = Modifier.weight(1f)
+                                                    leadingIcon = painterResource(id = R.drawable.ic_ai),
+                                                    modifier = if (isViewer) Modifier.weight(1f) else Modifier
                                                 )
+
+                                                if (!isViewer) {
+                                                    Spacer(Modifier.width(4.dp))
+
+                                                    CustomTextButton(
+                                                        onClick = {
+                                                            focusManager.clearFocus()
+                                                            editingItem = null
+                                                            newItemName = ""
+                                                            newItemCuisine = "Indian"
+                                                            newItemType = "Starters"
+                                                            newItemDietary = Dietary.Veg
+                                                            showAddItemSheet = true
+                                                        },
+                                                        text = "Add an Item",
+                                                        type = ButtonType.Primary,
+                                                        shapeStyle = ButtonShapeStyle.Round,
+                                                        leadingIcon = painterResource(R.drawable.ic_plus),
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -1013,12 +1080,23 @@ fun CateringMenuScreen(
                                 )
                             }
                         }
+
+                        CateringMenuView.AI_CHAT -> {
+                            AiChatScreen(
+                                eventId = activeEvent?.id,
+                                initialContext = aiChatContext,
+                                onBackClick = {
+                                    currentView = CateringMenuView.MENU
+                                    focusManager.clearFocus()
+                                }
+                            )
+                        }
                     }
                 }
             }
 
             AnimatedVisibility(
-                visible = toastData.message != null && !showAddItemSheet && !showDetailsBottomSheet && !showDeleteConfirmationSheet && !showMenuBottomSheet && !showRoomMenuBottomSheet && userToRemove == null,
+                visible = toastData.message != null && !isAnyBottomSheetOpen,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
                 modifier = Modifier
@@ -1028,10 +1106,12 @@ fun CateringMenuScreen(
                     .zIndex(99f)
                     .padding(horizontal = 12.dp, vertical = 16.dp)
             ) {
-                CustomToast(
-                    message = toastData.message.orEmpty(),
-                    type = toastData.type
-                )
+                activeToastData?.let { data ->
+                    CustomToast(
+                        message = data.message.orEmpty(),
+                        type = data.type
+                    )
+                }
             }
         }
     }
@@ -1107,11 +1187,11 @@ fun CateringMenuScreen(
                     selectedItemIds.forEach { id -> cateringViewModel.deleteItem(id) }
                     selectedItemIds = emptySet()
                     isMultiSelectActive = false
-                    toastData = ToastData("$removedCount item${if (removedCount > 1) "s" else ""} removed from menu", ToastType.SUCCESS)
+                    toastData = ToastData("$removedCount item${if (removedCount > 1) "s" else ""} removed from menu", ToastType.ERROR)
                 } else {
                     itemToDelete?.let { cateringViewModel.deleteItem(it.id) }
                     itemToDelete = null
-                    toastData = ToastData("Item removed from menu", ToastType.SUCCESS)
+                    toastData = ToastData("Item removed from menu", ToastType.ERROR)
                 }
                 showDeleteConfirmationSheet = false
             }
@@ -1162,7 +1242,25 @@ fun CateringMenuScreen(
             onProgress = { sheetMotionProgress = it },
             sheetHeight = null,
             showDragHandle = false,
-            showCloseButton = true
+            showCloseButton = true,
+            hasToast = toastData.message != null,
+            toast = {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                ) {
+                    activeToastData?.let { data ->
+                        CustomToast(
+                            message = data.message.orEmpty(),
+                            type = data.type
+                        )
+                    }
+                }
+            }
         ) {
             val view = LocalView.current
             DisposableEffect(view) {
@@ -1190,87 +1288,67 @@ fun CateringMenuScreen(
                 onDispose {}
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                AnimatedVisibility(
-                    visible = toastData.message != null,
-                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 16.dp)
-                        .zIndex(998f)
-                ) {
-                    CustomToast(
-                        message = toastData.message.orEmpty(),
-                        type = toastData.type
-                    )
-                }
-
-                AddItemSheetContent(
-                    itemName = newItemName,
-                    onItemNameChange = { newItemName = it },
-                    cuisine = newItemCuisine,
-                    onCuisineClick = {
-                        focusManager.clearFocus()
-                        showAddCuisineBottomSheet = true
-                    },
-                    type = newItemType,
-                    onTypeClick = {
-                        focusManager.clearFocus()
-                        showAddTypeBottomSheet = true
-                    },
-                    dietary = newItemDietary,
-                    onDietaryChange = {
-                        focusManager.clearFocus()
-                        newItemDietary = it
-                    },
-                    isEditMode = editingItem != null,
-                    onSubmitClick = {
-                        focusManager.clearFocus()
-                        if (newItemName.isNotBlank()) {
-                            successMessage = if (editingItem != null) {
-                                "Item has been updated"
-                            } else {
-                                "Item added to menu"
-                            }
-
-                            if (editingItem != null) {
-                                cateringViewModel.updateItem(
-                                    id = editingItem!!.id,
-                                    name = newItemName,
-                                    dietary = newItemDietary,
-                                    type = newItemType,
-                                    cuisine = newItemCuisine
-                                )
-                            } else {
-                                cateringViewModel.addItem(
-                                    name = newItemName,
-                                    dietary = newItemDietary,
-                                    type = newItemType,
-                                    cuisine = newItemCuisine
-                                )
-                            }
-
-                            showAddItemSheet = false
-                            showSuccessSheet = true
-
-                            newItemName = ""
-                            newItemCuisine = "Indian"
-                            newItemType = "Starters"
-                            newItemDietary = Dietary.Veg
-                            editingItem = null
+            AddItemSheetContent(
+                itemName = newItemName,
+                onItemNameChange = { newItemName = it },
+                cuisine = newItemCuisine,
+                onCuisineClick = {
+                    focusManager.clearFocus()
+                    showAddCuisineBottomSheet = true
+                },
+                type = newItemType,
+                onTypeClick = {
+                    focusManager.clearFocus()
+                    showAddTypeBottomSheet = true
+                },
+                dietary = newItemDietary,
+                onDietaryChange = {
+                    focusManager.clearFocus()
+                    newItemDietary = it
+                },
+                isEditMode = editingItem != null,
+                onSubmitClick = {
+                    focusManager.clearFocus()
+                    if (newItemName.isNotBlank()) {
+                        successMessage = if (editingItem != null) {
+                            "Item has been updated"
                         } else {
-                            toastData = ToastData(
-                                message = "Please type or search a dish!",
-                                type = ToastType.ERROR
+                            "Item added to menu"
+                        }
+
+                        if (editingItem != null) {
+                            cateringViewModel.updateItem(
+                                id = editingItem!!.id,
+                                name = newItemName,
+                                dietary = newItemDietary,
+                                type = newItemType,
+                                cuisine = newItemCuisine
+                            )
+                        } else {
+                            cateringViewModel.addItem(
+                                name = newItemName,
+                                dietary = newItemDietary,
+                                type = newItemType,
+                                cuisine = newItemCuisine
                             )
                         }
+
+                        showAddItemSheet = false
+                        showSuccessSheet = true
+
+                        newItemName = ""
+                        newItemCuisine = "Indian"
+                        newItemType = "Starters"
+                        newItemDietary = Dietary.Veg
+                        editingItem = null
+                    } else {
+                        toastData = ToastData(
+                            message = "Please type or search a dish!",
+                            type = ToastType.ERROR
+                        )
                     }
-                )
-            }
+                }
+            )
         }
     }
 
@@ -1324,7 +1402,7 @@ fun CateringMenuScreen(
     }
 
     if (showMenuBottomSheet) {
-        val plusPainter = painterResource(R.drawable.ic_plus)
+        val plusPainter = painterResource(R.drawable.ic_add_circle)
         val checkPainter = painterResource(R.drawable.ic_multi_select)
         val userDefaultPainter = painterResource(R.drawable.ic_user_default)
 
@@ -1345,6 +1423,7 @@ fun CateringMenuScreen(
                             text = "Multi Select",
                             icon = checkPainter,
                             onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                 showMenuBottomSheet = false
                                 isMultiSelectActive = true
                             },
@@ -1458,6 +1537,7 @@ fun CateringMenuScreen(
     }
 }
 
+
 @Composable
 fun MenuCategoryCard(
     categoryTitle: String,
@@ -1549,7 +1629,6 @@ fun MenuCategoryCard(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .detectCombinedClicks(
-                                            key = item.id,
                                             onTap = {
                                                 focusManager.clearFocus()
                                                 onItemClick(item)
@@ -1685,8 +1764,8 @@ fun ItemDetailsSheetContent(
                         onDeleteClick()
                     },
                     icon = painterResource(R.drawable.ic_delete),
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = ContentInvPrimary,
+                    containerColor = SurfacePrimary,
+                    contentColor = MaterialTheme.colorScheme.error,
                     modifier = Modifier.width(84.dp)
                 )
 
