@@ -483,8 +483,7 @@ fun VendorsTab(
                                         showOfferSheet = true
                                     },
                                     listState = categoryListState,
-                                    gridState = categorySavedGridState,
-                                    isBottomBarVisible = isBottomBarVisible
+                                    gridState = categorySavedGridState
                                 )
                             }
                         }

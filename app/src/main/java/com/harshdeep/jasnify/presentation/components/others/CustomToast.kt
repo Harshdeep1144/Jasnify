@@ -46,7 +46,7 @@ fun CustomToast(
     message: String,
     type: ToastType,
     leadingIcon: Painter? = null,
-    iconColor: Color = ContentInvPrimary,
+    iconColor: Color = Color.Unspecified,
     buttonText: String? = null,
     onButtonClick: (() -> Unit)? = null
 ) {

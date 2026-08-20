@@ -44,7 +44,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -64,6 +67,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,6 +75,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,6 +94,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -106,19 +112,26 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.model.Offer
+import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -145,9 +158,15 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorCategoryDetailContent
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -198,7 +217,11 @@ data class MenuItem(
 enum class CateringMenuView {
     MENU,
     MANAGE_ROOM_ACCESS,
-    AI_CHAT
+    AI_CHAT,
+    VENDOR_CATEGORY_DETAIL,
+    VENDOR_DETAIL,
+    LOCATION_SELECTOR,
+    TIMELINE_DETAIL
 }
 
 @Composable
@@ -314,14 +337,17 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
+    navController: NavHostController? = null,
+    onChatClick: (Vendor) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    roomViewModel: RoomViewModel = hiltViewModel()
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
@@ -329,12 +355,41 @@ fun CateringMenuScreen(
     val haptic = LocalHapticFeedback.current
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
-    val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
+    val isCateringLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+
+    val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
+    val allVendorsFromRepo by vendorViewModel.allVendors.collectAsStateWithLifecycle()
+    val isVendorsLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
+
+    val vendorSavedDestinations = remember(savedVendorsFromCloud) {
+        savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
+    }
+
+    val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
+        val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
+        base.map { vendor ->
+            vendor.copy(favorite = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}"))
+        }
+    }
+
+    val foodCategoryItem = remember {
+        vendorCategories.find {
+            it.name.contains("Food", ignoreCase = true) || it.name.contains("Catering", ignoreCase = true)
+        } ?: vendorCategories.first()
+    }
+
+    val foodCategoryVendors = remember(exploreVendors, foodCategoryItem.name) {
+        exploreVendors.filter { it.category == foodCategoryItem.name }
+    }
+
+    val foodCategorySavedVendors = remember(savedVendorsFromCloud, foodCategoryItem.name) {
+        savedVendorsFromCloud.filter { it.category == foodCategoryItem.name }
+    }
 
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
@@ -372,6 +427,7 @@ fun CateringMenuScreen(
         val id = activeEventId
         if (id != null) {
             cateringViewModel.setEventId(id)
+            vendorViewModel.setEventId(id)
             roomViewModel.verifyAccess(id, "Catering", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Catering")
         } else {
@@ -386,47 +442,58 @@ fun CateringMenuScreen(
         }
     }
 
+    var selectedCity by remember { mutableStateOf("City, State") }
+
+    val timelineEvents by remember(activeEvent) {
+        derivedStateOf {
+            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+            activeEvent?.subEvents?.map { subEvent ->
+                val formattedDate = subEvent.date?.let { timestamp ->
+                    sdf.format(Date(timestamp))
+                } ?: "Date TBD"
+
+                TimelineEvent(
+                    id = subEvent.id,
+                    date = formattedDate,
+                    event = subEvent.name,
+                    venues = emptyList()
+                )
+            } ?: emptyList()
+        }
+    }
+
     var searchText by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
-
     var isMultiSelectActive by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
 
-    val mainListState = rememberLazyListState()
+    val mainListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val categoryListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val categorySavedGridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
 
-    LaunchedEffect(isSearchActive) {
-        if (!isSearchActive && (mainListState.firstVisibleItemIndex > 0 || mainListState.firstVisibleItemScrollOffset > 0)) {
-            mainListState.animateScrollToItem(0)
-        }
-    }
+    var screenStack by remember { mutableStateOf(listOf(CateringMenuView.MENU)) }
+    val currentView by remember(screenStack) { derivedStateOf { screenStack.last() } }
 
-    BackHandler(enabled = isSelectionMode) {
-        selectedItemIds = emptySet()
-        isMultiSelectActive = false
-        focusManager.clearFocus()
-    }
-
-    BackHandler(enabled = isSearchActive && !isSelectionMode) {
-        isSearchActive = false
-        searchText = ""
-        focusManager.clearFocus()
-        coroutineScope.launch {
-            mainListState.animateScrollToItem(0)
-        }
-    }
-
-    var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
     var aiChatContext by remember { mutableStateOf("") }
 
-    BackHandler(enabled = currentView != CateringMenuView.MENU) {
-        currentView = CateringMenuView.MENU
-    }
+    var selectedCategoryTab by remember { mutableStateOf("explore") }
+    var selectedSavedViewType by remember { mutableStateOf("By Timeline") }
+    var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
+    var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
 
-    var selectedFilterTab by remember { mutableStateOf("All Items") }
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVendor by remember { mutableStateOf<Vendor?>(null) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
+    var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
 
     var toastData by remember { mutableStateOf(ToastData()) }
     var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+
+    val isSavedListToast = remember(toastData.message, lastSavedVendor) {
+        toastData.message?.contains("Saved List") == true && lastSavedVendor != null
+    }
 
     LaunchedEffect(toastData) {
         if (toastData.message != null) {
@@ -441,11 +508,49 @@ fun CateringMenuScreen(
                 }
             }
             activeToastData = toastData
-            delay(2000.milliseconds)
+            delay(2500.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
 
+    val handleVendorClick: (Vendor) -> Unit = { vendor ->
+        selectedVendor = vendor
+        screenStack = screenStack + CateringMenuView.VENDOR_DETAIL
+    }
+
+    val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
+        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+        if (alreadySaved) {
+            activeTargetVendor = vendor
+            showSaveListBottomSheet = true
+        } else {
+            vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
+            lastSavedVendor = vendor
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+        }
+    }
+
+    val handleTimelineSeeAll: (TimelineEvent) -> Unit = { event ->
+        selectedTimelineEventId = event.id
+        screenStack = screenStack + CateringMenuView.TIMELINE_DETAIL
+    }
+
+    val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
+        if (selectedTimelineEventId == "mysaved") {
+            TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
+        } else {
+            timelineEvents.find { it.id == selectedTimelineEventId }
+        }
+    }
+
+    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, vendorSavedDestinations, foodCategoryVendors) {
+        val targetId = selectedTimelineEventId ?: return@remember emptyList<Vendor>()
+        foodCategoryVendors.filter { v ->
+            vendorSavedDestinations["${v.name}-${v.category}"] == targetId
+        }.map { it.copy(favorite = true) }
+    }
+
+    var selectedFilterTab by remember { mutableStateOf("All Items") }
     var selectedItemForDetails by remember { mutableStateOf<MenuItem?>(null) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
 
@@ -501,6 +606,8 @@ fun CateringMenuScreen(
                     showMenuBottomSheet ||
                     showRoomMenuBottomSheet ||
                     showRoomAccessBottomSheet ||
+                    showSaveListBottomSheet ||
+                    showOfferSheet ||
                     userToRemove != null ||
                     showLeaveConfirmation
         }
@@ -607,6 +714,27 @@ fun CateringMenuScreen(
         filteredItems.groupBy { it.type }
     }
 
+    BackHandler {
+        when {
+            showSaveListBottomSheet -> showSaveListBottomSheet = false
+            showOfferSheet -> showOfferSheet = false
+            isSelectionMode -> {
+                selectedItemIds = emptySet()
+                isMultiSelectActive = false
+                focusManager.clearFocus()
+            }
+            isSearchActive -> {
+                isSearchActive = false
+                searchText = ""
+                focusManager.clearFocus()
+            }
+            screenStack.size > 1 -> {
+                screenStack = screenStack.dropLast(1)
+            }
+            else -> onBackClick()
+        }
+    }
+
     RoomAccessGuardian(
         hasAccess = hasAccess,
         roomName = "Catering",
@@ -630,7 +758,19 @@ fun CateringMenuScreen(
                 AnimatedContent(
                     targetState = currentView,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                        when {
+                            targetState == CateringMenuView.VENDOR_DETAIL ||
+                                    targetState == CateringMenuView.LOCATION_SELECTOR ||
+                                    targetState == CateringMenuView.TIMELINE_DETAIL ->
+                                ScreenTransitions.SlideBottomToTopFastTransition
+
+                            initialState == CateringMenuView.VENDOR_DETAIL ||
+                                    initialState == CateringMenuView.LOCATION_SELECTOR ||
+                                    initialState == CateringMenuView.TIMELINE_DETAIL ->
+                                ScreenTransitions.SlideTopToBottomFastTransition
+
+                            else -> fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                        }
                     },
                     label = "CateringMenuTransition"
                 ) { targetScreen ->
@@ -746,11 +886,6 @@ fun CateringMenuScreen(
                                                     onValueChange = { searchText = it },
                                                     onActiveChange = { active ->
                                                         isSearchActive = active
-                                                        if (!active) {
-                                                            coroutineScope.launch {
-                                                                mainListState.animateScrollToItem(0)
-                                                            }
-                                                        }
                                                     },
                                                     placeholder = "Search Menu",
                                                     modifier = Modifier.weight(1f)
@@ -863,7 +998,7 @@ fun CateringMenuScreen(
                                         }
                                     }
 
-                                    if (isLoading) {
+                                    if (isCateringLoading && categorizedItems.isEmpty()) {
                                         items(count = 3, contentType = { "skeleton" }) {
                                             Spacer(Modifier.height(12.dp))
                                             SkeletonMenuCategoryCard(brush = shimmerBrush())
@@ -946,21 +1081,33 @@ fun CateringMenuScreen(
 
                                             if (index == highlightInsertIndex && !isSelectionMode && !isSearchActive) {
                                                 item(key = "highlighted_top_vendors", contentType = "carousel") {
+                                                    val foodVendors = remember(foodCategoryVendors) {
+                                                        foodCategoryVendors.ifEmpty { MockData.sampleFood }
+                                                    }
+                                                    // TOP VENDORS / CURATED FOR YOU + "View all" button (as in Image 1)
                                                     HighlightedVendors(
-                                                        title = "Top Vendors",
-                                                        subtitle = "Curated for you",
-                                                        vendors = MockData.sampleFood,
+                                                        title = "TOP VENDORS",
+                                                        subtitle = "CURATED FOR YOU",
+                                                        vendors = foodVendors,
+                                                        isHeadingTop = true,
                                                         headerImage = painterResource(id = R.drawable.ill_vendor_food_serve),
                                                         buttonText = "View all",
                                                         buttonTrailingIcon = painterResource(id = R.drawable.ic_arrow_right),
                                                         onButtonClick = {
                                                             focusManager.clearFocus()
+                                                            screenStack = screenStack + CateringMenuView.VENDOR_CATEGORY_DETAIL
                                                         },
                                                         onVendorClick = { vendor ->
                                                             focusManager.clearFocus()
+                                                            handleVendorClick(vendor)
                                                         },
-                                                        onFavoriteToggle = { vendor -> },
-                                                        onOfferClick = { vendor -> },
+                                                        onFavoriteToggle = { vendor ->
+                                                            handleFavoriteToggle(vendor)
+                                                        },
+                                                        onOfferClick = { vendor ->
+                                                            offersToShow = vendor.offers
+                                                            showOfferSheet = true
+                                                        },
                                                         modifier = Modifier.padding(horizontal = 12.dp)
                                                     )
                                                     Spacer(Modifier.height(12.dp))
@@ -1026,7 +1173,7 @@ fun CateringMenuScreen(
                                                             Menu items:
                                                             ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
                                                         """.trimIndent()
-                                                        currentView = CateringMenuView.AI_CHAT
+                                                        screenStack = screenStack + CateringMenuView.AI_CHAT
                                                     },
                                                     text = "Ask AI",
                                                     type = ButtonType.Secondary,
@@ -1062,6 +1209,106 @@ fun CateringMenuScreen(
                             }
                         }
 
+                        CateringMenuView.VENDOR_CATEGORY_DETAIL -> {
+                            VendorCategoryDetailContent(
+                                category = foodCategoryItem,
+                                allVendors = foodCategoryVendors,
+                                savedVendorsForCategory = foodCategorySavedVendors,
+                                selectedCity = selectedCity,
+                                onBackClick = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                onLocationClick = {
+                                    screenStack = screenStack + CateringMenuView.LOCATION_SELECTOR
+                                },
+                                onMenuClick = { showMenuBottomSheet = true },
+                                onVendorClick = handleVendorClick,
+                                onFavoriteToggle = handleFavoriteToggle,
+                                vendorSavedDestinations = vendorSavedDestinations,
+                                timelineEvents = timelineEvents,
+                                selectedTab = selectedCategoryTab,
+                                onSelectedTabChange = { selectedCategoryTab = it },
+                                selectedViewType = selectedSavedViewType,
+                                onSelectedViewTypeChange = { selectedSavedViewType = it },
+                                isLoading = isVendorsLoading,
+                                onTimelineSeeAll = handleTimelineSeeAll,
+                                onOfferClick = { vendor ->
+                                    offersToShow = vendor.offers
+                                    showOfferSheet = true
+                                },
+                                listState = categoryListState,
+                                gridState = categorySavedGridState
+                            )
+                        }
+
+                        CateringMenuView.VENDOR_DETAIL -> {
+                            selectedVendor?.let { vendor ->
+                                val detailData = remember(vendor, exploreVendors, vendorSavedDestinations) {
+                                    val base = exploreVendors.find { it.name == vendor.name && it.category == vendor.category } ?: vendor
+                                    base.copy(favorite = vendorSavedDestinations.containsKey("${base.name}-${base.category}"))
+                                }
+                                VendorDetailScreen(
+                                    vendorDetail = detailData,
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
+                                    onFavoriteToggle = { handleFavoriteToggle(it) },
+                                    onChatClick = { onChatClick(it) }
+                                )
+                            }
+                        }
+
+                        CateringMenuView.TIMELINE_DETAIL -> {
+                            currentSelectedTimelineEvent?.let { event ->
+                                SavedTimelineItemsScreen(
+                                    title = "Saved Vendors",
+                                    date = event.date,
+                                    event = event.event,
+                                    vendors = currentSelectedTimelineVendors,
+                                    onVendorClick = handleVendorClick,
+                                    onVendorFavoriteToggle = handleFavoriteToggle,
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        CateringMenuView.LOCATION_SELECTOR -> {
+                            LocationScreen(
+                                initialSearches = emptyList(),
+                                currentAddress = selectedCity,
+                                onAddressSelected = {
+                                    selectedCity = it
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                onBackClick = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                backIcon = TopIcon.Predefined.DOWN
+                            )
+                        }
+
                         CateringMenuView.MANAGE_ROOM_ACCESS -> {
                             activeEvent?.id?.let { id ->
                                 CateringRoomContent(
@@ -1069,7 +1316,7 @@ fun CateringMenuScreen(
                                     roomViewModel = roomViewModel,
                                     currentUserRole = currentUserRole,
                                     onBackClick = {
-                                        currentView = CateringMenuView.MENU
+                                        if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
                                         focusManager.clearFocus()
                                     },
                                     onMenuClick = {
@@ -1092,7 +1339,7 @@ fun CateringMenuScreen(
                                 eventId = activeEvent?.id,
                                 initialContext = aiChatContext,
                                 onBackClick = {
-                                    currentView = CateringMenuView.MENU
+                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
                                     focusManager.clearFocus()
                                 }
                             )
@@ -1102,7 +1349,7 @@ fun CateringMenuScreen(
             }
 
             AnimatedVisibility(
-                visible = toastData.message != null && !isAnyBottomSheetOpen,
+                visible = toastData.message != null && !isSavedListToast && !isAnyBottomSheetOpen,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
                 modifier = Modifier
@@ -1119,7 +1366,98 @@ fun CateringMenuScreen(
                     )
                 }
             }
+
+            AnimatedVisibility(
+                visible = toastData.message != null && isSavedListToast && !isAnyBottomSheetOpen,
+                enter = slideInVertically(initialOffsetY = { it + 500 }),
+                exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+                    .fillMaxWidth()
+                    .zIndex(100f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = if (activeEvent?.multiDay == true) "Change" else null,
+                    onButtonClick = if (activeEvent?.multiDay == true) {
+                        {
+                            toastData = ToastData()
+                            lastSavedVendor?.let { vendor ->
+                                activeTargetVendor = vendor
+                                showSaveListBottomSheet = true
+                            }
+                        }
+                    } else null
+                )
+            }
         }
+    }
+
+    if (showOfferSheet) {
+        OfferBottomSheet(
+            offers = offersToShow,
+            onDismiss = { showOfferSheet = false },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
+    if (showSaveListBottomSheet) {
+        val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] }
+        SaveListBottomSheet(
+            timelineEvents = timelineEvents,
+            isMySavedListChecked = currentDest == "mysaved",
+            onMySavedListToggled = { checked ->
+                activeTargetVendor?.let { vendor ->
+                    if (checked) {
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
+                    } else {
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, null)
+                    }
+                }
+            },
+            selectedEventId = if (currentDest != "mysaved") currentDest else null,
+            onEventSelected = { eventId ->
+                activeTargetVendor?.let { vendor ->
+                    vendorViewModel.toggleSaveVendor(vendor, isViewer, eventId)
+                }
+            },
+            onAddNewEvent = { subEventItem ->
+                activeEvent?.let { event ->
+                    val newSubEvent = SubEvent(
+                        id = subEventItem.id,
+                        name = subEventItem.name,
+                        date = subEventItem.date,
+                        completed = subEventItem.isCompleted
+                    )
+                    eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+
+                    activeTargetVendor?.let { vendor ->
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, subEventItem.id)
+                    }
+                }
+            },
+            isViewer = isViewer,
+            onDismiss = { showSaveListBottomSheet = false },
+            onDone = {
+                activeTargetVendor?.let { vendor ->
+                    val isSaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+                    if (isSaved) {
+                        lastSavedVendor = vendor
+                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                    } else {
+                        toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                    }
+                }
+                showSaveListBottomSheet = false
+                activeTargetVendor = null
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
     }
 
     if (showDetailsBottomSheet && selectedItemForDetails != null) {
@@ -1443,7 +1781,7 @@ fun CateringMenuScreen(
                         icon = userDefaultPainter,
                         onClick = {
                             showMenuBottomSheet = false
-                            currentView = CateringMenuView.MANAGE_ROOM_ACCESS
+                            screenStack = screenStack + CateringMenuView.MANAGE_ROOM_ACCESS
                         }
                     )
                 )
@@ -1536,13 +1874,12 @@ fun CateringMenuScreen(
                     roomViewModel.removeAccess(eventId, "Catering", currentUserUid)
                 }
                 toastData = ToastData("You left the room", ToastType.DEFAULT)
-                currentView = CateringMenuView.MENU
+                screenStack = listOf(CateringMenuView.MENU)
                 showLeaveConfirmation = false
             }
         )
     }
 }
-
 
 @Composable
 fun MenuCategoryCard(

@@ -100,8 +100,8 @@ import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
 import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
@@ -993,29 +993,10 @@ fun HomeTabContent(
                         )
                     }
                     "moments_room" -> {
-                        val eventId = activeEvent?.id ?: ""
-                        val roomVm = roomViewModel ?: hiltViewModel()
-                        val users by roomVm.roomUsers.collectAsStateWithLifecycle()
-                        val searchResults by roomVm.searchResults.collectAsStateWithLifecycle()
-                        val currentUser = FirebaseAuth.getInstance().currentUser
-
-                        LaunchedEffect(eventId) {
-                            roomVm.loadRoomUsers(eventId, "moments")
-                        }
-
-                        RoomScreen(
-                            allUsers = users,
-                            currentUserRole = users.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER,
-                            isSelf = { it.uid == currentUser?.uid },
+                        MomentsRoomContent(
+                            eventId = activeEvent?.id ?: "",
                             onBackClick = { currentScreen = "moments" },
-                            onMenuClick = { },
-                            onRoleChange = { user, role -> roomVm.updateRole(eventId, "moments", user, role) },
-                            onRemove = { user -> roomVm.removeAccess(eventId, "moments", user.uid) },
-                            onReport = { },
-                            onLeave = { roomVm.removeAccess(eventId, "moments", currentUser?.uid ?: "") },
-                            searchResults = searchResults,
-                            onSearch = { roomVm.searchUsers(it) },
-                            onGrantAccess = { email, role -> roomVm.grantAccess(eventId, "moments", email, role) }
+                            roomViewModel = roomViewModel ?: hiltViewModel()
                         )
                     }
                     "vendors" -> {
