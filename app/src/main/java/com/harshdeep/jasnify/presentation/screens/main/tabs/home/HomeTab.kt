@@ -77,6 +77,7 @@ import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
@@ -96,8 +97,11 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
+import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
@@ -105,6 +109,7 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
@@ -141,7 +146,8 @@ fun HomeTab(
     budgetViewModel: BudgetViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
-    roomViewModel: RoomViewModel = hiltViewModel()
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    momentsViewModel: MomentsViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
@@ -239,6 +245,7 @@ fun HomeTab(
         venueViewModel = venueViewModel,
         vendorViewModel = vendorViewModel,
         roomViewModel = roomViewModel,
+        momentsViewModel = momentsViewModel,
         isVenuesLoading = isVenuesLoading,
         venueSavedDestinations = venueSavedDestinations,
         vendorSavedDestinations = vendorSavedDestinations,
@@ -263,6 +270,7 @@ fun HomeTabContent(
     venueViewModel: VenueViewModel? = null,
     vendorViewModel: VendorViewModel? = null,
     roomViewModel: RoomViewModel? = null,
+    momentsViewModel: MomentsViewModel? = null,
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
@@ -668,7 +676,7 @@ fun HomeTabContent(
                                     cardBgColor = Color(0xFFC3D4E8),
                                     waveColor = Color(0x1A014594).copy(alpha = 0.9f),
                                     insightColor = Color(0xFF3D58B4),
-                                    onClick = {}
+                                    onClick = { navigateTo("moments") }
                                 )
 
                                 HomeCard(
@@ -973,6 +981,41 @@ fun HomeTabContent(
                     "cards" -> {
                         CardsScreen(
                             onBackClick = { currentScreen = "home" },
+                        )
+                    }
+                    "moments" -> {
+                        val eventId = activeEvent?.id ?: ""
+                        MomentsScreen(
+                            eventId = eventId,
+                            onBackClick = { currentScreen = "home" },
+                            onManageRoomClick = { currentScreen = "moments_room" },
+                            viewModel = momentsViewModel ?: hiltViewModel()
+                        )
+                    }
+                    "moments_room" -> {
+                        val eventId = activeEvent?.id ?: ""
+                        val roomVm = roomViewModel ?: hiltViewModel()
+                        val users by roomVm.roomUsers.collectAsStateWithLifecycle()
+                        val searchResults by roomVm.searchResults.collectAsStateWithLifecycle()
+                        val currentUser = FirebaseAuth.getInstance().currentUser
+
+                        LaunchedEffect(eventId) {
+                            roomVm.loadRoomUsers(eventId, "moments")
+                        }
+
+                        RoomScreen(
+                            allUsers = users,
+                            currentUserRole = users.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER,
+                            isSelf = { it.uid == currentUser?.uid },
+                            onBackClick = { currentScreen = "moments" },
+                            onMenuClick = { },
+                            onRoleChange = { user, role -> roomVm.updateRole(eventId, "moments", user, role) },
+                            onRemove = { user -> roomVm.removeAccess(eventId, "moments", user.uid) },
+                            onReport = { },
+                            onLeave = { roomVm.removeAccess(eventId, "moments", currentUser?.uid ?: "") },
+                            searchResults = searchResults,
+                            onSearch = { roomVm.searchUsers(it) },
+                            onGrantAccess = { email, role -> roomVm.grantAccess(eventId, "moments", email, role) }
                         )
                     }
                     "vendors" -> {

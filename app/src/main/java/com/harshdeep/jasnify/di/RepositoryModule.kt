@@ -70,4 +70,10 @@ abstract class RepositoryModule {
     abstract fun bindCardRepository(
         cardRepositoryImpl: com.harshdeep.jasnify.data.repository.CardRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.CardRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMomentsRepository(
+        momentsRepositoryImpl: com.harshdeep.jasnify.data.repository.MomentsRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.MomentsRepository
 }

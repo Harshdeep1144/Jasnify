@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -152,6 +153,7 @@ fun ProfileTab(
     }
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
+    val profileLazyListState = rememberLazyListState()
 
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
@@ -327,7 +329,8 @@ fun ProfileTab(
                             enquiryCount = enquiryCount,
                             onEditProfile = { showEditProfile = true },
                             onNavigateTo = { currentScreen = it },
-                            onLogout = { showLogoutDialog = true }
+                            onLogout = { showLogoutDialog = true },
+                            lazyListState = profileLazyListState
                         )
                     }
 

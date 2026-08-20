@@ -283,13 +283,14 @@ class EventViewModel @Inject constructor(
                                     "Vendors" to UserRole.OWNER,
                                     "Venue" to UserRole.OWNER,
                                     "Guest" to UserRole.OWNER,
-                                    "Cards" to UserRole.OWNER
+                                    "Cards" to UserRole.OWNER,
+                                    "Moments" to UserRole.OWNER
                                 )
                             )
                             userRepository.updateUserJoinedEvents(userId, userEvent)
 
                             // 2. Grant room-specific access (internal collections)
-                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards")
+                            val rooms = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards", "Moments")
                             val currentUserEmail = auth.currentUser?.email
                             val currentUserId = auth.currentUser?.uid
                             if (currentUserEmail != null && currentUserId != null) {
@@ -321,6 +322,7 @@ class EventViewModel @Inject constructor(
             "venue" -> "venue_room_users"
             "guest" -> "guest_room_users"
             "cards" -> "card_room_users"
+            "moments" -> "moments_room_users"
             else -> "room_users"
         }
         

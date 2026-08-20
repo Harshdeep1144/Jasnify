@@ -117,6 +117,7 @@ class UserRepositoryImpl @Inject constructor(
             "venue" -> "venue_room_users"
             "guest" -> "guest_room_users"
             "cards" -> "card_room_users"
+            "moments" -> "moments_room_users"
             else -> "room_users"
         }
         return name

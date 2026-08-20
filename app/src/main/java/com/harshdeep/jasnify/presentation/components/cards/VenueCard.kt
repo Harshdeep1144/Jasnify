@@ -390,7 +390,8 @@ fun VenueCardCompact(
                                 painter = painterResource(R.drawable.ic_cross),
                                 contentDescription = "Remove Icon",
                                 tint = Color.White,
-                                modifier = Modifier.padding(8.dp)
+                                modifier = Modifier.size(24.dp)
+                                    .padding(4.dp)
                             )
                         }
                     } else if (showLikeButton) {
@@ -402,7 +403,7 @@ fun VenueCardCompact(
                             painter = iconRes,
                             contentDescription = "Favorite Icon",
                             tint = Color.Unspecified,
-                            modifier = Modifier.size(24.dp),
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.catering
 
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -151,6 +152,7 @@ import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -166,6 +168,9 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
@@ -309,6 +314,7 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CateringMenuScreen(

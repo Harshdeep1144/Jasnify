@@ -38,6 +38,11 @@ class CloudinaryManager @Inject constructor() {
         return uploadFromSource(uri, "jasnify/cards/$eventId/themes", null)
     }
 
+    suspend fun uploadMoment(uri: Uri, eventId: String, folderName: String, isVideo: Boolean): String {
+        val subFolder = if (isVideo) "videos" else "images"
+        return uploadFromSource(uri, "jasnify/moments/$eventId/$folderName/$subFolder", null)
+    }
+
     private suspend fun uploadFromSource(source: Any, folder: String, publicId: String?): String {
         return suspendCancellableCoroutine { continuation ->
             val uploadRequest = when (source) {

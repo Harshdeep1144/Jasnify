@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseApp
 import com.google.firebase.ai.FirebaseAI
 import com.google.firebase.ai.type.GenerationConfig
+import com.google.firebase.ai.type.ServerException
 import com.google.firebase.ai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -78,47 +79,65 @@ class GenerativeViewModel @Inject constructor(
     private val _eventId = MutableStateFlow<String?>(null)
     private val _globalContext = MutableStateFlow("")
 
+    private var activeStreamingMessageId: String? = null
+    private var activeStreamingMessage: AiMessage? = null
+
     private var sessionsListener: ListenerRegistration? = null
     private var messagesListener: ListenerRegistration? = null
 
-    private val generativeModel = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
+    private val systemInstructionsText = """
+        You are Jasnify AI, a friendly, smart wedding & event planning assistant.
+        
+        CRITICAL BEHAVIOR RULES:
+        1. CONCISE & USER FRIENDLY: Keep spoken and text responses short, friendly, and natural (1 to 3 sentences max). Never write long paragraphs or unsolicited essays.
+        2. DYNAMIC LANGUAGE MATCHING: Strictly match the user's input language and tone:
+           - If Hinglish (e.g. "Kitna budget bacha hai?"), reply in natural Hinglish.
+           - If Hindi (Devanagari), reply in clear Hindi.
+           - If English, reply in crisp English.
+        3. STRICT CONTEXT ACCURACY: Rely only on the CURRENT EVENT CONTEXT provided. Do not hallucinate numbers, names, or items.
+        4. SELECTIVE COMPONENT USAGE:
+           - DO NOT attach cards for general conversation, chit-chat, greetings, or advice.
+           - Attach UI cards ONLY when the user explicitly asks to view, compare, or modify venues, vendors, guests, expenses, or checklists.
+           - NEVER mention raw database IDs in your readable text.
+        5. GUEST CARD LIMIT:
+           - In 'guestIds', attach a MAXIMUM of 5 guest IDs.
+           - Mention remaining pending/invited count in text if more exist.
+        
+        STRUCTURED UI ATTACHMENT FORMAT:
+        Only when relevant cards need to be displayed, add this exact JSON block at the very end of your response:
+        JSON_DATA: {"venueIds": [], "vendorIds": [], "guestIds": [], "expenseIds": [], "checklistIds": []}
+    """.trimIndent()
+
+    private val primaryModel = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
         modelName = "gemini-3.1-flash-lite",
         generationConfig = GenerationConfig.builder()
-            .setTemperature(0.7f)
+            .setTemperature(0.6f)
             .setTopK(40)
             .setTopP(0.95f)
             .build(),
-        systemInstruction = content {
-            text("""
-                You are Jasnify AI, a professional wedding and event planning assistant. 
-                Your goal is to help users manage their event using ONLY the provided CURRENT EVENT CONTEXT.
-                
-                CRITICAL RULES:
-                1. NEVER hallucinate details (like event names or guest counts) that are not in the context.
-                2. If the context is empty, politely ask the user to select or create an event first.
-                3. NEVER mention IDs (like venueId, guestId, etc.) in your conversational text.
-                4. Use the IDs ONLY within the JSON_DATA block for UI card rendering.
-                5. Always provide helpful, concise, and friendly advice.
-                
-                STRUCTURED OUTPUT FOR UI CARDS:
-                If you mention or suggest specific venues, vendors, guests, expenses, or checklists, you MUST append a JSON block at the end of your response starting with 'JSON_DATA:' on a new line.
-                Format: JSON_DATA: {"venueIds": [], "vendorIds": [], "guestIds": [], "expenseIds": [], "checklistIds": []}
-            """.trimIndent())
-        }
+        systemInstruction = content { text(systemInstructionsText) }
     )
 
-    private var chat = generativeModel.startChat()
+    private val fallbackModel = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
+        modelName = "gemini-2.5-flash",
+        generationConfig = GenerationConfig.builder()
+            .setTemperature(0.6f)
+            .setTopK(40)
+            .setTopP(0.95f)
+            .build(),
+        systemInstruction = content { text(systemInstructionsText) }
+    )
+
+    private var chat = primaryModel.startChat()
 
     init {
         observeContext()
     }
 
     fun setEventId(id: String) {
-        if (id.isBlank()) return
-        if (_eventId.value != id) {
-            _eventId.value = id
-            loadChatSessions(id)
-        }
+        if (id.isBlank() || _eventId.value == id) return
+        _eventId.value = id
+        loadChatSessions(id)
     }
 
     private fun loadChatSessions(eventId: String) {
@@ -128,19 +147,11 @@ class GenerativeViewModel @Inject constructor(
             .collection("aiChatHistory")
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    android.util.Log.e("GenerativeViewModel", "Error fetching sessions: ${e.message}", e)
-                    return@addSnapshotListener
+                if (e != null || snapshot == null) return@addSnapshotListener
+                val sessions = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
                 }
-
-                if (snapshot != null && !snapshot.isEmpty) {
-                    val sessions = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
-                    }
-                    _chatSessions.value = sessions
-                } else {
-                    _chatSessions.value = emptyList()
-                }
+                _chatSessions.value = sessions
             }
     }
 
@@ -156,25 +167,29 @@ class GenerativeViewModel @Inject constructor(
             .collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, e ->
-                if (e != null) {
-                    android.util.Log.e("GenerativeViewModel", "Error fetching messages: ${e.message}", e)
-                    return@addSnapshotListener
+                if (e != null || snapshot == null) return@addSnapshotListener
+
+                val remoteMsgs = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(AiMessage::class.java)?.apply {
+                        if (id.isBlank()) id = doc.id
+                    }
                 }
 
-                if (snapshot != null) {
-                    val msgs = snapshot.documents.mapNotNull { doc ->
-                        doc.toObject(AiMessage::class.java)?.apply {
-                            // Ensure id is always populated even if not in the document body
-                            if (id.isBlank()) id = doc.id
-                        }
-                    }
-                    _messages.value = msgs
-
-                    val history = msgs.filter { it.text.isNotBlank() }.map { msg ->
-                        content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
-                    }
-                    chat = generativeModel.startChat(history)
+                val currentStreaming = activeStreamingMessage
+                val currentStreamingId = activeStreamingMessageId
+                val combinedMsgs = if (currentStreamingId != null && currentStreaming != null) {
+                    val listWithoutStream = remoteMsgs.filter { it.id != currentStreamingId }
+                    listWithoutStream + currentStreaming
+                } else {
+                    remoteMsgs
                 }
+
+                _messages.value = combinedMsgs
+
+                val history = remoteMsgs.filter { it.text.isNotBlank() }.map { msg ->
+                    content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
+                }
+                chat = primaryModel.startChat(history)
             }
     }
 
@@ -194,9 +209,6 @@ class GenerativeViewModel @Inject constructor(
             .set(session)
             .addOnSuccessListener {
                 selectChatSession(newChatId)
-            }
-            .addOnFailureListener { e ->
-                android.util.Log.e("GenerativeViewModel", "Failed to create chat session", e)
             }
     }
 
@@ -218,9 +230,6 @@ class GenerativeViewModel @Inject constructor(
                     }
                 }
             }
-            .addOnFailureListener { e ->
-                android.util.Log.e("GenerativeViewModel", "Failed to delete chat session", e)
-            }
     }
 
     fun restoreChatSession(session: ChatSession) {
@@ -232,9 +241,6 @@ class GenerativeViewModel @Inject constructor(
             .set(session)
             .addOnSuccessListener {
                 selectChatSession(session.id)
-            }
-            .addOnFailureListener { e ->
-                android.util.Log.e("GenerativeViewModel", "Failed to restore chat session", e)
             }
     }
 
@@ -298,34 +304,29 @@ class GenerativeViewModel @Inject constructor(
         if (event == null) return "No active event found."
 
         val sb = StringBuilder()
-        sb.append("### CURRENT EVENT CONTEXT\n")
-        sb.append("EVENT NAME: ${event.name}\n")
-        sb.append("OWNER: ${event.ownerName}\n")
-        sb.append("DATE: ${event.date?.let { SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(it)) } ?: "TBD"}\n")
+        sb.append("CURRENT EVENT CONTEXT:\n")
+        sb.append("NAME: ${event.name} | OWNER: ${event.ownerName}\n")
 
         val totalBudget = budget?.totalBudget ?: event.budget ?: 0.0
         val totalSpent = expenses.sumOf { it.amount }
-        sb.append("TOTAL BUDGET: ₹$totalBudget\n")
-        sb.append("TOTAL SPENT: ₹$totalSpent\n")
-        sb.append("REMAINING BUDGET: ₹${totalBudget - totalSpent}\n")
+        sb.append("BUDGET: Total ₹$totalBudget, Spent ₹$totalSpent, Remaining ₹${totalBudget - totalSpent}\n")
 
-        sb.append("\n### GUEST STATISTICS\n")
-        sb.append("TOTAL GUESTS: ${guests.size}\n")
-        sb.append("INVITED: ${guests.count { it.invited }}\n")
+        val invited = guests.count { it.invited }
+        sb.append("GUESTS: Total ${guests.size}, Invited $invited, Pending ${guests.size - invited}\n")
 
-        sb.append("\n### AVAILABLE RESOURCES (USE THESE IDs IN JSON_DATA ONLY)\n")
+        sb.append("GUEST LIST (Max 5 for JSON_DATA):\n")
+        guests.forEach { sb.append("- ID: ${it.id} | NAME: ${it.name} | STATUS: ${if (it.invited) "INVITED" else "PENDING"}\n") }
+
         sb.append("VENUES:\n")
         allVenues.forEach { sb.append("- ID: ${it.id} | NAME: ${it.name}\n") }
+
         sb.append("VENDORS:\n")
         allVendors.forEach { sb.append("- ID: ${it.id} | NAME: ${it.name} | CAT: ${it.category}\n") }
 
-        sb.append("\n### GUEST LIST (IDs for JSON_DATA):\n")
-        guests.forEach { sb.append("- ID: ${it.id} | NAME: ${it.name} | TYPE: ${it.type}\n") }
+        sb.append("EXPENSES:\n")
+        expenses.forEach { sb.append("- ID: ${it.id} | TITLE: ${it.title} | AMT: ₹${it.amount}\n") }
 
-        sb.append("\n### EXPENSES (IDs for JSON_DATA):\n")
-        expenses.forEach { sb.append("- ID: ${it.id} | TITLE: ${it.title} | AMT: ${it.amount}\n") }
-
-        sb.append("\n### CHECKLIST PROGRESS (IDs for JSON_DATA):\n")
+        sb.append("CHECKLIST:\n")
         checklists.forEach { cl ->
             val done = cl.items.count { it.checked }
             sb.append("- ID: ${cl.id} | TITLE: ${cl.title}: $done/${cl.items.size} done\n")
@@ -341,7 +342,7 @@ class GenerativeViewModel @Inject constructor(
         if (eventId.isNullOrBlank()) {
             val systemWarning = AiMessage(
                 id = UUID.randomUUID().toString(),
-                text = "Please select an active event first so I can assist you with your planning details.",
+                text = "Please select an active event first so I can assist you.",
                 isUser = false,
                 timestamp = System.currentTimeMillis()
             )
@@ -377,64 +378,102 @@ class GenerativeViewModel @Inject constructor(
         _messages.update { current -> current + userMessage }
         saveMessageToFirestore(chatId, userMessage)
 
+        val aiMessageId = UUID.randomUUID().toString()
+        val streamingAiMsg = AiMessage(
+            id = aiMessageId,
+            text = "",
+            isUser = false,
+            timestamp = System.currentTimeMillis()
+        )
+
+        activeStreamingMessageId = aiMessageId
+        activeStreamingMessage = streamingAiMsg
+
+        _messages.update { current -> current + streamingAiMsg }
+
         viewModelScope.launch {
             _isGenerating.value = true
-            try {
-                val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER: $userText"
-                val response = chat.sendMessage(fullPrompt)
-                val responseText = response.text
+            val fullRawAccumulator = StringBuilder()
 
-                if (responseText.isNullOrBlank()) {
-                    throw Exception("Empty response from AI engine")
+            try {
+                val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER QUERY: $userText"
+
+                try {
+                    chat.sendMessageStream(fullPrompt).collect { chunk ->
+                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
+                    }
+                } catch (serverEx: ServerException) {
+                    android.util.Log.w("GenerativeViewModel", "Primary model overloaded, failing over to backup: ${serverEx.message}")
+                    fullRawAccumulator.clear()
+                    val fallbackChat = fallbackModel.startChat()
+                    fallbackChat.sendMessageStream(fullPrompt).collect { chunk ->
+                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
+                    }
                 }
 
-                val (cleanText, aiMsg) = parseAiResponse(responseText)
-                val finalAiMsg = aiMsg.copy(
-                    id = UUID.randomUUID().toString(),
+                val (cleanText, finalParsedMsg) = parseAiResponse(fullRawAccumulator.toString())
+                val completedMsg = finalParsedMsg.copy(
+                    id = aiMessageId,
                     text = cleanText,
                     isUser = false,
                     timestamp = System.currentTimeMillis()
                 )
 
-                _messages.update { current -> current + finalAiMsg }
-                saveMessageToFirestore(chatId, finalAiMsg)
+                activeStreamingMessageId = null
+                activeStreamingMessage = null
+
+                _messages.update { list ->
+                    list.map { msg -> if (msg.id == aiMessageId) completedMsg else msg }
+                }
+
+                saveMessageToFirestore(chatId, completedMsg)
+
             } catch (e: Exception) {
-                android.util.Log.e("GenerativeViewModel", "Error sending message", e)
-                val errorMessage = AiMessage(
-                    id = UUID.randomUUID().toString(),
-                    text = "Sorry, I ran into an error: ${e.localizedMessage ?: "Please try again."}",
-                    isUser = false,
-                    timestamp = System.currentTimeMillis()
-                )
-                _messages.update { current -> current + errorMessage }
+                android.util.Log.e("GenerativeViewModel", "AI Generation Error: ${e.message}", e)
+                activeStreamingMessageId = null
+                activeStreamingMessage = null
+
+                val friendlyError = if (e is ServerException) {
+                    "Servers are currently busy with high traffic. Please ask again in a moment!"
+                } else {
+                    "Sorry, I couldn't process that right now. Please try again."
+                }
+
+                _messages.update { list ->
+                    list.map { msg -> if (msg.id == aiMessageId) msg.copy(text = friendlyError) else msg }
+                }
             } finally {
                 _isGenerating.value = false
             }
         }
     }
 
-    fun toggleMessageFeedback(messageId: String, newFeedback: Int) {
-        if (messageId.isBlank()) {
-            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: messageId is blank")
-            return
-        }
+    private fun processStreamChunk(
+        chunkText: String,
+        accumulator: StringBuilder,
+        streamingMsg: AiMessage,
+        messageId: String
+    ) {
+        accumulator.append(chunkText)
+        val visibleText = accumulator.split("JSON_DATA:")[0].trimStart()
+        val updated = streamingMsg.copy(text = visibleText)
+        activeStreamingMessage = updated
 
-        val eventId = _eventId.value ?: run {
-            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: eventId is null")
-            return
+        _messages.update { list ->
+            list.map { msg -> if (msg.id == messageId) updated else msg }
         }
-        val chatId = _currentChatId.value ?: run {
-            android.util.Log.e("GenerativeViewModel", "Cannot toggle feedback: chatId is null")
-            return
-        }
+    }
+
+    fun toggleMessageFeedback(messageId: String, newFeedback: Int) {
+        if (messageId.isBlank()) return
+        val eventId = _eventId.value ?: return
+        val chatId = _currentChatId.value ?: return
 
         val currentMsg = _messages.value.find { it.id == messageId }
         val targetFeedback = if (currentMsg?.feedback == newFeedback) 0 else newFeedback
 
         _messages.update { list ->
-            list.map { msg ->
-                if (msg.id == messageId) msg.copy(feedback = targetFeedback) else msg
-            }
+            list.map { msg -> if (msg.id == messageId) msg.copy(feedback = targetFeedback) else msg }
         }
 
         firestore.collection("events")
@@ -444,9 +483,6 @@ class GenerativeViewModel @Inject constructor(
             .collection("messages")
             .document(messageId)
             .set(mapOf("feedback" to targetFeedback), SetOptions.merge())
-            .addOnFailureListener { e ->
-                android.util.Log.e("GenerativeViewModel", "Failed to update feedback in Firestore", e)
-            }
     }
 
     fun updateMessageText(messageId: String, newText: String) {
@@ -454,9 +490,7 @@ class GenerativeViewModel @Inject constructor(
         val chatId = _currentChatId.value ?: return
 
         _messages.update { currentList ->
-            currentList.map { msg ->
-                if (msg.id == messageId) msg.copy(text = newText) else msg
-            }
+            currentList.map { msg -> if (msg.id == messageId) msg.copy(text = newText) else msg }
         }
 
         firestore.collection("events")
@@ -466,9 +500,6 @@ class GenerativeViewModel @Inject constructor(
             .collection("messages")
             .document(messageId)
             .update("text", newText)
-            .addOnFailureListener { e ->
-                android.util.Log.e("GenerativeViewModel", "Failed to update interrupted message text", e)
-            }
     }
 
     private fun saveMessageToFirestore(chatId: String, message: AiMessage) {
@@ -503,7 +534,7 @@ class GenerativeViewModel @Inject constructor(
         var cleanText = parts[0].trim()
 
         if (cleanText.isEmpty() && parts.size > 1) {
-            cleanText = "Here is what I found for you:"
+            cleanText = "Here are the details:"
         }
 
         var aiMsg = AiMessage(
@@ -518,10 +549,14 @@ class GenerativeViewModel @Inject constructor(
                 val jsonStr = parts[1].trim()
                 val json = JSONObject(jsonStr)
 
+                val parsedGuestIds = json.optJSONArray("guestIds")?.let { arr ->
+                    List(arr.length()) { arr.getString(it) }.take(5)
+                } ?: emptyList()
+
                 aiMsg = aiMsg.copy(
                     venueIds = json.optJSONArray("venueIds")?.let { arr -> List(arr.length()) { arr.getString(it) } } ?: emptyList(),
                     vendorIds = json.optJSONArray("vendorIds")?.let { arr -> List(arr.length()) { arr.getString(it) } } ?: emptyList(),
-                    guestIds = json.optJSONArray("guestIds")?.let { arr -> List(arr.length()) { arr.getString(it) } } ?: emptyList(),
+                    guestIds = parsedGuestIds,
                     expenseIds = json.optJSONArray("expenseIds")?.let { arr -> List(arr.length()) { arr.getString(it) } } ?: emptyList(),
                     checklistIds = json.optJSONArray("checklistIds")?.let { arr -> List(arr.length()) { arr.getString(it) } } ?: emptyList(),
                     showBudgetSummary = false
