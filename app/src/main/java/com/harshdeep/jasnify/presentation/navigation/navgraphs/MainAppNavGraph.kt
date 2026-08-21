@@ -9,7 +9,6 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import android.net.Uri
 import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
@@ -22,7 +21,7 @@ import com.harshdeep.jasnify.presentation.screens.main.EventDetailsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
-import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -254,9 +253,11 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             route = Screen.LocationSelector.route,
         ) {
             val previousBackStackEntry = mainNavController.previousBackStackEntry
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val recentLocations = remember { com.harshdeep.jasnify.presentation.utils.LocationHelper.getRecentLocations(context) }
 
             LocationScreen(
-                initialSearches = emptyList(),
+                initialSearches = recentLocations,
                 currentAddress = previousBackStackEntry?.savedStateHandle?.get<String>("selected_location") ?: "City, State",
                 onAddressSelected = { selectedAddress ->
                     previousBackStackEntry?.savedStateHandle?.set("selected_location", selectedAddress)

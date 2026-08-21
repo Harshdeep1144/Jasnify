@@ -50,9 +50,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -77,7 +75,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -109,7 +106,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
@@ -119,7 +115,6 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
@@ -176,7 +171,7 @@ import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorCategoryDetailContent
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
-import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -204,7 +199,6 @@ import androidx.core.net.toUri
 import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.CornerSmall
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 

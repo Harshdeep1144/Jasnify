@@ -428,13 +428,19 @@ fun CardsScreen(
                 AnimatedVisibility(
                     visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
                     enter = slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = tween(durationMillis = 260)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 260)),
+                        initialOffsetY = { fullHeight -> fullHeight * 2 },
+                        animationSpec = spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f
+                        )
+                    ) + fadeIn(animationSpec = tween(durationMillis = 200)),
                     exit = slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = tween(durationMillis = 260)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 260)),
+                        targetOffsetY = { fullHeight -> fullHeight * 2 },
+                        animationSpec = spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f
+                        )
+                    ) + fadeOut(animationSpec = tween(durationMillis = 180)),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .zIndex(10f)

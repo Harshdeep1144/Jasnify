@@ -1,8 +1,13 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -22,6 +27,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,12 +71,15 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +93,9 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.LocationAccessBottomSheet
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -103,7 +116,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -168,8 +181,18 @@ fun VenueScreen(
     eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
-) {
-    var currentAddress by remember { mutableStateOf(selectedLocation) }
+){
+    val context = LocalContext.current
+    val recentLocations = remember { LocationHelper.getRecentLocations(context) }
+    var currentAddress by remember { 
+        mutableStateOf(
+            if (selectedLocation == "City, State" && recentLocations.isNotEmpty()) {
+                recentLocations.first()
+            } else {
+                selectedLocation
+            }
+        )
+    }
     var screenStack by remember { mutableStateOf(listOf(VenueScreenState.MAIN)) }
     val screenState = screenStack.last()
     var selectedTab by remember { mutableStateOf(initialTab) }
@@ -179,6 +202,7 @@ fun VenueScreen(
 
     val mainListState = rememberLazyListState()
 
+    val coroutineScope = rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
@@ -219,6 +243,34 @@ fun VenueScreen(
     var showMenuSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
     var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
+    var showLocationAccessSheet by remember { mutableStateOf(false) }
+
+    val gpsResolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineLocationGranted || coarseLocationGranted) {
+            LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!SessionState.hasShownVenueLocationAccess) {
+            delay(1500.milliseconds)
+            showLocationAccessSheet = true
+        }
+    }
 
     var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -342,7 +394,7 @@ fun VenueScreen(
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
-            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation || showOfferSheet
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation || showOfferSheet || showLocationAccessSheet
 
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
@@ -426,7 +478,7 @@ fun VenueScreen(
                     when (targetState) {
                         VenueScreenState.LOCATION_PICKER -> {
                             LocationScreen(
-                                initialSearches = emptyList(),
+                                initialSearches = recentLocations,
                                 currentAddress = currentAddress,
                                 onAddressSelected = {
                                     currentAddress = it
@@ -553,6 +605,40 @@ fun VenueScreen(
             OfferBottomSheet(
                 offers = offersToShow,
                 onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showLocationAccessSheet) {
+            LocationAccessBottomSheet(
+                title = "Discover the best vendors around you",
+                subtitle = "Allow location permissions for best recommendations of vendors around you",
+                onDismiss = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                },
+                onAllowClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                    
+                    if (LocationHelper.hasLocationPermission(context)) {
+                        LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+                        }
+                    } else {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                },
+                onManualClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                    screenStack = screenStack + VenueScreenState.LOCATION_PICKER
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }

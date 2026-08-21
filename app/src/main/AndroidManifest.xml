@@ -11,6 +11,10 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
+    <queries>
+        <package android:name="com.google.android.apps.photos" />
+    </queries>
+
     <application
         android:name=".JasnifyApplication"
         android:allowBackup="true"

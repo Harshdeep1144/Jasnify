@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.venues
+package com.harshdeep.jasnify.presentation.screens.others
 
 import android.Manifest
 import android.annotation.SuppressLint

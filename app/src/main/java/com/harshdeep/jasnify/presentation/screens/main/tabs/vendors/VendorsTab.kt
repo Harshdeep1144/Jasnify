@@ -1,7 +1,11 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -16,7 +20,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -35,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,6 +54,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -62,6 +67,9 @@ import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.LocationAccessBottomSheet
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -78,14 +86,13 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
-import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.components.states.VendorsLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -124,6 +131,7 @@ fun VendorsTab(
     }
 
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -132,6 +140,60 @@ fun VendorsTab(
     var showOfferSheet by remember { mutableStateOf(false) }
     var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
+    var showLocationAccessSheet by remember { mutableStateOf(false) }
+
+    var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
+    val recentLocations = remember { LocationHelper.getRecentLocations(context) }
+
+    val selectedCityFromNav by mainNavController.currentBackStackEntry
+        ?.savedStateHandle
+        ?.getStateFlow("selected_location", "City, State")
+        ?.collectAsState() ?: remember { mutableStateOf("City, State") }
+
+    var localSelectedCity by remember(selectedCityFromNav, recentLocations) {
+        mutableStateOf(
+            if (selectedCityFromNav == "City, State" && recentLocations.isNotEmpty()) {
+                recentLocations.first()
+            } else {
+                selectedCityFromNav
+            }
+        )
+    }
+
+    val selectedCity = localSelectedCity
+
+    val gpsResolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
+                localSelectedCity = city
+                mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
+            })
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineLocationGranted || coarseLocationGranted) {
+            LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
+                    localSelectedCity = city
+                    mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
+                })
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!SessionState.hasShownVendorLocationAccess) {
+            delay(1500.milliseconds)
+            showLocationAccessSheet = true
+        }
+    }
 
     var selectedCategory by remember { mutableStateOf(initialCategory) }
     var screenStack by remember {
@@ -166,8 +228,6 @@ fun VendorsTab(
             }
         }
     }
-
-    var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
 
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
@@ -211,11 +271,6 @@ fun VendorsTab(
 
     var userToRemove by remember { mutableStateOf<User?>(null) }
     var showLeaveConfirmation by remember { mutableStateOf(false) }
-
-    val selectedCity by mainNavController.currentBackStackEntry
-        ?.savedStateHandle
-        ?.getStateFlow("selected_location", "City, State")
-        ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
     val categories = vendorCategories
 
@@ -341,13 +396,14 @@ fun VendorsTab(
         }
     }
 
-    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible) {
+    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible, showLocationAccessSheet) {
         val isBottomBarVisibleEffective = isBottomBarVisible &&
                 hasAccess == true &&
                 !showMenuSheet &&
                 !showRoomMenuBottomSheet &&
                 !isSearchActive &&
                 !showSaveListBottomSheet &&
+                !showLocationAccessSheet &&
                 currentScreenState == VendorScreenState.MAIN
         onBottomBarVisibilityChange(isBottomBarVisibleEffective)
     }
@@ -371,7 +427,7 @@ fun VendorsTab(
         }
     }
 
-    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation || showOfferSheet
+    val isAnySheetVisible = showMenuSheet || showRoomMenuBottomSheet || showSaveListBottomSheet || userToRemove != null || showLeaveConfirmation || showOfferSheet || showLocationAccessSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
     val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
@@ -575,9 +631,10 @@ fun VendorsTab(
                         }
                         VendorScreenState.LOCATION_SELECTOR -> {
                             LocationScreen(
-                                initialSearches = emptyList(),
+                                initialSearches = recentLocations,
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
+                                    localSelectedCity = it
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
                                     if (screenStack.size > 1) {
                                         screenStack = screenStack.dropLast(1)
@@ -651,6 +708,43 @@ fun VendorsTab(
             OfferBottomSheet(
                 offers = offersToShow,
                 onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showLocationAccessSheet) {
+            LocationAccessBottomSheet(
+                title = "Discover the best vendors around you",
+                subtitle = "Allow location permissions for best recommendations of vendors around you",
+                onDismiss = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVendorLocationAccess = true
+                },
+                onAllowClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVendorLocationAccess = true
+
+                    if (LocationHelper.hasLocationPermission(context)) {
+                        LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
+                                localSelectedCity = city
+                                mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
+                            })
+                        }
+                    } else {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                },
+                onManualClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVendorLocationAccess = true
+                    screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
