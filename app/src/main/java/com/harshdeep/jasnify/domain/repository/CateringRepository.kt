@@ -9,4 +9,5 @@ interface CateringRepository {
     suspend fun addItems(items: List<CateringItemEntity>)
     suspend fun deleteItem(itemId: String, eventId: String)
     suspend fun seedDefaultItems(eventType: String, eventId: String)
+    suspend fun searchDishImages(query: String): Result<List<String>>
 }

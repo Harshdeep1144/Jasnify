@@ -79,6 +79,7 @@ import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.venues.LocationScreen
+import com.harshdeep.jasnify.presentation.components.states.VendorsLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
@@ -115,6 +116,13 @@ fun VendorsTab(
     initialCategory: VendorCategoryItem? = null,
     onBackClick: () -> Unit = {}
 ) {
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        VendorsLoadingState()
+        return
+    }
+
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     var searchQuery by remember { mutableStateOf("") }
@@ -161,7 +169,6 @@ fun VendorsTab(
 
     var recentSearchesNames by remember { mutableStateOf(getRecentSearches(context)) }
 
-    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
@@ -626,6 +633,7 @@ fun VendorsTab(
                 message = toastData.message ?: "",
                 type = toastData.type,
                 leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                iconColor = Color.Unspecified,
                 buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                 onButtonClick = if (activeEvent?.multiDay == true) {
                     {

@@ -61,10 +61,10 @@ fun SplashScreen(
                     if (cachedEventId != null) {
                         android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting.")
                         eventViewModel.fetchAndSetActiveEvent(cachedEventId)
-                        if (isOnline) Screen.MainSkeletonLoading.route else Screen.MainAppScreen.route
+                        Screen.MainSkeletonLoading.route
                     } else {
                         android.util.Log.d("SplashScreen", "Participation confirmed but no cache. Redirecting.")
-                        if (isOnline) Screen.MainSkeletonLoading.route else Screen.MainAppScreen.route
+                        Screen.MainSkeletonLoading.route
                     }
                 } else {
                     android.util.Log.d("SplashScreen", "No events found. Clearing cache and redirecting to OnboardingType.")

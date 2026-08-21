@@ -96,6 +96,7 @@ import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonContent
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
@@ -206,6 +207,11 @@ fun HomeTab(
     }
 
     val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
+
+    if (activeEvent == null) {
+        MainSkeletonContent()
+        return
+    }
 
     val eventDateString = remember(activeEvent) {
         val now = System.currentTimeMillis()
@@ -904,6 +910,7 @@ fun HomeTabContent(
                             message = data.message ?: "",
                             type = data.type,
                             leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                            iconColor = Color.Unspecified,
                             buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                             onButtonClick = if (activeEvent?.multiDay == true) {
                                 {

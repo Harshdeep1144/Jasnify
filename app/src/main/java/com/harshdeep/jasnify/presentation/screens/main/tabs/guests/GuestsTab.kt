@@ -115,6 +115,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.states.GuestsLoadingState
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
@@ -169,6 +170,11 @@ fun GuestsTab(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
     val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        GuestsLoadingState()
+        return
+    }
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -552,7 +558,7 @@ fun GuestsTab(
                                                     CustomTopBar(
                                                         title = "Guests",
                                                         titleIcon = painterResource(R.drawable.ill_guests),
-                                                        menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                                        menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
                                                         onMenuClick = {

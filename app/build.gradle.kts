@@ -142,4 +142,13 @@ dependencies {
 
     // Cloudinary
     implementation(libs.cloudinary.android)
+
+    // Retrofit core
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+
+    // Retrofit Gson converter (for JSON parsing)
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // Optional: OkHttp Logging Interceptor (helpful for debugging network calls)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 }

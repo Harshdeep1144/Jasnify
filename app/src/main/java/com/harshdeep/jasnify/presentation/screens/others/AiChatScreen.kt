@@ -1154,7 +1154,6 @@ fun AiChatScreen(
                     message = data.message ?: "",
                     type = data.type,
                     leadingIcon = painterResource(id = R.drawable.ic_delete),
-                    iconColor = ContentInvPrimary,
                     buttonText = if (recentlyDeletedSession != null) "Undo" else null,
                     onButtonClick = {
                         recentlyDeletedSession?.let { session ->

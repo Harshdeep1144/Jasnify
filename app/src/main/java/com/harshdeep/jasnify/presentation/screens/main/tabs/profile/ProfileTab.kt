@@ -72,6 +72,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
+import com.harshdeep.jasnify.presentation.components.states.ProfileLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -121,6 +122,11 @@ fun ProfileTab(
 
     val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+
+    if (userProfile == null) {
+        ProfileLoadingState()
+        return
+    }
 
     val enquiries by remember(firebaseUser?.uid) {
         if (firebaseUser?.uid != null) {

@@ -69,6 +69,7 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.components.states.BudgetLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -153,6 +154,11 @@ fun BudgetScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        BudgetLoadingState()
+        return
+    }
 
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }

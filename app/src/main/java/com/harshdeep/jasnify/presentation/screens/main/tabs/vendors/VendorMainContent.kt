@@ -189,7 +189,7 @@ fun VendorMainContent(
                                 onMenuClick = if (active) null else onMenuClick,
                                 onDropdownClick = if (active) null else onLocationClick,
                                 titleIcon = if (active) null else vendorTitlePainter,
-                                menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                 backIcon = TopIcon.Predefined.DOWN,
                                 isLargeTitle = true,
                                 isLeftAligned = !active,

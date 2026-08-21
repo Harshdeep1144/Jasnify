@@ -34,6 +34,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.states.GenericLoadingState
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
@@ -69,6 +70,11 @@ fun MomentsScreen(
     val foldersFromDb by viewModel.folders.collectAsStateWithLifecycle()
     val moments by viewModel.moments.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+
+    if (isLoading) {
+        GenericLoadingState()
+        return
+    }
 
     // Virtual "All Moments" folder
     val folders = remember(foldersFromDb, moments) {

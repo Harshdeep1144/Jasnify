@@ -707,6 +707,7 @@ fun VenueScreen(
                     message = data.message ?: "",
                     type = data.type,
                     leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    iconColor = Color.Unspecified,
                     buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                     onButtonClick = if (activeEvent?.multiDay == true) {
                         {

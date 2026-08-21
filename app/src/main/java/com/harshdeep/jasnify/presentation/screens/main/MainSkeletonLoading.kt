@@ -53,7 +53,6 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmall
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -95,7 +94,8 @@ fun MainSkeletonLoading(
     }
 
     LaunchedEffect(Unit) {
-        delay(1400.milliseconds)
+        // A very small delay to allow the skeleton to render and prevent white flash
+        delay(100.milliseconds)
         navController.navigate(Screen.MainAppScreen.route) {
             popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }
         }

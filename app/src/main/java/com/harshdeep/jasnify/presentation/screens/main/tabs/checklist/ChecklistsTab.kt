@@ -95,6 +95,7 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.states.ChecklistLoadingState
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
@@ -136,6 +137,12 @@ fun ChecklistsTab(
     val navBarStyle by uiViewModel.navBarStyle.collectAsStateWithLifecycle()
 
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        ChecklistLoadingState()
+        return
+    }
+
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
@@ -499,7 +506,7 @@ fun ChecklistsTab(
                                                             CustomTopBar(
                                                                 title = "Checklist",
                                                                 titleIcon = painterResource(R.drawable.ill_checklists),
-                                                                menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                                                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                                 isLeftAligned = true,
                                                                 isLargeTitle = true,
                                                                 secondaryIcon = TopIcon.Predefined.SEARCH,
