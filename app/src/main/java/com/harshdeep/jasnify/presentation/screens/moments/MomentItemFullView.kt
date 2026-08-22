@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerMedium
@@ -52,6 +54,9 @@ import sv.lib.squircleshape.SquircleShape
 import java.io.File
 import java.io.FileOutputStream
 import java.net.URL
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val FullMomentShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
@@ -64,6 +69,8 @@ fun MomentItemFullView(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     onBackClick: () -> Unit,
+    onFavoriteClick: () -> Unit,
+    onDownloadClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     SetStatusBarTheme(useDarkIcons = false)
@@ -101,12 +108,24 @@ fun MomentItemFullView(
         }
     }
 
-    val sharePainter = painterResource(R.drawable.ic_share)
+    val formattedDate = remember(moment.timestamp) {
+        val sdf = SimpleDateFormat("EEEE, hh:mm a", Locale.getDefault())
+        val dateStr = sdf.format(Date(moment.timestamp))
+        // Simple logic for \"Today\"/\"Yesterday\"
+        val now = System.currentTimeMillis()
+        val diff = now - moment.timestamp
+        val days = diff / (1000 * 60 * 60 * 24)
+        when (days) {
+            0L -> "Today, ${SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(moment.timestamp))}"
+            1L -> "Yesterday, ${SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(moment.timestamp))}"
+            else -> dateStr
+        }
+    }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ContentPrimary)
+            .background(Color.Black)
     ) {
         // Hidden Capture Area for High-Res Drawing/Share (Images only)
         if (!moment.isVideo) {
@@ -141,13 +160,13 @@ fun MomentItemFullView(
                 .statusBarsPadding()
         ) {
             CustomTopBar(
+                title = formattedDate,
                 onBackClick = onBackClick,
-                onMenuClick = { onShareTrigger(moment) },
+                onMenuClick = { /* More menu */ },
                 backIcon = TopIcon.Predefined.BACK_2,
-                menuIcon = TopIcon.CustomPainter(sharePainter),
-                textColor = ContentInvPrimary,
-                buttonStyle = ButtonBackground.OPAQUE,
-                buttonColor = Color(0xE53D3D3D)
+                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                textColor = Color.White,
+                buttonStyle = ButtonBackground.TRANSPARENT
             )
         }
 
@@ -157,9 +176,9 @@ fun MomentItemFullView(
                 .fillMaxSize()
                 .padding(
                     top = 80.dp,
-                    bottom = 40.dp,
-                    start = 12.dp,
-                    end = 12.dp
+                    bottom = 120.dp,
+                    start = 0.dp,
+                    end = 0.dp
                 ),
             contentAlignment = Alignment.Center
         ) {
@@ -167,13 +186,12 @@ fun MomentItemFullView(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f / 4f)
+                        .aspectRatio(1f) // Adjust based on image or use wrap content
                         .sharedBounds(
                             sharedContentState = rememberSharedContentState(key = transitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
-                            clipInOverlayDuringTransition = OverlayClip(FullMomentShape)
+                            clipInOverlayDuringTransition = OverlayClip(RoundedCornerShape(0.dp))
                         )
-                        .clip(FullMomentShape)
                 ) {
                     if (moment.isVideo) {
                         VideoPlayer(
@@ -190,12 +208,27 @@ fun MomentItemFullView(
                                 .crossfade(true)
                                 .build(),
                             contentDescription = null,
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
             }
+        }
+
+        // Bottom Action Pill
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 40.dp)
+                .padding(horizontal = 48.dp)
+        ) {
+            MomentsActionBar(
+                onShareClick = { onShareTrigger(moment) },
+                onFavoriteClick = onFavoriteClick,
+                onDownloadClick = onDownloadClick,
+                containerColor = Color(0xFF1E1E1E).copy(alpha = 0.9f)
+            )
         }
     }
 }

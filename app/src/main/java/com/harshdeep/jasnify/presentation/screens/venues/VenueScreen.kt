@@ -167,6 +167,8 @@ fun clearRecentSearches(context: Context) {
     prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
 
+private val VenueDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
@@ -280,10 +282,9 @@ fun VenueScreen(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
-            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    sdf.format(Date(timestamp))
+                    VenueDateFormatter.format(Date(timestamp))
                 } ?: "Date TBD"
 
                 TimelineEvent(

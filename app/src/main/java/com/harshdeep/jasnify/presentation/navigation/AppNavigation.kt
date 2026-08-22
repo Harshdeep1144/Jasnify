@@ -4,6 +4,10 @@ import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Surface
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,13 +31,21 @@ fun AppNavigation(
     Surface(color = BackgroundPrimary) {
         NavHost(
             navController = mainNavController,
-            startDestination = Screen.SplashScreen.route
+            startDestination = Screen.SplashScreen.route,
+            enterTransition = { fadeIn(tween(300)) },
+            exitTransition = { fadeOut(tween(300)) }
         ) {
-            composable(Screen.SplashScreen.route) {
+            composable(
+                route = Screen.SplashScreen.route,
+                enterTransition = { EnterTransition.None },
+                exitTransition = {
+                    // Instant exit when moving to loading skeleton to avoid logo mixing
+                    fadeOut(tween(if (targetState.destination.route?.contains("skeleton") == true) 0 else 300))
+                }
+            ) {
                 SplashScreen(
                     navController = mainNavController,
                     authViewModel = authViewModel,
-                    eventViewModel = eventViewModel
                 )
             }
 

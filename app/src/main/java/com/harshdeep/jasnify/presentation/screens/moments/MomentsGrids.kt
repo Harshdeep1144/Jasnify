@@ -3,27 +3,39 @@ package com.harshdeep.jasnify.presentation.screens.moments
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.utils.TimeUtils
 import java.util.Calendar
 
@@ -53,10 +65,10 @@ internal fun PhotosGrid(
             "${cal.get(Calendar.YEAR)}-${cal.get(Calendar.DAY_OF_YEAR)}"
         }
 
-        dayGroups.values.associate { momentsInDay ->
+        dayGroups.values.associateBy { momentsInDay ->
             val latestMoment = momentsInDay.first()
             val timeHeader = TimeUtils.getTimeAgo(latestMoment.timestamp)
-            timeHeader to momentsInDay
+            timeHeader
         }
     }
 
@@ -97,12 +109,59 @@ internal fun PhotosGrid(
 
         groupedMoments.forEach { (header, momentsInDate) ->
             item(span = { GridItemSpan(3) }) {
-                Text(
-                    header,
-                    style = JasnifyTheme.typography.labelMedium,
-                    color = ContentSecondary,
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        header,
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary
+                    )
+
+                    if (selectedMomentIds.isNotEmpty()) {
+                        val allSelected = momentsInDate.all { selectedMomentIds.contains(it.id) }
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(
+                                    color = if (allSelected) SurfaceBrandPrimary else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = if (allSelected) Color.Transparent else ContentSecondary,
+                                    shape = CircleShape
+                                )
+                                .clickable {
+                                    momentsInDate.forEach { moment ->
+                                        if (allSelected) {
+                                            if (selectedMomentIds.contains(moment.id)) {
+                                                onMomentClick(moment)
+                                            }
+                                        } else {
+                                            if (!selectedMomentIds.contains(moment.id)) {
+                                                onMomentClick(moment)
+                                            }
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (allSelected) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_check),
+                                    contentDescription = "Select All",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
             items(momentsInDate, key = { it.id }) { moment ->
                 MomentItem(
@@ -111,6 +170,7 @@ internal fun PhotosGrid(
                     animatedVisibilityScope = animatedVisibilityScope,
                     sharedTransitionScope = sharedTransitionScope,
                     isSelected = selectedMomentIds.contains(moment.id),
+                    isSelectionMode = selectedMomentIds.isNotEmpty(),
                     onClick = { onMomentClick(moment) },
                     onLongClick = { onMomentLongClick(moment) }
                 )

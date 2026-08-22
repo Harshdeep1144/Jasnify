@@ -106,6 +106,7 @@ import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -145,7 +146,8 @@ fun HomeTab(
     venueViewModel: VenueViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
-    momentsViewModel: MomentsViewModel = hiltViewModel()
+    momentsViewModel: MomentsViewModel = hiltViewModel(),
+    cardViewModel: CardViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
@@ -249,6 +251,7 @@ fun HomeTab(
         vendorViewModel = vendorViewModel,
         roomViewModel = roomViewModel,
         momentsViewModel = momentsViewModel,
+        cardViewModel = cardViewModel,
         isVenuesLoading = isVenuesLoading,
         venueSavedDestinations = venueSavedDestinations,
         vendorSavedDestinations = vendorSavedDestinations,
@@ -274,6 +277,7 @@ fun HomeTabContent(
     vendorViewModel: VendorViewModel? = null,
     roomViewModel: RoomViewModel? = null,
     momentsViewModel: MomentsViewModel? = null,
+    cardViewModel: CardViewModel? = null,
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
@@ -326,7 +330,7 @@ fun HomeTabContent(
     val isAnySheetVisible = showSaveListBottomSheet || showOfferSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
-    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
+    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) 32.dp else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
 
     val isSavedListToast = remember(toastData, lastSavedVenue, lastSavedVendor) {
         toastData?.message?.contains("Saved List") == true && (lastSavedVenue != null || lastSavedVendor != null)
@@ -539,14 +543,14 @@ fun HomeTabContent(
 
     val smoothDepthEasing = remember { CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f) }
 
-            AnimatedContent(
-                targetState = currentScreen,
-                transitionSpec = {
-                    if (initialState == "home") {
-                        // Forward navigation:
-                        // Current screen zooms in towards the user (1.0 -> 1.28) while fading out
-                        // Incoming screen emerges from 0.80 with a 100ms delay
-                        (
+    AnimatedContent(
+        targetState = currentScreen,
+        transitionSpec = {
+            if (initialState == "home") {
+                // Forward navigation:
+                // Current screen zooms in towards the user (1.0 -> 1.28) while fading out
+                // Incoming screen emerges from 0.80 with a 100ms delay
+                (
                         scaleIn(
                             initialScale = 0.9f,
                             animationSpec = tween(
@@ -682,9 +686,9 @@ fun HomeTabContent(
                                         .fillMaxWidth()
                                         .background(
                                             color = BackgroundPrimary,
-                                            shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge)
+                                            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
                                         )
-                                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
+                                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 8.dp)
                                 ) {
                                     BudgetTrackerCard(
                                         insight = "See your budget",
@@ -700,11 +704,11 @@ fun HomeTabContent(
 
                             item(key = "row_1_cards") {
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(BackgroundPrimary)
-                                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
                                     HomeCard(
                                         insight = "Delicious and Elegant",
@@ -731,11 +735,11 @@ fun HomeTabContent(
 
                             item(key = "row_2_cards") {
                                 Row(
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .background(BackgroundPrimary)
-                                        .padding(horizontal = 12.dp, vertical = 2.dp)
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
                                 ) {
                                     HomeCard(
                                         insight = "Capture and Smile",
@@ -1051,6 +1055,9 @@ fun HomeTabContent(
                     "cards" -> {
                         CardsScreen(
                             onBackClick = { currentScreen = "home" },
+                            eventViewModel = eventViewModel ?: hiltViewModel(),
+                            roomViewModel = roomViewModel ?: hiltViewModel(),
+                            cardViewModel = cardViewModel ?: hiltViewModel()
                         )
                     }
                     "moments" -> {
@@ -1212,7 +1219,7 @@ fun HeaderMediaSlider(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun HomeTabContentPreview() {

@@ -28,7 +28,26 @@ class PreferenceManager @Inject constructor(
         }
     }
 
+    fun saveDownloadPreference(quality: String, rememberUntil: Long) {
+        sharedPreferences.edit {
+            putString(KEY_DOWNLOAD_QUALITY, quality)
+            putLong(KEY_DOWNLOAD_REMEMBER_UNTIL, rememberUntil)
+        }
+    }
+
+    fun getDownloadPreference(): String? {
+        val until = sharedPreferences.getLong(KEY_DOWNLOAD_REMEMBER_UNTIL, 0L)
+        if (System.currentTimeMillis() > until) return null
+        return sharedPreferences.getString(KEY_DOWNLOAD_QUALITY, null)
+    }
+
+    fun getSavedDownloadQuality(): String {
+        return sharedPreferences.getString(KEY_DOWNLOAD_QUALITY, "Standard Quality") ?: "Standard Quality"
+    }
+
     companion object {
         private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
+        private const val KEY_DOWNLOAD_QUALITY = "download_quality"
+        private const val KEY_DOWNLOAD_REMEMBER_UNTIL = "download_remember_until"
     }
 }

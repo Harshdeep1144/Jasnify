@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
@@ -54,13 +55,11 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
@@ -108,6 +107,9 @@ enum class VendorScreenState {
     LOCATION_SELECTOR,
     TIMELINE_DETAIL
 }
+
+@SuppressLint("ConstantLocale")
+private val VendorDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -232,7 +234,7 @@ fun VendorsTab(
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
-    val allVendorsFromRepo by vendorViewModel.allVendors.collectAsStateWithLifecycle()
+    val exploreVendors by vendorViewModel.exploreVendors.collectAsStateWithLifecycle()
     val isLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
 
     val vendorSavedDestinations = remember(savedVendorsFromCloud) {
@@ -274,16 +276,12 @@ fun VendorsTab(
 
     val categories = vendorCategories
 
-    val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
-        val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
-        base.map { vendor ->
-            vendor.copy(favorite = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}"))
-        }
-    }
-
     val recentVendorsList = remember(recentSearchesNames, exploreVendors) {
-        val vendorMap = exploreVendors.associateBy { it.name }
-        recentSearchesNames.mapNotNull { name -> vendorMap[name] }
+        if (recentSearchesNames.isEmpty()) emptyList<Vendor>()
+        else {
+            val vendorMap = exploreVendors.associateBy { it.name }
+            recentSearchesNames.mapNotNull { name -> vendorMap[name] }
+        }
     }
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
@@ -292,10 +290,9 @@ fun VendorsTab(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
-            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    sdf.format(Date(timestamp))
+                    VendorDateFormatter.format(Date(timestamp))
                 } ?: "Date TBD"
 
                 TimelineEvent(
@@ -327,7 +324,7 @@ fun VendorsTab(
         }
     }
 
-    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, selectedCategory, vendorSavedDestinations, exploreVendors) {
+    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, selectedCategory, savedVendorsFromCloud, exploreVendors) {
         val targetId = selectedTimelineEventId ?: return@remember emptyList<Vendor>()
 
         val categoryFiltered = if (selectedCategory != null) {
@@ -336,8 +333,12 @@ fun VendorsTab(
             exploreVendors
         }
 
+        val savedSet = savedVendorsFromCloud.filter { it.destination == targetId }
+            .map { "${it.vendorName}-${it.category}" }
+            .toSet()
+
         categoryFiltered.filter { v ->
-            vendorSavedDestinations["${v.name}-${v.category}"] == targetId
+            savedSet.contains("${v.name}-${v.category}")
         }.map { it.copy(favorite = true) }
     }
 

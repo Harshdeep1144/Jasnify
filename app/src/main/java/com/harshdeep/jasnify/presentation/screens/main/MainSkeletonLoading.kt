@@ -94,10 +94,34 @@ fun MainSkeletonLoading(
     }
 
     LaunchedEffect(Unit) {
-        // A very small delay to allow the skeleton to render and prevent white flash
-        delay(100.milliseconds)
-        navController.navigate(Screen.MainAppScreen.route) {
-            popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }
+        // Allow the skeleton UI to render at least one frame before heavy work
+        delay(50.milliseconds)
+
+        // 1. Perform participation check first to ensure cache is valid
+        android.util.Log.d("MainSkeletonLoading", "Performing deep participation check...")
+        val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
+
+        if (hasEventParticipation) {
+            // Check local cache for immediate redirection
+            val cachedEventId = eventViewModel.getLocalActiveEventId()
+            if (cachedEventId != null) {
+                android.util.Log.d("MainSkeletonLoading", "Found cached eventId: $cachedEventId. Resolving.")
+                eventViewModel.fetchAndSetActiveEvent(cachedEventId)
+            }
+            
+            // Short delay to ensure state updates reach observers
+            delay(100.milliseconds)
+            
+            navController.navigate(Screen.MainAppScreen.route) {
+                popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }
+            }
+        } else {
+            android.util.Log.d("MainSkeletonLoading", "No events found. Redirecting to EventCreation.")
+            eventViewModel.clearActiveEvent() 
+            // Bypassing dashboard and going straight to creation for new users
+            navController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "false")) {
+                popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }
+            }
         }
     }
 

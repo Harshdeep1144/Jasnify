@@ -16,4 +16,6 @@ interface MomentsRepository {
     suspend fun deleteFolder(eventId: String, folderId: String)
     suspend fun initializeRoom(eventId: String)
     fun getUserRole(eventId: String): Flow<UserRole>
+    fun getSavedMoments(eventId: String): Flow<List<Moment>>
+    suspend fun toggleSaveMoment(eventId: String, moment: Moment)
 }

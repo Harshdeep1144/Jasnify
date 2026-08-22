@@ -6,72 +6,38 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.theme.BackgroundBrand
-import com.harshdeep.jasnify.utils.NetworkUtils
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun SplashScreen(
     navController: NavController,
-    authViewModel: AuthViewModel = hiltViewModel(),
-    eventViewModel: EventViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
-    val androidContext = LocalContext.current
     LaunchedEffect(Unit) {
         delay(200L.milliseconds) // Minimal delay for auth state to stabilize
-        var isLoggedIn = authViewModel.isUserLoggedIn()
-        
-        // If not immediately logged in, wait a bit longer (Firebase initialization)
-        if (!isLoggedIn) {
-            delay(300L.milliseconds)
-            isLoggedIn = authViewModel.isUserLoggedIn()
-        }
+        val isLoggedIn = authViewModel.isUserLoggedIn()
 
-        val isOnline = NetworkUtils.isInternetAvailable(androidContext)
-
-        val destination = when {
-            !isLoggedIn -> Screen.OnboardingGraph.route
-            else -> {
-                // 1. Perform participation check first to ensure cache is valid
-                android.util.Log.d("SplashScreen", "Performing deep participation check...")
-                val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
-                
-                if (hasEventParticipation) {
-                    // Check local cache for immediate redirection
-                    val cachedEventId = eventViewModel.getLocalActiveEventId()
-                    if (cachedEventId != null) {
-                        android.util.Log.d("SplashScreen", "Found cached eventId: $cachedEventId. Redirecting.")
-                        eventViewModel.fetchAndSetActiveEvent(cachedEventId)
-                        Screen.MainSkeletonLoading.route
-                    } else {
-                        android.util.Log.d("SplashScreen", "Participation confirmed but no cache. Redirecting.")
-                        Screen.MainSkeletonLoading.route
-                    }
-                } else {
-                    android.util.Log.d("SplashScreen", "No events found. Clearing cache and redirecting to OnboardingType.")
-                    eventViewModel.clearActiveEvent() // Ensure cache is cleared if they have no events
-                    Screen.OnboardingType.route
-                }
-            }
+        val destination = if (!isLoggedIn) {
+            Screen.OnboardingGraph.route
+        } else {
+            // Logged in? Move immediately to the Main Loading Skeleton.
+            // All deep database checks and cache resolutions happen there.
+            Screen.MainSkeletonLoading.route
         }
 
         navController.navigate(destination) {

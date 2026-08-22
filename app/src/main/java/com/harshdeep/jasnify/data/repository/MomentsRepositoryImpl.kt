@@ -315,4 +315,44 @@ class MomentsRepositoryImpl @Inject constructor(
             throw e
         }
     }
+
+    override fun getSavedMoments(eventId: String): Flow<List<Moment>> = callbackFlow {
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: run {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val subscription = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("user_saved").document(currentUser.uid)
+            .collection("moments")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("MomentsRepo", "Error fetching saved moments: ${error.message}")
+                    return@addSnapshotListener
+                }
+                snapshot?.let {
+                    val moments = it.toObjects(Moment::class.java)
+                    trySend(moments)
+                }
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun toggleSaveMoment(eventId: String, moment: Moment) {
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: return
+        val docRef = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("user_saved").document(currentUser.uid)
+            .collection("moments").document(moment.id)
+
+        val doc = docRef.get().await()
+        if (doc.exists()) {
+            docRef.delete().await()
+        } else {
+            docRef.set(moment).await()
+        }
+    }
 }

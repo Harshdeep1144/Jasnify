@@ -103,7 +103,7 @@ fun LocationAccessBottomSheet(
                 containerColor = ContentPrimary,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Manual Button
             Text(
@@ -130,7 +130,7 @@ fun LocationAccessBottomSheet(
                     }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }

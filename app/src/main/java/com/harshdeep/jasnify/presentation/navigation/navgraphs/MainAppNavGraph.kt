@@ -67,7 +67,14 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
         startDestination = Screen.MainAppScreen.route,
         route = Screen.MainAppGraph.route
     ) {
-        composable(Screen.MainSkeletonLoading.route) {
+        composable(
+            route = Screen.MainSkeletonLoading.route,
+            enterTransition = {
+                // Instant enter when coming from splash to avoid logo mixing
+                fadeIn(tween(if (initialState.destination.route?.contains("splash") == true) 0 else 300))
+            },
+            exitTransition = { fadeOut(tween(300)) }
+        ) {
             MainSkeletonLoading(navController = mainNavController)
         }
 

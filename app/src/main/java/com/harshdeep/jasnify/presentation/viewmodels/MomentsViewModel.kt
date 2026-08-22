@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
 import com.harshdeep.jasnify.domain.model.UserRole
@@ -15,11 +16,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 @HiltViewModel
 class MomentsViewModel @Inject constructor(
-    private val momentsRepository: MomentsRepository
+    private val momentsRepository: MomentsRepository,
+    private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 
     private val _folders = MutableStateFlow<List<MomentFolder>>(emptyList())
@@ -27,6 +30,9 @@ class MomentsViewModel @Inject constructor(
 
     private val _moments = MutableStateFlow<List<Moment>>(emptyList())
     val moments: StateFlow<List<Moment>> = _moments.asStateFlow()
+
+    private val _savedMoments = MutableStateFlow<List<Moment>>(emptyList())
+    val savedMoments: StateFlow<List<Moment>> = _savedMoments.asStateFlow()
 
     private val _userRole = MutableStateFlow(UserRole.VIEWER)
     val userRole: StateFlow<UserRole> = _userRole.asStateFlow()
@@ -113,5 +119,34 @@ class MomentsViewModel @Inject constructor(
         viewModelScope.launch {
             momentsRepository.deleteFolder(eventId, folderId)
         }
+    }
+
+    fun loadSavedMoments(eventId: String) {
+        viewModelScope.launch {
+            momentsRepository.getSavedMoments(eventId).collect {
+                _savedMoments.value = it
+            }
+        }
+    }
+
+    fun toggleSaveMoment(eventId: String, moment: Moment) {
+        viewModelScope.launch {
+            momentsRepository.toggleSaveMoment(eventId, moment)
+        }
+    }
+
+    fun saveDownloadPreference(quality: String, remember: Boolean) {
+        if (remember) {
+            val rememberUntil = System.currentTimeMillis() + TimeUnit.DAYS.toMillis(7)
+            preferenceManager.saveDownloadPreference(quality, rememberUntil)
+        }
+    }
+
+    fun getDownloadPreference(): String? {
+        return preferenceManager.getDownloadPreference()
+    }
+
+    fun getSavedDownloadQuality(): String {
+        return preferenceManager.getSavedDownloadQuality()
     }
 }

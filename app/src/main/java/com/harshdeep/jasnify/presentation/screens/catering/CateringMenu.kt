@@ -347,6 +347,8 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
     }
 }
 
+private val CateringDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -461,10 +463,9 @@ fun CateringMenuScreen(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
-            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    sdf.format(Date(timestamp))
+                    CateringDateFormatter.format(Date(timestamp))
                 } ?: "Date TBD"
 
                 TimelineEvent(
