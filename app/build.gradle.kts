@@ -17,8 +17,8 @@ android {
         applicationId = "com.harshdeep.jasnify"
         minSdk = 25
         targetSdk = 36
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

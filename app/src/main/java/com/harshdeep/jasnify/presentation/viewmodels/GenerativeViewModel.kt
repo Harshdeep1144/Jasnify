@@ -196,17 +196,16 @@ class GenerativeViewModel @Inject constructor(
     fun createNewChatSession(initialTitle: String = "New Chat", customChatId: String? = null) {
         val eventId = _eventId.value ?: return
         val newChatId = customChatId ?: UUID.randomUUID().toString()
-        val session = ChatSession(
-            id = newChatId,
-            title = initialTitle,
-            timestamp = System.currentTimeMillis()
+        val sessionMap = hashMapOf(
+            "title" to initialTitle,
+            "timestamp" to System.currentTimeMillis()
         )
 
         firestore.collection("events")
             .document(eventId)
             .collection("aiChatHistory")
             .document(newChatId)
-            .set(session)
+            .set(sessionMap)
             .addOnSuccessListener {
                 selectChatSession(newChatId)
             }
@@ -506,7 +505,6 @@ class GenerativeViewModel @Inject constructor(
         val eventId = _eventId.value ?: return
 
         val messageMap = hashMapOf(
-            "id" to message.id,
             "text" to message.text,
             "isUser" to message.isUser,
             "timestamp" to message.timestamp,

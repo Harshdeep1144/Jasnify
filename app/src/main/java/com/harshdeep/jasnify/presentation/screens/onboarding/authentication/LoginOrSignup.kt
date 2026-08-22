@@ -127,10 +127,12 @@ fun LoginOrSignup(
             if (account.idToken != null) {
                 viewModel.signInWithGoogle(account, eventId)
             } else {
-                toastData = ToastData("Sign-in failed", ToastType.ERROR)
+                android.util.Log.e("LoginOrSignup", "Google Sign-in failed: idToken is null")
+                toastData = ToastData("Sign-in failed (null token)", ToastType.ERROR)
             }
 
         } catch (e: ApiException) {
+            android.util.Log.e("LoginOrSignup", "Google Sign-in failed: code=${e.statusCode}, message=${e.message}")
             toastData = ToastData("Sign-in failed", ToastType.ERROR)
         }
     }

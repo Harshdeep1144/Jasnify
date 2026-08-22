@@ -20,58 +20,65 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
-# --- Firestore & Data Models ---
-# We keep field names and default constructors for Firestore mapping
+# --- Critical Firestore & Data Model Preservation ---
+# We keep everything (fields, methods, constructors) for these classes
+# because Firestore uses reflection to map data.
 -keepattributes Signature
 -keepattributes *Annotation*
 -keepattributes EnclosingMethod
 -keepattributes InnerClasses
+-keepattributes RuntimeVisibleAnnotations,RuntimeInvisibleAnnotations,RuntimeVisibleParameterAnnotations,RuntimeInvisibleParameterAnnotations
 
--keep class com.harshdeep.jasnify.domain.model.** {
-    <fields>;
-    <init>(...);
-}
--keep class com.harshdeep.jasnify.data.models.** {
-    <fields>;
-    <init>(...);
-}
--keep class com.harshdeep.jasnify.data.local.** {
-    <fields>;
-    <init>(...);
-}
+-keep class com.harshdeep.jasnify.domain.model.** { *; }
+-keep class com.harshdeep.jasnify.data.models.** { *; }
+-keep class com.harshdeep.jasnify.data.local.** { *; }
 
 # Specifically keep classes used with Firestore in other packages
--keep class com.harshdeep.jasnify.presentation.viewmodels.ChatSession {
-    <fields>;
-    <init>(...);
-}
--keep class com.harshdeep.jasnify.presentation.screens.others.AiMessage {
-    <fields>;
-    <init>(...);
-}
+-keep class com.harshdeep.jasnify.presentation.viewmodels.ChatSession { *; }
+-keep class com.harshdeep.jasnify.presentation.screens.others.AiMessage { *; }
 
-# Keep Firestore PropertyName annotations to ensure mapping works correctly
+# Keep Firestore PropertyName and DocumentId annotations
 -keep @interface com.google.firebase.firestore.PropertyName
+-keep @interface com.google.firebase.firestore.DocumentId
+-keep @interface com.google.firebase.firestore.IgnoreExtraProperties
+
+# Ensure all annotated members are kept
 -keepclassmembers class * {
     @com.google.firebase.firestore.PropertyName *;
+    @com.google.firebase.firestore.DocumentId *;
 }
 
-# --- Library Specific Rules (Targeted to avoid broad keep warnings) ---
+# Preserve Enums (like UserRole)
+-keepclassmembers enum * {
+    public static **[] values();
+    public static ** valueOf(java.lang.String);
+}
 
-# Cloudinary - Keep initialization and essential callbacks
--keep class com.cloudinary.android.MediaManager { *; }
--keep class com.cloudinary.android.callback.UploadCallback { *; }
--keep class com.cloudinary.android.callback.ErrorInfo { *; }
+# --- Library Specific Rules ---
 
-# Gson - Keep serialization annotations and type tokens
--keep class com.google.gson.annotations.SerializedName { *; }
+# Cloudinary
+-keep class com.cloudinary.android.** { *; }
+-keep interface com.cloudinary.android.** { *; }
+
+# Gson & Retrofit
+-keep class com.google.gson.** { *; }
+-keep class com.squareup.retrofit2.** { *; }
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
 -dontwarn sun.misc.Unsafe
 
-# BuildConfig - Keep for Cloudinary and other services
+# Suppress warnings for missing Glide and Picasso classes
+-dontwarn com.bumptech.glide.**
+-dontwarn com.squareup.picasso.**
+
+# Coil
+-keep class coil.** { *; }
+
+# Hilt
+-keep class dagger.hilt.** { *; }
+
+# BuildConfig
 -keep class com.harshdeep.jasnify.BuildConfig { *; }
 
-# NOTE: Hilt, Coil, and Retrofit typically bundle their own R8/ProGuard rules
-# in their AAR files. Explicitly keeping their entire packages is redundant
-# and triggers lint warnings.
+# Logcat protection
+-dontnote com.google.firebase.firestore.util.CustomClassMapper

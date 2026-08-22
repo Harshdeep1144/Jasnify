@@ -334,7 +334,7 @@ fun MomentsScreen(
                 createNewFile()
                 deleteOnExit()
             }
-            FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", tempFile)
+            FileProvider.getUriForFile(context, "${com.harshdeep.jasnify.BuildConfig.APPLICATION_ID}.fileprovider", tempFile)
         }
     }
 
