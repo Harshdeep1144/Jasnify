@@ -22,10 +22,11 @@ class MomentsRepositoryImpl @Inject constructor(
     private val userRepository: UserRepository
 ) : MomentsRepository {
 
-    override fun getFolders(eventId: String): Flow<List<MomentFolder>> = callbackFlow {
+    override fun getFolders(eventId: String, parentId: String): Flow<List<MomentFolder>> = callbackFlow {
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
             .collection("folders")
+            .whereEqualTo("parentId", parentId)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     android.util.Log.e("MomentsRepo", "Error fetching folders: ${error.message}")
@@ -67,15 +68,34 @@ class MomentsRepositoryImpl @Inject constructor(
 
     override fun getAllMoments(eventId: String): Flow<List<Moment>> = getMoments(eventId, "")
 
-    override suspend fun createFolder(eventId: String, name: String): String {
+    override suspend fun createFolder(eventId: String, name: String, parentId: String): String {
         // Ensure the owner has access to this room (for older events)
         ensureOwnerAccess(eventId)
 
-        val docRef = firestore.collection("events").document(eventId)
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        val foldersRef = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
-            .collection("folders").document()
+            .collection("folders")
         
-        val folder = MomentFolder(id = docRef.id, name = name, isNew = true)
+        val docRef = foldersRef.document()
+        
+        var fullPath = name
+        if (parentId.isNotEmpty()) {
+            val parentDoc = foldersRef.document(parentId).get().await()
+            val parentPath = parentDoc.getString("fullPath") ?: ""
+            if (parentPath.isNotEmpty()) {
+                fullPath = "$parentPath/$name"
+            }
+        }
+        
+        val folder = MomentFolder(
+            id = docRef.id, 
+            name = name, 
+            isNew = true,
+            uploaderId = currentUser?.uid ?: "",
+            parentId = parentId,
+            fullPath = fullPath
+        )
         docRef.set(folder).await()
         return docRef.id
     }
@@ -105,26 +125,37 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun uploadMoment(eventId: String, folderId: String, uri: Uri, isVideo: Boolean) {
-        // 1. Get folder info for Cloudinary path
-        val actualFolderId = if (folderId == "all_moments_id") {
-            // Find "All Moments" folder or create one if uploading to "All"
+        // 1. Resolve folder info for path and metadata
+        val actualFolderId = if (folderId.isEmpty() || folderId == "all_moments_id") {
+            // Find/Create "All Moments" folder at root
             val allMomentsSnapshot = firestore.collection("events").document(eventId)
                 .collection("rooms").document("moments")
-                .collection("folders").whereEqualTo("name", "All Moments").limit(1).get().await()
+                .collection("folders")
+                .whereEqualTo("name", "All Moments")
+                .whereEqualTo("parentId", "")
+                .limit(1).get().await()
             
-            if (allMomentsSnapshot.isEmpty) createFolder(eventId, "All Moments") else allMomentsSnapshot.documents.first().id
+            if (allMomentsSnapshot.isEmpty) {
+                createFolder(eventId, "All Moments", "")
+            } else {
+                allMomentsSnapshot.documents.first().id
+            }
         } else folderId
 
-        val folderDoc = firestore.collection("events").document(eventId)
+        val folderRef = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
-            .collection("folders").document(actualFolderId).get().await()
+            .collection("folders").document(actualFolderId)
         
-        val folderName = folderDoc.getString("name") ?: "All Moments"
+        val folderDoc = folderRef.get().await()
+        if (!folderDoc.exists()) throw Exception("Target folder does not exist")
 
-        // 2. Upload to Cloudinary
-        val url = cloudinaryManager.uploadMoment(uri, eventId, folderName, isVideo)
+        val folderPath = folderDoc.getString("fullPath") ?: folderDoc.getString("name") ?: "Moments"
 
-        // 3. Save to Firestore
+        // 2. Upload to Cloudinary using the full virtual path
+        val url = cloudinaryManager.uploadMoment(uri, eventId, folderPath, isVideo)
+
+        // 3. Prepare Moment Data
+        val currentUser = FirebaseAuth.getInstance().currentUser
         val momentId = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
             .collection("all_moments").document().id
@@ -134,34 +165,61 @@ class MomentsRepositoryImpl @Inject constructor(
             imageUrl = url,
             timestamp = System.currentTimeMillis(),
             isVideo = isVideo,
-            folderId = actualFolderId
+            folderId = actualFolderId,
+            uploaderId = currentUser?.uid ?: ""
         )
 
+        // 4. Atomic Write (Moment in Folder + Moment in All + Folder Metadata)
         val batch = firestore.batch()
         
-        // Save to folder specific collection
-        val folderMomentRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
-            .collection("folders").document(actualFolderId)
-            .collection("moments").document(momentId)
+        // Save to specific folder sub-collection
+        val folderMomentRef = folderRef.collection("moments").document(momentId)
         batch.set(folderMomentRef, moment)
 
-        // Save to all moments collection for easy access
+        // Save to global room collection
         val allMomentRef = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
             .collection("all_moments").document(momentId)
         batch.set(allMomentRef, moment)
         
-        // Update folder cover and count
-        batch.update(folderDoc.reference, "coverImageUrl", url)
-        batch.update(folderDoc.reference, "itemCount", com.google.firebase.firestore.FieldValue.increment(1))
-        batch.update(folderDoc.reference, "isNew", false)
+        // Update folder metadata (Newest item becomes cover)
+        batch.update(folderRef, "coverImageUrl", url)
+        batch.update(folderRef, "itemCount", com.google.firebase.firestore.FieldValue.increment(1))
+        batch.update(folderRef, "isNew", false)
 
         batch.commit().await()
+        android.util.Log.d("MomentsRepo", "Successfully uploaded moment to $folderPath")
     }
 
     override suspend fun initializeRoom(eventId: String) {
         ensureOwnerAccess(eventId)
+    }
+
+    override fun getUserRole(eventId: String): Flow<UserRole> = callbackFlow {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser == null) {
+            trySend(UserRole.VIEWER)
+            close()
+            return@callbackFlow
+        }
+
+        val subscription = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("moments_room_users").document(currentUser.uid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(UserRole.VIEWER)
+                    return@addSnapshotListener
+                }
+                val roleStr = snapshot?.getString("role")
+                val role = try {
+                    UserRole.valueOf(roleStr ?: "VIEWER")
+                } catch (e: Exception) {
+                    UserRole.VIEWER
+                }
+                trySend(role)
+            }
+        awaitClose { subscription.remove() }
     }
 
     override suspend fun deleteMoment(eventId: String, folderId: String, momentId: String) {
@@ -200,52 +258,60 @@ class MomentsRepositoryImpl @Inject constructor(
 
     override suspend fun deleteFolder(eventId: String, folderId: String) {
         try {
-            val folderRef = firestore.collection("events").document(eventId)
+            val rootFolderRef = firestore.collection("events").document(eventId)
                 .collection("rooms").document("moments")
-                .collection("folders").document(folderId)
+                .collection("folders")
             
-            val folderDoc = folderRef.get().await()
-            if (!folderDoc.exists()) return
+            // Collect all folders to delete (recursively)
+            val foldersToDelete = mutableListOf<String>()
+            val stack = mutableListOf(folderId)
             
-            val folderName = folderDoc.getString("name") ?: "Unknown"
-            
-            // 1. Get all moments in this folder
-            val momentsRef = folderRef.collection("moments")
-            val momentDocs = momentsRef.get().await()
-            val moments = momentDocs.toObjects(Moment::class.java)
-            
-            // 2. Delete each asset from Cloudinary INDIVIDUALLY
-            // This is required because the Admin API (bulk delete) is not supported in Android SDK
-            moments.forEach { moment ->
-                try {
-                    cloudinaryManager.deleteImageByUrl(moment.imageUrl)
-                } catch (e: Exception) {
-                    android.util.Log.e("MomentsRepo", "Failed to delete Cloudinary asset: ${moment.imageUrl}")
+            while (stack.isNotEmpty()) {
+                val currentId = stack.removeAt(stack.size - 1)
+                foldersToDelete.add(currentId)
+                
+                // Find subfolders
+                val subfolders = rootFolderRef.whereEqualTo("parentId", currentId).get().await()
+                subfolders.documents.forEach { doc ->
+                    stack.add(doc.id)
                 }
             }
 
-            // 3. Delete Firestore documents in a batch for UI consistency
-            val batch = firestore.batch()
-            
-            // Remove from global all_moments
-            moments.forEach { moment ->
-                val allMomentRef = firestore.collection("events").document(eventId)
-                    .collection("rooms").document("moments")
-                    .collection("all_moments").document(moment.id)
-                batch.delete(allMomentRef)
+            // Delete moments from all collected folders
+            foldersToDelete.forEach { fid ->
+                val momentsRef = rootFolderRef.document(fid).collection("moments")
+                val momentDocs = momentsRef.get().await()
+                val moments = momentDocs.toObjects(Moment::class.java)
                 
-                // Remove from folder sub-collection
-                batch.delete(momentsRef.document(moment.id))
+                // Delete assets from Cloudinary
+                moments.forEach { moment ->
+                    try {
+                        cloudinaryManager.deleteImageByUrl(moment.imageUrl)
+                    } catch (_: Exception) {}
+                }
+
+                // Delete moments from Firestore
+                val batch = firestore.batch()
+                moments.forEach { moment ->
+                    val allMomentRef = firestore.collection("events").document(eventId)
+                        .collection("rooms").document("moments")
+                        .collection("all_moments").document(moment.id)
+                    batch.delete(allMomentRef)
+                    batch.delete(momentsRef.document(moment.id))
+                }
+                batch.commit().await()
             }
             
-            // Remove the folder document itself
-            batch.delete(folderRef)
+            // Delete the folders themselves
+            val folderBatch = firestore.batch()
+            foldersToDelete.forEach { fid ->
+                folderBatch.delete(rootFolderRef.document(fid))
+            }
+            folderBatch.commit().await()
             
-            batch.commit().await()
-            
-            android.util.Log.d("MomentsRepo", "Successfully deleted folder $folderName and all its ${moments.size} moments")
+            android.util.Log.d("MomentsRepo", "Successfully deleted folder hierarchy for: $folderId")
         } catch (e: Exception) {
-            android.util.Log.e("MomentsRepo", "Error during folder deletion: ${e.message}", e)
+            android.util.Log.e("MomentsRepo", "Error during recursive folder deletion: ${e.message}", e)
             throw e
         }
     }

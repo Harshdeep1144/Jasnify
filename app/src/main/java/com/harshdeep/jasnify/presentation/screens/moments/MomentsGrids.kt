@@ -31,16 +31,18 @@ import java.util.Calendar
 @Composable
 internal fun PhotosGrid(
     moments: List<Moment>,
+    subfolders: List<MomentFolder> = emptyList(),
     gridState: LazyGridState = rememberLazyGridState(),
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     selectedMomentIds: Set<String> = emptySet(),
     onMomentClick: (Moment) -> Unit,
-    onMomentLongClick: (Moment) -> Unit
+    onMomentLongClick: (Moment) -> Unit,
+    onFolderClick: (MomentFolder) -> Unit = {}
 ) {
-    if (moments.isEmpty()) {
+    if (moments.isEmpty() && subfolders.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("No moments yet", color = ContentSecondary)
+            Text("No content yet", color = ContentSecondary)
         }
         return
     }
@@ -66,6 +68,33 @@ internal fun PhotosGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxSize()
     ) {
+        // Show Subfolders at the top if any
+        if (subfolders.isNotEmpty()) {
+            item(span = { GridItemSpan(3) }) {
+                Text(
+                    "Sub-folders",
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = ContentSecondary,
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+            }
+            items(subfolders, key = { "folder_${it.id}" }, span = { GridItemSpan(1) }) { folder ->
+                FolderItem(folder, onClick = { onFolderClick(folder) })
+            }
+
+            // Divider if moments also exist
+            if (moments.isNotEmpty()) {
+                item(span = { GridItemSpan(3) }) {
+                    Text(
+                        "Moments",
+                        style = JasnifyTheme.typography.labelMedium,
+                        color = ContentSecondary,
+                        modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)
+                    )
+                }
+            }
+        }
+
         groupedMoments.forEach { (header, momentsInDate) ->
             item(span = { GridItemSpan(3) }) {
                 Text(

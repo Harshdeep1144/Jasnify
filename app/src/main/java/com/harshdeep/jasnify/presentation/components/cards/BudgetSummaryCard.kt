@@ -2,6 +2,8 @@ package com.harshdeep.jasnify.presentation.components.cards
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,8 +19,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,6 +48,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -49,8 +56,6 @@ import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
 private val NotSetCardShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
@@ -66,8 +71,11 @@ fun BudgetSummaryCard(
     onEditBudgetClick: () -> Unit,
     onViewSummaryClick: () -> Unit,
     modifier: Modifier = Modifier,
-    showEditButton: Boolean = true
+    showEditButton: Boolean = true,
+    tooltipText: String = "This is the unspent portion of your total budget. It does not reflect actual bank balance or real cash."
 ) {
+    var isTooltipVisible by remember { mutableStateOf(false) }
+
     if (isBudgetNotSet) {
         Box(
             modifier = modifier
@@ -216,12 +224,29 @@ fun BudgetSummaryCard(
                             ),
                             color = ContentPrimary
                         )
-                        Icon(
-                            painter = painterResource(R.drawable.ic_info),
-                            contentDescription = "Remaining Funds Info",
-                            tint = ContentPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
+
+                        Box {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_info),
+                                contentDescription = "Remaining Funds Info",
+                                tint = ContentPrimary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = ripple(bounded = false, radius = 16.dp),
+                                        onClick = { isTooltipVisible = true }
+                                    )
+                            )
+
+                            InfoTooltip(
+                                visible = isTooltipVisible,
+                                tooltipText = tooltipText,
+                                onDismiss = { isTooltipVisible = false },
+                                autoDismissDelayMillis = 5000L
+                            )
+                        }
                     }
 
                     LinearProgressIndicator(

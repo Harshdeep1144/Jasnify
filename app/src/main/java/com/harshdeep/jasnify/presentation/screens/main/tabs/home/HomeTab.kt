@@ -548,29 +548,29 @@ fun HomeTabContent(
                         // Incoming screen emerges from 0.80 with a 100ms delay
                         (
                         scaleIn(
-                            initialScale = 0.80f,
+                            initialScale = 0.9f,
                             animationSpec = tween(
-                                durationMillis = 420,
+                                durationMillis = 300,
                                 delayMillis = 100,
                                 easing = smoothDepthEasing
                             )
                         ) + fadeIn(
                             animationSpec = tween(
-                                durationMillis = 350,
+                                durationMillis = 300,
                                 delayMillis = 100,
                                 easing = smoothDepthEasing
                             )
                         )
                         ).togetherWith(
                         scaleOut(
-                            targetScale = 1.28f,
+                            targetScale = 1.1f,
                             animationSpec = tween(
-                                durationMillis = 450,
+                                durationMillis = 300,
                                 easing = smoothDepthEasing
                             )
                         ) + fadeOut(
                             animationSpec = tween(
-                                durationMillis = 350,
+                                durationMillis = 300,
                                 easing = smoothDepthEasing
                             )
                         )
@@ -581,29 +581,29 @@ fun HomeTabContent(
                 // Outgoing screen shrinks away to 0.78 while fading out
                 (
                         scaleIn(
-                            initialScale = 1.25f,
+                            initialScale = 1.1f,
                             animationSpec = tween(
-                                durationMillis = 400,
+                                durationMillis = 300,
                                 delayMillis = 80,
                                 easing = smoothDepthEasing
                             )
                         ) + fadeIn(
                             animationSpec = tween(
-                                durationMillis = 350,
+                                durationMillis = 300,
                                 delayMillis = 80,
                                 easing = smoothDepthEasing
                             )
                         )
                         ).togetherWith(
                         scaleOut(
-                            targetScale = 0.78f,
+                            targetScale = 0.9f,
                             animationSpec = tween(
-                                durationMillis = 420,
+                                durationMillis = 300,
                                 easing = smoothDepthEasing
                             )
                         ) + fadeOut(
                             animationSpec = tween(
-                                durationMillis = 320,
+                                durationMillis = 300,
                                 easing = smoothDepthEasing
                             )
                         )

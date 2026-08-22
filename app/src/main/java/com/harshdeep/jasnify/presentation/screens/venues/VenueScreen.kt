@@ -244,6 +244,7 @@ fun VenueScreen(
     var showOfferSheet by remember { mutableStateOf(false) }
     var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
     var showLocationAccessSheet by remember { mutableStateOf(false) }
+    var autoFocusLocationSearch by remember { mutableStateOf(false) }
 
     val gpsResolutionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
@@ -267,7 +268,7 @@ fun VenueScreen(
 
     LaunchedEffect(Unit) {
         if (!SessionState.hasShownVenueLocationAccess) {
-            delay(1500.milliseconds)
+            delay(500.milliseconds)
             showLocationAccessSheet = true
         }
     }
@@ -482,9 +483,14 @@ fun VenueScreen(
                                 currentAddress = currentAddress,
                                 onAddressSelected = {
                                     currentAddress = it
+                                    autoFocusLocationSearch = false
                                     screenStack = screenStack.dropLast(1)
                                 },
-                                onBackClick = { screenStack = screenStack.dropLast(1) },
+                                onBackClick = { 
+                                    autoFocusLocationSearch = false
+                                    screenStack = screenStack.dropLast(1) 
+                                },
+                                autoFocusSearch = autoFocusLocationSearch
                             )
                         }
                         VenueScreenState.ROOM_ACCESS -> {
@@ -611,8 +617,8 @@ fun VenueScreen(
 
         if (showLocationAccessSheet) {
             LocationAccessBottomSheet(
-                title = "Discover the best vendors around you",
-                subtitle = "Allow location permissions for best recommendations of vendors around you",
+                title = "Discover the best \n venues around you",
+                subtitle = "Allow location permissions for best \n recommendations around you",
                 onDismiss = {
                     showLocationAccessSheet = false
                     SessionState.hasShownVenueLocationAccess = true
@@ -637,6 +643,7 @@ fun VenueScreen(
                 onManualClick = {
                     showLocationAccessSheet = false
                     SessionState.hasShownVenueLocationAccess = true
+                    autoFocusLocationSearch = true
                     screenStack = screenStack + VenueScreenState.LOCATION_PICKER
                 },
                 onProgress = { sheetMotionProgress = it }

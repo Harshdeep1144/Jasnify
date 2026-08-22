@@ -8,6 +8,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -19,7 +20,6 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Density
@@ -32,9 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -137,23 +138,27 @@ class TooltipPositionProvider(
     }
 }
 
-
 @Composable
 fun TooltipBubble(
     tooltipText: String,
     arrowOffsetPx: Float,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = ContentBrand,
-    textColor: Color = ContentInvPrimary
+    backgroundColor: Color = ContentPrimary,
+    textColor: Color = ContentInvPrimary,
+    elevation: Dp = 10.dp
 ) {
+    val shape = remember(arrowOffsetPx) { TooltipShape(arrowOffsetPx = arrowOffsetPx) }
+
     Box(
         modifier = modifier
             .widthIn(max = 240.dp)
             .shadow(
-                elevation = 6.dp,
-                shape = TooltipShape(arrowOffsetPx = arrowOffsetPx)
+                elevation = elevation,
+                shape = shape,
+                ambientColor = Color.Black.copy(alpha = 0.08f),
+                spotColor = Color.Black.copy(alpha = 0.12f)
             )
-            .clip(TooltipShape(arrowOffsetPx = arrowOffsetPx))
+            .clip(shape)
             .background(backgroundColor)
             .padding(start = 12.dp, top = 10.dp, end = 12.dp, bottom = 18.dp)
     ) {
@@ -172,17 +177,18 @@ fun InfoTooltip(
     tooltipText: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    backgroundColor: Color = ContentBrand,
+    backgroundColor: Color = ContentPrimary,
     textColor: Color = ContentInvPrimary,
+    elevation: Dp = 10.dp,
     autoDismissDelayMillis: Long = 2500L
 ) {
     if (!visible) return
 
     val density = LocalDensity.current
-    var calculatedArrowOffsetPx by remember { mutableStateOf(0f) }
+    var calculatedArrowOffsetPx by remember { mutableFloatStateOf(0f) }
 
     // Automatically dismiss tooltip after specified duration
-    LaunchedEffect(visible) {
+    LaunchedEffect(true) {
         if (visible) {
             delay(autoDismissDelayMillis.milliseconds)
             onDismiss()
@@ -207,7 +213,8 @@ fun InfoTooltip(
             arrowOffsetPx = calculatedArrowOffsetPx,
             modifier = modifier,
             backgroundColor = backgroundColor,
-            textColor = textColor
+            textColor = textColor,
+            elevation = elevation
         )
     }
 }
@@ -216,7 +223,7 @@ fun InfoTooltip(
 @Composable
 private fun InfoTooltipPreview() {
     val density = LocalDensity.current
-    val mockArrowOffset = with(density) { 32.dp.toPx() } // Pre-calculated offset for preview rendering
+    val mockArrowOffset = with(density) { 32.dp.toPx() }
 
     JasnifyTheme {
         Box(modifier = Modifier.padding(24.dp)) {

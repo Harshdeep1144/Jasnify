@@ -38,10 +38,12 @@ class CloudinaryManager @Inject constructor() {
         return uploadFromSource(uri, "jasnify/cards/$eventId/themes", null, "image")
     }
 
-    suspend fun uploadMoment(uri: Uri, eventId: String, folderName: String, isVideo: Boolean): String {
+    suspend fun uploadMoment(uri: Uri, eventId: String, folderPath: String, isVideo: Boolean): String {
         val subFolder = if (isVideo) "videos" else "images"
         val resourceType = if (isVideo) "video" else "image"
-        return uploadFromSource(uri, "jasnify/moments/$eventId/$folderName/$subFolder", null, resourceType)
+        // Sanitize folder path: remove leading/trailing slashes and double slashes
+        val sanitizedPath = folderPath.trim('/').replace("//", "/")
+        return uploadFromSource(uri, "jasnify/moments/$eventId/$sanitizedPath/$subFolder", null, resourceType)
     }
 
     private suspend fun uploadFromSource(source: Any, folder: String, publicId: String?, resourceType: String = "auto"): String {

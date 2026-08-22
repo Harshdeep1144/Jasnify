@@ -81,6 +81,7 @@ import coil.request.ImageRequest
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
+import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
@@ -134,6 +135,8 @@ fun MomentsScreen(
     var showMoreMenu by remember { mutableStateOf(false) }
     var showCreateFolderSheet by remember { mutableStateOf(false) }
     var selectedFolderId by remember { mutableStateOf("") }
+    var folderNavigationStack by remember { mutableStateOf(listOf<MomentFolder>()) }
+
     var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
     var selectedMomentIds by remember { mutableStateOf(setOf<String>()) }
     var showDeleteMomentConfirmation by remember { mutableStateOf(false) }
@@ -144,6 +147,12 @@ fun MomentsScreen(
     val foldersFromDb by viewModel.folders.collectAsStateWithLifecycle()
     val moments by viewModel.moments.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+    val userRole by viewModel.userRole.collectAsStateWithLifecycle()
+    val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
+
+    val canAddContent = remember(userRole) { userRole == UserRole.OWNER || userRole == UserRole.EDITOR }
+    val canDeleteAny = remember(userRole) { userRole == UserRole.OWNER }
+    val canDeleteOwn = remember(userRole) { userRole == UserRole.EDITOR }
 
     val isAnySheetVisible by remember {
         derivedStateOf { 
@@ -152,15 +161,16 @@ fun MomentsScreen(
         }
     }
 
+    LaunchedEffect(isAnySheetVisible) {
+        if (!isAnySheetVisible) {
+            sheetMotionProgress = 1.0f
+        }
+    }
+
     val statusBarColor by animateColorAsState(
         targetValue = if (isAnySheetVisible) Color.Black.copy(alpha = 0.4f) else Color.Transparent,
         animationSpec = tween(300),
         label = "statusBarColor"
-    )
-
-    SetStatusBarTheme(
-        useDarkIcons = !isAnySheetVisible,
-        statusBarColor = statusBarColor
     )
 
     val photosGridState = rememberLazyGridState()
@@ -212,15 +222,20 @@ fun MomentsScreen(
         return
     }
 
-    val folders = remember(foldersFromDb, moments) {
-        val allMomentsFolder = MomentFolder(
-            id = "all_moments_id",
-            name = "All Moments",
-            coverImageUrl = moments.firstOrNull()?.imageUrl ?: "",
-            itemCount = moments.size,
-            isNew = false
-        )
-        listOf(allMomentsFolder) + foldersFromDb
+    val folders = remember(foldersFromDb, moments, selectedFolderId) {
+        // Only show "All Moments" at the root level (when no folder is selected)
+        if (selectedFolderId.isEmpty()) {
+            val allMomentsFolder = MomentFolder(
+                id = "all_moments_id",
+                name = "All Moments",
+                coverImageUrl = moments.firstOrNull()?.imageUrl ?: "",
+                itemCount = moments.size,
+                isNew = false
+            )
+            listOf(allMomentsFolder) + foldersFromDb
+        } else {
+            foldersFromDb
+        }
     }
 
     var tempImageUri by remember { mutableStateOf<Uri?>(null) }
@@ -314,16 +329,18 @@ fun MomentsScreen(
         }
     )
 
-    LaunchedEffect(eventId) {
-        viewModel.loadFolders(eventId)
-        viewModel.loadMoments(eventId)
+    LaunchedEffect(eventId, selectedFolderId) {
+        // If selectedFolderId is empty, we are at root.
+        // Otherwise, we are looking at content of selectedFolderId.
+        viewModel.loadFolders(eventId, selectedFolderId)
+        viewModel.loadMoments(eventId, selectedFolderId)
     }
 
-    val currentTitle = remember(viewMode, selectedFolderId, folders) {
-        if (viewMode == MomentViewMode.FolderImages) {
-            folders.find { it.id == selectedFolderId }?.name ?: "Moments"
-        } else {
-            "Moments"
+    val currentTitle = remember(viewMode, selectedFolderId, folderNavigationStack) {
+        when {
+            viewMode == MomentViewMode.FolderImages && selectedFolderId == "all_moments_id" -> "All Moments"
+            viewMode == MomentViewMode.FolderImages && folderNavigationStack.isNotEmpty() -> folderNavigationStack.last().name
+            else -> "Moments"
         }
     }
 
@@ -447,33 +464,47 @@ fun MomentsScreen(
         )
     }
 
-    val moreItems = remember(heartIconPainter, userProfileIconPainter, deleteIconPainter, onManageRoomClick, viewMode, selectedFolderId) {
-        val baseItems = listOf(
-            listOf(
-                MenuSheetActionItem("Saved Cards", heartIconPainter) {
-                    showMoreMenu = false
-                }
-            ),
-            listOf(
+    val moreItems = remember(heartIconPainter, userProfileIconPainter, deleteIconPainter, onManageRoomClick, viewMode, selectedFolderId, folders, folderNavigationStack, canDeleteAny, canDeleteOwn, currentUserId) {
+        val baseItems = mutableListOf<List<MenuSheetActionItem>>()
+        
+        baseItems.add(listOf(
+            MenuSheetActionItem("Saved Cards", heartIconPainter) {
+                showMoreMenu = false
+            }
+        ))
+        
+        // Only owners can manage room access
+        if (canDeleteAny) {
+            baseItems.add(listOf(
                 MenuSheetActionItem("Manage Room Access", userProfileIconPainter) {
                     showMoreMenu = false
                     onManageRoomClick()
                 }
-            )
-        )
-        
-        if (viewMode == MomentViewMode.FolderImages && selectedFolderId.isNotEmpty() && selectedFolderId != "all_moments_id") {
-            baseItems + listOf(
-                listOf(
-                    MenuSheetActionItem("Delete Folder", deleteIconPainter) {
-                        showMoreMenu = false
-                        showDeleteFolderConfirmation = true
-                    }
-                )
-            )
-        } else {
-            baseItems
+            ))
         }
+        
+        // Find the current folder object. 
+        // If we're inside a folder, it's either the last in stack or in the folders list (for all moments)
+        val currentFolderObj = if (selectedFolderId == "all_moments_id") {
+            folders.find { it.id == "all_moments_id" }
+        } else {
+            folderNavigationStack.lastOrNull()
+        }
+        
+        val canDeleteThisFolder = currentFolderObj != null && 
+                                 currentFolderObj.id != "all_moments_id" && 
+                                 (canDeleteAny || (canDeleteOwn && currentFolderObj.uploaderId == currentUserId))
+
+        if (viewMode == MomentViewMode.FolderImages && canDeleteThisFolder) {
+            baseItems.add(listOf(
+                MenuSheetActionItem("Delete Folder", deleteIconPainter) {
+                    showMoreMenu = false
+                    showDeleteFolderConfirmation = true
+                }
+            ))
+        }
+        
+        baseItems
     }
 
     BackHandler {
@@ -482,10 +513,17 @@ fun MomentsScreen(
             showFabMenu -> showFabMenu = false
             showMoreMenu -> showMoreMenu = false
             showCreateFolderSheet -> showCreateFolderSheet = false
+            folderNavigationStack.isNotEmpty() -> {
+                val newStack = folderNavigationStack.dropLast(1)
+                folderNavigationStack = newStack
+                selectedFolderId = newStack.lastOrNull()?.id ?: ""
+                if (selectedFolderId.isEmpty()) {
+                    viewMode = MomentViewMode.Folders
+                }
+            }
             viewMode == MomentViewMode.FolderImages -> {
                 viewMode = MomentViewMode.Folders
                 selectedFolderId = ""
-                viewModel.loadMoments(eventId, "")
             }
             else -> onBackClick()
         }
@@ -535,21 +573,42 @@ fun MomentsScreen(
                                 subtitle = if (!isSelectionMode && viewMode == MomentViewMode.FolderImages) "${moments.size} items" else null,
                                 buttonStyle = ButtonBackground.OPAQUE,
                                 buttonColor = SurfaceSecondary,
-                                menuIcon = if (isSelectionMode) TopIcon.CustomPainter(deleteIconPainter) else TopIcon.Predefined.MENU_HORIZONTAL,
+                                menuIcon = if (isSelectionMode) {
+                                    val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all { 
+                                        canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
+                                    }
+                                    if (canDeleteSelection) TopIcon.CustomPainter(deleteIconPainter) else TopIcon.Predefined.MENU_HORIZONTAL
+                                } else TopIcon.Predefined.MENU_HORIZONTAL,
                                 onBackClick = {
                                     if (isSelectionMode) {
                                         selectedMomentIds = emptySet()
+                                    } else if (selectedMomentForFullView != null) {
+                                        selectedMomentForFullView = null
+                                    } else if (folderNavigationStack.isNotEmpty()) {
+                                        val newStack = folderNavigationStack.dropLast(1)
+                                        folderNavigationStack = newStack
+                                        selectedFolderId = newStack.lastOrNull()?.id ?: ""
+                                        if (selectedFolderId.isEmpty()) {
+                                            viewMode = MomentViewMode.Folders
+                                        }
                                     } else if (viewMode == MomentViewMode.FolderImages) {
                                         viewMode = MomentViewMode.Folders
                                         selectedFolderId = ""
-                                        viewModel.loadMoments(eventId, "")
                                     } else {
                                         onBackClick()
                                     }
                                 },
                                 onMenuClick = {
                                     if (isSelectionMode) {
-                                        showDeleteMomentConfirmation = true
+                                        val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all { 
+                                            canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
+                                        }
+                                        if (canDeleteSelection) {
+                                            showDeleteMomentConfirmation = true
+                                        } else {
+                                            // Optional: Show a toast or feedback that some items can't be deleted
+                                            showMoreMenu = true 
+                                        }
                                     } else {
                                         showMoreMenu = true
                                     }
@@ -561,23 +620,35 @@ fun MomentsScreen(
                                     MomentViewMode.AllPhotos, MomentViewMode.FolderImages -> {
                                         PhotosGrid(
                                             moments = moments,
+                                            subfolders = foldersFromDb,
                                             gridState = photosGridState,
                                             animatedVisibilityScope = this@AnimatedContent,
                                             sharedTransitionScope = this@SharedTransitionLayout,
                                             selectedMomentIds = selectedMomentIds,
                                             onMomentClick = { moment ->
                                                 if (isSelectionMode) {
-                                                    selectedMomentIds = if (selectedMomentIds.contains(moment.id)) {
-                                                        selectedMomentIds - moment.id
-                                                    } else {
-                                                        selectedMomentIds + moment.id
+                                                    val canDeleteThis = canDeleteAny || (canDeleteOwn && moment.uploaderId == currentUserId)
+                                                    if (canDeleteThis) {
+                                                        selectedMomentIds = if (selectedMomentIds.contains(moment.id)) {
+                                                            selectedMomentIds - moment.id
+                                                        } else {
+                                                            selectedMomentIds + moment.id
+                                                        }
                                                     }
                                                 } else {
                                                     selectedMomentForFullView = moment
                                                 }
                                             },
                                             onMomentLongClick = { moment ->
-                                                selectedMomentIds = selectedMomentIds + moment.id
+                                                val canDeleteThis = canDeleteAny || (canDeleteOwn && moment.uploaderId == currentUserId)
+                                                if (canDeleteThis) {
+                                                    selectedMomentIds = selectedMomentIds + moment.id
+                                                }
+                                            },
+                                            onFolderClick = { folder ->
+                                                selectedFolderId = folder.id
+                                                folderNavigationStack = folderNavigationStack + folder
+                                                viewMode = MomentViewMode.FolderImages
                                             }
                                         )
                                     }
@@ -586,9 +657,14 @@ fun MomentsScreen(
                                             folders = folders,
                                             gridState = foldersGridState
                                         ) { folder ->
-                                            selectedFolderId = folder.id
-                                            viewMode = MomentViewMode.FolderImages
-                                            viewModel.loadMoments(eventId, folder.id)
+                                            if (folder.id == "all_moments_id") {
+                                                selectedFolderId = "all_moments_id"
+                                                viewMode = MomentViewMode.FolderImages
+                                            } else {
+                                                selectedFolderId = folder.id
+                                                folderNavigationStack = folderNavigationStack + folder
+                                                viewMode = MomentViewMode.FolderImages
+                                            }
                                         }
                                     }
                                 }
@@ -639,36 +715,38 @@ fun MomentsScreen(
                                     activeBg = SurfaceSecondary
                                 )
 
-                                Surface(
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .pill360Shadow(
-                                            ambientColor = Color.Black.copy(alpha = 0.10f),
-                                            ambientBlur = 12.dp,
-                                            ambientSpread = 2.dp,
-                                            spotColor = Color.Black.copy(alpha = 0.15f),
-                                            spotBlur = 18.dp,
-                                            spotOffsetY = 4.dp
-                                        ),
-                                    color = SurfacePrimary,
-                                    shape = CircleShape
-                                ) {
-                                    Box(
+                                if (canAddContent) {
+                                    Surface(
                                         modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(4.dp),
-                                        contentAlignment = Alignment.Center
+                                            .size(64.dp)
+                                            .pill360Shadow(
+                                                ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                ambientBlur = 12.dp,
+                                                ambientSpread = 2.dp,
+                                                spotColor = Color.Black.copy(alpha = 0.15f),
+                                                spotBlur = 18.dp,
+                                                spotOffsetY = 4.dp
+                                            ),
+                                        color = SurfacePrimary,
+                                        shape = CircleShape
                                     ) {
-                                        CustomIconButton(
-                                            onClick = { showFabMenu = true },
-                                            icon = addIconPainter,
-                                            size = ButtonSize.Medium,
-                                            type = ButtonType.Primary,
-                                            shapeStyle = ButtonShapeStyle.Round,
-                                            containerColor = ContentPrimary,
-                                            contentColor = ContentInvPrimary,
-                                            modifier = Modifier.fillMaxSize()
-                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(4.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CustomIconButton(
+                                                onClick = { showFabMenu = true },
+                                                icon = addIconPainter,
+                                                size = ButtonSize.Medium,
+                                                type = ButtonType.Primary,
+                                                shapeStyle = ButtonShapeStyle.Round,
+                                                containerColor = ContentPrimary,
+                                                contentColor = ContentInvPrimary,
+                                                modifier = Modifier.fillMaxSize()
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -687,7 +765,8 @@ fun MomentsScreen(
                         CreateFolderBottomSheet(
                             onDismiss = { showCreateFolderSheet = false },
                             onCreate = { folderName ->
-                                viewModel.createFolder(eventId, folderName)
+                                // If we are inside a folder, create it as a subfolder
+                                viewModel.createFolder(eventId, folderName, selectedFolderId)
                                 showCreateFolderSheet = false
                             },
                             onProgress = { sheetMotionProgress = it }
@@ -728,15 +807,33 @@ fun MomentsScreen(
                     }
 
                     if (showDeleteFolderConfirmation) {
+                        val folderToDelete = folderNavigationStack.lastOrNull() ?: folders.find { it.id == selectedFolderId }
+                        val hasSubfolders = foldersFromDb.isNotEmpty()
+                        val hasMoments = moments.isNotEmpty()
+                        
+                        val heading = if (hasSubfolders) "Delete folder hierarchy?" else "Delete folder?"
+                        val subHeading = when {
+                            hasSubfolders && hasMoments -> "This folder contains sub-folders and images. Everything inside will be permanently deleted."
+                            hasSubfolders -> "This folder contains nested sub-folders. All of them will be permanently deleted."
+                            hasMoments -> "This folder contains images/videos. All contents will be permanently deleted."
+                            else -> "This folder and its contents will be permanently deleted."
+                        }
+
                         ConfirmationBottomSheet(
-                            heading = "Delete folder?",
-                            subHeading = "This folder and all its contents will be permanently deleted.",
+                            heading = heading,
+                            subHeading = subHeading,
                             confirmButtonText = "Delete",
                             onDismiss = { showDeleteFolderConfirmation = false },
                             onConfirm = {
                                 viewModel.deleteFolder(eventId, selectedFolderId)
-                                viewMode = MomentViewMode.Folders
-                                selectedFolderId = ""
+                                
+                                // Navigate up one level
+                                val newStack = folderNavigationStack.dropLast(1)
+                                folderNavigationStack = newStack
+                                selectedFolderId = newStack.lastOrNull()?.id ?: ""
+                                if (selectedFolderId.isEmpty()) {
+                                    viewMode = MomentViewMode.Folders
+                                }
                                 showDeleteFolderConfirmation = false
                             },
                             onProgress = { sheetMotionProgress = it }

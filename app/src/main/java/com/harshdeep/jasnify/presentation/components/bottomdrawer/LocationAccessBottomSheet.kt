@@ -14,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -48,42 +49,50 @@ fun LocationAccessBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Illustration (Layered Map and Pin)
-            Box(
-                modifier = Modifier.height(80.dp),
-                contentAlignment = Alignment.Center
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_map),
-                    contentDescription = null,
-                    modifier = Modifier.height(80.dp)
+                // Illustration (Layered Map and Pin)
+                Box(
+                    modifier = Modifier.height(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.img_hero_venueaddress),
+                        contentDescription = null,
+                        modifier = Modifier.height(80.dp),
+                        tint = Color.Unspecified
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Title
+                Text(
+                    text = title,
+                    style = JasnifyTheme.typography.displaySmall.copy(
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = ContentPrimary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Subtitle
+                Text(
+                    text = subtitle,
+                    style = JasnifyTheme.typography.labelLarge,
+                    color = ContentSecondary,
+                    textAlign = TextAlign.Center
                 )
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Title
-            Text(
-                text = title,
-                style = JasnifyTheme.typography.headingLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                ),
-                color = ContentPrimary,
-                textAlign = TextAlign.Center
-            )
-
-            // Subtitle
-            Text(
-                text = subtitle,
-                style = JasnifyTheme.typography.labelLarge,
-                color = ContentSecondary,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Primary Button
             CustomTextButton(
@@ -94,6 +103,7 @@ fun LocationAccessBottomSheet(
                 containerColor = ContentPrimary,
                 modifier = Modifier.fillMaxWidth()
             )
+            Spacer(modifier = Modifier.height(12.dp))
 
             // Manual Button
             Text(
@@ -120,7 +130,7 @@ fun LocationAccessBottomSheet(
                     }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

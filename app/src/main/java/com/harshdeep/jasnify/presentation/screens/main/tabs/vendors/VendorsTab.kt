@@ -190,7 +190,7 @@ fun VendorsTab(
 
     LaunchedEffect(Unit) {
         if (!SessionState.hasShownVendorLocationAccess) {
-            delay(1500.milliseconds)
+            delay(500.milliseconds)
             showLocationAccessSheet = true
         }
     }
@@ -288,6 +288,7 @@ fun VendorsTab(
 
     var showSaveListBottomSheet by remember { mutableStateOf(false) }
     var activeTargetVendor by remember { mutableStateOf<Vendor?>(null) }
+    var autoFocusLocationSearch by remember { mutableStateOf(false) }
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
@@ -636,6 +637,7 @@ fun VendorsTab(
                                 onAddressSelected = {
                                     localSelectedCity = it
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
+                                    autoFocusLocationSearch = false
                                     if (screenStack.size > 1) {
                                         screenStack = screenStack.dropLast(1)
                                     } else {
@@ -643,13 +645,15 @@ fun VendorsTab(
                                     }
                                 },
                                 onBackClick = {
+                                    autoFocusLocationSearch = false
                                     if (screenStack.size > 1) {
                                         screenStack = screenStack.dropLast(1)
                                     } else {
                                         onBackClick()
                                     }
                                 },
-                                backIcon = TopIcon.Predefined.DOWN
+                                backIcon = TopIcon.Predefined.DOWN,
+                                autoFocusSearch = autoFocusLocationSearch
                             )
                         }
                     }
@@ -714,8 +718,8 @@ fun VendorsTab(
 
         if (showLocationAccessSheet) {
             LocationAccessBottomSheet(
-                title = "Discover the best vendors around you",
-                subtitle = "Allow location permissions for best recommendations of vendors around you",
+                title = "Discover the best \n vendors around you",
+                subtitle = "Allow location permissions for best \n recommendations around you",
                 onDismiss = {
                     showLocationAccessSheet = false
                     SessionState.hasShownVendorLocationAccess = true
@@ -743,6 +747,7 @@ fun VendorsTab(
                 onManualClick = {
                     showLocationAccessSheet = false
                     SessionState.hasShownVendorLocationAccess = true
+                    autoFocusLocationSearch = true
                     screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                 },
                 onProgress = { sheetMotionProgress = it }

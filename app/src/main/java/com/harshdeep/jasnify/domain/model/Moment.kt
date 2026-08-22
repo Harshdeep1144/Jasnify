@@ -7,7 +7,8 @@ data class Moment(
     val imageUrl: String = "",
     val timestamp: Long = 0,
     val isVideo: Boolean = false,
-    val folderId: String = ""
+    val folderId: String = "",
+    val uploaderId: String = ""
 )
 
 data class MomentFolder(
@@ -17,5 +18,8 @@ data class MomentFolder(
     val itemCount: Int = 0,
     @get:PropertyName("isNew")
     @set:PropertyName("isNew")
-    var isNew: Boolean = false
+    var isNew: Boolean = false,
+    val uploaderId: String = "",
+    val parentId: String = "",
+    val fullPath: String = "" // Used for Cloudinary and Breadcrumbs
 )
