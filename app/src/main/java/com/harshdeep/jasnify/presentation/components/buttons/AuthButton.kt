@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.res.painterResource
@@ -56,7 +59,8 @@ fun AuthButton(
     enabled: Boolean = true,
     shapeStyle: ButtonShapeStyle = ButtonShapeStyle.Square,
     badgeText: String? = null,
-    borderColor: Color = ContentPrimary
+    borderColor: Color = ContentPrimary,
+    isLoading: Boolean = false
 ) {
     val size = ButtonSize.Medium
     val type = ButtonType.Tertiary
@@ -116,18 +120,87 @@ fun AuthButton(
             }
 
             Button(
-                onClick = onClick,
+                onClick = if (isLoading) ({}) else onClick,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(top = 26.dp) // Offset down to keep the header space free
                     .height(height),
                 enabled = enabled,
                 shape = shape,
-                colors = colors,
+                colors = if (isLoading) {
+                    ButtonDefaults.buttonColors(
+                        containerColor = colors.containerColor,
+                        contentColor = colors.contentColor,
+                        disabledContainerColor = colors.containerColor,
+                        disabledContentColor = colors.contentColor
+                    )
+                } else colors,
                 contentPadding = contentPadding,
                 border = buttonBorder
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(contentAlignment = Alignment.Center) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(iconSize),
+                            color = ContentPrimary,
+                            strokeWidth = 2.dp
+                        )
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.graphicsLayer { alpha = if (isLoading) 0f else 1f }
+                    ) {
+                        Icon(
+                            painter = icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(iconSize),
+                            tint = if (enabled) Color.Unspecified else ContentSecondary
+                        )
+
+                        Spacer(Modifier.width(8.dp))
+
+                        Text(
+                            text = text,
+                            fontSize = 18.sp,
+                            fontFamily = Outfit,
+                            color = if (enabled) ContentPrimary else ContentSecondary
+                        )
+                    }
+                }
+            }
+        }
+    } else {
+        Button(
+            onClick = if (isLoading) ({}) else onClick,
+            modifier = modifier
+                .fillMaxWidth()
+                .height(height),
+            enabled = enabled,
+            shape = shape,
+            colors = if (isLoading) {
+                ButtonDefaults.buttonColors(
+                    containerColor = colors.containerColor,
+                    contentColor = colors.contentColor,
+                    disabledContainerColor = colors.containerColor,
+                    disabledContentColor = colors.contentColor
+                )
+            } else colors,
+            contentPadding = contentPadding,
+            border = buttonBorder
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(iconSize),
+                        color = ContentPrimary,
+                        strokeWidth = 2.dp
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.graphicsLayer { alpha = if (isLoading) 0f else 1f }
+                ) {
                     Icon(
                         painter = icon,
                         contentDescription = null,
@@ -144,36 +217,6 @@ fun AuthButton(
                         color = if (enabled) ContentPrimary else ContentSecondary
                     )
                 }
-            }
-        }
-    } else {
-        Button(
-            onClick = onClick,
-            modifier = modifier
-                .fillMaxWidth()
-                .height(height),
-            enabled = enabled,
-            shape = shape,
-            colors = colors,
-            contentPadding = contentPadding,
-            border = buttonBorder
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    painter = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(iconSize),
-                    tint = if (enabled) Color.Unspecified else ContentSecondary
-                )
-
-                Spacer(Modifier.width(8.dp))
-
-                Text(
-                    text = text,
-                    fontSize = 18.sp,
-                    fontFamily = Outfit,
-                    color = if (enabled) ContentPrimary else ContentSecondary
-                )
             }
         }
     }

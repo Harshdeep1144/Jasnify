@@ -219,7 +219,7 @@ class AuthViewModel @Inject constructor(
                                 // 3. Cancel any pending account deletion if user logs in
                                 userRepository.cancelAccountDeletion(firebaseUser.uid)
 
-                                _authState.value = AuthState.Success("logged in!")
+                                _authState.value = AuthState.Success("Authenticated with Google")
                             } else {
                                 auth.signOut()
                                 _authState.value = AuthState.Error("You don't have access to this event.")

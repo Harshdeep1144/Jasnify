@@ -103,6 +103,9 @@ fun LoginOrSignup(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    // Track which authentication method is currently active
+    var activeAuthMethod by remember { mutableStateOf<String?>(null) }
+
     // State for Custom Toast
     var toastData by remember { mutableStateOf(ToastData()) }
 
@@ -339,15 +342,18 @@ fun LoginOrSignup(
                                 }
 
                                 if (isValid) {
+                                    activeAuthMethod = "EMAIL"
                                     viewModel.handleEmailAuth(email, password, eventId)
                                 } else {
                                     toastData = ToastData(errorMessage, ToastType.ERROR)
                                 }
                             },
-                            text = if (authState is AuthState.Loading) "Loading..." else if (selectedTab == AuthTab.SIGN_UP) "Sign up" else "Log in",
+                            text = if (selectedTab == AuthTab.SIGN_UP) "Sign up" else "Log in",
                             modifier = Modifier.fillMaxWidth(),
                             shapeStyle = ButtonShapeStyle.Square,
                             containerColor = ContentPrimary,
+                            enabled = authState !is AuthState.Loading || activeAuthMethod == "EMAIL",
+                            isLoading = authState is AuthState.Loading && activeAuthMethod == "EMAIL"
                         )
 
                         if (selectedTab == AuthTab.LOG_IN) {
@@ -369,6 +375,7 @@ fun LoginOrSignup(
                         // Google Sign-In Button
                         AuthButton(
                             onClick = {
+                                activeAuthMethod = "GOOGLE"
                                 val signInIntent = googleSignInClient.signInIntent
                                 googleSignInLauncher.launch(signInIntent)
                             },
@@ -376,6 +383,8 @@ fun LoginOrSignup(
                             icon = painterResource(id = R.drawable.ic_google),
                             badgeText = "Fastest & Most Used",
                             borderColor = Color(0xFF008E11).copy(0.8f),
+                            enabled = authState !is AuthState.Loading || activeAuthMethod == "GOOGLE",
+                            isLoading = authState is AuthState.Loading && activeAuthMethod == "GOOGLE"
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))

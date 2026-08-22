@@ -355,7 +355,8 @@ fun EventCreation(
                         modifier = Modifier.fillMaxWidth(),
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Square,
-                        enabled = isContinueEnabled
+                        enabled = isContinueEnabled,
+                        isLoading = eventState is EventCreationState.Loading
                     )
 
                     if (currentStep == EventCreationStep.EVENT_TYPE) {

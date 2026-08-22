@@ -352,7 +352,7 @@ private fun CurrentPasswordContent(
                 text = "Change Password",
                 shapeStyle = ButtonShapeStyle.Square,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading
+                isLoading = isLoading
             )
         }
     }

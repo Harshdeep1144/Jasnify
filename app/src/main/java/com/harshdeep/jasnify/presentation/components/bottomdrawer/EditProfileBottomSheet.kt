@@ -330,10 +330,10 @@ fun EditProfileContent(
         ) {
             CustomTextButton(
                 onClick = { onUpdateProfile(name, handle, selectedImageUri, shouldRemovePhoto) },
-                text = if (isUpdating) "Updating Profile..." else "Update Profile",
+                text = "Update Profile",
                 shapeStyle = ButtonShapeStyle.Square,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isUpdating
+                isLoading = isUpdating
             )
         }
     }
