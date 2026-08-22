@@ -2,6 +2,9 @@ package com.harshdeep.jasnify
 
 import android.app.Application
 import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.decode.VideoFrameDecoder
 import com.cloudinary.android.MediaManager
 import com.google.firebase.Firebase
 import com.google.firebase.appcheck.appCheck
@@ -11,7 +14,7 @@ import com.google.firebase.initialize
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class JasnifyApplication: Application() {
+class JasnifyApplication: Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
@@ -41,5 +44,13 @@ class JasnifyApplication: Application() {
         } catch (_: Exception) {
             // Already initialized
         }
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .build()
     }
 }

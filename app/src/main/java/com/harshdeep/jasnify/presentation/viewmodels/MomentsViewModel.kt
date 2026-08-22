@@ -76,4 +76,16 @@ class MomentsViewModel @Inject constructor(
             }
         }
     }
+
+    fun deleteMoment(eventId: String, folderId: String, momentId: String) {
+        viewModelScope.launch {
+            momentsRepository.deleteMoment(eventId, folderId, momentId)
+        }
+    }
+
+    fun deleteFolder(eventId: String, folderId: String) {
+        viewModelScope.launch {
+            momentsRepository.deleteFolder(eventId, folderId)
+        }
+    }
 }

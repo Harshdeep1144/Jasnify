@@ -15,35 +15,36 @@ import kotlin.coroutines.resumeWithException
 @Singleton
 class CloudinaryManager @Inject constructor() {
     suspend fun uploadProfilePicture(uri: Uri, userId: String): String {
-        return uploadFromSource(uri, "jasnify/users/$userId", "profile_pic")
+        return uploadFromSource(uri, "jasnify/users/$userId", "profile_pic", "image")
     }
 
     suspend fun uploadProfilePictureFromUrl(url: String, userId: String): String {
-        return uploadFromSource(url, "jasnify/users/$userId", "profile_pic")
+        return uploadFromSource(url, "jasnify/users/$userId", "profile_pic", "image")
     }
 
     suspend fun uploadVenueReviewImage(uri: Uri, venueId: String): String {
-        return uploadFromSource(uri, "jasnify/venues/$venueId/reviews", null)
+        return uploadFromSource(uri, "jasnify/venues/$venueId/reviews", null, "image")
     }
 
     suspend fun uploadVendorReviewImage(uri: Uri, vendorId: String): String {
-        return uploadFromSource(uri, "jasnify/vendors/$vendorId/reviews", null)
+        return uploadFromSource(uri, "jasnify/vendors/$vendorId/reviews", null, "image")
     }
 
     suspend fun uploadGuestProfilePicture(uri: Uri, eventId: String, guestId: String): String {
-        return uploadFromSource(uri, "jasnify/guests/$eventId", guestId)
+        return uploadFromSource(uri, "jasnify/guests/$eventId", guestId, "image")
     }
 
     suspend fun uploadCardThemeImage(uri: Uri, eventId: String): String {
-        return uploadFromSource(uri, "jasnify/cards/$eventId/themes", null)
+        return uploadFromSource(uri, "jasnify/cards/$eventId/themes", null, "image")
     }
 
     suspend fun uploadMoment(uri: Uri, eventId: String, folderName: String, isVideo: Boolean): String {
         val subFolder = if (isVideo) "videos" else "images"
-        return uploadFromSource(uri, "jasnify/moments/$eventId/$folderName/$subFolder", null)
+        val resourceType = if (isVideo) "video" else "image"
+        return uploadFromSource(uri, "jasnify/moments/$eventId/$folderName/$subFolder", null, resourceType)
     }
 
-    private suspend fun uploadFromSource(source: Any, folder: String, publicId: String?): String {
+    private suspend fun uploadFromSource(source: Any, folder: String, publicId: String?, resourceType: String = "auto"): String {
         return suspendCancellableCoroutine { continuation ->
             val uploadRequest = when (source) {
                 is Uri -> MediaManager.get().upload(source)
@@ -52,6 +53,7 @@ class CloudinaryManager @Inject constructor() {
             }
             
             uploadRequest.option("folder", folder)
+            uploadRequest.option("resource_type", resourceType)
             if (publicId != null) {
                 uploadRequest.option("public_id", publicId)
                 uploadRequest.option("overwrite", true)
@@ -89,11 +91,28 @@ class CloudinaryManager @Inject constructor() {
         withContext(Dispatchers.IO) {
             try {
                 val publicId = extractPublicId(url)
+                val resourceType = when {
+                    url.contains("/video/") -> "video"
+                    url.contains("/raw/") -> "raw"
+                    else -> "image"
+                }
+                
                 if (publicId != null) {
-                    MediaManager.get().cloudinary.uploader().destroy(publicId, emptyMap<String, Any>())
+                    android.util.Log.d("CloudinaryManager", "Deleting resource: $publicId ($resourceType)")
+                    
+                    // Standard Uploader API destroy call (Supported on Android)
+                    val result = MediaManager.get().cloudinary.uploader().destroy(
+                        publicId, 
+                        mapOf(
+                            "resource_type" to resourceType,
+                            "invalidate" to true
+                        )
+                    )
+                    
+                    android.util.Log.d("CloudinaryManager", "Delete result for $publicId: $result")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                android.util.Log.e("CloudinaryManager", "Error deleting from Cloudinary: ${e.message}")
             }
         }
     }
@@ -102,12 +121,20 @@ class CloudinaryManager @Inject constructor() {
         val uploadIndex = url.indexOf("/upload/")
         if (uploadIndex == -1) return null
 
-        val subStr = url.substring(uploadIndex + 8)
-        val firstSlash = subStr.indexOf("/")
-        if (firstSlash == -1) return null
+        var publicIdPath = url.substring(uploadIndex + 8)
+        
+        // Remove version if present (e.g., v123456789/)
+        val firstSlash = publicIdPath.indexOf("/")
+        if (firstSlash != -1) {
+            val potentialVersion = publicIdPath.substring(0, firstSlash)
+            if (potentialVersion.startsWith("v") && potentialVersion.substring(1).all { it.isDigit() }) {
+                publicIdPath = publicIdPath.substring(firstSlash + 1)
+            }
+        }
 
-        val afterVersion = subStr.substring(firstSlash + 1)
-        val lastDot = afterVersion.lastIndexOf(".")
-        return if (lastDot != -1) afterVersion.substring(0, lastDot) else afterVersion
+        val lastDot = publicIdPath.lastIndexOf(".")
+        val publicId = if (lastDot != -1) publicIdPath.substring(0, lastDot) else publicIdPath
+        
+        return Uri.decode(publicId)
     }
 }

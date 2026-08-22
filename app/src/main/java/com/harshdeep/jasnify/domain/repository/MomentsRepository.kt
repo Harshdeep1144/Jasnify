@@ -11,5 +11,7 @@ interface MomentsRepository {
     fun getAllMoments(eventId: String): Flow<List<Moment>>
     suspend fun createFolder(eventId: String, name: String): String
     suspend fun uploadMoment(eventId: String, folderId: String, uri: Uri, isVideo: Boolean)
+    suspend fun deleteMoment(eventId: String, folderId: String, momentId: String)
+    suspend fun deleteFolder(eventId: String, folderId: String)
     suspend fun initializeRoom(eventId: String)
 }

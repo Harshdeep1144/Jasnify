@@ -107,19 +107,19 @@ class MomentsRepositoryImpl @Inject constructor(
     override suspend fun uploadMoment(eventId: String, folderId: String, uri: Uri, isVideo: Boolean) {
         // 1. Get folder info for Cloudinary path
         val actualFolderId = if (folderId == "all_moments_id") {
-            // Find "General" folder or create one if uploading to "All"
-            val generalSnapshot = firestore.collection("events").document(eventId)
+            // Find "All Moments" folder or create one if uploading to "All"
+            val allMomentsSnapshot = firestore.collection("events").document(eventId)
                 .collection("rooms").document("moments")
-                .collection("folders").whereEqualTo("name", "General").limit(1).get().await()
+                .collection("folders").whereEqualTo("name", "All Moments").limit(1).get().await()
             
-            if (generalSnapshot.isEmpty) createFolder(eventId, "General") else generalSnapshot.documents.first().id
+            if (allMomentsSnapshot.isEmpty) createFolder(eventId, "All Moments") else allMomentsSnapshot.documents.first().id
         } else folderId
 
         val folderDoc = firestore.collection("events").document(eventId)
             .collection("rooms").document("moments")
             .collection("folders").document(actualFolderId).get().await()
         
-        val folderName = folderDoc.getString("name") ?: "General"
+        val folderName = folderDoc.getString("name") ?: "All Moments"
 
         // 2. Upload to Cloudinary
         val url = cloudinaryManager.uploadMoment(uri, eventId, folderName, isVideo)
@@ -162,5 +162,91 @@ class MomentsRepositoryImpl @Inject constructor(
 
     override suspend fun initializeRoom(eventId: String) {
         ensureOwnerAccess(eventId)
+    }
+
+    override suspend fun deleteMoment(eventId: String, folderId: String, momentId: String) {
+        val momentDoc = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("all_moments").document(momentId).get().await()
+        
+        if (!momentDoc.exists()) return
+
+        val moment = momentDoc.toObject(Moment::class.java) ?: return
+        
+        // 1. Delete from Cloudinary
+        cloudinaryManager.deleteImageByUrl(moment.imageUrl)
+
+        // 2. Delete from Firestore
+        val batch = firestore.batch()
+        
+        // Remove from all_moments
+        batch.delete(momentDoc.reference)
+        
+        // Remove from folder moments
+        val folderMomentRef = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("folders").document(folderId)
+            .collection("moments").document(momentId)
+        batch.delete(folderMomentRef)
+
+        // Update folder count
+        val folderRef = firestore.collection("events").document(eventId)
+            .collection("rooms").document("moments")
+            .collection("folders").document(folderId)
+        batch.update(folderRef, "itemCount", com.google.firebase.firestore.FieldValue.increment(-1))
+
+        batch.commit().await()
+    }
+
+    override suspend fun deleteFolder(eventId: String, folderId: String) {
+        try {
+            val folderRef = firestore.collection("events").document(eventId)
+                .collection("rooms").document("moments")
+                .collection("folders").document(folderId)
+            
+            val folderDoc = folderRef.get().await()
+            if (!folderDoc.exists()) return
+            
+            val folderName = folderDoc.getString("name") ?: "Unknown"
+            
+            // 1. Get all moments in this folder
+            val momentsRef = folderRef.collection("moments")
+            val momentDocs = momentsRef.get().await()
+            val moments = momentDocs.toObjects(Moment::class.java)
+            
+            // 2. Delete each asset from Cloudinary INDIVIDUALLY
+            // This is required because the Admin API (bulk delete) is not supported in Android SDK
+            moments.forEach { moment ->
+                try {
+                    cloudinaryManager.deleteImageByUrl(moment.imageUrl)
+                } catch (e: Exception) {
+                    android.util.Log.e("MomentsRepo", "Failed to delete Cloudinary asset: ${moment.imageUrl}")
+                }
+            }
+
+            // 3. Delete Firestore documents in a batch for UI consistency
+            val batch = firestore.batch()
+            
+            // Remove from global all_moments
+            moments.forEach { moment ->
+                val allMomentRef = firestore.collection("events").document(eventId)
+                    .collection("rooms").document("moments")
+                    .collection("all_moments").document(moment.id)
+                batch.delete(allMomentRef)
+                
+                // Remove from folder sub-collection
+                batch.delete(momentsRef.document(moment.id))
+            }
+            
+            // Remove the folder document itself
+            batch.delete(folderRef)
+            
+            batch.commit().await()
+            
+            android.util.Log.d("MomentsRepo", "Successfully deleted folder $folderName and all its ${moments.size} moments")
+        } catch (e: Exception) {
+            android.util.Log.e("MomentsRepo", "Error during folder deletion: ${e.message}", e)
+            throw e
+        }
     }
 }
