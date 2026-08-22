@@ -93,7 +93,7 @@ enum class ProfileScreen {
     ManageEvents,
     MyEnquiries,
     Notifications,
-    TermsAndConditions,
+    TermsOfUse,
     PrivacyPolicy
 }
 
@@ -403,9 +403,9 @@ fun ProfileTab(
                         )
                     }
 
-                    ProfileScreen.TermsAndConditions -> {
+                    ProfileScreen.TermsOfUse -> {
                         LegalScreen(
-                            title = "Terms & Conditions",
+                            title = "Terms of Use",
                             onBack = { currentScreen = ProfileScreen.Root }
                         )
                     }

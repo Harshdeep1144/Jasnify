@@ -278,13 +278,13 @@ fun ProfileTabContent(
                         .background(SurfacePrimary)
                 ) {
                     ProfileMenuCell(
-                        title = "Terms & Conditions",
+                        title = "Terms of Use",
                         subtitle = null,
                         icon = termsIcon,
                         hasBorder = false,
                         shape = RectangleShape,
                         containerColor = Color.Transparent,
-                        onClick = { onNavigateTo(ProfileScreen.TermsAndConditions) }
+                        onClick = { onNavigateTo(ProfileScreen.TermsOfUse) }
                     )
                     ProfileMenuCell(
                         title = "Privacy Policy",
