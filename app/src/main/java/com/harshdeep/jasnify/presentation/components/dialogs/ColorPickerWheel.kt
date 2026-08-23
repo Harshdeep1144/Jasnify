@@ -111,7 +111,7 @@ fun ColorPickerWheel(
                     .fillMaxWidth()
                     .height(56.dp)
                     .clip(SquircleShape(CornerLarge))
-                    .border(1.dp, Color(0xE53D3D3D), SquircleShape(CornerLarge))
+                    .border(1.dp, Color.Black.copy(0.4f), SquircleShape(CornerLarge))
                     .background(currentColor)
             )
 

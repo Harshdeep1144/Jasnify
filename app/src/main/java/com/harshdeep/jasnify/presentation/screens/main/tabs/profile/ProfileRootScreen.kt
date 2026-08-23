@@ -17,8 +17,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -55,13 +55,14 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import sv.lib.squircleshape.SquircleShape
 
 private val CellGroupShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ProfileTabContent(
+fun ProfileRootScreen(
     userName: String,
     userHandle: String,
     profilePic: Any,
@@ -90,69 +91,65 @@ fun ProfileTabContent(
         if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries"
     }
 
-    val cellBorderModifier = remember {
-        Modifier
-            .fillMaxWidth()
-            .border(
-                width = 1.dp,
-                color = Color.Unspecified, // overwritten via MaterialTheme color below
-                shape = CellGroupShape
-            )
-            .clip(CellGroupShape)
-            .background(Color.Unspecified)
-    }
 
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundPrimary)
-            .statusBarsPadding(),
+            .background(BackgroundPrimary),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         state = lazyListState
     ) {
         // 1. User Header
         item(key = "user_header", contentType = "header") {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(28.dp, 28.dp, 28.dp, 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .background(TopBrandGradientBrush)
+                    .statusBarsPadding()
             ) {
-                Box(
+                Column(
                     modifier = Modifier
-                        .size(128.dp)
-                        .clip(CircleShape)
-                        .background(SurfaceSecondary)
+                        .fillMaxWidth()
+                        .padding(28.dp, 28.dp, 28.dp, 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    AsyncImage(
-                        model = profilePic,
-                        contentDescription = "Profile Picture",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        placeholder = placeholderIcon
+                    Box(
+                        modifier = Modifier
+                            .size(128.dp)
+                            .clip(CircleShape)
+                            .background(SurfaceSecondary)
+                    ) {
+                        AsyncImage(
+                            model = profilePic,
+                            contentDescription = "Profile Picture",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            placeholder = placeholderIcon
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+
+                    Text(
+                        text = userName,
+                        style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
+                        color = ContentPrimary
+                    )
+                    Text(
+                        text = userHandle,
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = ContentSecondary
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    CustomTextButton(
+                        onClick = onEditProfile,
+                        text = "Edit Profile",
+                        size = ButtonSize.Small,
+                        leadingIcon = editIcon,
+                        containerColor = SurfacePrimary,
+                        contentColor = ContentPrimary
                     )
                 }
-                Spacer(Modifier.height(12.dp))
-
-                Text(
-                    text = userName,
-                    style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
-                    color = ContentPrimary
-                )
-                Text(
-                    text = userHandle,
-                    style = JasnifyTheme.typography.labelLarge,
-                    color = ContentSecondary
-                )
-                Spacer(Modifier.height(16.dp))
-
-                CustomTextButton(
-                    onClick = onEditProfile,
-                    text = "Edit Profile",
-                    size = ButtonSize.Small,
-                    leadingIcon = editIcon,
-                    type = ButtonType.Secondary
-                )
             }
         }
 
@@ -369,7 +366,7 @@ fun ProfileGridCell(
 @Composable
 fun ProfileTabPreview() {
     JasnifyTheme {
-        ProfileTabContent(
+        ProfileRootScreen(
             userName = "Anand K.",
             userHandle = "@viratanand",
             profilePic = R.drawable.ic_user_profile,

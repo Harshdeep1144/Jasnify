@@ -61,6 +61,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -174,6 +175,8 @@ fun ChecklistsTab(
 
     val checklists by viewModel.checklists.collectAsStateWithLifecycle()
     val archivedChecklists by viewModel.archivedChecklists.collectAsStateWithLifecycle()
+    val recentColorsHex by viewModel.recentColors.collectAsStateWithLifecycle()
+    val recentColors = remember(recentColorsHex) { recentColorsHex.map { Color(it.toLong(16)) } }
 
     var isGridView by remember { mutableStateOf(true) }
     var selectedFilter by remember { mutableStateOf("All") }
@@ -866,12 +869,14 @@ fun ChecklistsTab(
             if (showDetailColorPicker) {
                 ColorPickerBottomSheet(
                     initialColor = detailColorBeforePicker,
+                    recentColors = recentColors,
                     onColorPreview = { previewColor ->
                         currentDetailBgColor = previewColor
                     },
                     onConfirm = { finalColor ->
                         currentDetailBgColor = finalColor
                         detailColorBeforePicker = finalColor
+                        viewModel.addRecentColor(String.format("%08X", finalColor.toArgb()))
                         showDetailColorPicker = false
                     },
                     onDismiss = {

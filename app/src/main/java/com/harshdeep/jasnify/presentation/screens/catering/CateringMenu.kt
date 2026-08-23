@@ -580,12 +580,6 @@ fun CateringMenuScreen(
     var showSuccessSheet by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
 
-    LaunchedEffect(showSuccessSheet) {
-        if (showSuccessSheet) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-    }
-
     var editingItem by remember { mutableStateOf<MenuItem?>(null) }
 
     var newItemName by remember { mutableStateOf("") }

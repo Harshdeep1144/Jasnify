@@ -2,6 +2,8 @@ package com.harshdeep.jasnify.presentation.screens.onboarding.authentication
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -108,6 +110,7 @@ fun LoginOrSignup(
 
     // State for Custom Toast
     var toastData by remember { mutableStateOf(ToastData()) }
+    val haptic = LocalHapticFeedback.current
 
     val emailPattern = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")
 
@@ -186,6 +189,18 @@ fun LoginOrSignup(
     // --- LaunchedEffect to dismiss CustomToast automatically ---
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR || toastData.message == "Authenticated with Google") {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true ||
+                    toastData.message?.contains("failed", ignoreCase = true) == true ||
+                    toastData.message?.contains("password", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000L.milliseconds) // Wait for 3 seconds
             toastData = toastData.copy(message = null) // Clear message to dismiss toast
         }

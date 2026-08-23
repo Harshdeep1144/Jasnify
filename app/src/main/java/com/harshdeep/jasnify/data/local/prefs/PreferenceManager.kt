@@ -45,9 +45,20 @@ class PreferenceManager @Inject constructor(
         return sharedPreferences.getString(KEY_DOWNLOAD_QUALITY, "Standard Quality") ?: "Standard Quality"
     }
 
+    fun saveRecentColors(key: String, colors: List<String>) {
+        sharedPreferences.edit { putString(key, colors.joinToString(",")) }
+    }
+
+    fun getRecentColors(key: String): List<String> {
+        val colorsString = sharedPreferences.getString(key, "") ?: ""
+        return if (colorsString.isEmpty()) emptyList() else colorsString.split(",")
+    }
+
     companion object {
         private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
         private const val KEY_DOWNLOAD_QUALITY = "download_quality"
         private const val KEY_DOWNLOAD_REMEMBER_UNTIL = "download_remember_until"
+        const val KEY_RECENT_COLORS_CHECKLIST = "recent_colors_checklist"
+        const val KEY_RECENT_COLORS_CARD = "recent_colors_card"
     }
 }

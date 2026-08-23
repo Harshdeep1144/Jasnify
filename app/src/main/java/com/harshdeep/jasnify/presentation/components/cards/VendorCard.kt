@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocalOffer
 import androidx.compose.material3.Card
@@ -85,6 +84,9 @@ fun VendorCardFull(
     vendor: Vendor,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
+    vendorNameColor: Color = ContentPrimary,
+    locationColor: Color = ContentSecondary,
+    isVendorNameBold: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onOfferClick: () -> Unit = {}
@@ -124,9 +126,6 @@ fun VendorCardFull(
         modifier = modifier
             .fillMaxWidth()
             .wrapContentHeight()
-            .graphicsLayer {
-                // Applying shadow here or via custom modifier with caching
-            }
             .vendorShadow(borderRadius = CornerLargeIncrease),
         shape = SquircleShape(CornerLargeIncrease),
         colors = CardDefaults.cardColors(containerColor = SurfacePrimary),
@@ -210,10 +209,11 @@ fun VendorCardFull(
                     .background(SurfacePrimary)
                     .padding(12.dp),
             ) {
+                val baseNameStyle = JasnifyTheme.typography.headingLarge
                 Text(
                     text = vendor.name,
-                    style = JasnifyTheme.typography.headingLarge,
-                    color = ContentPrimary
+                    style = if (isVendorNameBold) baseNameStyle.copy(fontWeight = FontWeight.Medium) else baseNameStyle,
+                    color = vendorNameColor
                 )
                 Spacer(Modifier.height(4.dp))
 
@@ -227,13 +227,13 @@ fun VendorCardFull(
                             painter = painterResource(R.drawable.ic_location_marker),
                             contentDescription = "Location Pin",
                             modifier = Modifier.size(16.dp),
-                            tint = ContentSecondary
+                            tint = locationColor
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = "${vendor.locality}, ${vendor.city}",
                             style = JasnifyTheme.typography.labelMedium,
-                            color = ContentSecondary
+                            color = locationColor
                         )
                     }
 
@@ -299,6 +299,9 @@ fun VendorCardCompact(
     vendor: Vendor,
     modifier: Modifier = Modifier,
     isLoading: Boolean = false,
+    vendorNameColor: Color = ContentPrimary,
+    locationColor: Color = ContentSecondary,
+    isVendorNameBold: Boolean = false,
     onCardClick: () -> Unit = {},
     onFavoriteToggle: () -> Unit = {},
     onRemoveClick: (() -> Unit)? = null,
@@ -325,7 +328,6 @@ fun VendorCardCompact(
             .width(cardWidth)
             .wrapContentHeight()
             .graphicsLayer {
-                // Caches the card content for smoother scrolling
                 clip = true
                 shape = SquircleShape(20.dp)
             }
@@ -345,7 +347,6 @@ fun VendorCardCompact(
                         shape = SquircleShape(20.dp)
                     ),
             ) {
-                // Display single image directly without horizontal pager
                 VendorImage(
                     url = vendor.images.firstOrNull() ?: "",
                     modifier = Modifier.fillMaxSize()
@@ -430,10 +431,11 @@ fun VendorCardCompact(
                     else PaddingValues(8.dp)
                 )
             ) {
+                val baseNameStyle = if (isMedium) JasnifyTheme.typography.headingMedium else JasnifyTheme.typography.bodyLarge
                 Text(
                     text = vendor.name,
-                    style = if (isMedium) JasnifyTheme.typography.headingMedium else JasnifyTheme.typography.bodyLarge,
-                    color = ContentPrimary,
+                    style = if (isVendorNameBold) baseNameStyle.copy(fontWeight = FontWeight.Medium) else baseNameStyle,
+                    color = vendorNameColor,
                     maxLines = 1
                 )
                 Spacer(Modifier.height(4.dp))
@@ -445,7 +447,7 @@ fun VendorCardCompact(
                     Text(
                         text = "${vendor.locality}, ${vendor.city}",
                         style = JasnifyTheme.typography.labelMedium,
-                        color = ContentSecondary,
+                        color = locationColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.fillMaxWidth()
@@ -470,8 +472,6 @@ fun VendorCardCompact(
         }
     }
 }
-
-
 
 @Composable
 private fun VendorImage(url: String, modifier: Modifier = Modifier) {
@@ -567,7 +567,7 @@ private fun VendorBannerRow(
             }
         }
 
-        if(vendor.rating > 0){
+        if (vendor.rating > 0) {
             Box(
                 modifier = Modifier
                     .width(101.5.dp)
@@ -627,14 +627,11 @@ fun Modifier.vendorShadow(
     borderRadius: Dp = 24.dp,
     color: Color = Color.Black
 ) = this.graphicsLayer {
-    // This helps in caching the layer and reducing redraw overhead
     clip = false
 }.drawBehind {
     drawIntoCanvas { canvas ->
         val paint = Paint().asFrameworkPaint()
 
-        // Use a single shadow layer for performance if it's lagging
-        // Or keep multiple but ensured it's behind a graphicsLayer
         val layers = listOf(
             VendorShadowLayer(offsetY = 8.dp, blur = 16.dp, alpha = 0.06f),
             VendorShadowLayer(offsetY = 24.dp, blur = 28.dp, alpha = 0.04f),

@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -120,6 +123,12 @@ fun ContactPickerBottomSheet(
     var includePhoneNo by remember { mutableStateOf(true) }
     var currentSheetHeight by remember { mutableStateOf<Dp?>(620.dp) }
 
+    val animatedSheetHeight by animateDpAsState(
+        targetValue = currentSheetHeight ?: 1000.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        label = "SheetHeightAnimation"
+    )
+
     val filteredContacts = remember(contacts, searchQuery, existingGuestIdentifiers) {
         val trimmedQuery = searchQuery.trim()
         val base = if (trimmedQuery.isEmpty()) {
@@ -148,7 +157,7 @@ fun ContactPickerBottomSheet(
         showCloseButton = true,
         sheetGesturesEnabled = false,
         showDragHandle = true,
-        sheetHeight = currentSheetHeight,
+        sheetHeight = animatedSheetHeight,
         hasToast = hasToast,
         toast = toast
     ) {

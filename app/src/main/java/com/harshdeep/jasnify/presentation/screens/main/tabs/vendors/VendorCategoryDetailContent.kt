@@ -107,61 +107,83 @@ private val ViewOptions = listOf("By Timeline", "All Saved")
 data class CategoryHighlightedTheme(
     val backgroundColor: Color,
     val titleColor: Color,
-    val subtitleColor: Color
+    val subtitleColor: Color,
+    val title: String,
+    val subtitle: String
 )
 
 fun getCategoryHighlightedTheme(categoryName: String): CategoryHighlightedTheme {
     val normalized = categoryName.lowercase().trim()
     return when {
         normalized.contains("photo") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFD9E9FF), // Soft Blue
-            titleColor = Color(0xFF003680),
-            subtitleColor = Color(0xFF003680)
+            backgroundColor = Color(0xFFC7F3FF),
+            titleColor = Color(0xFF005066),
+            subtitleColor = Color(0xFF005066),
+            title = "Photographers",
+            subtitle = "Top-Rated"
         )
         normalized.contains("food") || normalized.contains("cater") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFFFF0DB), // Warm Peach/Orange
-            titleColor = Color(0xFF6B3300),
-            subtitleColor = Color(0xFF6B3300)
+            backgroundColor = Color(0xFFFFDCCC),
+            titleColor = Color(0xFF662000),
+            subtitleColor = Color(0xFF662000),
+            title = "Food & Catering",
+            subtitle = "Top-Rated for"
         )
         normalized.contains("groom") || normalized.contains("salon") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFDDF5F2), // Fresh Mint
-            titleColor = Color(0xFF004D40),
-            subtitleColor = Color(0xFF004D40)
+            backgroundColor = Color(0xFFCFE8FF),
+            titleColor = Color(0xFF003566),
+            subtitleColor = Color(0xFF003566),
+            title = "Grooming",
+            subtitle = "Top-Rated For"
         )
         normalized.contains("makeup") || normalized.contains("beauty") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFFFE3EC), // Soft Rose Pink
-            titleColor = Color(0xFF6A0C38),
-            subtitleColor = Color(0xFF6A0C38)
+            backgroundColor = Color(0xFFFFD6DC),
+            titleColor = Color(0xFF66000F),
+            subtitleColor = Color(0xFF66000F),
+            title = "Makeup Artists",
+            subtitle = "Top-Rated"
         )
         normalized.contains("mehendi") || normalized.contains("mehndi") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFEFE9DC), // Warm Sand / Mehndi
-            titleColor = Color(0xFF4E3600),
-            subtitleColor = Color(0xFF4E3600)
+            backgroundColor = Color(0xFFFFE2D1),
+            titleColor = Color(0xFF662500),
+            subtitleColor = Color(0xFF662500),
+            title = "Mehendi Artists",
+            subtitle = "Top-Rated"
         )
         normalized.contains("jewel") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFFFF7CC), // Golden Cream
-            titleColor = Color(0xFF5A4600),
-            subtitleColor = Color(0xFF5A4600)
+            backgroundColor = Color(0xFFFFE0BA),
+            titleColor = Color(0xFF663800),
+            subtitleColor = Color(0xFF663800),
+            title = "Jewellery",
+            subtitle = "Top-Rated for"
         )
         normalized.contains("outfit") || normalized.contains("cloth") || normalized.contains("wear") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFF0E5FF), // Lavender/Violet
-            titleColor = Color(0xFF38006B),
-            subtitleColor = Color(0xFF38006B)
+            backgroundColor = Color(0xFFF7D6FF),
+            titleColor = Color(0xFF520066),
+            subtitleColor = Color(0xFF520066),
+            title = "Outfits",
+            subtitle = "Top-Rated for"
         )
         normalized.contains("entertain") || normalized.contains("music") || normalized.contains("dj") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFE5EAFF), // Electric Blue
-            titleColor = Color(0xFF0E2278),
-            subtitleColor = Color(0xFF0E2278)
+            backgroundColor = Color(0xFFD2DBFF),
+            titleColor = Color(0xFF001466),
+            subtitleColor = Color(0xFF001466),
+            title = "Entertainment",
+            subtitle = "Top-Rated for"
         )
         normalized.contains("gift") -> CategoryHighlightedTheme(
-            backgroundColor = Color(0xFFFFE8DD), // Coral
-            titleColor = Color(0xFF662200),
-            subtitleColor = Color(0xFF662200)
+            backgroundColor = Color(0xFFFFE4E6),
+            titleColor = Color(0xFF660008),
+            subtitleColor = Color(0xFF660008),
+            title = "Gift Items",
+            subtitle = "Top-Rated for"
         )
         else -> CategoryHighlightedTheme(
             backgroundColor = Color(0xFFD9E9FF),
             titleColor = Color(0xFF003680),
-            subtitleColor = Color(0xFF003680)
+            subtitleColor = Color(0xFF003680),
+            title = categoryName,
+            subtitle = "TOP-RATED"
         )
     }
 }
@@ -507,8 +529,8 @@ fun VendorCategoryDetailContent(
                                         highRated.ifEmpty { filteredVendors.take(6) }
                                     }
                                     HighlightedVendors(
-                                        title = category.name,
-                                        subtitle = "TOP-RATED",
+                                        title = categoryHighlightTheme.title,
+                                        subtitle = categoryHighlightTheme.subtitle,
                                         vendors = topVendors,
                                         isHeadingTop = false,
                                         headerImage = painterResource(id = categoryIllustration),

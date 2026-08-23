@@ -46,7 +46,6 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
@@ -118,10 +117,10 @@ fun HomeCard(
                 Image(
                     painter = painterResource(R.drawable.bg_wave),
                     contentDescription = "wave background",
-                    alignment = Alignment.BottomCenter,
+                    alignment = Alignment.Center,
                     colorFilter = ColorFilter.tint(waveColor),
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.FillWidth
+                    contentScale = ContentScale.Crop
                 )
             }
 

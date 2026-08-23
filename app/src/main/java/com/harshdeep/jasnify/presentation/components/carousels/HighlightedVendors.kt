@@ -185,7 +185,9 @@ fun HighlightedVendors(
                             onCardClick = { onVendorClick(vendor) },
                             onFavoriteToggle = { onFavoriteToggle(vendor) },
                             onOfferClick = { onOfferClick(vendor) },
-                            compactCardSize = cardSize
+                            compactCardSize = cardSize,
+                            vendorNameColor = titleColor,
+                            locationColor = ContentPrimary,
                         )
                     }
                 }

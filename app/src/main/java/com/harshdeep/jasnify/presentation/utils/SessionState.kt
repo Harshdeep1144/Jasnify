@@ -14,4 +14,9 @@ object SessionState {
      * Tracks if the location access bottom sheet has been shown for Vendors in the current session.
      */
     var hasShownVendorLocationAccess by mutableStateOf(false)
+
+    /**
+     * Tracks if the import contacts banner has been shown in the current session.
+     */
+    var hasShownImportContactsBanner by mutableStateOf(false)
 }

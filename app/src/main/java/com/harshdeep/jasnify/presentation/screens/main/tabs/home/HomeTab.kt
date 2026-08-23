@@ -688,7 +688,7 @@ fun HomeTabContent(
                                             color = BackgroundPrimary,
                                             shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
                                         )
-                                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 8.dp)
+                                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
                                 ) {
                                     BudgetTrackerCard(
                                         insight = "See your budget",

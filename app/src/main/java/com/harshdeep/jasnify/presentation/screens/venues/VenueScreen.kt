@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
@@ -352,6 +354,7 @@ fun VenueScreen(
     }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     val sortOptions = remember {
         listOf(
@@ -372,7 +375,18 @@ fun VenueScreen(
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
     LaunchedEffect(toastData?.message) {
-        if (toastData?.message != null) {
+        val currentToast = toastData
+        if (currentToast?.message != null) {
+            if (currentToast.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (currentToast.message.contains("Please", ignoreCase = true) ||
+                    currentToast.message.contains("enter", ignoreCase = true) ||
+                    currentToast.message.contains("select", ignoreCase = true)
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000.milliseconds)
             toastData = null
         }

@@ -1,6 +1,9 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
@@ -46,9 +49,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextRange
@@ -162,9 +172,20 @@ fun AddExpenseBottomSheet(
 ) {
     var toastData by remember { mutableStateOf(ToastData()) }
     var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             activeToastData = toastData
             delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
@@ -196,14 +217,25 @@ fun AddExpenseBottomSheet(
 
     val visualTransformation = remember { ThousandsSeparatorVisualTransformation() }
 
-    val currentSheetHeight = if (showCustomCategoryUI) 161.dp else 560.dp
+    var currentSheetHeight by remember { mutableStateOf<androidx.compose.ui.unit.Dp?>(if (showCustomCategoryUI) 161.dp else 560.dp) }
+
+    LaunchedEffect(showCustomCategoryUI) {
+        currentSheetHeight = if (showCustomCategoryUI) 161.dp else 560.dp
+    }
+
+    val animatedSheetHeight by animateDpAsState(
+        targetValue = currentSheetHeight ?: 1000.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        label = "SheetHeightAnimation"
+    )
 
     CustomBottomSheet(
         heading = headingTitle,
         onDismiss = onDismiss,
         onProgress = onProgress,
-        sheetHeight = currentSheetHeight,
+        sheetHeight = animatedSheetHeight,
         showDragHandle = true,
+        sheetGesturesEnabled = false,
         showCloseButton = true,
         hasToast = toastData.message != null,
         toast = {
@@ -258,7 +290,7 @@ fun AddExpenseBottomSheet(
                     onDismiss = onDismiss,
                     onSave = { amt, rec, cat ->
                         if (amountTextFieldValue.text.isBlank()) {
-                            toastData = ToastData("Please enter the expense!", ToastType.ERROR)
+                            toastData = ToastData("Please enter the expense amount!", ToastType.ERROR)
                         } else if (receiverName.isBlank()) {
                             toastData = ToastData("Please enter receiver name!", ToastType.ERROR)
                         } else if (selectedCategory.isBlank()) {
@@ -268,7 +300,8 @@ fun AddExpenseBottomSheet(
                             onSave(amt, rec, cat, finalEmoji, phoneNumber, note)
                         }
                     },
-                    visualTransformation = visualTransformation
+                    visualTransformation = visualTransformation,
+                    onExpandRequest = { currentSheetHeight = null }
                 )
             }
         }
@@ -336,11 +369,21 @@ fun AddExpenseSheetContent(
     onDismiss: () -> Unit,
     onSave: (amount: Long, receiver: String, category: String) -> Unit,
     visualTransformation: VisualTransformation,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onExpandRequest: () -> Unit = {}
 ) {
     val emojiFocusRequester = remember { FocusRequester() }
+    val amountFocusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.yield()
+        amountFocusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     val textStyle = JasnifyTheme.typography.displayLarge.copy(
         fontWeight = FontWeight.Medium,
@@ -354,6 +397,16 @@ fun AddExpenseSheetContent(
         Column(
             modifier = Modifier
                 .weight(1f)
+                .nestedScroll(remember {
+                    object : NestedScrollConnection {
+                        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                            if (available.y < 0) {
+                                onExpandRequest()
+                            }
+                            return Offset.Zero
+                        }
+                    }
+                })
                 .verticalScroll(rememberScrollState())
                 .padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -425,7 +478,9 @@ fun AddExpenseSheetContent(
                             cursorBrush = SolidColor(ContentPrimary),
                             singleLine = true,
                             visualTransformation = visualTransformation,
-                            modifier = Modifier.width(textWidthDp + 6.dp),
+                            modifier = Modifier
+                                .width(textWidthDp + 6.dp)
+                                .focusRequester(amountFocusRequester),
                             decorationBox = { innerTextField ->
                                 Box(contentAlignment = Alignment.CenterStart) {
                                     if (amountTextFieldValue.text.isEmpty()) {

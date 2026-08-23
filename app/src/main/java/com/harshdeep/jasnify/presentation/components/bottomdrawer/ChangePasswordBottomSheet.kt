@@ -49,6 +49,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -105,9 +107,21 @@ fun ChangePasswordBottomSheet(
     var currentStep by remember { mutableStateOf(ChangePasswordStep.CURRENT_PASSWORD) }
     var toastData by remember { mutableStateOf(ToastData()) }
     var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("same", ignoreCase = true) == true ||
+                    toastData.message?.contains("weak", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             activeToastData = toastData
             delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
