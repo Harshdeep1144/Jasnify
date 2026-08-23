@@ -140,7 +140,9 @@ fun ChecklistsTab(
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
 
     if (activeEvent == null) {
-        ChecklistLoadingState()
+        ChecklistLoadingState(
+            navBarStyle = navBarStyle
+        )
         return
     }
 

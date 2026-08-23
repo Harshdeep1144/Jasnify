@@ -21,14 +21,6 @@
         <entry key="Firebase Crashlytics">
           <value>
             <InsightsFilterSettings>
-              <option name="connection">
-                <ConnectionSetting>
-                  <option name="appId" value="com.harshdeep.jasnify" />
-                  <option name="mobileSdkAppId" value="1:708758951367:android:7d9f98b261d61bd5e635e2" />
-                  <option name="projectId" value="jasnify-5ecc3" />
-                  <option name="projectNumber" value="708758951367" />
-                </ConnectionSetting>
-              </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
               <option name="timeIntervalDays" value="THIRTY_DAYS" />
               <option name="visibilityType" value="ALL" />

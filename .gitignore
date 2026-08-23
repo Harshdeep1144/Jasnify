@@ -44,3 +44,10 @@ Desktop.ini
 *~
 *.swp
 *.bak
+
+# Python & Notification Scripts
+scripts/
+service-account.json
+venv/
+.venv/
+*.pyc

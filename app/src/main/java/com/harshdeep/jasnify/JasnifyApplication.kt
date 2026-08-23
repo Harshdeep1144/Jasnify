@@ -11,6 +11,7 @@ import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.initialize
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
@@ -19,6 +20,14 @@ class JasnifyApplication: Application(), ImageLoaderFactory {
         super.onCreate()
 
         Firebase.initialize(this)
+
+        // Subscribe to global notifications topic
+        FirebaseMessaging.getInstance().subscribeToTopic("all")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("JasnifyApp", "Subscribed to 'all' topic")
+                }
+            }
 
         // Initialize Firebase App Check for local development
         if (BuildConfig.DEBUG) {

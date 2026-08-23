@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.animation.core)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.messaging)
     implementation(libs.foundation.layout)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.material3)
