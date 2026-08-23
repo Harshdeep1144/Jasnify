@@ -171,7 +171,6 @@ fun NavGraphBuilder.homeNavGraph(
             authViewModel = hiltViewModel(graphEntry),
             profileViewModel = hiltViewModel(graphEntry),
             eventViewModel = hiltViewModel(graphEntry),
-            venueViewModel = hiltViewModel(graphEntry),
             enquiryViewModel = hiltViewModel(graphEntry)
         )
     }

@@ -38,9 +38,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -106,6 +108,8 @@ private val FooterCardShape = SquircleShape(
 @Composable
 fun ContactPickerBottomSheet(
     contacts: List<Contact>,
+    hasPermission: Boolean,
+    onPermissionRequest: () -> Unit,
     onDismiss: () -> Unit,
     onAddManuallyClick: () -> Unit,
     onContactsSelected: (List<Contact>, Boolean) -> Unit,
@@ -129,25 +133,40 @@ fun ContactPickerBottomSheet(
         label = "SheetHeightAnimation"
     )
 
-    val filteredContacts = remember(contacts, searchQuery, existingGuestIdentifiers) {
-        val trimmedQuery = searchQuery.trim()
-        val base = if (trimmedQuery.isEmpty()) {
-            contacts
-        } else {
-            contacts.filter {
-                it.name.contains(trimmedQuery, ignoreCase = true) ||
-                        it.phoneNumber.contains(trimmedQuery)
-            }
-        }
+    val mockContacts = remember {
+        listOf(
+            Contact("m1", "Kavita N.", "+91 98765 43210", null),
+            Contact("m2", "Akriti R.", "+91 98765 43210", null),
+            Contact("m3", "Tarun C.", "+91 98765 43210", null),
+            Contact("m4", "Lina A.", "+91 98765 43210", null),
+            Contact("m5", "Sameer N.", "+91 98765 43210", null),
+            Contact("m6", "Rahul M.", "+91 98765 43210", null)
+        )
+    }
 
-        if (existingGuestIdentifiers.isEmpty()) {
-            base
-        } else {
-            base.filter { contact ->
-                val identifier = contact.name.lowercase() + contact.phoneNumber
-                !existingGuestIdentifiers.contains(identifier)
+    val displayContacts = if (hasPermission) {
+        remember(contacts, searchQuery, existingGuestIdentifiers) {
+            val trimmedQuery = searchQuery.trim()
+            val base = if (trimmedQuery.isEmpty()) {
+                contacts
+            } else {
+                contacts.filter {
+                    it.name.contains(trimmedQuery, ignoreCase = true) ||
+                            it.phoneNumber.contains(trimmedQuery)
+                }
+            }
+
+            if (existingGuestIdentifiers.isEmpty()) {
+                base
+            } else {
+                base.filter { contact ->
+                    val identifier = contact.name.lowercase() + contact.phoneNumber
+                    !existingGuestIdentifiers.contains(identifier)
+                }
             }
         }
+    } else {
+        mockContacts
     }
 
     CustomBottomSheet(
@@ -189,50 +208,77 @@ fun ContactPickerBottomSheet(
                 )
             }
 
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .nestedScroll(remember {
-                        object : NestedScrollConnection {
-                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                                if (available.y < 0 && currentSheetHeight != null) {
-                                    currentSheetHeight = null
-                                }
-                                return Offset.Zero
-                            }
-                        }
-                    }),
-                contentPadding = PaddingValues(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                itemsIndexed(
-                    items = filteredContacts,
-                    key = { _, contact -> contact.id + contact.phoneNumber },
-                    contentType = { _, _ -> "contact_item" }
-                ) { index, contact ->
-                    val isSelected = selectedPhoneNumbers.contains(contact.phoneNumber)
-
-                    val itemShape = when {
-                        filteredContacts.size == 1 -> SingleContactItemShape
-                        index == 0 -> TopContactItemShape
-                        index == filteredContacts.lastIndex -> BottomContactItemShape
-                        else -> MiddleContactItemShape
-                    }
-
-                    ContactItem(
-                        contact = contact,
-                        isSelected = isSelected,
-                        shape = itemShape,
-                        onToggle = {
-                            if (isSelected) {
-                                selectedContacts.removeAll { it.phoneNumber == contact.phoneNumber }
-                            } else {
-                                selectedContacts.add(contact)
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .nestedScroll(remember {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    if (available.y < 0 && currentSheetHeight != null) {
+                                        currentSheetHeight = null
+                                    }
+                                    return Offset.Zero
+                                }
                             }
+                        }),
+                    contentPadding = PaddingValues(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(
+                        items = displayContacts,
+                        key = { _, contact -> contact.id + contact.phoneNumber },
+                        contentType = { _, _ -> "contact_item" }
+                    ) { index, contact ->
+                        val isSelected = selectedPhoneNumbers.contains(contact.phoneNumber)
+
+                        val itemShape = when {
+                            displayContacts.size == 1 -> SingleContactItemShape
+                            index == 0 -> TopContactItemShape
+                            index == displayContacts.lastIndex -> BottomContactItemShape
+                            else -> MiddleContactItemShape
                         }
-                    )
+
+                        ContactItem(
+                            contact = contact,
+                            isSelected = isSelected && hasPermission,
+                            shape = itemShape,
+                            isBlurred = !hasPermission,
+                            onToggle = {
+                                if (hasPermission) {
+                                    if (isSelected) {
+                                        selectedContacts.removeAll { it.phoneNumber == contact.phoneNumber }
+                                    } else {
+                                        selectedContacts.add(contact)
+                                    }
+                                } else {
+                                    onPermissionRequest()
+                                }
+                            }
+                        )
+                    }
+                }
+
+                if (!hasPermission) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CustomTextButton(
+                            onClick = onPermissionRequest,
+                            text = "View Your Contacts",
+                            leadingIcon = painterResource(id = R.drawable.ic_eye_closed),
+                            type = ButtonType.Primary,
+                            shapeStyle = ButtonShapeStyle.Round
+                        )
+                    }
                 }
             }
 
@@ -293,14 +339,16 @@ fun ContactPickerBottomSheet(
 
                 CustomTextButton(
                     onClick = {
-                        if (selectedContacts.isEmpty()) {
+                        if (!hasPermission) {
+                            onPermissionRequest()
+                        } else if (selectedContacts.isEmpty()) {
                             onContactsSelected(emptyList(), includePhoneNo)
                         } else {
                             onContactsSelected(selectedContacts.toList(), includePhoneNo)
                             onDismiss()
                         }
                     },
-                    text = "Import Selected (${selectedContacts.size})",
+                    text = if (hasPermission) "Import Selected (${selectedContacts.size})" else "Import Contacts",
                     modifier = Modifier.fillMaxWidth(),
                     type = ButtonType.Primary,
                     shapeStyle = ButtonShapeStyle.Square
@@ -315,6 +363,7 @@ private fun ContactItem(
     contact: Contact,
     isSelected: Boolean,
     shape: Shape,
+    isBlurred: Boolean = false,
     onToggle: () -> Unit
 ) {
     Row(
@@ -331,51 +380,58 @@ private fun ContactItem(
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CustomChecker(
-            checked = isSelected,
-            onCheckedChange = { onToggle() },
-            activeColor = ContentPrimary
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(BackgroundSecondary)
+                .weight(1f)
+                .then(if (isBlurred) Modifier.blur(8.dp) else Modifier),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!contact.photoUri.isNullOrEmpty()) {
-                AsyncImage(
-                    model = contact.photoUri,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+            CustomChecker(
+                checked = isSelected,
+                onCheckedChange = { onToggle() },
+                activeColor = ContentPrimary
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(BackgroundSecondary)
+            ) {
+                if (!contact.photoUri.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = contact.photoUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = contact.name,
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentPrimary,
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee()
                 )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize()
+                Text(
+                    text = contact.phoneNumber,
+                    style = JasnifyTheme.typography.labelLarge,
+                    color = ContentSecondary
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = contact.name,
-                style = JasnifyTheme.typography.labelXLarge,
-                color = ContentPrimary,
-                maxLines = 1,
-                modifier = Modifier.basicMarquee()
-            )
-            Text(
-                text = contact.phoneNumber,
-                style = JasnifyTheme.typography.labelLarge,
-                color = ContentSecondary
-            )
         }
     }
 }
@@ -425,6 +481,8 @@ fun PreviewContactPickerBottomSheet() {
     JasnifyTheme {
         ContactPickerBottomSheet(
             contacts = mockContacts,
+            hasPermission = true,
+            onPermissionRequest = {},
             onDismiss = {},
             onAddManuallyClick = {},
             onContactsSelected = { _, _ -> },

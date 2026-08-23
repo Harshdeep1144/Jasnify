@@ -1,6 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.guests
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,9 +16,15 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -153,6 +162,15 @@ enum class GuestsView {
     MANAGE_GUEST_TYPES,
     GUEST_TYPE_DETAIL,
     ROOM_ACCESS
+}
+
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -408,28 +426,34 @@ fun GuestsTab(
         }
     }
 
+    var isRequestingFromBanner by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasContactPermission = isGranted
         if (isGranted) {
             phoneContacts = ContactHelper.fetchContacts(context)
-            showContactPicker = true
+            if (!isRequestingFromBanner) {
+                showContactPicker = true
+            }
         } else {
-            val activity = context as? android.app.Activity
+            val activity = context.findActivity()
             val showRationale = activity?.let {
                 ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.READ_CONTACTS)
             } ?: false
 
+            // If we can't show the system dialog anymore (permanently denied), show the settings toast
             if (!showRationale) {
                 toastData = ToastData(
-                    message = "Please enable Contacts Permission.",
+                    message = "Please enable Contacts Permission in App Settings.",
                     type = ToastType.DEFAULT,
                     buttonText = "Settings",
                     onButtonClick = openAppSettings
                 )
             }
         }
+        isRequestingFromBanner = false
     }
 
     val guestTypes = remember {
@@ -500,10 +524,8 @@ fun GuestsTab(
         hasContactPermission = isGranted
         if (isGranted) {
             phoneContacts = ContactHelper.fetchContacts(context)
-            showContactPicker = true
-        } else {
-            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
+        showContactPicker = true
     }
 
     BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) {
@@ -579,16 +601,20 @@ fun GuestsTab(
                                             AnimatedVisibility(
                                                 visible = !isSearchActive,
                                                 enter = fadeIn(
-                                                    animationSpec = tween(
-                                                        durationMillis = 280,
-                                                        easing = FastOutSlowInEasing
-                                                    )
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                                ) + slideInVertically(
+                                                    initialOffsetY = { -it },
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                                ) + expandVertically(
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
                                                 ),
                                                 exit = fadeOut(
-                                                    animationSpec = tween(
-                                                        durationMillis = 200,
-                                                        easing = FastOutSlowInEasing
-                                                    )
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                                ) + slideOutVertically(
+                                                    targetOffsetY = { -it },
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                                ) + shrinkVertically(
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
                                                 )
                                             ) {
                                                 Box(
@@ -665,7 +691,27 @@ fun GuestsTab(
                                                         }
                                                     )
 
-                                                    if (!isSearchActive && !isViewer) {
+                                                    AnimatedVisibility(
+                                                        visible = !isSearchActive && !isViewer,
+                                                        enter = fadeIn(
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ) + slideInHorizontally(
+                                                            initialOffsetX = { it },
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ) + expandHorizontally(
+                                                            expandFrom = Alignment.End,
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ),
+                                                        exit = fadeOut(
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        ) + slideOutHorizontally(
+                                                            targetOffsetX = { it },
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        ) + shrinkHorizontally(
+                                                            shrinkTowards = Alignment.End,
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        )
+                                                    ) {
                                                         Row {
                                                             Spacer(modifier = Modifier.width(8.dp))
                                                             CustomTextButton(
@@ -904,7 +950,10 @@ fun GuestsTab(
                                             if (!hasContactPermission && !SessionState.hasShownImportContactsBanner) {
                                                 item(key = "contacts_banner", contentType = "banner") {
                                                     ImportContactsBanner(
-                                                        onAllowAccessClick = onAddGuestClick,
+                                                        onAllowAccessClick = {
+                                                            isRequestingFromBanner = true
+                                                            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
+                                                        },
                                                         onDismissClick = {
                                                             SessionState.hasShownImportContactsBanner = true
                                                         },
@@ -1129,8 +1178,9 @@ fun GuestsTab(
                 }
             }
 
+            // 1. Action Toasts (Bottom to Top) - e.g., Permission Settings
             AnimatedVisibility(
-                visible = toastData?.message != null && !isAnyBottomSheetOpen,
+                visible = toastData?.message != null && toastData?.buttonText != null && !isAnyBottomSheetOpen,
                 enter = slideInVertically(initialOffsetY = { it + 500 }),
                 exit = slideOutVertically(targetOffsetY = { it + 500 }),
                 modifier = Modifier
@@ -1145,6 +1195,27 @@ fun GuestsTab(
                         type = data.type,
                         buttonText = data.buttonText,
                         onButtonClick = data.onButtonClick
+                    )
+                }
+            }
+
+            // 2. Info/Status Toasts (Top to Bottom) - e.g., Success/Error messages without buttons
+            // Shown regardless of sheet state so they appear at the very top of the screen
+            AnimatedVisibility(
+                visible = toastData?.message != null && toastData?.buttonText == null,
+                enter = slideInVertically(initialOffsetY = { -it - 500 }),
+                exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .zIndex(1001f) // High Z-index to show above sheets if necessary
+                    .padding(horizontal = 12.dp, vertical = 16.dp)
+            ) {
+                toastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type
                     )
                 }
             }
@@ -1292,21 +1363,26 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it + 500 }),
-                        exit = slideOutVertically(targetOffsetY = { it + 500 }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type,
-                                buttonText = data.buttonText,
-                                onButtonClick = data.onButtonClick
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    // Only show action toasts in the sheet slot. 
+                    // Info toasts are handled by the global top toast for better visibility.
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }
@@ -1345,21 +1421,26 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it + 500 }),
-                        exit = slideOutVertically(targetOffsetY = { it + 500 }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type,
-                                buttonText = data.buttonText,
-                                onButtonClick = data.onButtonClick
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    // Only show action toasts in the sheet slot. 
+                    // Info toasts are handled by the global top toast for better visibility.
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }
@@ -1388,6 +1469,11 @@ fun GuestsTab(
         if (showContactPicker) {
             ContactPickerBottomSheet(
                 contacts = phoneContacts,
+                hasPermission = hasContactPermission,
+                onPermissionRequest = { 
+                    isRequestingFromBanner = false
+                    permissionLauncher.launch(Manifest.permission.READ_CONTACTS) 
+                },
                 onDismiss = { showContactPicker = false },
                 onProgress = { sheetMotionProgress = it },
                 onAddManuallyClick = {
@@ -1446,21 +1532,24 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it + 500 }),
-                        exit = slideOutVertically(targetOffsetY = { it + 500 }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type,
-                                buttonText = data.buttonText,
-                                onButtonClick = data.onButtonClick
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }

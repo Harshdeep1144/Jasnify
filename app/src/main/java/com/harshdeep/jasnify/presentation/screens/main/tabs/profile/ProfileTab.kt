@@ -6,10 +6,12 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -81,7 +83,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
@@ -110,8 +112,7 @@ fun ProfileTab(
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    venueViewModel: VenueViewModel = hiltViewModel(),
-    enquiryViewModel: EnquiryViewModel = hiltViewModel()
+    enquiryViewModel: EnquiryViewModel = hiltViewModel(),
 ) {
     val mainGraphEntry = remember(mainNavController) {
         mainNavController.getBackStackEntry(Screen.MainAppGraph.route)
@@ -196,7 +197,7 @@ fun ProfileTab(
     }
 
     LaunchedEffect(currentScreen, isAnyBottomSheetOpen) {
-        onBottomBarVisibilityChange(currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen)
+        onBottomBarVisibilityChange((currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen))
     }
 
     val targetScale = if (isAnyBottomSheetOpen) {
@@ -316,6 +317,7 @@ fun ProfileTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BackgroundPrimary)
                 .graphicsLayer {
                     scaleX = backdropScale
                     scaleY = backdropScale
@@ -326,10 +328,32 @@ fun ProfileTab(
             AnimatedContent(
                 targetState = currentScreen,
                 transitionSpec = {
+                    val duration = 400
+                    val easing = FastOutSlowInEasing
                     if (targetState == ProfileScreen.Root) {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+                        // Sliding BACK to Root (Incoming from Left, Outgoing to Right)
+                        (slideInHorizontally(
+                            initialOffsetX = { -it / 3 },
+                            animationSpec = tween(duration, easing = easing)
+                        ) + fadeIn(tween(duration, easing = easing)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { it },
+                                    animationSpec = tween(duration, easing = easing)
+                                ) + fadeOut(tween(duration, easing = easing))
+                            )
                     } else {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                        // Sliding FORWARD to Sub-screen (Incoming from Right, Outgoing to Left)
+                        (slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(duration, easing = easing)
+                        ) + fadeIn(tween(duration, easing = easing)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { -it / 3 },
+                                    animationSpec = tween(duration, easing = easing)
+                                ) + fadeOut(tween(duration, easing = easing))
+                            )
                     }
                 },
                 label = "ProfileTabNavigation",
