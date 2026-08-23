@@ -366,12 +366,14 @@ fun ProfileTab(
                 }
                 when (screen) {
                     ProfileScreen.Root -> {
+                        val notificationEnabled by profileViewModel.isNotificationsEnabled.collectAsState()
                         ProfileRootScreen(
                             userName = userName,
                             userHandle = userHandle,
                             profilePic = profilePic,
                             eventCount = eventCount,
                             enquiryCount = enquiryCount,
+                            notificationEnabled = notificationEnabled,
                             onEditProfile = { showEditProfile = true },
                             onNavigateTo = { currentScreen = it },
                             onLogout = { showLogoutDialog = true },
@@ -438,6 +440,7 @@ fun ProfileTab(
 
                     ProfileScreen.Notifications -> {
                         NotificationsScreen(
+                            profileViewModel = profileViewModel,
                             onBack = { currentScreen = ProfileScreen.Root }
                         )
                     }

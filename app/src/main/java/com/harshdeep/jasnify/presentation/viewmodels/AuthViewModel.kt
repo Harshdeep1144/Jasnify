@@ -40,11 +40,20 @@ sealed class AuthState {
 class AuthViewModel @Inject constructor(
     private val auth: FirebaseAuth,
     private val userRepository: UserRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val preferenceManager: com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState
+
+    fun hasCompletedOnboarding(): Boolean {
+        return preferenceManager.hasCompletedOnboarding()
+    }
+
+    fun setCompletedOnboarding(completed: Boolean) {
+        preferenceManager.setHasCompletedOnboarding(completed)
+    }
 
     fun resetAuthState() {
         _authState.value = AuthState.Idle

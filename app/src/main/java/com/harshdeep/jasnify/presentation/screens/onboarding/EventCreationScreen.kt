@@ -100,6 +100,7 @@ enum class EventCreationStep(val title: String, val stepNumber: Int) {
 fun EventCreation(
     navController: NavController,
     eventViewModel: EventViewModel = hiltViewModel(),
+    authViewModel: com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel = hiltViewModel(),
     fromProfile: Boolean = false
 ) {
     SetStatusBarTheme(
@@ -195,6 +196,7 @@ fun EventCreation(
                 val successMessage = (eventState as EventCreationState.Success).message
                 toastData = ToastData(successMessage, ToastType.SUCCESS)
 
+                authViewModel.setCompletedOnboarding(true)
                 delay(500L.milliseconds)
 
                 navController.navigate(Screen.MainAppScreen.route) {

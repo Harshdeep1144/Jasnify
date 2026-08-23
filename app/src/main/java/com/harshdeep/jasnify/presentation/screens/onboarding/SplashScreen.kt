@@ -11,11 +11,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
@@ -31,12 +29,12 @@ fun SplashScreen(
     LaunchedEffect(Unit) {
         delay(200L.milliseconds) // Minimal delay for auth state to stabilize
         val isLoggedIn = authViewModel.isUserLoggedIn()
+        val hasCompletedOnboarding = authViewModel.hasCompletedOnboarding()
 
-        val destination = if (!isLoggedIn) {
+        val destination = if (!isLoggedIn || !hasCompletedOnboarding) {
             Screen.OnboardingGraph.route
         } else {
-            // Logged in? Move immediately to the Main Loading Skeleton.
-            // All deep database checks and cache resolutions happen there.
+            // Logged in and finished onboarding? Move immediately to the Main Loading Skeleton.
             Screen.MainSkeletonLoading.route
         }
 

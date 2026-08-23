@@ -90,6 +90,7 @@ fun ProfileRootScreen(
     profilePic: Any,
     eventCount: Int,
     enquiryCount: Int,
+    notificationEnabled: Boolean,
     onEditProfile: () -> Unit,
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit,
@@ -372,7 +373,7 @@ fun ProfileRootScreen(
                         )
                         ProfileMenuCell(
                             title = "Notifications",
-                            subtitle = "On",
+                            subtitle = if (notificationEnabled) "On" else "Off",
                             icon = notificationIcon,
                             hasBorder = false,
                             shape = RectangleShape,
@@ -502,6 +503,7 @@ fun ProfileTabPreview() {
             profilePic = R.drawable.ic_user_profile,
             eventCount = 2,
             enquiryCount = 5,
+            notificationEnabled = true,
             onEditProfile = {},
             onNavigateTo = {},
             onLogout = {}

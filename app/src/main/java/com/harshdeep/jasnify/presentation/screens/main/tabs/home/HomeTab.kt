@@ -158,6 +158,12 @@ fun HomeTab(
         savedVenuesFromCloud.associate { it.venueName to it.destination }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) {
+        // Trigger notification permission check only when user is on the Home screen
+        (context as? com.harshdeep.jasnify.MainActivity)?.triggerNotificationPermissionCheck()
+    }
+
     val vendorSavedDestinations = remember(savedVendorsFromCloud) {
         savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
     }

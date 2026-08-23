@@ -173,6 +173,7 @@ fun LoginOrSignup(
                 navController.navigate(destination) {
                     popUpTo(Screen.OnboardingGraph.route) { inclusive = true }
                 }
+                viewModel.setCompletedOnboarding(true)
                 viewModel.resetAuthState()
             }
 

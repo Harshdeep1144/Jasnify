@@ -72,6 +72,7 @@ fun MainSkeletonLoading(
     val graphEntry = remember(navController) { navController.getBackStackEntry(Screen.MainAppGraph.route) }
 
     val eventViewModel: EventViewModel = hiltViewModel(graphEntry)
+    val authViewModel: com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel = hiltViewModel(graphEntry)
     val budgetViewModel: BudgetViewModel = hiltViewModel(graphEntry)
     val checklistViewModel: ChecklistViewModel = hiltViewModel(graphEntry)
     val vendorViewModel: VendorViewModel = hiltViewModel(graphEntry)
@@ -102,6 +103,7 @@ fun MainSkeletonLoading(
         val hasEventParticipation = eventViewModel.checkIfUserParticipatesInAnyEvent()
 
         if (hasEventParticipation) {
+            authViewModel.setCompletedOnboarding(true)
             // Check local cache for immediate redirection
             val cachedEventId = eventViewModel.getLocalActiveEventId()
             if (cachedEventId != null) {

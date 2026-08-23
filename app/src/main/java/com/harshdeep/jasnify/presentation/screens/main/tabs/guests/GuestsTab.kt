@@ -1037,6 +1037,11 @@ fun GuestsTab(
                                                     )
                                                 }
                                             }
+                                            else{
+                                                item{
+                                                    Spacer(Modifier.height(32.dp))
+                                                }
+                                            }
                                         }
                                     }
                                 }

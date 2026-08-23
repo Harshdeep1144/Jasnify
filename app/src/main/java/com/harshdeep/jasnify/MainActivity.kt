@@ -17,27 +17,37 @@ import androidx.core.view.WindowCompat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.presentation.navigation.AppNavigation
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var preferenceManager: PreferenceManager
+
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            // Permission is granted.
+            // Sync FCM if toggle is ON (which it is by default)
+            if (preferenceManager.isNotificationsEnabled()) {
+                FirebaseMessaging.getInstance().subscribeToTopic("all")
+            }
         } else {
             // Permission denied.
+            FirebaseMessaging.getInstance().unsubscribeFromTopic("all")
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        askNotificationPermission()
+        preferenceManager.incrementSessionCount()
         WindowCompat.setDecorFitsSystemWindows(window, false)
         enableEdgeToEdge(
             // icons color light
@@ -62,17 +72,54 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    fun triggerNotificationPermissionCheck() {
+        askNotificationPermission()
+    }
+
     private fun askNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                // FCM SDK (and your app) can post notifications.
-            } else if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
-                // TODO: display an educational UI explaining why the features require this permission
-            } else {
-                // Directly ask for the permission
+            val isGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+                    PackageManager.PERMISSION_GRANTED
+            
+            val auth = FirebaseAuth.getInstance()
+            val isLoggedIn = auth.currentUser != null
+
+            if (isGranted) {
+                // If permission granted, ensure FCM is synced with preference
+                if (preferenceManager.isNotificationsEnabled()) {
+                    FirebaseMessaging.getInstance().subscribeToTopic("all")
+                } else {
+                    FirebaseMessaging.getInstance().unsubscribeFromTopic("all")
+                }
+                return
+            }
+
+            // Only show the popup if user is logged in (Home screen requirement)
+            if (!isLoggedIn) return
+
+            val currentSession = preferenceManager.getSessionCount()
+            val lastRequestSession = preferenceManager.getLastPermissionRequestSession()
+            
+            // Requirement 1: 1st time at login
+            val isFirstLoginAsk = !preferenceManager.hasFirstLoginPermissionAsked()
+            
+            // Requirement 2: Every 3rd session
+            val isThirdSessionAsk = currentSession - lastRequestSession >= 3
+            
+            if (isFirstLoginAsk || isThirdSessionAsk) {
+                preferenceManager.setLastPermissionRequestSession(currentSession)
+                if (isFirstLoginAsk) {
+                    preferenceManager.setHasFirstLoginPermissionAsked(true)
+                }
+                
                 requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            // Pre-Tiramisu: Always sync FCM based on toggle
+            if (preferenceManager.isNotificationsEnabled()) {
+                FirebaseMessaging.getInstance().subscribeToTopic("all")
+            } else {
+                FirebaseMessaging.getInstance().unsubscribeFromTopic("all")
             }
         }
     }

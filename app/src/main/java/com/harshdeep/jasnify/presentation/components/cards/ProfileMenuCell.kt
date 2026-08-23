@@ -42,6 +42,7 @@ fun ProfileMenuCell(
     containerColor: Color = SurfacePrimary,
     contentColor: Color = ContentPrimary,
     showArrow: Boolean = true,
+    trailingContent: (@Composable () -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     Surface(
@@ -57,7 +58,7 @@ fun ProfileMenuCell(
                     )
                 } else Modifier
             )
-            .clickable { onClick() },
+            .clickable(enabled = trailingContent == null) { onClick() },
         color = containerColor,
         shape = shape
     ) {
@@ -85,7 +86,9 @@ fun ProfileMenuCell(
                         color = contentColor,
                         modifier = Modifier.weight(1f)
                     )
-                    if (showArrow) {
+                    if (trailingContent != null) {
+                        trailingContent()
+                    } else if (showArrow) {
                         Icon(
                             painter = painterResource(R.drawable.ic_right_chevron),
                             contentDescription = null,
