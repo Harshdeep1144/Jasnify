@@ -156,9 +156,9 @@ fun ProfileTab(
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
 
     val profilePic: Any = if (userProfile != null) {
-        userProfile?.profilePictureUrl ?: R.drawable.ic_user_profile
+        userProfile?.profilePictureUrl ?: R.drawable.img_profile_placeholder
     } else {
-        firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+        firebaseUser?.photoUrl ?: R.drawable.img_profile_placeholder
     }
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }

@@ -6,7 +6,6 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -14,11 +13,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -96,6 +92,7 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonContent
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
@@ -547,77 +544,13 @@ fun HomeTabContent(
         }
     }
 
-    val smoothDepthEasing = remember { CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f) }
-
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
             if (initialState == "home") {
-                // Forward navigation:
-                // Current screen zooms in towards the user (1.0 -> 1.28) while fading out
-                // Incoming screen emerges from 0.80 with a 100ms delay
-                (
-                        scaleIn(
-                            initialScale = 0.9f,
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                delayMillis = 100,
-                                easing = smoothDepthEasing
-                            )
-                        ) + fadeIn(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                delayMillis = 100,
-                                easing = smoothDepthEasing
-                            )
-                        )
-                        ).togetherWith(
-                        scaleOut(
-                            targetScale = 1.1f,
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = smoothDepthEasing
-                            )
-                        ) + fadeOut(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = smoothDepthEasing
-                            )
-                        )
-                    )
+                ScreenTransitions.ZoomDepthForwardTransition
             } else {
-                // Return navigation:
-                // Incoming screen scales down from 1.25 back to 1.0 with a 80ms delay
-                // Outgoing screen shrinks away to 0.78 while fading out
-                (
-                        scaleIn(
-                            initialScale = 1.1f,
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                delayMillis = 80,
-                                easing = smoothDepthEasing
-                            )
-                        ) + fadeIn(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                delayMillis = 80,
-                                easing = smoothDepthEasing
-                            )
-                        )
-                        ).togetherWith(
-                        scaleOut(
-                            targetScale = 0.9f,
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = smoothDepthEasing
-                            )
-                        ) + fadeOut(
-                            animationSpec = tween(
-                                durationMillis = 300,
-                                easing = smoothDepthEasing
-                            )
-                        )
-                    )
+                ScreenTransitions.ZoomDepthReturnTransition
             }
         },
         label = "screen_zoom_transition",

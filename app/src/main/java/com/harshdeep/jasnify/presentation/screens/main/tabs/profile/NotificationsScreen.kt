@@ -20,7 +20,10 @@ import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
 
 @Composable
 fun NotificationsScreen(
@@ -49,7 +52,6 @@ fun NotificationsScreen(
         ) {
             ProfileMenuCell(
                 title = "Push Notifications",
-                subtitle = if (isEnabled) "Receive updates and alerts" else "Notifications are currently off",
                 icon = painterResource(R.drawable.ic_notification),
                 hasBorder = true,
                 showArrow = false,
@@ -58,10 +60,10 @@ fun NotificationsScreen(
                         checked = isEnabled,
                         onCheckedChange = { profileViewModel.toggleNotifications(it) },
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = ContentPrimary,
-                            uncheckedThumbColor = Color.White,
-                            uncheckedTrackColor = Color.Gray.copy(alpha = 0.5f),
+                            checkedThumbColor = ContentInvPrimary,
+                            checkedTrackColor = ContentBrand,
+                            uncheckedThumbColor = ContentInvPrimary,
+                            uncheckedTrackColor = ContentTertiary,
                             uncheckedBorderColor = Color.Transparent
                         )
                     )

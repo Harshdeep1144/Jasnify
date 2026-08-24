@@ -61,16 +61,19 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.SearchBarType
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceInvPrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
@@ -135,12 +138,16 @@ fun ContactPickerBottomSheet(
 
     val mockContacts = remember {
         listOf(
-            Contact("m1", "Kavita N.", "+91 98765 43210", null),
-            Contact("m2", "Akriti R.", "+91 98765 43210", null),
-            Contact("m3", "Tarun C.", "+91 98765 43210", null),
-            Contact("m4", "Lina A.", "+91 98765 43210", null),
-            Contact("m5", "Sameer N.", "+91 98765 43210", null),
-            Contact("m6", "Rahul M.", "+91 98765 43210", null)
+            Contact("m1", "Kavita N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=47"),
+            Contact("m2", "Akriti R.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=32"),
+            Contact("m3", "Tarun C.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=12"),
+            Contact("m4", "Lina A.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=45"),
+            Contact("m5", "Sameer N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=68"),
+            Contact("m6", "Rahul M.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=11"),
+            Contact("m7", "Priya S.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=23"),
+            Contact("m8", "Arjun K.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=56"),
+            Contact("m9", "Neha P.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=5"),
+            Contact("m10", "Vikram J.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=60")
         )
     }
 
@@ -275,84 +282,88 @@ fun ContactPickerBottomSheet(
                             onClick = onPermissionRequest,
                             text = "View Your Contacts",
                             leadingIcon = painterResource(id = R.drawable.ic_eye_closed),
-                            type = ButtonType.Primary,
+                            containerColor = SurfaceInvPrimary,
+                            contentColor = ContentInvPrimary,
                             shapeStyle = ButtonShapeStyle.Round
                         )
                     }
                 }
             }
 
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            if(hasPermission){
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
-                    .clip(FooterCardShape)
-                    .background(SurfaceSecondary)
-            ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(12.dp)
                         .clip(FooterCardShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            includePhoneNo = !includePhoneNo
-                        }
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(SurfaceSecondary)
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(FooterCardShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                includePhoneNo = !includePhoneNo
+                            }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_phone),
-                            contentDescription = null,
-                            tint = ContentSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Include Contact No.",
-                            style = JasnifyTheme.typography.headingSmall,
-                            color = ContentSecondary,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_phone),
+                                contentDescription = null,
+                                tint = ContentSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Include Contact No.",
+                                style = JasnifyTheme.typography.headingSmall,
+                                color = ContentSecondary,
+                            )
+                        }
+
+                        Switch(
+                            checked = includePhoneNo,
+                            onCheckedChange = { includePhoneNo = it },
+                            modifier = Modifier
+                                .height(24.dp)
+                                .scale(0.8f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ContentInvPrimary,
+                                checkedTrackColor = ContentBrand,
+                                uncheckedThumbColor = ContentInvPrimary,
+                                uncheckedTrackColor = ContentTertiary,
+                                uncheckedBorderColor = Color.Transparent
+                            )
                         )
                     }
 
-                    Switch(
-                        checked = includePhoneNo,
-                        onCheckedChange = { includePhoneNo = it },
-                        modifier = Modifier
-                            .height(24.dp)
-                            .scale(0.8f),
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = ContentInvPrimary,
-                            checkedTrackColor = ContentBrand,
-                            uncheckedThumbColor = ContentInvPrimary,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                        )
+                    CustomTextButton(
+                        onClick = {
+                            if (!hasPermission) {
+                                onPermissionRequest()
+                            } else if (selectedContacts.isEmpty()) {
+                                onContactsSelected(emptyList(), includePhoneNo)
+                            } else {
+                                onContactsSelected(selectedContacts.toList(), includePhoneNo)
+                                onDismiss()
+                            }
+                        },
+                        text = "Import Selected (${selectedContacts.size})",
+                        modifier = Modifier.fillMaxWidth(),
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Square
                     )
                 }
-
-                CustomTextButton(
-                    onClick = {
-                        if (!hasPermission) {
-                            onPermissionRequest()
-                        } else if (selectedContacts.isEmpty()) {
-                            onContactsSelected(emptyList(), includePhoneNo)
-                        } else {
-                            onContactsSelected(selectedContacts.toList(), includePhoneNo)
-                            onDismiss()
-                        }
-                    },
-                    text = if (hasPermission) "Import Selected (${selectedContacts.size})" else "Import Contacts",
-                    modifier = Modifier.fillMaxWidth(),
-                    type = ButtonType.Primary,
-                    shapeStyle = ButtonShapeStyle.Square
-                )
             }
         }
     }
@@ -371,28 +382,27 @@ private fun ContactItem(
             .fillMaxWidth()
             .clip(shape)
             .background(SurfaceSecondary)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
+            .noRippleClickable {
                 onToggle()
             }
+            .then(if (isBlurred) Modifier.blur(12.dp) else Modifier)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             modifier = Modifier
-                .weight(1f)
-                .then(if (isBlurred) Modifier.blur(8.dp) else Modifier),
+                .weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            CustomChecker(
-                checked = isSelected,
-                onCheckedChange = { onToggle() },
-                activeColor = ContentPrimary
-            )
+            if(!isBlurred){
+                CustomChecker(
+                    checked = isSelected,
+                    onCheckedChange = { onToggle() },
+                    activeColor = ContentPrimary
+                )
 
-            Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+            }
 
             Box(
                 modifier = Modifier
@@ -439,49 +449,21 @@ private fun ContactItem(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewContactPickerBottomSheet() {
-    val mockContacts = listOf(
-        Contact(
-            id = "1",
-            name = "Kavita N.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "2",
-            name = "Akriti R.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "3",
-            name = "Tarun C.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "4",
-            name = "Lina A.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "5",
-            name = "Sameer N.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "6",
-            name = "Rahul M.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
+    val mockContacts = remember {
+        listOf(
+            Contact("m1", "Kavita N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=47"),
+            Contact("m2", "Akriti R.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=32"),
+            Contact("m3", "Tarun C.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=12"),
+            Contact("m4", "Lina A.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=45"),
+            Contact("m5", "Sameer N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=68"),
+            Contact("m6", "Rahul M.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=11")
         )
-    )
+    }
 
     JasnifyTheme {
         ContactPickerBottomSheet(
             contacts = mockContacts,
-            hasPermission = true,
+            hasPermission = false,
             onPermissionRequest = {},
             onDismiss = {},
             onAddManuallyClick = {},

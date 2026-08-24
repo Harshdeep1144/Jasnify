@@ -112,6 +112,8 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
@@ -188,6 +190,7 @@ fun VenueScreen(
 ){
     val context = LocalContext.current
     val recentLocations = remember { LocationHelper.getRecentLocations(context) }
+    var showAiChat by remember { mutableStateOf(false) }
     var currentAddress by remember { 
         mutableStateOf(
             if (selectedLocation == "City, State" && recentLocations.isNotEmpty()) {
@@ -395,18 +398,22 @@ fun VenueScreen(
     val focusManager = LocalFocusManager.current
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    BackHandler(enabled = screenStack.size > 1) {
-        when (screenState) {
-            VenueScreenState.VENUE_DETAIL -> {
-                selectedVenueForDetail = null
-                venueViewModel.setSelectedVenueId(null)
+    BackHandler(enabled = screenStack.size > 1 || showAiChat) {
+        if (showAiChat) {
+            showAiChat = false
+        } else {
+            when (screenState) {
+                VenueScreenState.VENUE_DETAIL -> {
+                    selectedVenueForDetail = null
+                    venueViewModel.setSelectedVenueId(null)
+                }
+                VenueScreenState.TIMELINE_DETAIL -> {
+                    selectedTimelineEventId = null
+                }
+                else -> {}
             }
-            VenueScreenState.TIMELINE_DETAIL -> {
-                selectedTimelineEventId = null
-            }
-            else -> {}
+            screenStack = screenStack.dropLast(1)
         }
-        screenStack = screenStack.dropLast(1)
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
@@ -832,6 +839,30 @@ fun VenueScreen(
                 )
             }
         }
+
+        if (!isAnySheetVisible && screenState == VenueScreenState.MAIN && !showAiChat) {
+            AskAiButton(
+                onClick = { showAiChat = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 240.dp)
+                    .zIndex(150f)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showAiChat,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.zIndex(200f)
+        ) {
+            AiChatScreen(
+                eventId = activeEvent?.id,
+                shouldStartNewSession = true,
+                onBackClick = { showAiChat = false },
+                mainNavController = null
+            )
+        }
     }
 
     userToRemove?.let { user ->
@@ -921,8 +952,7 @@ fun VenueMainContent(
     onShowFilterDialogChange: (Boolean) -> Unit,
     isLoading: Boolean = false,
     onTimelineSeeAll: (TimelineEvent) -> Unit = {},
-    onOfferClick: (Venue) -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    onOfferClick: (Venue) -> Unit = {},    listState: LazyListState = rememberLazyListState()
 ) {
     val focusManager = LocalFocusManager.current
 

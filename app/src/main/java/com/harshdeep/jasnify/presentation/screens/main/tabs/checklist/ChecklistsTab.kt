@@ -1,6 +1,8 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.checklist
 
 import android.annotation.SuppressLint
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -96,6 +98,8 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.states.ChecklistLoadingState
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
@@ -120,6 +124,7 @@ sealed interface ChecklistScreenState {
     data object ManageRoomAccess : ChecklistScreenState
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @SuppressLint("UnrememberedGetBackStackEntry")
 @Composable
@@ -181,6 +186,8 @@ fun ChecklistsTab(
     val recentColors = remember(recentColorsHex) { recentColorsHex.map { Color(it.toLong(16)) } }
 
     var isGridView by remember { mutableStateOf(true) }
+    var showAiChat by remember { mutableStateOf(false) }
+    var aiChatContext by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf("All") }
     var showMenuSheet by remember { mutableStateOf(false) }
     var selectedChecklist by remember { mutableStateOf<Checklist?>(null) }
@@ -264,8 +271,8 @@ fun ChecklistsTab(
         }
     }
 
-    LaunchedEffect(currentScreen, hasAccess, isAnyBottomSheetOpen) {
-        onBottomBarVisibilityChange(hasAccess == true && currentScreen is ChecklistScreenState.List && !isAnyBottomSheetOpen)
+    LaunchedEffect(currentScreen, hasAccess, isAnyBottomSheetOpen, showAiChat) {
+        onBottomBarVisibilityChange(hasAccess == true && currentScreen is ChecklistScreenState.List && !isAnyBottomSheetOpen && !showAiChat)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -283,9 +290,11 @@ fun ChecklistsTab(
         }
     }
 
-    BackHandler(enabled = showArchives || isSearchActive || showRoomAccess) {
+    BackHandler(enabled = showArchives || isSearchActive || showRoomAccess || showAiChat) {
         focusManager.clearFocus()
-        if (isSearchActive) {
+        if (showAiChat) {
+            showAiChat = false
+        } else if (isSearchActive) {
             isSearchActive = false
             searchQuery = ""
             wasFocused = false
@@ -741,6 +750,43 @@ fun ChecklistsTab(
                                             }
                                         }
                                     }
+
+                                    if (!isAnyBottomSheetOpen && !showAiChat && checklists.isNotEmpty()) {
+                                        AskAiButton(
+                                            onClick = {
+                                                focusManager.clearFocus()
+                                                aiChatContext = """
+                                            Checklist for ${activeEvent?.name ?: "Event"}:
+                                            Total Checklists: ${checklists.size}
+                                            
+                                            Active Checklists:
+                                            ${checklists.joinToString("\n") { "- ${it.title}: ${it.items.count { it.checked }}/${it.items.size} items done" }}
+                                        """.trimIndent()
+                                                showAiChat = true
+                                            },
+                                            modifier = Modifier
+                                                .align(Alignment.BottomEnd)
+                                                .padding(bottom = 240.dp)
+                                                .zIndex(150f)
+                                        )
+                                    }
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showAiChat,
+                                    enter = slideInVertically(initialOffsetY = { it }),
+                                    exit = slideOutVertically(targetOffsetY = { it }),
+                                    modifier = Modifier.zIndex(200f)
+                                ) {
+                                    AiChatScreen(
+                                        eventId = activeEventId,
+                                        initialContext = aiChatContext,
+                                        shouldStartNewSession = true,
+                                        onBackClick = {
+                                            showAiChat = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
                                 }
                             }
                         }

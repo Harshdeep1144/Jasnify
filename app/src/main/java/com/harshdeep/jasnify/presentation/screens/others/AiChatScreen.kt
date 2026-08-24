@@ -218,6 +218,7 @@ fun AiChatScreen(
     modifier: Modifier = Modifier,
     eventId: String? = null,
     initialContext: String? = null,
+    shouldStartNewSession: Boolean = false,
     viewModel: GenerativeViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
@@ -257,6 +258,12 @@ fun AiChatScreen(
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
     val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
     val currentChatId by viewModel.currentChatId.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        if (shouldStartNewSession) {
+            viewModel.createNewChatSession()
+        }
+    }
 
     var currentSubScreen by remember { mutableStateOf("chat") }
     var selectedVendorCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }

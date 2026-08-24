@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.profile
 
+import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -82,6 +84,7 @@ private data class OneShotParticle(
     val delayMs: Long
 )
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun ProfileRootScreen(
@@ -129,7 +132,7 @@ fun ProfileRootScreen(
         )
     }
 
-    // Individual animatables for each particle
+    // Individual animates for each particle
     val animProgressList = remember { List(particleList.size) { Animatable(0f) } }
 
     LaunchedEffect(Unit) {
@@ -155,9 +158,15 @@ fun ProfileRootScreen(
         if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries"
     }
 
-    // Calculate fade alpha: starts at 0 and reaches 1 over the first 60dp of scroll
+    // Dynamic brand gradient height relative to screen height
+    val configuration = LocalConfiguration.current
+    val dynamicGradientHeight = remember(configuration.screenHeightDp) {
+        (configuration.screenHeightDp.dp * 0.40f).coerceIn(480.dp, 560.dp)
+    }
+
+    // Calculate fade alpha: starts at 0 and reaches 1 over the top scroll range
     val density = LocalDensity.current
-    val scrollThresholdPx = with(density) { 60.dp.toPx() }
+    val scrollThresholdPx = with(density) { 160.dp.toPx() }
     val overlayAlpha by remember {
         derivedStateOf {
             if (lazyListState.firstVisibleItemIndex > 0) {
@@ -173,6 +182,18 @@ fun ProfileRootScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
+        // Extended Brand Gradient Backdrop scaled dynamically to screen size
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(dynamicGradientHeight)
+                .graphicsLayer {
+                    translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                    alpha = (1f - overlayAlpha)
+                }
+                .background(TopBrandGradientBrush)
+        )
+
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -180,98 +201,92 @@ fun ProfileRootScreen(
         ) {
             // 1. User Header
             item(key = "user_header", contentType = "header") {
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(TopBrandGradientBrush)
                         .statusBarsPadding()
+                        .padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(28.dp, 28.dp, 28.dp, 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                        contentAlignment = Alignment.Center
                     ) {
-                        Box(
-                            contentAlignment = Alignment.Center
-                        ) {
-                            particleList.forEachIndexed { index, particle ->
-                                val progress = animProgressList[index].value
+                        particleList.forEachIndexed { index, particle ->
+                            val progress = animProgressList[index].value
 
-                                if (progress > 0f && progress < 1f) {
-                                    val currentDistance = 45f + ((particle.targetDistance - 45f) * progress)
-                                    val rad = Math.toRadians(particle.angleDeg)
+                            if (progress > 0f && progress < 1f) {
+                                val currentDistance = 45f + ((particle.targetDistance - 45f) * progress)
+                                val rad = Math.toRadians(particle.angleDeg)
 
-                                    val horizontalMultiplier = 1.6f
-                                    val verticalMultiplier = 0.65f
+                                val horizontalMultiplier = 1.6f
+                                val verticalMultiplier = 0.65f
 
-                                    val offsetX = (currentDistance * cos(rad) * horizontalMultiplier).dp
-                                    val offsetY = (currentDistance * sin(rad) * verticalMultiplier).dp
+                                val offsetX = (currentDistance * cos(rad) * horizontalMultiplier).dp
+                                val offsetY = (currentDistance * sin(rad) * verticalMultiplier).dp
 
-                                    val alpha = when {
-                                        progress < 0.22f -> (progress / 0.22f) * 0.95f
-                                        progress < 0.65f -> 0.95f
-                                        else -> ((1f - progress) / 0.35f) * 0.95f
-                                    }.coerceIn(0f, 0.95f)
+                                val alpha = when {
+                                    progress < 0.22f -> (progress / 0.22f) * 0.95f
+                                    progress < 0.65f -> 0.95f
+                                    else -> ((1f - progress) / 0.35f) * 0.95f
+                                }.coerceIn(0f, 0.95f)
 
-                                    val scale = 0.6f + (0.5f * progress)
+                                val scale = 0.6f + (0.5f * progress)
 
-                                    Icon(
-                                        painter = painterResource(particle.iconRes),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .offset(x = offsetX, y = offsetY)
-                                            .graphicsLayer {
-                                                this.alpha = alpha
-                                                scaleX = scale
-                                                scaleY = scale
-                                            }
-                                            .size(16.dp),
-                                        tint = ContentBrand
-                                    )
-                                }
-                            }
-
-                            // Profile Picture Container
-                            Box(
-                                modifier = Modifier
-                                    .size(128.dp)
-                                    .clip(CircleShape)
-                                    .background(SurfaceSecondary)
-                            ) {
-                                AsyncImage(
-                                    model = profilePic,
-                                    contentDescription = "Profile Picture",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                    placeholder = placeholderIcon
+                                Icon(
+                                    painter = painterResource(particle.iconRes),
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .offset(x = offsetX, y = offsetY)
+                                        .graphicsLayer {
+                                            this.alpha = alpha
+                                            scaleX = scale
+                                            scaleY = scale
+                                        }
+                                        .size(16.dp),
+                                    tint = ContentBrand
                                 )
                             }
                         }
 
-                        Spacer(Modifier.height(12.dp))
-
-                        Text(
-                            text = userName,
-                            style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
-                            color = ContentPrimary
-                        )
-                        Text(
-                            text = userHandle,
-                            style = JasnifyTheme.typography.labelLarge,
-                            color = ContentSecondary
-                        )
-                        Spacer(Modifier.height(16.dp))
-
-                        CustomTextButton(
-                            onClick = onEditProfile,
-                            text = "Edit Profile",
-                            size = ButtonSize.Small,
-                            leadingIcon = editIcon,
-                            containerColor = SurfacePrimary,
-                            contentColor = ContentPrimary
-                        )
+                        // Profile Picture Container
+                        Box(
+                            modifier = Modifier
+                                .size(128.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceSecondary)
+                        ) {
+                            AsyncImage(
+                                model = profilePic,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                placeholder = placeholderIcon
+                            )
+                        }
                     }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    Text(
+                        text = userName,
+                        style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
+                        color = ContentPrimary
+                    )
+                    Text(
+                        text = userHandle,
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = ContentSecondary
+                    )
+                    Spacer(Modifier.height(16.dp))
+
+                    CustomTextButton(
+                        onClick = onEditProfile,
+                        text = "Edit Profile",
+                        size = ButtonSize.Small,
+                        leadingIcon = editIcon,
+                        containerColor = SurfacePrimary,
+                        contentColor = ContentPrimary
+                    )
                 }
             }
 
@@ -430,11 +445,11 @@ fun ProfileRootScreen(
             }
         }
 
-        // Top Gradient Overlay (fades in as user scrolls)
+        // Pinned Top Status Bar Gradient Overlay (fades in as user scrolls)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(100.dp)
                 .align(Alignment.TopCenter)
                 .graphicsLayer {
                     alpha = overlayAlpha

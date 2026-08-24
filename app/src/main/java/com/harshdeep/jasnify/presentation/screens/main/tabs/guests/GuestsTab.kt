@@ -127,6 +127,8 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.GuestsLoadingState
@@ -150,6 +152,8 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
+import android.os.Build
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -173,6 +177,7 @@ fun Context.findActivity(): Activity? {
     return null
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GuestsTab(
@@ -219,6 +224,8 @@ fun GuestsTab(
     val searchHistoryManager = remember { SearchHistoryManager(context) }
     var recentSearches by remember { mutableStateOf(searchHistoryManager.getRecentSearches()) }
     var currentView by remember { mutableStateOf(GuestsView.MAIN) }
+    var showAiChat by remember { mutableStateOf(false) }
+    var aiChatContext by remember { mutableStateOf("") }
     var selectedGuestTypeForDetail by remember { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -384,7 +391,7 @@ fun GuestsTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            (hasAccess == true || hasAccess == null) && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && isHeaderVisible && !isSearchActive
+            (hasAccess == true || hasAccess == null) && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && isHeaderVisible && !isSearchActive && !showAiChat
         }
     }
 
@@ -528,8 +535,10 @@ fun GuestsTab(
         showContactPicker = true
     }
 
-    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) {
-        if (isSearchActive) {
+    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode || showAiChat) {
+        if (showAiChat) {
+            showAiChat = false
+        } else if (isSearchActive) {
             if (searchQuery.isNotEmpty()) {
                 searchHistoryManager.addSearch(searchQuery)
                 recentSearches = searchHistoryManager.getRecentSearches()
@@ -1121,6 +1130,45 @@ fun GuestsTab(
                                             }
                                         }
                                     }
+                                }
+
+                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat) {
+                                    AskAiButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            aiChatContext = """
+                                                Guest List for ${activeEvent?.name ?: "Event"}:
+                                                Total Guests: ${guests.size}
+                                                Invited: ${guests.count { it.invited }}
+                                                Pending: ${guests.count { !it.invited }}
+                                                
+                                                Guest Types:
+                                                ${guestTypes.joinToString("\n") { type -> "- $type: ${guests.count { it.type == type }} guests" }}
+                                            """.trimIndent()
+                                            showAiChat = true
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 240.dp)
+                                            .zIndex(150f)
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showAiChat,
+                                    enter = slideInVertically(initialOffsetY = { it }),
+                                    exit = slideOutVertically(targetOffsetY = { it }),
+                                    modifier = Modifier.zIndex(200f)
+                                ) {
+                                    AiChatScreen(
+                                        eventId = activeEvent?.id,
+                                        initialContext = aiChatContext,
+                                        shouldStartNewSession = true,
+                                        onBackClick = {
+                                            showAiChat = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
                                 }
                             }
                         }

@@ -1,5 +1,10 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -17,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,9 +30,12 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,12 +43,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -47,6 +62,8 @@ import com.harshdeep.jasnify.presentation.components.others.CustomPieChart
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
+import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
@@ -74,7 +91,7 @@ fun ExpenseSummaryContent(
     getCategoryColor: (String) -> Color,
     isViewer: Boolean,
     onBackClick: () -> Unit,
-    onAddExpenseClick: () -> Unit,
+    onManageCategoriesClick: () -> Unit,
     onAiOverviewClick: () -> Unit,
     formatAmount: (Double) -> String
 ) {
@@ -82,12 +99,48 @@ fun ExpenseSummaryContent(
     val scrollState = rememberScrollState()
     var isCategoryListExpanded by remember { mutableStateOf(false) }
 
+    var isBottomBarVisible by remember { mutableStateOf(true) }
+    var scrollAccumulator by remember { mutableFloatStateOf(0f) }
+
+    val nestedScrollConnection = remember(scrollState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val delta = available.y
+                val canScroll = scrollState.maxValue > 0
+
+                if (!canScroll) {
+                    isBottomBarVisible = true
+                    return Offset.Zero
+                }
+
+                if (delta > 0) {
+                    if (scrollAccumulator < 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                } else if (delta < 0) {
+                    if (scrollAccumulator > 0) scrollAccumulator = 0f
+                    scrollAccumulator += delta
+                }
+
+                if (scrollAccumulator > 150f && !isBottomBarVisible) {
+                    isBottomBarVisible = true
+                    scrollAccumulator = 0f
+                } else if (scrollAccumulator < -150f && isBottomBarVisible) {
+                    isBottomBarVisible = false
+                    scrollAccumulator = 0f
+                }
+
+                return Offset.Zero
+            }
+        }
+    }
+
     val aiPainter = painterResource(R.drawable.ic_ai)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(SurfacePrimary)
+            .nestedScroll(nestedScrollConnection)
     ) {
         Box(
             modifier = Modifier
@@ -123,7 +176,7 @@ fun ExpenseSummaryContent(
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(horizontal = 12.dp)
-                    .padding(top = 12.dp, bottom = 100.dp),
+                    .padding(top = 12.dp, bottom = 120.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -302,39 +355,77 @@ fun ExpenseSummaryContent(
                 }
             }
 
-            Row(
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isBottomBarVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = tween(durationMillis = 260)
+                ) + fadeIn(animationSpec = tween(durationMillis = 260)),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = tween(durationMillis = 260)
+                ) + fadeOut(animationSpec = tween(durationMillis = 260)),
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .shadow(
-                        elevation = 16.dp,
-                        spotColor = ContentPrimary.copy(alpha = 0.1f),
-                        ambientColor = ContentPrimary.copy(alpha = 0.05f)
-                    )
-                    .background(SurfacePrimary)
-                    .padding(horizontal = 12.dp, vertical = 16.dp)
-                    .navigationBarsPadding(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .zIndex(10f)
             ) {
-                CustomTextButton(
-                    onClick = onAiOverviewClick,
-                    text = "AI Overview",
-                    shapeStyle = ButtonShapeStyle.Square,
-                    type = ButtonType.Secondary,
-                    modifier = Modifier.weight(1f),
-                    leadingIcon = aiPainter
-                )
-
-                if (!isViewer) {
-                    CustomTextButton(
-                        onClick = onAddExpenseClick,
-                        text = "Add Expense",
-                        shapeStyle = ButtonShapeStyle.Square,
-                        type = ButtonType.Primary,
-                        modifier = Modifier.weight(1f)
-                    )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(brush = BottomGradientBrush)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(62.dp)
+                            .pill360Shadow(
+                                ambientColor = Color.Black.copy(alpha = 0.10f),
+                                ambientBlur = 12.dp,
+                                ambientSpread = 2.dp,
+                                spotColor = Color.Black.copy(alpha = 0.15f),
+                                spotBlur = 18.dp,
+                                spotOffsetY = 4.dp
+                            ),
+                        color = SurfacePrimary,
+                        shape = CircleShape
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!isViewer) {
+                                CustomTextButton(
+                                    onClick = onManageCategoriesClick,
+                                    text = "Manage Categories",
+                                    shapeStyle = ButtonShapeStyle.Round,
+                                    type = ButtonType.Primary,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
                 }
+            }
+
+            val showAskAiButton by remember {
+                derivedStateOf {
+                    isBottomBarVisible && processedCategories.isNotEmpty()
+                }
+            }
+
+            if (showAskAiButton) {
+                AskAiButton(
+                    onClick = { onAiOverviewClick() },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 240.dp)
+                        .zIndex(150f)
+                )
             }
         }
     }

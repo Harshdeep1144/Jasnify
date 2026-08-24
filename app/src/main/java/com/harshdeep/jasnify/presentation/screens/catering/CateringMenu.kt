@@ -136,6 +136,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -227,7 +228,6 @@ data class MenuItem(
 enum class CateringMenuView {
     MENU,
     MANAGE_ROOM_ACCESS,
-    AI_CHAT,
     VENDOR_CATEGORY_DETAIL,
     VENDOR_DETAIL,
     LOCATION_SELECTOR,
@@ -355,6 +355,7 @@ private val CateringDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getD
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
     navController: NavHostController? = null,
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     onChatClick: (Vendor) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -479,6 +480,7 @@ fun CateringMenuScreen(
     }
 
     var searchText by remember { mutableStateOf("") }
+    var showAiChat by remember { mutableStateOf(false) }
     var isSearchActive by remember { mutableStateOf(false) }
     var isMultiSelectActive by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
@@ -660,6 +662,10 @@ fun CateringMenuScreen(
         }
     }
 
+    LaunchedEffect(showAiChat, isBottomBarVisible) {
+        onBottomBarVisibilityChange(!showAiChat && isBottomBarVisible)
+    }
+
     val targetScale = if (isAnyBottomSheetOpen) {
         0.92f + (0.08f * sheetMotionProgress)
     } else {
@@ -726,6 +732,7 @@ fun CateringMenuScreen(
 
     BackHandler {
         when {
+            showAiChat -> showAiChat = false
             showSaveListBottomSheet -> showSaveListBottomSheet = false
             showOfferSheet -> showOfferSheet = false
             isSelectionMode -> {
@@ -1144,56 +1151,35 @@ fun CateringMenuScreen(
                                         .align(Alignment.BottomCenter)
                                         .zIndex(10f)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(brush = BottomGradientBrush)
-                                            .navigationBarsPadding()
-                                            .padding(horizontal = 12.dp, vertical = 12.dp)
-                                    ) {
-                                        Surface(
+                                    if(!isViewer){
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(62.dp)
-                                                .pill360Shadow(
-                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                    ambientBlur = 12.dp,
-                                                    ambientSpread = 2.dp,
-                                                    spotColor = Color.Black.copy(alpha = 0.15f),
-                                                    spotBlur = 18.dp,
-                                                    spotOffsetY = 4.dp
-                                                ),
-                                            color = SurfacePrimary,
-                                            shape = CircleShape
+                                                .background(brush = BottomGradientBrush)
+                                                .navigationBarsPadding()
+                                                .padding(horizontal = 12.dp, vertical = 12.dp)
                                         ) {
-                                            Row(
+                                            Surface(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                    .height(62.dp)
+                                                    .pill360Shadow(
+                                                        ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                        ambientBlur = 12.dp,
+                                                        ambientSpread = 2.dp,
+                                                        spotColor = Color.Black.copy(alpha = 0.15f),
+                                                        spotBlur = 18.dp,
+                                                        spotOffsetY = 4.dp
+                                                    ),
+                                                color = SurfacePrimary,
+                                                shape = CircleShape
                                             ) {
-                                                CustomTextButton(
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        aiChatContext = """
-                                                            Catering Menu for ${activeEvent?.name ?: "Event"}:
-                                                            Total Items: ${allMenuItems.size}
-                                                            
-                                                            Menu items:
-                                                            ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
-                                                        """.trimIndent()
-                                                        screenStack = screenStack + CateringMenuView.AI_CHAT
-                                                    },
-                                                    text = "Ask AI",
-                                                    type = ButtonType.Secondary,
-                                                    shapeStyle = ButtonShapeStyle.Round,
-                                                    leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                                    modifier = if (isViewer) Modifier.weight(1f) else Modifier
-                                                )
-
-                                                if (!isViewer) {
-                                                    Spacer(Modifier.width(4.dp))
-
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
                                                     CustomTextButton(
                                                         onClick = {
                                                             focusManager.clearFocus()
@@ -1214,6 +1200,43 @@ fun CateringMenuScreen(
                                             }
                                         }
                                     }
+                                }
+
+                                if (!isSelectionMode && !isSearchActive && isBottomBarVisible && !showAiChat) {
+                                    AskAiButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            aiChatContext = """
+                                                Catering Menu for ${activeEvent?.name ?: "Event"}:
+                                                Total Items: ${allMenuItems.size}
+                                                
+                                                Menu items:
+                                                ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
+                                            """.trimIndent()
+                                            showAiChat = true
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 240.dp)
+                                            .zIndex(150f)
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showAiChat,
+                                    enter = slideInVertically(initialOffsetY = { it }),
+                                    exit = slideOutVertically(targetOffsetY = { it }),
+                                    modifier = Modifier.zIndex(200f)
+                                ) {
+                                    AiChatScreen(
+                                        eventId = activeEvent?.id,
+                                        initialContext = aiChatContext,
+                                        shouldStartNewSession = true,
+                                        onBackClick = {
+                                            showAiChat = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -1338,20 +1361,9 @@ fun CateringMenuScreen(
                                     onLeave = {
                                         showLeaveConfirmation = true
                                     },
-                                    onShowToast = { toastData = it }
+                                          onShowToast = { toastData = it }
                                 )
                             }
-                        }
-
-                        CateringMenuView.AI_CHAT -> {
-                            AiChatScreen(
-                                eventId = activeEvent?.id,
-                                initialContext = aiChatContext,
-                                onBackClick = {
-                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
-                                    focusManager.clearFocus()
-                                }
-                            )
                         }
                     }
                 }

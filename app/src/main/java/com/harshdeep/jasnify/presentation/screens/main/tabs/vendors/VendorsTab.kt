@@ -14,8 +14,12 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -78,6 +82,8 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActio
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -137,6 +143,7 @@ fun VendorsTab(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
+    var showAiChat by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -411,7 +418,7 @@ fun VendorsTab(
         }
     }
 
-    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible, showLocationAccessSheet) {
+    LaunchedEffect(showMenuSheet, showRoomMenuBottomSheet, isSearchActive, currentScreenState, showSaveListBottomSheet, hasAccess, isBottomBarVisible, showLocationAccessSheet, showAiChat) {
         val isBottomBarVisibleEffective = isBottomBarVisible &&
                 hasAccess == true &&
                 !showMenuSheet &&
@@ -419,12 +426,14 @@ fun VendorsTab(
                 !isSearchActive &&
                 !showSaveListBottomSheet &&
                 !showLocationAccessSheet &&
+                !showAiChat &&
                 currentScreenState == VendorScreenState.MAIN
         onBottomBarVisibilityChange(isBottomBarVisibleEffective)
     }
 
     BackHandler {
         when {
+            showAiChat -> showAiChat = false
             showSaveListBottomSheet -> showSaveListBottomSheet = false
             showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
             isSearchActive -> {
@@ -474,6 +483,12 @@ fun VendorsTab(
                     targetState = currentScreenState,
                     transitionSpec = {
                         when {
+                            initialState == VendorScreenState.MAIN && targetState == VendorScreenState.CATEGORY_DETAIL ->
+                                ScreenTransitions.ZoomDepthForwardTransition
+
+                            initialState == VendorScreenState.CATEGORY_DETAIL && targetState == VendorScreenState.MAIN ->
+                                ScreenTransitions.ZoomDepthReturnTransition
+
                             targetState == VendorScreenState.VENDOR_DETAIL ||
                                     targetState == VendorScreenState.LOCATION_SELECTOR ||
                                     targetState == VendorScreenState.TIMELINE_DETAIL ->
@@ -671,6 +686,30 @@ fun VendorsTab(
                             )
                         }
                     }
+                }
+
+                if (!isAnySheetVisible && currentScreenState == VendorScreenState.MAIN && !showAiChat) {
+                    AskAiButton(
+                        onClick = { showAiChat = true },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(bottom = 180.dp)
+                            .zIndex(150f)
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = showAiChat,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier.zIndex(200f)
+                ) {
+                    AiChatScreen(
+                        eventId = activeEventId,
+                        shouldStartNewSession = true,
+                        onBackClick = { showAiChat = false },
+                        mainNavController = mainNavController
+                    )
                 }
             }
         }
