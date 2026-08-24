@@ -106,7 +106,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueGalleryCategory
@@ -870,12 +869,9 @@ private fun VenueDetailContent(
                 }
 
                 item(key = "explore_more", contentType = "explore_more_section") {
-                    val similarVenues = remember(venueDetail.id) {
-                        MockData.sampleVenues1.filter { it.id != venueDetail.id }.take(6)
-                    }
                     VenueExploreMoreSection(
                         venue = venueDetail,
-                        similarVenues = similarVenues
+                        similarVenues = emptyList()
                     )
                 }
 

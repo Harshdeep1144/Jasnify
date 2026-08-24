@@ -69,7 +69,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.SavedVendor
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.Vendor
@@ -260,12 +259,11 @@ fun VendorCategoryDetailContent(
     }
 
     val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, vendorSavedDestinations, category.name) {
-        val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
         val query = searchQuery.trim()
         val searched = if (query.isEmpty()) {
-            baseList
+            allVendors
         } else {
-            baseList.filter {
+            allVendors.filter {
                 it.name.contains(query, ignoreCase = true) ||
                         it.locality.contains(query, ignoreCase = true) ||
                         it.city.contains(query, ignoreCase = true)

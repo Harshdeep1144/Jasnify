@@ -37,6 +37,18 @@ class VendorRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    override fun getVendorById(vendorId: String): Flow<Vendor?> = callbackFlow {
+        val subscription = firestore.collection("vendors").document(vendorId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                trySend(snapshot?.toObject(Vendor::class.java))
+            }
+        awaitClose { subscription.remove() }
+    }
+
     override fun getVendorsByCategory(category: String): Flow<List<Vendor>> = callbackFlow {
         val subscription = firestore.collection("vendors")
             .whereEqualTo("category", category)

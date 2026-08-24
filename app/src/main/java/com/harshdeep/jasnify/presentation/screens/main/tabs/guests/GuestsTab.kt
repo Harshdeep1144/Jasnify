@@ -1149,7 +1149,7 @@ fun GuestsTab(
                                         },
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 240.dp)
+                                            .padding(bottom = 176.dp)
                                             .zIndex(150f)
                                     )
                                 }

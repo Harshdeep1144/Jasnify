@@ -87,7 +87,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
@@ -302,9 +301,7 @@ fun VenueScreen(
         }
     }
 
-    val exploreVenues = remember(allVenues) {
-        allVenues.ifEmpty { MockData.sampleVenues1 + MockData.sampleVenues2 }
-    }
+    val exploreVenues = allVenues
 
     val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents, exploreVenues) {
         val list = mutableListOf<TimelineEvent>()
@@ -538,9 +535,7 @@ fun VenueScreen(
                         VenueScreenState.VENUE_DETAIL -> {
                             selectedVenueForDetail?.let { venue ->
                                 val detailData = remember(venue, allVenues, venueReviews, venueSavedDestinations) {
-                                    val base = allVenues.find { it.id == venue.id } ?:
-                                    MockData.venueDetailsMap[venue.name] ?:
-                                    MockData.getDetailsForVenue(venue)
+                                    val base = allVenues.find { it.id == venue.id } ?: venue
 
                                     val reactiveBase = base.copy(favorite = venueSavedDestinations.containsKey(base.name))
 

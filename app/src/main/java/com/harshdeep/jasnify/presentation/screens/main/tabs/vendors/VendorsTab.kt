@@ -693,7 +693,7 @@ fun VendorsTab(
                         onClick = { showAiChat = true },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(bottom = 180.dp)
+                            .padding(bottom = 176.dp)
                             .zIndex(150f)
                     )
                 }

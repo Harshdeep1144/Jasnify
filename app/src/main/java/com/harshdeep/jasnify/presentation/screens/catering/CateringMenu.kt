@@ -119,7 +119,6 @@ import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
@@ -389,8 +388,7 @@ fun CateringMenuScreen(
     }
 
     val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
-        val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
-        base.map { vendor ->
+        allVendorsFromRepo.map { vendor ->
             vendor.copy(favorite = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}"))
         }
     }
@@ -1098,13 +1096,10 @@ fun CateringMenuScreen(
 
                                             if (index == highlightInsertIndex && !isSelectionMode && !isSearchActive) {
                                                 item(key = "highlighted_top_vendors", contentType = "carousel") {
-                                                    val foodVendors = remember(foodCategoryVendors) {
-                                                        foodCategoryVendors.ifEmpty { MockData.sampleFood }
-                                                    }
                                                     HighlightedVendors(
                                                         title = "TOP VENDORS",
                                                         subtitle = "CURATED FOR YOU",
-                                                        vendors = foodVendors,
+                                                        vendors = foodCategoryVendors,
                                                         isHeadingTop = true,
                                                         headerImage = painterResource(id = R.drawable.ill_vendor_food_serve),
                                                         buttonText = "View all",
@@ -1217,7 +1212,7 @@ fun CateringMenuScreen(
                                         },
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 240.dp)
+                                            .padding(bottom = 120.dp)
                                             .zIndex(150f)
                                     )
                                 }

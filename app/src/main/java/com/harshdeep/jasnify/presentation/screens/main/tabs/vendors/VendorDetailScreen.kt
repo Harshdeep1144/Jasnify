@@ -106,7 +106,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.VendorGalleryCategory
@@ -885,12 +884,9 @@ private fun VendorDetailContent(
                 }
 
                 item(key = "explore_more", contentType = "explore_more_section") {
-                    val similarVendors = remember(vendorDetail.id) {
-                        MockData.sampleVendors.filter { it.id != vendorDetail.id }.take(6)
-                    }
                     VendorExploreMoreSection(
                         vendor = vendorDetail,
-                        similarVendors = similarVendors
+                        similarVendors = emptyList()
                     )
                 }
 

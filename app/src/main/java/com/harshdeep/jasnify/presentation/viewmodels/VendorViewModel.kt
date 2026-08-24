@@ -97,9 +97,6 @@ class VendorViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            if (repository.isCatalogEmpty()) {
-                seedMockData(com.harshdeep.jasnify.data.mock.MockData.sampleVendors)
-            }
             _isLoading.value = false
         }
     }
@@ -111,8 +108,7 @@ class VendorViewModel @Inject constructor(
     val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, _eventId) { all, eventId ->
         val saved = if (eventId != null) repository.getSavedVendors(eventId).first() else emptyList()
         val savedKeys = saved.map { "${it.vendorName}-${it.category}" }.toSet()
-        val base = all.ifEmpty { com.harshdeep.jasnify.data.mock.MockData.sampleVendors }
-        base.map { vendor ->
+        all.map { vendor ->
             vendor.copy(favorite = savedKeys.contains("${vendor.name}-${vendor.category}"))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -131,6 +127,10 @@ class VendorViewModel @Inject constructor(
         if (_selectedVendorId.value != id) {
             _selectedVendorId.value = id
         }
+    }
+
+    fun getVendorById(vendorId: String): Flow<Vendor?> {
+        return repository.getVendorById(vendorId)
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -175,11 +175,5 @@ class VendorViewModel @Inject constructor(
     fun getSavedVendorsByCategory(category: String): Flow<List<SavedVendor>> {
         val eventId = _eventId.value ?: return flowOf(emptyList())
         return repository.getSavedVendorsByCategory(eventId, category)
-    }
-
-    fun seedMockData(vendors: List<Vendor>) {
-        viewModelScope.launch {
-            repository.seedMockVendors(vendors)
-        }
     }
 }

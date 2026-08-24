@@ -317,13 +317,13 @@ fun ProfileTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BackgroundPrimary)
                 .graphicsLayer {
                     scaleX = backdropScale
                     scaleY = backdropScale
                     clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
                     shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                 }
+                .background(BackgroundPrimary)
         ) {
             AnimatedContent(
                 targetState = currentScreen,

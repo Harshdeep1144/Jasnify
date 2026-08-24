@@ -108,8 +108,17 @@ class GenerativeViewModel @Inject constructor(
         JSON_DATA: {"venueIds": [], "vendorIds": [], "guestIds": [], "expenseIds": [], "checklistIds": []}
     """.trimIndent()
 
-    private val primaryModel = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
-        modelName = "gemini-3.1-flash-lite",
+    private val candidateModels = listOf(
+        "gemini-3.1-flash-lite",
+        "gemini-2.0-flash",    // Modern, ultra-fast
+        "gemini-1.5-flash",    // Reliable standard
+        "gemini-1.5-flash-002",
+        "gemini-1.5-pro",      // Powerful backup
+        "gemini-1.5-pro-002"
+    )
+
+    private fun getModel(name: String) = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
+        modelName = name,
         generationConfig = GenerationConfig.builder()
             .setTemperature(0.6f)
             .setTopK(40)
@@ -118,17 +127,7 @@ class GenerativeViewModel @Inject constructor(
         systemInstruction = content { text(systemInstructionsText) }
     )
 
-    private val fallbackModel = FirebaseAI.getInstance(FirebaseApp.getInstance()).generativeModel(
-        modelName = "gemini-2.5-flash",
-        generationConfig = GenerationConfig.builder()
-            .setTemperature(0.6f)
-            .setTopK(40)
-            .setTopP(0.95f)
-            .build(),
-        systemInstruction = content { text(systemInstructionsText) }
-    )
-
-    private var chat = primaryModel.startChat()
+    private var chat = getModel(candidateModels.first()).startChat()
 
     init {
         observeContext()
@@ -189,7 +188,7 @@ class GenerativeViewModel @Inject constructor(
                 val history = remoteMsgs.filter { it.text.isNotBlank() }.map { msg ->
                     content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
                 }
-                chat = primaryModel.startChat(history)
+                chat = getModel(candidateModels.first()).startChat(history)
             }
     }
 
@@ -393,57 +392,65 @@ class GenerativeViewModel @Inject constructor(
         viewModelScope.launch {
             _isGenerating.value = true
             val fullRawAccumulator = StringBuilder()
+            var success = false
 
-            try {
-                val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER QUERY: $userText"
-
-                try {
-                    chat.sendMessageStream(fullPrompt).collect { chunk ->
-                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
-                    }
-                } catch (serverEx: ServerException) {
-                    android.util.Log.w("GenerativeViewModel", "Primary model overloaded, failing over to backup: ${serverEx.message}")
-                    fullRawAccumulator.clear()
-                    val fallbackChat = fallbackModel.startChat()
-                    fallbackChat.sendMessageStream(fullPrompt).collect { chunk ->
-                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
-                    }
-                }
-
-                val (cleanText, finalParsedMsg) = parseAiResponse(fullRawAccumulator.toString())
-                val completedMsg = finalParsedMsg.copy(
-                    id = aiMessageId,
-                    text = cleanText,
-                    isUser = false,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                activeStreamingMessageId = null
-                activeStreamingMessage = null
-
-                _messages.update { list ->
-                    list.map { msg -> if (msg.id == aiMessageId) completedMsg else msg }
-                }
-
-                saveMessageToFirestore(chatId, completedMsg)
-
-            } catch (e: Exception) {
-                android.util.Log.e("GenerativeViewModel", "AI Generation Error: ${e.message}", e)
-                activeStreamingMessageId = null
-                activeStreamingMessage = null
-
-                val friendlyError = if (e is ServerException) {
-                    "Servers are currently busy with high traffic. Please ask again in a moment!"
-                } else {
-                    "Sorry, I couldn't process that right now. Please try again."
-                }
-
-                _messages.update { list ->
-                    list.map { msg -> if (msg.id == aiMessageId) msg.copy(text = friendlyError) else msg }
-                }
-            } finally {
-                _isGenerating.value = false
+            val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER QUERY: $userText"
+            val history = _messages.value.filter { it.text.isNotBlank() && it.id != aiMessageId }.map { msg ->
+                content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
             }
+
+            for (modelName in candidateModels) {
+                if (success) break
+                try {
+                    android.util.Log.d("GenerativeViewModel", "Trying model: $modelName")
+                    val currentModel = getModel(modelName)
+                    val currentChat = currentModel.startChat(history)
+
+                    currentChat.sendMessageStream(fullPrompt).collect { chunk ->
+                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
+                    }
+
+                    val (cleanText, finalParsedMsg) = parseAiResponse(fullRawAccumulator.toString())
+                    val completedMsg = finalParsedMsg.copy(
+                        id = aiMessageId,
+                        text = cleanText,
+                        isUser = false,
+                        timestamp = System.currentTimeMillis()
+                    )
+
+                    activeStreamingMessageId = null
+                    activeStreamingMessage = null
+
+                    _messages.update { list ->
+                        list.map { msg -> if (msg.id == aiMessageId) completedMsg else msg }
+                    }
+
+                    saveMessageToFirestore(chatId, completedMsg)
+                    success = true
+
+                } catch (e: Exception) {
+                    android.util.Log.e("GenerativeViewModel", "Model $modelName failed: ${e.message}")
+                    fullRawAccumulator.clear()
+                    
+                    if (e is ServerException && e.message?.contains("App Check", ignoreCase = true) == true) {
+                        // If App Check fails, it will likely fail for all models, but we'll try the next anyway
+                        // or we could break here if we're sure.
+                    }
+                    continue
+                }
+            }
+
+            if (!success) {
+                activeStreamingMessageId = null
+                activeStreamingMessage = null
+                
+                val errorMsg = "Sorry, I'm having trouble connecting to my brain right now. Please try again in a moment."
+                _messages.update { list ->
+                    list.map { msg -> if (msg.id == aiMessageId) msg.copy(text = errorMsg) else msg }
+                }
+            }
+            
+            _isGenerating.value = false
         }
     }
 

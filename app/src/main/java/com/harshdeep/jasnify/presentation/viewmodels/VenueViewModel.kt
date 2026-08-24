@@ -117,6 +117,10 @@ class VenueViewModel @Inject constructor(
         _selectedVenueId.value = id
     }
 
+    fun getVenueById(venueId: String): Flow<Venue?> {
+        return repository.getVenueById(venueId)
+    }
+
     private val _eventId = MutableStateFlow<String?>(null)
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -157,12 +161,6 @@ class VenueViewModel @Inject constructor(
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
             repository.removeSavedVenue(eventId, venueName, !isViewer)
-        }
-    }
-
-    fun seedMockData(venues: List<Venue>) {
-        viewModelScope.launch {
-            repository.seedMockVenues(venues)
         }
     }
 }

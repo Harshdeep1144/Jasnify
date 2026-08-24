@@ -67,7 +67,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.SubEvent
@@ -148,6 +147,7 @@ fun HomeTab(
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
+    val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
     val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
 
@@ -258,6 +258,7 @@ fun HomeTab(
         isVenuesLoading = isVenuesLoading,
         venueSavedDestinations = venueSavedDestinations,
         vendorSavedDestinations = vendorSavedDestinations,
+        allVenues = allVenues,
         activeEvent = activeEvent
     )
 }
@@ -284,6 +285,7 @@ fun HomeTabContent(
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
+    allVenues: List<Venue> = emptyList(),
     activeEvent: Event? = null
 ) {
     var currentScreen by remember { mutableStateOf("home") }
@@ -388,12 +390,12 @@ fun HomeTabContent(
         }
     }
 
-    val trendingVenues = remember(venueSavedDestinations) {
-        MockData.sampleVenues1.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    val trendingVenues = remember(allVenues, venueSavedDestinations) {
+        allVenues.take(5).map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
     }
 
-    val exploreVenues = remember(venueSavedDestinations) {
-        MockData.sampleVenues2.map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    val exploreVenues = remember(allVenues, venueSavedDestinations) {
+        allVenues.drop(5).map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
     }
 
     val timelineEvents = remember(activeEvent) {
