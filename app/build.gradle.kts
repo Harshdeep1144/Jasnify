@@ -156,4 +156,7 @@ dependencies {
 
     // Optional: OkHttp Logging Interceptor (helpful for debugging network calls)
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Lottie Animations
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
 }

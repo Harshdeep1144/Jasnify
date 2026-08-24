@@ -81,11 +81,11 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -122,6 +122,7 @@ sealed interface ChecklistScreenState {
     data class Detail(val checklist: Checklist?, val isAddingNew: Boolean) : ChecklistScreenState
     data object Archives : ChecklistScreenState
     data object ManageRoomAccess : ChecklistScreenState
+    data object HelpFeedback : ChecklistScreenState
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -134,7 +135,8 @@ fun ChecklistsTab(
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     onBottomBarVisibilityChange: (Boolean) -> Unit = {},
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val mainGraphEntry = remember(mainNavController) {
         mainNavController.getBackStackEntry(Screen.MainAppGraph.route)
@@ -194,6 +196,7 @@ fun ChecklistsTab(
     var isAddingNew by remember { mutableStateOf(false) }
     var showArchives by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
+    var showHelpFeedback by remember { mutableStateOf(false) }
     var navigatedFromArchives by remember { mutableStateOf(false) }
     var showDiscardToast by remember { mutableStateOf(false) }
 
@@ -254,7 +257,7 @@ fun ChecklistsTab(
 
     val focusManager = LocalFocusManager.current
 
-    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives, showRoomAccess) {
+    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives, showRoomAccess, showHelpFeedback) {
         when {
             selectedChecklist != null || isAddingNew -> {
                 ChecklistScreenState.Detail(selectedChecklist, isAddingNew)
@@ -264,6 +267,9 @@ fun ChecklistsTab(
             }
             showRoomAccess -> {
                 ChecklistScreenState.ManageRoomAccess
+            }
+            showHelpFeedback -> {
+                ChecklistScreenState.HelpFeedback
             }
             else -> {
                 ChecklistScreenState.List
@@ -290,7 +296,7 @@ fun ChecklistsTab(
         }
     }
 
-    BackHandler(enabled = showArchives || isSearchActive || showRoomAccess || showAiChat) {
+    BackHandler(enabled = showArchives || isSearchActive || showRoomAccess || showAiChat || showHelpFeedback) {
         focusManager.clearFocus()
         if (showAiChat) {
             showAiChat = false
@@ -298,6 +304,8 @@ fun ChecklistsTab(
             isSearchActive = false
             searchQuery = ""
             wasFocused = false
+        } else if (showHelpFeedback) {
+            showHelpFeedback = false
         } else if (showArchives) {
             showArchives = false
         } else if (showRoomAccess) {
@@ -789,6 +797,14 @@ fun ChecklistsTab(
                                     )
                                 }
                             }
+
+                            ChecklistScreenState.HelpFeedback -> {
+                                com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                    profileViewModel = profileViewModel,
+                                    onBack = { showHelpFeedback = false },
+                                    onShowAiChat = { showAiChat = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -835,7 +851,10 @@ fun ChecklistsTab(
                                 text = "Help & Feedback",
                                 icon = painterResource(R.drawable.ic_help_feedback),
                                 iconPlacement = IconPlacement.Left,
-                                onClick = { showMenuSheet = false }
+                                onClick = {
+                                    showMenuSheet = false
+                                    showHelpFeedback = true
+                                }
                             )
                         )
                     ),
@@ -856,6 +875,17 @@ fun ChecklistsTab(
                                 onClick = {
                                     showRoomMenuBottomSheet = false
                                     showLeaveConfirmation = true
+                                }
+                            )
+                        ),
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Help & Feedback",
+                                icon = painterResource(R.drawable.ic_help_feedback),
+                                iconPlacement = IconPlacement.Left,
+                                onClick = {
+                                    showRoomMenuBottomSheet = false
+                                    showHelpFeedback = true
                                 }
                             )
                         )

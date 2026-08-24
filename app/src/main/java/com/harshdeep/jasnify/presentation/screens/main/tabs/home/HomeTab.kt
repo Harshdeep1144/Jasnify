@@ -73,8 +73,8 @@ import com.harshdeep.jasnify.domain.model.SubEvent
 import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
@@ -297,7 +297,7 @@ fun HomeTabContent(
     // Header media items
     val headerMediaItems = remember {
         listOf(
-            HeaderMedia.ImageResource(R.drawable.bg_home),
+            HeaderMedia.ImageResource(R.drawable.hero_display1),
             HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"),
             HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1200&q=80"),
             HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=1200&q=80"),
@@ -425,8 +425,8 @@ fun HomeTabContent(
     val density = LocalDensity.current
     val screenHeight = configuration.screenHeightDp.dp
 
-    val headerHeight = remember(screenHeight) { screenHeight * 0.42f }
-    val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.24f }
+    val headerHeight = remember(screenHeight) { screenHeight * 0.46f }
+    val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.28f }
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
     val navigateTo: (String) -> Unit = remember {

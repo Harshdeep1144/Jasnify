@@ -696,4 +696,28 @@ class UserRepositoryImpl @Inject constructor(
             false
         }
     }
+
+    override suspend fun isUsernameTaken(username: String): Boolean {
+        return try {
+            val querySnapshot = firestore.collection("users")
+                .whereEqualTo("username", username.trim())
+                .limit(1)
+                .get()
+                .await()
+            !querySnapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override suspend fun submitFeedback(userId: String, userName: String, rating: Int, feedback: String) {
+        val feedbackData = mapOf(
+            "userId" to userId,
+            "userName" to userName,
+            "rating" to rating,
+            "feedback" to feedback,
+            "timestamp" to System.currentTimeMillis()
+        )
+        firestore.collection("feedbacks").add(feedbackData).await()
+    }
 }

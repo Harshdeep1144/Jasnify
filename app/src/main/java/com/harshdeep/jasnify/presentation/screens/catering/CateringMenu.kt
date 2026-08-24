@@ -126,15 +126,15 @@ import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Vendor
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
@@ -230,7 +230,8 @@ enum class CateringMenuView {
     VENDOR_CATEGORY_DETAIL,
     VENDOR_DETAIL,
     LOCATION_SELECTOR,
-    TIMELINE_DETAIL
+    TIMELINE_DETAIL,
+    HELP_FEEDBACK
 }
 
 @Composable
@@ -359,7 +360,8 @@ fun CateringMenuScreen(
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
-    vendorViewModel: VendorViewModel = hiltViewModel()
+    vendorViewModel: VendorViewModel = hiltViewModel(),
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
@@ -776,12 +778,14 @@ fun CateringMenuScreen(
                         when {
                             targetState == CateringMenuView.VENDOR_DETAIL ||
                                     targetState == CateringMenuView.LOCATION_SELECTOR ||
-                                    targetState == CateringMenuView.TIMELINE_DETAIL ->
+                                    targetState == CateringMenuView.TIMELINE_DETAIL ||
+                                    targetState == CateringMenuView.HELP_FEEDBACK ->
                                 ScreenTransitions.SlideBottomToTopFastTransition
 
                             initialState == CateringMenuView.VENDOR_DETAIL ||
                                     initialState == CateringMenuView.LOCATION_SELECTOR ||
-                                    initialState == CateringMenuView.TIMELINE_DETAIL ->
+                                    initialState == CateringMenuView.TIMELINE_DETAIL ||
+                                    initialState == CateringMenuView.HELP_FEEDBACK ->
                                 ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
@@ -1360,6 +1364,16 @@ fun CateringMenuScreen(
                                 )
                             }
                         }
+
+                        CateringMenuView.HELP_FEEDBACK -> {
+                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                profileViewModel = profileViewModel,
+                                onBack = {
+                                    if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
+                                },
+                                onShowAiChat = { showAiChat = true }
+                            )
+                        }
                     }
                 }
             }
@@ -1763,12 +1777,17 @@ fun CateringMenuScreen(
         )
     }
 
+    val helpPainter = painterResource(R.drawable.ic_help_feedback)
+    val onHelpClick: () -> Unit = {
+        screenStack = screenStack + CateringMenuView.HELP_FEEDBACK
+    }
+
     if (showMenuBottomSheet) {
         val plusPainter = painterResource(R.drawable.ic_add_circle)
         val checkPainter = painterResource(R.drawable.ic_multi_select)
         val userDefaultPainter = painterResource(R.drawable.ic_user_default)
 
-        val menuItems = remember(isViewer, isOwner, plusPainter, checkPainter, userDefaultPainter) {
+        val menuItems = remember(isViewer, isOwner, plusPainter, checkPainter, userDefaultPainter, helpPainter) {
             listOfNotNull(
                 if (!isViewer) {
                     listOf(
@@ -1802,6 +1821,17 @@ fun CateringMenuScreen(
                             screenStack = screenStack + CateringMenuView.MANAGE_ROOM_ACCESS
                         }
                     )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = helpPainter,
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMenuBottomSheet = false
+                            onHelpClick()
+                        }
+                    )
                 )
             )
         }
@@ -1819,7 +1849,7 @@ fun CateringMenuScreen(
         val logoutPainter = painterResource(R.drawable.ic_logout)
         val errorColor = MaterialTheme.colorScheme.error
 
-        val roomMenuItems = remember(logoutPainter, errorColor) {
+        val roomMenuItems = remember(logoutPainter, errorColor, helpPainter) {
             listOf(
                 listOf(
                     MenuSheetActionItem(
@@ -1829,6 +1859,17 @@ fun CateringMenuScreen(
                         onClick = {
                             showRoomMenuBottomSheet = false
                             showLeaveConfirmation = true
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = helpPainter,
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            onHelpClick()
                         }
                     )
                 )

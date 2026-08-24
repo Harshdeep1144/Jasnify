@@ -164,8 +164,8 @@ import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTextAlign
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.TextElement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType

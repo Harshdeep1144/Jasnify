@@ -95,6 +95,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
@@ -102,16 +103,17 @@ import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.model.GuestType
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
+import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestInfoBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestTypeBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.ContactPickerBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.GuestDetailsBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.RecentActivityBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -165,7 +167,8 @@ enum class GuestsView {
     MAIN,
     MANAGE_GUEST_TYPES,
     GUEST_TYPE_DETAIL,
-    ROOM_ACCESS
+    ROOM_ACCESS,
+    HELP_FEEDBACK
 }
 
 fun Context.findActivity(): Activity? {
@@ -180,12 +183,12 @@ fun Context.findActivity(): Activity? {
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GuestsTab(
-    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     guestViewModel: GuestViewModel = hiltViewModel(),
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -554,6 +557,7 @@ fun GuestsTab(
                 GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
                 GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
                 GuestsView.ROOM_ACCESS -> currentView = GuestsView.MAIN
+                GuestsView.HELP_FEEDBACK -> currentView = GuestsView.MAIN
                 else -> {}
             }
         }
@@ -1227,6 +1231,14 @@ fun GuestsTab(
                                 )
                             }
                         }
+
+                        GuestsView.HELP_FEEDBACK -> {
+                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                profileViewModel = profileViewModel,
+                                onBack = { currentView = GuestsView.MAIN },
+                                onShowAiChat = { showAiChat = true }
+                            )
+                        }
                     }
                 }
             }
@@ -1631,6 +1643,17 @@ fun GuestsTab(
                                 showLeaveConfirmation = true
                             }
                         )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Help & Feedback",
+                            icon = painterResource(id = R.drawable.ic_help_feedback),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                currentView = GuestsView.HELP_FEEDBACK
+                            }
+                        )
                     )
                 ),
                 onCancelClick = {
@@ -1735,7 +1758,10 @@ fun GuestsTab(
                         text = "Help & Feedback",
                         icon = painterResource(id = R.drawable.ic_help_feedback),
                         iconPlacement = IconPlacement.Left,
-                        onClick = { showMenuSheet = false }
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = GuestsView.HELP_FEEDBACK
+                        }
                     )
                 )
             )

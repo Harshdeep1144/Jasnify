@@ -14,6 +14,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -34,7 +36,9 @@ fun PlanCard(
     isCurrentPlan: Boolean = false,
     buttonText: String? = null,
     onButtonClick: (() -> Unit)? = null,
-    onViewBenefitsClick: () -> Unit = {}
+    onViewBenefitsClick: () -> Unit = {},
+    buttonEnabled: Boolean = true,
+    buttonLeadingIcon: Painter? = null
 ) {
     Surface(
         modifier = modifier.width(280.dp),
@@ -90,17 +94,31 @@ fun PlanCard(
                 ) {
                     if (buttonText != null && onButtonClick != null) {
                         Surface(
-                            onClick = onButtonClick,
-                            color = ContentPrimary.copy(alpha = 0.5f),
+                            onClick = { if (buttonEnabled) onButtonClick() },
+                            color = if (buttonEnabled) ContentPrimary.copy(alpha = 0.5f) else ContentPrimary.copy(alpha = 0.2f),
                             shape = RoundedCornerShape(100),
-                            modifier = Modifier.padding(end = 10.dp)
+                            modifier = Modifier.padding(end = 10.dp),
+                            enabled = buttonEnabled
                         ) {
-                            Text(
-                                text = buttonText,
+                            Row(
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                style = JasnifyTheme.typography.labelMedium,
-                                color = ContentInvPrimary
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                if (buttonLeadingIcon != null) {
+                                    Icon(
+                                        painter = buttonLeadingIcon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = ContentInvPrimary.copy(alpha = if (buttonEnabled) 1f else 0.5f)
+                                    )
+                                }
+                                Text(
+                                    text = buttonText,
+                                    style = JasnifyTheme.typography.labelMedium,
+                                    color = ContentInvPrimary.copy(alpha = if (buttonEnabled) 1f else 0.5f)
+                                )
+                            }
                         }
                     }
 

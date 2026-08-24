@@ -1,5 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -53,9 +55,9 @@ import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -79,7 +81,8 @@ enum class CardsView {
     EDIT_DETAILS,
     FULL_VIEW,
     LIKED_CARDS,
-    ROOM
+    ROOM,
+    HELP_FEEDBACK
 }
 
 enum class CardsTab {
@@ -92,16 +95,21 @@ private val InitialCardThemes = listOf(
     CardTheme(id = "default_2", name = "Floral Romance", resId = R.drawable.bg_invitation_card_02, isDefault = true),
     CardTheme(id = "default_3", name = "Golden Glamour", resId = R.drawable.bg_invitation_card_03, isDefault = true),
     CardTheme(id = "default_4", name = "Modern Minimalist", resId = R.drawable.bg_invitation_card_04, isDefault = true),
-    CardTheme(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true)
+    CardTheme(id = "default_5", name = "Vintage Botanical", resId = R.drawable.bg_invitation_card_05, isDefault = true),
+    CardTheme(id = "default_6", name = "Divine Blessings", resId = R.drawable.bg_invitation_card_06, isDefault = true),
+    CardTheme(id = "default_7", name = "Royal Union", resId = R.drawable.bg_invitation_card_07, isDefault = true),
+    CardTheme(id = "default_8", name = "Regal Heritage", resId = R.drawable.bg_invitation_card_08, isDefault = true)
 )
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun CardsScreen(
     onBackClick: () -> Unit = {},
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
-    cardViewModel: CardViewModel = hiltViewModel()
+    cardViewModel: CardViewModel = hiltViewModel(),
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
@@ -132,6 +140,7 @@ fun CardsScreen(
     var selectedCard by remember { mutableStateOf<CardData?>(null) }
     var activeTransitionKey by remember { mutableStateOf<String?>(null) }
     var editingCard by remember { mutableStateOf<CardData?>(null) }
+    var showAiChat by remember { mutableStateOf(false) }
 
     var selectedTab by remember { mutableStateOf(CardsTab.EXPLORE) }
 
@@ -240,12 +249,14 @@ fun CardsScreen(
 
     BackHandler {
         when {
+            showAiChat -> showAiChat = false
             showDeleteConfirmation -> showDeleteConfirmation = false
             showMenuSheet -> showMenuSheet = false
             showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
             userToRemove != null -> userToRemove = null
             showLeaveConfirmation -> showLeaveConfirmation = false
             selectedCardIds.isNotEmpty() -> selectedCardIds = emptySet()
+            currentView == CardsView.HELP_FEEDBACK -> currentView = CardsView.MAIN
             currentView == CardsView.LIKED_CARDS -> currentView = CardsView.MAIN
             currentView == CardsView.FULL_VIEW -> {
                 currentView = previousView ?: CardsView.MAIN
@@ -419,6 +430,14 @@ fun CardsScreen(
                                     )
                                 }
                             }
+
+                            CardsView.HELP_FEEDBACK -> {
+                                com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                    profileViewModel = profileViewModel,
+                                    onBack = { currentView = CardsView.MAIN },
+                                    onShowAiChat = { showAiChat = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -503,6 +522,16 @@ fun CardsScreen(
                             currentView = CardsView.ROOM
                         }
                     )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = CardsView.HELP_FEEDBACK
+                        }
+                    )
                 )
             )
 
@@ -523,6 +552,16 @@ fun CardsScreen(
                         onClick = {
                             showRoomMenuBottomSheet = false
                             showLeaveConfirmation = true
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            currentView = CardsView.HELP_FEEDBACK
                         }
                     )
                 )
@@ -591,6 +630,19 @@ fun CardsScreen(
                     showLeaveConfirmation = false
                 },
                 onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showAiChat,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.zIndex(200f)
+        ) {
+            com.harshdeep.jasnify.presentation.screens.others.AiChatScreen(
+                eventId = activeEventId,
+                shouldStartNewSession = true,
+                onBackClick = { showAiChat = false }
             )
         }
     }

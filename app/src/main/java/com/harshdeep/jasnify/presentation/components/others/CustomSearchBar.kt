@@ -27,6 +27,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
@@ -91,6 +93,8 @@ fun CustomSearchBar(
     translucentAlpha: Float = 0.2f,
     isTransparent: Boolean = false,
     autoFocus: Boolean = false,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
     onValueChange: (String) -> Unit,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
@@ -256,6 +260,8 @@ fun CustomSearchBar(
                         .heightIn(min = 56.dp)
                         .focusRequester(focusRequester),
                     singleLine = true,
+                    keyboardOptions = keyboardOptions,
+                    keyboardActions = keyboardActions,
                     textStyle = JasnifyTheme.typography.headingLarge.copy(color = ContentPrimary),
                     cursorBrush = SolidColor(ContentBrand),
                     interactionSource = interactionSource,

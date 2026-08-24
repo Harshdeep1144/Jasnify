@@ -62,7 +62,7 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
         Box {
             // Back Card
             TrendingCardItem(
-                imageResId = R.drawable.img_trending_card_01,
+                imageResId = R.drawable.trending_card_preview_01,
                 targetRotation = -12f,
                 targetOffsetX = 8.dp,
                 targetOffsetY = (-12).dp,
@@ -75,7 +75,7 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
 
             // Front Card
             TrendingCardItem(
-                imageResId = R.drawable.img_trending_card_04,
+                imageResId = R.drawable.trending_card_preview_02,
                 targetRotation = -28f,
                 targetOffsetX = (-4).dp,
                 targetOffsetY = 8.dp,
@@ -112,7 +112,7 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
         Box {
             // Back Card
             TrendingCardItem(
-                imageResId = R.drawable.img_trending_card_03,
+                imageResId = R.drawable.trending_card_preview_03,
                 targetRotation = 12f,
                 targetOffsetX = (-8).dp,
                 targetOffsetY = (-12).dp,
@@ -125,7 +125,7 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
 
             // Front Card
             TrendingCardItem(
-                imageResId = R.drawable.img_trending_card_02,
+                imageResId = R.drawable.trending_card_preview_04,
                 targetRotation = 28f,
                 targetOffsetX = 4.dp,
                 targetOffsetY = 8.dp,

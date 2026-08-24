@@ -114,9 +114,9 @@ import com.harshdeep.jasnify.domain.model.VenueMediaItem
 import com.harshdeep.jasnify.domain.model.VenuePricingItem
 import com.harshdeep.jasnify.domain.model.VenueReview
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -231,6 +231,7 @@ fun VenueDetailScreen(
     onBackClick: () -> Unit = {},
     onFavoriteToggle: (Boolean) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
+    onAiSearchClick: (String) -> Unit = {},
     venueViewModel: VenueViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -378,6 +379,7 @@ fun VenueDetailScreen(
                             },
                             onAddressClick = { showAddressSheet = true },
                             onAboutClick = { showAboutSheet = true },
+                            onAiSearchClick = onAiSearchClick,
                             onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
@@ -561,6 +563,7 @@ private fun VenueDetailContent(
     onOfferClick: (Offer) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onAiSearchClick: (String) -> Unit,
     onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
@@ -832,7 +835,7 @@ private fun VenueDetailContent(
                 }
 
                 item(key = "ask_ai", contentType = "ask_ai_section") {
-                    VenueAskAISection()
+                    VenueAskAISection(onAiSearchClick = onAiSearchClick)
                 }
                 item(key = "div_ask_ai", contentType = "divider") {
                     DashedDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f), modifier = Modifier.padding(horizontal = 12.dp))
@@ -1284,7 +1287,8 @@ fun VenueAboutSection(
 }
 
 @Composable
-fun VenueAskAISection() {
+fun VenueAskAISection(onAiSearchClick: (String) -> Unit) {
+    var aiQuery by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1315,10 +1319,21 @@ fun VenueAskAISection() {
         }
 
         CustomSearchBar(
-            value = "",
-            onValueChange = {},
+            value = aiQuery,
+            onValueChange = { aiQuery = it },
             placeholder = "What would you like to know?",
             isAiSearch = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onSearch = {
+                    if (aiQuery.isNotBlank()) {
+                        onAiSearchClick(aiQuery)
+                        aiQuery = ""
+                    }
+                }
+            ),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
         )
 
@@ -1342,7 +1357,7 @@ fun VenueAskAISection() {
                     label = chip,
                     trailingIcon = Icons.Rounded.ArrowOutward,
                     hasStroke = true,
-                    onClick = { }
+                    onClick = { onAiSearchClick(chip) }
                 )
             }
         }

@@ -56,7 +56,10 @@ private val TemplateBackgrounds = listOf(
     R.drawable.bg_invitation_card_02,
     R.drawable.bg_invitation_card_03,
     R.drawable.bg_invitation_card_04,
-    R.drawable.bg_invitation_card_05
+    R.drawable.bg_invitation_card_05,
+    R.drawable.bg_invitation_card_06,
+    R.drawable.bg_invitation_card_07,
+    R.drawable.bg_invitation_card_08,
 )
 
 private val ZeroInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)

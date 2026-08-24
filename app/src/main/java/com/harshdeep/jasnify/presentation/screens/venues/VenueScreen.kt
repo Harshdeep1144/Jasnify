@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
@@ -85,6 +86,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Offer
@@ -94,15 +96,15 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.LocationAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.location.LocationAccessBottomSheet
 import com.harshdeep.jasnify.presentation.utils.LocationHelper
 import com.harshdeep.jasnify.presentation.utils.SessionState
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
@@ -118,6 +120,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
+import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
@@ -142,7 +145,8 @@ enum class VenueScreenState {
     LOCATION_PICKER,
     ROOM_ACCESS,
     VENUE_DETAIL,
-    TIMELINE_DETAIL
+    TIMELINE_DETAIL,
+    HELP_FEEDBACK
 }
 
 const val PREFS_NAME = "venue_prefs"
@@ -170,6 +174,7 @@ fun clearRecentSearches(context: Context) {
     prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
 
+@SuppressLint("ConstantLocale")
 private val VenueDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -185,11 +190,13 @@ fun VenueScreen(
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
-    enquiryViewModel: EnquiryViewModel = hiltViewModel()
+    enquiryViewModel: EnquiryViewModel = hiltViewModel(),
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ){
     val context = LocalContext.current
     val recentLocations = remember { LocationHelper.getRecentLocations(context) }
     var showAiChat by remember { mutableStateOf(false) }
+    var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
     var currentAddress by remember { 
         mutableStateOf(
             if (selectedLocation == "City, State" && recentLocations.isNotEmpty()) {
@@ -487,8 +494,8 @@ fun VenueScreen(
                     targetState = screenState,
                     transitionSpec = {
                         when {
-                            targetState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideBottomToTopFastTransition
-                            initialState == VenueScreenState.VENUE_DETAIL -> ScreenTransitions.SlideTopToBottomFastTransition
+                            targetState == VenueScreenState.VENUE_DETAIL || targetState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideBottomToTopFastTransition
+                            initialState == VenueScreenState.VENUE_DETAIL || initialState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideTopToBottomFastTransition
                             else -> ScreenTransitions.FadeInOutDefaultTransition
                         }
                     },
@@ -561,6 +568,10 @@ fun VenueScreen(
                                     onChatClick = { venueChat ->
                                         onChatClick(venueChat)
                                     },
+                                    onAiSearchClick = { query ->
+                                        aiChatInitialContext = query
+                                        showAiChat = true
+                                    },
                                     modifier = Modifier.fillMaxSize()
                                 )
                             }
@@ -618,6 +629,18 @@ fun VenueScreen(
                                     onBackClick = { screenStack = screenStack.dropLast(1) }
                                 )
                             }
+                        }
+
+                        VenueScreenState.HELP_FEEDBACK -> {
+                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                profileViewModel = profileViewModel,
+                                onBack = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    }
+                                },
+                                onShowAiChat = { showAiChat = true }
+                            )
                         }
                     }
                 }
@@ -772,6 +795,7 @@ fun VenueScreen(
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showMenuSheet = false
+                                screenStack = screenStack + VenueScreenState.HELP_FEEDBACK
                             }
                         )
                     )
@@ -853,8 +877,12 @@ fun VenueScreen(
         ) {
             AiChatScreen(
                 eventId = activeEvent?.id,
+                initialContext = aiChatInitialContext,
                 shouldStartNewSession = true,
-                onBackClick = { showAiChat = false },
+                onBackClick = { 
+                    showAiChat = false
+                    aiChatInitialContext = null
+                },
                 mainNavController = null
             )
         }
@@ -893,6 +921,17 @@ fun VenueScreen(
                         onClick = {
                             showRoomMenuBottomSheet = false
                             showLeaveConfirmation = true
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showRoomMenuBottomSheet = false
+                            screenStack = screenStack + VenueScreenState.HELP_FEEDBACK
                         }
                     )
                 )
@@ -1277,6 +1316,10 @@ private fun parsePrice(priceString: String): Int {
 @Composable
 fun PreviewVenueScreen() {
     JasnifyTheme {
-        VenueScreen(selectedLocation = "Patna, Bihar", onVenueClick = {}, onBackClick = {})
+        VenueScreen(
+            selectedLocation = "Patna, Bihar",
+            onVenueClick = {},
+            onBackClick = {}
+        )
     }
 }

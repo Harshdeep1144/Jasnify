@@ -42,6 +42,10 @@ interface UserRepository {
     suspend fun scheduleAccountDeletion(uid: String, email: String)
     suspend fun cancelAccountDeletion(uid: String)
     suspend fun isAccountDeletionPending(uid: String): Boolean
+    suspend fun isUsernameTaken(username: String): Boolean
+
+    // Feedback
+    suspend fun submitFeedback(userId: String, userName: String, rating: Int, feedback: String)
 }
 
 data class PendingAccess(

@@ -115,7 +115,7 @@ fun ExploreTabContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(450.dp)
+                    .height(540.dp)
                     .offset(y = with(density) { offsetPx.toDp() } - 70.dp)
                     .drawWithCache {
                         val brush = Brush.radialGradient(
@@ -226,6 +226,7 @@ fun ExploreTabContent(
             }
 
             item(key = "trending_header", contentType = "trending_header") {
+                Spacer(Modifier.height(64.dp))
                 ExploreTrendingCards()
             }
 

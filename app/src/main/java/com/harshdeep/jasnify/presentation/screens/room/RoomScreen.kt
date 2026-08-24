@@ -44,8 +44,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize

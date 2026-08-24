@@ -124,8 +124,8 @@ import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddExpenseBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -263,10 +263,16 @@ fun AiChatScreen(
         if (shouldStartNewSession) {
             viewModel.createNewChatSession()
         }
+        if (!initialContext.isNullOrBlank()) {
+            viewModel.sendMessage(initialContext)
+        }
     }
 
     var currentSubScreen by remember { mutableStateOf("chat") }
     var selectedVendorCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
+    var chatMerchantId by remember { mutableStateOf<String?>(null) }
+    var chatItemId by remember { mutableStateOf<String?>(null) }
+    var chatItemType by remember { mutableStateOf("Venue") }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
     var recentlyDeletedSession by remember { mutableStateOf<ChatSession?>(null) }
@@ -1063,9 +1069,10 @@ fun AiChatScreen(
                         onBackClick = { currentSubScreen = "chat" },
                         onVenueClick = { selectedVenueDetail = it },
                         onChatClick = { venue ->
-                            val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
-                            val itemId = venue.id.ifBlank { "unknown_venue" }
-                            mainNavController?.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
+                            chatMerchantId = venue.merchantId.ifBlank { "unknown_merchant" }
+                            chatItemId = venue.id.ifBlank { "unknown_venue" }
+                            chatItemType = "Venue"
+                            currentSubScreen = "chat_screen"
                         },
                         eventViewModel = eventViewModel,
                         venueViewModel = venueViewModel,
@@ -1075,16 +1082,33 @@ fun AiChatScreen(
 
                 "vendors" -> {
                     VendorsTab(
-                        mainNavController = mainNavController ?: NavHostController(context),
+                        mainNavController = mainNavController ?: androidx.navigation.compose.rememberNavController(),
                         onBottomBarVisibilityChange = {},
                         onBackClick = {
                             currentSubScreen = "chat"
                             selectedVendorCategory = null
                         },
+                        onChatClick = { vendor ->
+                            chatMerchantId = vendor.merchantId.ifBlank { "unknown_merchant" }
+                            chatItemId = vendor.id.ifBlank { "unknown_vendor" }
+                            chatItemType = "Vendor"
+                            currentSubScreen = "chat_screen"
+                        },
                         initialCategory = selectedVendorCategory,
                         vendorViewModel = vendorViewModel,
                         eventViewModel = eventViewModel,
                         roomViewModel = roomViewModel
+                    )
+                }
+
+                "chat_screen" -> {
+                    ChatScreen(
+                        merchantId = chatMerchantId,
+                        itemId = chatItemId,
+                        itemType = chatItemType,
+                        onBackClick = { currentSubScreen = "chat" },
+                        venueViewModel = venueViewModel,
+                        vendorViewModel = vendorViewModel
                     )
                 }
             }
@@ -1101,6 +1125,11 @@ fun AiChatScreen(
                     venueDetail = venue,
                     onBackClick = { selectedVenueDetail = null },
                     onChatClick = { selectedVenueDetail = null },
+                    onAiSearchClick = { query ->
+                        selectedVenueDetail = null
+                        currentSubScreen = "chat"
+                        viewModel.sendMessage(query)
+                    },
                     venueViewModel = venueViewModel
                 )
             }
@@ -1117,6 +1146,11 @@ fun AiChatScreen(
                     vendorDetail = vendor,
                     onBackClick = { selectedVendorDetail = null },
                     onChatClick = { selectedVendorDetail = null },
+                    onAiSearchClick = { query ->
+                        selectedVendorDetail = null
+                        currentSubScreen = "chat"
+                        viewModel.sendMessage(query)
+                    },
                     vendorViewModel = vendorViewModel
                 )
             }

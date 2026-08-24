@@ -4,13 +4,16 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -43,7 +46,6 @@ fun SplashScreen(
         }
     }
 
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -51,10 +53,21 @@ fun SplashScreen(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        val painter = painterResource(R.drawable.ic_app)
+        val intrinsicSize = painter.intrinsicSize
+        val ratio = if (intrinsicSize.height > 0f && !intrinsicSize.height.isNaN()) {
+            intrinsicSize.width / intrinsicSize.height
+        } else {
+            1f
+        }
+
         Image(
-            painter = painterResource(R.drawable.ic_app),
+            painter = painter,
             contentDescription = "App Logo",
-            Modifier.size(130.dp)
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .height(64.dp)
+                .aspectRatio(ratio)
         )
     }
 }

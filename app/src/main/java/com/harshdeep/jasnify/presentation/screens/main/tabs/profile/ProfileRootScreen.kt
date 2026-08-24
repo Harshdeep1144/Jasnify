@@ -54,6 +54,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.PlanType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
@@ -99,6 +100,7 @@ fun ProfileRootScreen(
     onEditProfile: () -> Unit,
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit,
+    onPlanClick: (PlanType) -> Unit,
     lazyListState: LazyListState = rememberLazyListState()
 ) {
     val editIcon = painterResource(R.drawable.ic_edit)
@@ -109,8 +111,10 @@ fun ProfileRootScreen(
     val notificationIcon = painterResource(R.drawable.ic_notification)
     val termsIcon = painterResource(R.drawable.ic_terms_and_conditions)
     val privacyIcon = painterResource(R.drawable.ic_privacy_policy)
+    val helpIcon = painterResource(R.drawable.ic_help_feedback)
     val logoutIcon = painterResource(R.drawable.ic_logout)
-    val placeholderIcon = painterResource(R.drawable.ic_user_profile)
+    val lockIcon = painterResource(R.drawable.ic_lock)
+    val placeholderIcon = painterResource(R.drawable.img_profile_placeholder)
 
     // 16 icons expanding across a wider dispersion radius (up to 155dp)
     val particleList = remember {
@@ -320,23 +324,27 @@ fun ProfileRootScreen(
                         price = "FREE",
                         backgroundColor = Color(0xFFF4E3E2),
                         isCurrentPlan = true,
-                        onViewBenefitsClick = {}
+                        onViewBenefitsClick = { onPlanClick(PlanType.BASIC) }
                     )
                     PlanCard(
                         planName = "Pro",
                         price = "$5/month",
                         backgroundColor = Color(0xFFFFDAB9),
                         buttonText = "Upgrade Now",
-                        onButtonClick = {},
-                        onViewBenefitsClick = {}
+                        onButtonClick = { onPlanClick(PlanType.PRO) },
+                        onViewBenefitsClick = { onPlanClick(PlanType.PRO) },
+                        buttonEnabled = false,
+                        buttonLeadingIcon = lockIcon
                     )
                     PlanCard(
                         planName = "Ultimate",
                         price = "$20/month",
                         backgroundColor = Color(0xFFD3CDE8),
                         buttonText = "Upgrade Now",
-                        onButtonClick = {},
-                        onViewBenefitsClick = {}
+                        onButtonClick = { onPlanClick(PlanType.ULTIMATE) },
+                        onViewBenefitsClick = { onPlanClick(PlanType.ULTIMATE) },
+                        buttonEnabled = false,
+                        buttonLeadingIcon = lockIcon
                     )
                 }
             }
@@ -442,6 +450,15 @@ fun ProfileRootScreen(
                             containerColor = Color.Transparent,
                             onClick = { onNavigateTo(ProfileScreen.PrivacyPolicy) }
                         )
+                        ProfileMenuCell(
+                            title = "Help & Feedback",
+                            subtitle = null,
+                            icon = helpIcon,
+                            hasBorder = false,
+                            shape = RectangleShape,
+                            containerColor = Color.Transparent,
+                            onClick = { onNavigateTo(ProfileScreen.HelpFeedback) }
+                        )
                     }
 
                     ProfileMenuCell(
@@ -531,13 +548,14 @@ fun ProfileTabPreview() {
         ProfileRootScreen(
             userName = "Harsh Deep",
             userHandle = "@harshdeep",
-            profilePic = R.drawable.ic_user_profile,
+            profilePic = R.drawable.img_profile_placeholder,
             eventCount = 2,
             enquiryCount = 5,
             notificationEnabled = true,
             onEditProfile = {},
             onNavigateTo = {},
-            onLogout = {}
+            onLogout = {},
+            onPlanClick = {}
         )
     }
 }
