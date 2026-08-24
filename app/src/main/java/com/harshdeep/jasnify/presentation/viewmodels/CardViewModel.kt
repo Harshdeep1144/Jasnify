@@ -59,6 +59,21 @@ class CardViewModel @Inject constructor(
         else repository.getCardRoomData(id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
+    val jasnifyCards: StateFlow<List<CardData>> = repository.getJasnifyCards()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    init {
+        viewModelScope.launch {
+            repository.getJasnifyCards().map { it.isEmpty() }.collect { isEmpty ->
+                if (isEmpty) {
+                    com.harshdeep.jasnify.domain.model.getJasnifyCardsMock().forEach { mockCard ->
+                        repository.saveJasnifyCard(mockCard)
+                    }
+                }
+            }
+        }
+    }
+
     fun setEventId(eventId: String) {
         _eventId.value = eventId
     }
@@ -84,10 +99,21 @@ class CardViewModel @Inject constructor(
         }
     }
 
-    fun toggleLikedCard(data: CardData) {
+    fun toggleLikedCard(data: CardData, isJasnifyCard: Boolean = false) {
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
+            val currentlyLiked = likedCards.value.any { it.id == data.id }
             repository.toggleLikedCard(eventId, data)
+            if (isJasnifyCard) {
+                val newCount = if (currentlyLiked) data.likesCount - 1 else data.likesCount + 1
+                repository.updateCardLikes(data.id, true, newCount.coerceAtLeast(0))
+            }
+        }
+    }
+
+    fun incrementCardShare(card: CardData, isJasnifyCard: Boolean) {
+        viewModelScope.launch {
+            repository.incrementCardShare(card.id, isJasnifyCard)
         }
     }
 

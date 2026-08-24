@@ -166,4 +166,37 @@ class CardRepositoryImpl @Inject constructor(
             }
         }.await()
     }
+
+    override fun getJasnifyCards(): Flow<List<CardData>> = callbackFlow {
+        val listener = firestore.collection("jasnifyCards")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) return@addSnapshotListener
+                val cards = snapshot?.toObjects(CardData::class.java) ?: emptyList()
+                trySend(cards)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    override suspend fun saveJasnifyCard(data: CardData) {
+        if (data.id.isEmpty()) return
+        firestore.collection("jasnifyCards").document(data.id).set(data).await()
+    }
+
+    override suspend fun incrementCardShare(cardId: String, isJasnifyCard: Boolean) {
+        if (isJasnifyCard) {
+            firestore.collection("jasnifyCards")
+                .document(cardId)
+                .update("sharesCount", FieldValue.increment(1))
+                .await()
+        }
+    }
+
+    override suspend fun updateCardLikes(cardId: String, isJasnifyCard: Boolean, newLikesCount: Int) {
+        if (isJasnifyCard) {
+            firestore.collection("jasnifyCards")
+                .document(cardId)
+                .update("likesCount", newLikesCount)
+                .await()
+        }
+    }
 }

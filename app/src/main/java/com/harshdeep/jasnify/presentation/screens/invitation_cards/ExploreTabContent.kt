@@ -50,6 +50,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
+import com.harshdeep.jasnify.domain.model.getTemplateElements
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -89,6 +90,7 @@ private val GridBackgroundBrush = Brush.verticalGradient(
 fun ExploreTabContent(
     templates: List<CardData>,
     likedCards: List<CardData>,
+    jasnifyCards: List<CardData>,
     lazyListState: LazyListState,
     pagerState: PagerState,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -165,9 +167,11 @@ fun ExploreTabContent(
                     modifier = Modifier.padding(vertical = 36.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (templates.isNotEmpty()) {
-                        val currentCarouselCard = templates[pagerState.currentPage % templates.size]
+                    val displayCards = if (jasnifyCards.isNotEmpty()) jasnifyCards else templates
+                    if (displayCards.isNotEmpty()) {
+                        val currentCarouselCard = displayCards[pagerState.currentPage % displayCards.size]
                         val carouselKey = "carousel_${currentCarouselCard.id}"
+                        val isJasnify = jasnifyCards.any { it.id == currentCarouselCard.id }
 
                         with(sharedTransitionScope) {
                             Box(
@@ -181,7 +185,7 @@ fun ExploreTabContent(
                                 CardCarousel(
                                     cardData = currentCarouselCard,
                                     pagerState = pagerState,
-                                    isLiked = { resId -> likedCards.any { it.backgroundRes == resId } },
+                                    isLiked = { _ -> likedCards.any { it.id == currentCarouselCard.id } },
                                     onLikeClick = onLikeToggle,
                                     onCardClick = { card -> onCardClick(card, carouselKey) }
                                 )
@@ -189,6 +193,25 @@ fun ExploreTabContent(
                         }
 
                         Spacer(modifier = Modifier.height(24.dp))
+                        
+                        // Show Engagement Stats if it's a Jasnify Card
+                        if (isJasnify) {
+                            Row(
+                                modifier = Modifier.padding(bottom = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                androidx.compose.material3.Text(
+                                    text = "❤️ ${currentCarouselCard.likesCount}",
+                                    style = JasnifyTheme.typography.labelMedium,
+                                    color = ContentPrimary
+                                )
+                                androidx.compose.material3.Text(
+                                    text = "🔄 ${currentCarouselCard.sharesCount}",
+                                    style = JasnifyTheme.typography.labelMedium,
+                                    color = ContentPrimary
+                                )
+                            }
+                        }
 
                         Row(
                             modifier = Modifier
@@ -265,7 +288,7 @@ fun ExploreTabContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 rowItems.forEach { template ->
-                                    val isLiked = likedCards.any { it.backgroundRes == template.backgroundRes }
+                                    val isLiked = likedCards.any { it.id == template.id }
                                     val interactionSource = remember { MutableInteractionSource() }
                                     val isPressed by interactionSource.collectIsPressedAsState()
                                     val scale by animateFloatAsState(
@@ -338,22 +361,26 @@ fun ExploreTabContentPreview() {
                 CardData(
                     id = "template_0",
                     backgroundRes = R.drawable.bg_invitation_card_01,
-                    bgName = "Classic Elegance"
+                    bgName = "Classic Elegance",
+                    elements = getTemplateElements(0)
                 ),
                 CardData(
                     id = "template_1",
                     backgroundRes = R.drawable.bg_invitation_card_02,
-                    bgName = "Floral Romance"
+                    bgName = "Floral Romance",
+                    elements = getTemplateElements(1)
                 ),
                 CardData(
                     id = "template_2",
                     backgroundRes = R.drawable.bg_invitation_card_03,
-                    bgName = "Golden Glamour"
+                    bgName = "Golden Glamour",
+                    elements = getTemplateElements(2)
                 ),
                 CardData(
                     id = "template_3",
                     backgroundRes = R.drawable.bg_invitation_card_04,
-                    bgName = "Modern Minimalist"
+                    bgName = "Modern Minimalist",
+                    elements = getTemplateElements(3)
                 )
             )
         }
@@ -375,6 +402,7 @@ fun ExploreTabContentPreview() {
                 ExploreTabContent(
                     templates = sampleTemplates,
                     likedCards = emptyList(),
+                    jasnifyCards = emptyList(),
                     lazyListState = exploreLazyListState,
                     pagerState = explorePagerState,
                     animatedVisibilityScope = this,

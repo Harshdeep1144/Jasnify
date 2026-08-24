@@ -17,4 +17,10 @@ interface CardRepository {
     suspend fun initializeCardRoom(eventId: String, defaultThemes: List<CardTheme>)
     suspend fun saveCardTheme(eventId: String, theme: CardTheme)
     suspend fun updateCardThemeName(eventId: String, themeId: String, newName: String)
+
+    // Jasnify Global Cards
+    fun getJasnifyCards(): Flow<List<CardData>>
+    suspend fun saveJasnifyCard(data: CardData)
+    suspend fun incrementCardShare(cardId: String, isJasnifyCard: Boolean)
+    suspend fun updateCardLikes(cardId: String, isJasnifyCard: Boolean, newLikesCount: Int)
 }

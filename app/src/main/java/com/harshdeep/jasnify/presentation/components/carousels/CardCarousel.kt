@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.*
 import kotlin.math.absoluteValue
 
@@ -85,10 +86,7 @@ fun CardCarousel(
                         scaleX = scale
                         scaleY = scale
                     }
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null
-                    ) { onCardClick(currentCard) },
+                    .noRippleClickable{ onCardClick(currentCard) },
                 contentAlignment = Alignment.Center
             ) {
                 CardItem(

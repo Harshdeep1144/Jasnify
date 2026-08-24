@@ -59,7 +59,6 @@ private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 @Composable
 fun MyCardsGrid(
     cards: List<CardData>,
-    templates: List<CardData>,
     gridState: LazyGridState,
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,

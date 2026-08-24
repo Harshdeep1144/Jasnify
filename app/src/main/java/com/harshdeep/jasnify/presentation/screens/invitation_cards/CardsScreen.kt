@@ -116,6 +116,7 @@ fun CardsScreen(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val myCards by cardViewModel.myCards.collectAsStateWithLifecycle()
     val likedCards by cardViewModel.likedCards.collectAsStateWithLifecycle()
+    val jasnifyCards by cardViewModel.jasnifyCards.collectAsStateWithLifecycle()
     val cardRoomData by cardViewModel.cardRoomData.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
 
@@ -308,6 +309,7 @@ fun CardsScreen(
                                     },
                                     myCards = myCards,
                                     likedCards = likedCards,
+                                    jasnifyCards = jasnifyCards,
                                     activeEvent = activeEvent,
                                     selectedCardIds = selectedCardIds,
                                     exploreLazyListState = exploreLazyListState,
@@ -346,9 +348,16 @@ fun CardsScreen(
                                         previousView = CardsView.MAIN
                                         currentView = CardsView.FULL_VIEW
                                     },
-                                    onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) },
+                                    onLikeToggle = { card -> 
+                                        val isJasnify = jasnifyCards.any { it.id == card.id }
+                                        cardViewModel.toggleLikedCard(card, isJasnify) 
+                                    },
+                                    onShareIncrement = { card ->
+                                        val isJasnify = jasnifyCards.any { it.id == card.id }
+                                        cardViewModel.incrementCardShare(card, isJasnify)
+                                    },
                                     onEditDetailsClick = { card ->
-                                        editingCard = if (card.id.startsWith("template_")) {
+                                        editingCard = if (card.id.startsWith("template_") || jasnifyCards.any { it.id == card.id }) {
                                             card.copy(id = UUID.randomUUID().toString())
                                         } else {
                                             card

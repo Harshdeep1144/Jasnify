@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.Event
+import com.harshdeep.jasnify.domain.model.getTemplateElements
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
@@ -71,6 +72,7 @@ fun CardsMainContent(
     onTabSelected: (CardsTab) -> Unit,
     myCards: List<CardData>,
     likedCards: List<CardData>,
+    jasnifyCards: List<CardData>,
     activeEvent: Event?,
     selectedCardIds: Set<String>,
     exploreLazyListState: LazyListState,
@@ -85,6 +87,7 @@ fun CardsMainContent(
     onMenuClick: () -> Unit,
     onCardClick: (CardData, String) -> Unit,
     onLikeToggle: (CardData) -> Unit,
+    onShareIncrement: (CardData) -> Unit,
     onEditDetailsClick: (CardData) -> Unit
 ) {
     val context = LocalContext.current
@@ -92,30 +95,15 @@ fun CardsMainContent(
     val graphicsLayer = rememberGraphicsLayer()
 
     val templates = remember(activeEvent) {
+        val userName = activeEvent?.ownerName ?: "Taylor & Travis"
         val formattedDateString = activeEvent?.date?.let { timestamp ->
             val date = Date(timestamp)
-            val day = SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()
-            val dayOfMonth = SimpleDateFormat("dd", Locale.getDefault()).format(date)
-            val month = SimpleDateFormat("MMM", Locale.getDefault()).format(date).uppercase()
-            val year = SimpleDateFormat("yyyy", Locale.getDefault()).format(date)
-            "$day • $dayOfMonth $month • $year"
-        }
+            SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date).uppercase()
+        } ?: "SEPTEMBER 14, 2026"
 
         TemplateBackgrounds.mapIndexed { index, resId ->
-            val baseCard = CardData(id = "template_$index", backgroundRes = resId, bgName = "")
-            if (activeEvent != null) {
-                val eventName = activeEvent.name
-                val updatedElements = baseCard.elements.mapIndexed { eIndex, element ->
-                    when (eIndex) {
-                        1 -> if (eventName.isNotBlank()) element.copy(text = eventName) else element
-                        3 -> if (formattedDateString != null) element.copy(text = formattedDateString) else element
-                        else -> element
-                    }
-                }
-                baseCard.copy(elements = updatedElements)
-            } else {
-                baseCard
-            }
+            val elements = getTemplateElements(index, userName, formattedDateString)
+            CardData(id = "template_$index", backgroundRes = resId, bgName = "", elements = elements)
         }
     }
 
@@ -216,6 +204,7 @@ fun CardsMainContent(
                             ExploreTabContent(
                                 templates = templates,
                                 likedCards = likedCards,
+                                jasnifyCards = jasnifyCards,
                                 lazyListState = exploreLazyListState,
                                 pagerState = explorePagerState,
                                 animatedVisibilityScope = animatedVisibilityScope,
@@ -224,15 +213,20 @@ fun CardsMainContent(
                                 nestedScrollConnection = nestedScrollConnection,
                                 onCardClick = onCardClick,
                                 onLikeToggle = onLikeToggle,
-                                onShareTrigger = { card -> onShareTrigger(card, false) },
+                                onShareTrigger = { card -> 
+                                    onShareIncrement(card)
+                                    onShareTrigger(card, false) 
+                                },
                                 onEditDetailsClick = onEditDetailsClick,
-                                onWhatsappShare = { card -> onShareTrigger(card, true) }
+                                onWhatsappShare = { card -> 
+                                    onShareIncrement(card)
+                                    onShareTrigger(card, true) 
+                                }
                             )
                         }
                         CardsTab.MY_CARDS -> {
                             MyCardsGrid(
                                 cards = myCards,
-                                templates = templates,
                                 gridState = myCardsGridState,
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedTransitionScope = sharedTransitionScope,
