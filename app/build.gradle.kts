@@ -17,8 +17,8 @@ android {
         applicationId = "com.harshdeep.jasnify"
         minSdk = 25
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 5
+        versionName = "1.0.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.animation.core)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.auth.ktx)
+    implementation(libs.firebase.messaging)
     implementation(libs.foundation.layout)
     implementation(libs.firebase.crashlytics.buildtools)
     implementation(libs.material3)
@@ -134,6 +135,7 @@ dependencies {
 
     // Coil image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("io.coil-kt:coil-video:2.6.0")
 
     // Media3
     implementation(libs.androidx.media3.exoplayer)
@@ -142,4 +144,13 @@ dependencies {
 
     // Cloudinary
     implementation(libs.cloudinary.android)
+
+    // Retrofit core
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+
+    // Retrofit Gson converter (for JSON parsing)
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // Optional: OkHttp Logging Interceptor (helpful for debugging network calls)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
 }

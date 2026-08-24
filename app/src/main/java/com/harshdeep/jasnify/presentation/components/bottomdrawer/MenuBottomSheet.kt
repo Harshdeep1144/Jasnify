@@ -49,6 +49,8 @@ data class MenuSheetActionItem(
     val icon: Painter,
     val containerColor: Color = SurfacePrimary,
     val contentColor: Color = ContentPrimary,
+    val textColor: Color? = null,
+    val iconColor: Color? = null,
     val iconPlacement: IconPlacement = IconPlacement.Left,
     val onClick: () -> Unit
 )
@@ -58,19 +60,22 @@ data class MenuSheetActionItem(
 fun MenuBottomSheet(
     items: List<List<MenuSheetActionItem>>,
     onCancelClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    containerColor: Color = SurfaceSecondary,
     onProgress: ((Float) -> Unit)? = null
 ) {
     CustomBottomSheet(
         onDismiss = onCancelClick,
         onProgress = onProgress,
         sheetHeight = null,
-        containerColor = SurfaceSecondary,
+        containerColor = containerColor,
         showDragHandle = true,
         showCloseButton = false,
     ) {
         MenuBottomSheetContent(
             items = items,
-            onCancelClick = onCancelClick
+            onCancelClick = onCancelClick,
+            modifier = modifier
         )
     }
 }
@@ -111,6 +116,9 @@ fun MenuBottomSheetContent(
                             )
                         }
 
+                        val resolvedTextColor = item.textColor ?: item.contentColor
+                        val resolvedIconColor = item.iconColor ?: item.contentColor
+
                         val isSingleCol = totalCols <= 1
                         val itemModifier = Modifier
                             .then(if (isSingleCol) Modifier.fillMaxWidth() else Modifier.weight(1f))
@@ -128,14 +136,14 @@ fun MenuBottomSheetContent(
                                 Icon(
                                     painter = item.icon,
                                     contentDescription = null,
-                                    tint = item.contentColor,
+                                    tint = resolvedIconColor,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = item.text,
                                     style = JasnifyTheme.typography.labelXLarge,
-                                    color = item.contentColor
+                                    color = resolvedTextColor
                                 )
                             }
                         } else {
@@ -147,14 +155,14 @@ fun MenuBottomSheetContent(
                                 Icon(
                                     painter = item.icon,
                                     contentDescription = null,
-                                    tint = item.contentColor,
+                                    tint = resolvedIconColor,
                                     modifier = Modifier.size(24.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = item.text,
                                     style = JasnifyTheme.typography.labelXLarge,
-                                    color = item.contentColor
+                                    color = resolvedTextColor
                                 )
                             }
                         }

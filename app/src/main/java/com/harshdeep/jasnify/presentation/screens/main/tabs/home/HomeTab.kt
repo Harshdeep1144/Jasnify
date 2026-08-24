@@ -15,14 +15,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -35,9 +33,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -70,7 +66,6 @@ import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
-import android.net.Uri
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Event
@@ -95,16 +90,22 @@ import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonContent
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
@@ -141,7 +142,9 @@ fun HomeTab(
     budgetViewModel: BudgetViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
-    roomViewModel: RoomViewModel = hiltViewModel()
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    momentsViewModel: MomentsViewModel = hiltViewModel(),
+    cardViewModel: CardViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
@@ -152,6 +155,12 @@ fun HomeTab(
         savedVenuesFromCloud.associate { it.venueName to it.destination }
     }
 
+    val context = androidx.compose.ui.platform.LocalContext.current
+    LaunchedEffect(Unit) {
+        // Trigger notification permission check only when user is on the Home screen
+        (context as? com.harshdeep.jasnify.MainActivity)?.triggerNotificationPermissionCheck()
+    }
+
     val vendorSavedDestinations = remember(savedVendorsFromCloud) {
         savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
     }
@@ -160,7 +169,7 @@ fun HomeTab(
         eventViewModel.fetchUserEvents()
     }
 
-    // 2. Propagate event ID to related ViewModels once activeEvent is available
+    // Propagate event ID to related ViewModels once activeEvent is available
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)
@@ -183,7 +192,7 @@ fun HomeTab(
     val remainingFunds = remember(totalBudget, totalSpent) {
         (totalBudget - totalSpent).coerceAtLeast(0.0)
     }
-    
+
     val remainingPercentage = remember(totalBudget, remainingFunds) {
         if (totalBudget > 0) (remainingFunds / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
     }
@@ -200,6 +209,11 @@ fun HomeTab(
     }
 
     val amountText = remember(remainingFunds) { "₹${formatBudgetShorthand(remainingFunds)}" }
+
+    if (activeEvent == null) {
+        MainSkeletonContent()
+        return
+    }
 
     val eventDateString = remember(activeEvent) {
         val now = System.currentTimeMillis()
@@ -239,6 +253,8 @@ fun HomeTab(
         venueViewModel = venueViewModel,
         vendorViewModel = vendorViewModel,
         roomViewModel = roomViewModel,
+        momentsViewModel = momentsViewModel,
+        cardViewModel = cardViewModel,
         isVenuesLoading = isVenuesLoading,
         venueSavedDestinations = venueSavedDestinations,
         vendorSavedDestinations = vendorSavedDestinations,
@@ -263,6 +279,8 @@ fun HomeTabContent(
     venueViewModel: VenueViewModel? = null,
     vendorViewModel: VendorViewModel? = null,
     roomViewModel: RoomViewModel? = null,
+    momentsViewModel: MomentsViewModel? = null,
+    cardViewModel: CardViewModel? = null,
     isVenuesLoading: Boolean = false,
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
@@ -274,7 +292,7 @@ fun HomeTabContent(
     var selectedVendorForDetail by remember { mutableStateOf<Vendor?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Header media items featuring local drawables, remote Image URLs, and remote Video URLs
+    // Header media items
     val headerMediaItems = remember {
         listOf(
             HeaderMedia.ImageResource(R.drawable.bg_home),
@@ -315,15 +333,13 @@ fun HomeTabContent(
     val isAnySheetVisible = showSaveListBottomSheet || showOfferSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
     val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
-    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) CornerExtraLarge else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
+    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) 32.dp else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
 
     val isSavedListToast = remember(toastData, lastSavedVenue, lastSavedVendor) {
         toastData?.message?.contains("Saved List") == true && (lastSavedVenue != null || lastSavedVendor != null)
     }
 
     val isOwner = activeEvent?.ownerId == FirebaseAuth.getInstance().currentUser?.uid
-    // For simplicity in HomeTab, we assume owner for now or fetch role if needed.
-    // Ideally use RoomViewModel to get exact role, but false is safe for viewers.
     val isViewer = !isOwner
 
     val handleVenueFavoriteToggle: (Venue) -> Unit = { venue ->
@@ -433,31 +449,33 @@ fun HomeTabContent(
     }
 
     BackHandler(enabled = currentScreen != "home") {
-        if (currentScreen == "venue_detail") {
-            selectedVenueForDetail = null
-            currentScreen = "home"
-        } else if (currentScreen == "vendor_detail") {
-            selectedVendorForDetail = null
-            currentScreen = "home"
-        } else {
-            selectedCategory = null
-            currentScreen = "home"
+        when (currentScreen) {
+            "venue_detail" -> {
+                selectedVenueForDetail = null
+                currentScreen = "home"
+            }
+            "vendor_detail" -> {
+                selectedVendorForDetail = null
+                currentScreen = "home"
+            }
+            else -> {
+                selectedCategory = null
+                currentScreen = "home"
+            }
         }
     }
-
-    val fadeDistancePxVal = fadeDistancePx // Avoid ambiguity in connection
 
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
 
-    val homeTabNestedScrollConnection = remember(fadeDistancePxVal, isAnySheetVisible) {
+    val homeTabNestedScrollConnection = remember(fadeDistancePx, isAnySheetVisible) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (currentScreen != "home" || isAnySheetVisible) return Offset.Zero
 
                 val delta = available.y
                 val currentScroll = scrollOffset
-                val halfSliderPx = fadeDistancePxVal / 2f
+                val halfSliderPx = fadeDistancePx / 2f
 
                 if (delta > 0) {
                     if (scrollAccumulator < 0) scrollAccumulator = 0f
@@ -506,9 +524,9 @@ fun HomeTabContent(
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (!lazyListState.isScrollInProgress) {
             val currentScroll = scrollOffset
-            val halfThreshold = fadeDistancePxVal / 2f
+            val halfThreshold = fadeDistancePx / 2f
 
-            if (currentScroll > 1f && currentScroll < fadeDistancePxVal - 1f) {
+            if (currentScroll > 1f && currentScroll < fadeDistancePx - 1f) {
                 if (currentScroll >= halfThreshold) {
                     lazyListState.animateScrollToItem(1)
                 } else {
@@ -520,8 +538,8 @@ fun HomeTabContent(
 
     val topBarAlphaState = remember {
         derivedStateOf {
-            if (fadeDistancePxVal > 0f) {
-                (scrollOffset / fadeDistancePxVal).coerceIn(0f, 1f)
+            if (fadeDistancePx > 0f) {
+                (scrollOffset / fadeDistancePx).coerceIn(0f, 1f)
             } else 0f
         }
     }
@@ -529,12 +547,14 @@ fun HomeTabContent(
     AnimatedContent(
         targetState = currentScreen,
         transitionSpec = {
-            fadeIn(animationSpec = tween(220))
-                .togetherWith(fadeOut(animationSpec = tween(220)))
+            if (initialState == "home") {
+                ScreenTransitions.ZoomDepthForwardTransition
+            } else {
+                ScreenTransitions.ZoomDepthReturnTransition
+            }
         },
-        label = "screen_transition",
-        modifier = Modifier
-            .fillMaxSize()
+        label = "screen_zoom_transition",
+        modifier = Modifier.fillMaxSize()
     ) { screen ->
 
         if (screen == "home") {
@@ -558,250 +578,250 @@ fun HomeTabContent(
                             else Modifier
                         )
                 ) {
-                    if (scrollOffset < fadeDistancePxVal) {
-                    HeaderMediaSlider(
-                        mediaList = headerMediaItems,
-                        pagerState = headerPagerState,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(headerHeight)
-                            .align(Alignment.TopCenter)
-                            .graphicsLayer {
-                                val currentOffset = scrollOffset
-                                translationY = -currentOffset * PARALLAX_RATE
-                                alpha = if (fadeDistancePxVal > 0f) {
-                                    (1f - (currentOffset / fadeDistancePxVal)).coerceIn(0f, 1f)
-                                } else 1f
-                            }
-                    )
-                }
-
-                Scaffold(
-                    topBar = {
-                        HomeTopBar(
-                            title = eventName,
-                            dateString = eventDateString,
-                            alpha = topBarAlphaState.value,
-                            onMenuClick = onMenuClick
+                    if (scrollOffset < fadeDistancePx) {
+                        HeaderMediaSlider(
+                            mediaList = headerMediaItems,
+                            pagerState = headerPagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(headerHeight)
+                                .align(Alignment.TopCenter)
+                                .graphicsLayer {
+                                    val currentOffset = scrollOffset
+                                    translationY = -currentOffset * PARALLAX_RATE
+                                    alpha = if (fadeDistancePx > 0f) {
+                                        (1f - (currentOffset / fadeDistancePx)).coerceIn(0f, 1f)
+                                    } else 1f
+                                }
                         )
-                    },
-                    containerColor = Color.Transparent,
-                    contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
-                    modifier = Modifier.fillMaxSize()
-                ) { paddingValues ->
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(paddingValues),
-                        state = lazyListState
-                    ) {
-                        item(key = "header_spacer") {
-                            Spacer(modifier = Modifier.height(visibleBackgroundOffset))
-                        }
+                    }
 
-                        item(key = "budget_card") {
+                    Scaffold(
+                        topBar = {
+                            HomeTopBar(
+                                title = eventName,
+                                dateString = eventDateString,
+                                alpha = topBarAlphaState.value,
+                                onMenuClick = onMenuClick
+                            )
+                        },
+                        containerColor = Color.Transparent,
+                        contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
+                        modifier = Modifier.fillMaxSize()
+                    ) { paddingValues ->
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(paddingValues),
+                            state = lazyListState
+                        ) {
+                            item(key = "header_spacer") {
+                                Spacer(modifier = Modifier.height(visibleBackgroundOffset))
+                            }
+
+                            item(key = "budget_card") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(
+                                            color = BackgroundPrimary,
+                                            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+                                        )
+                                        .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
+                                ) {
+                                    BudgetTrackerCard(
+                                        insight = "See your budget",
+                                        heading = "Budget Tracker",
+                                        illustration = painterResource(R.drawable.ill_budget_tracker_card),
+                                        progress = remainingPercentage,
+                                        amountText = amountText,
+                                        labelText = "left",
+                                        onClick = { navigateTo("budget") }
+                                    )
+                                }
+                            }
+
+                            item(key = "row_1_cards") {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(BackgroundPrimary)
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    HomeCard(
+                                        insight = "Delicious and Elegant",
+                                        heading = "Catering Menu",
+                                        illustration = painterResource(R.drawable.ill_catering_menu_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFC4D4C2),
+                                        waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF47671A),
+                                        onClick = { navigateTo("catering") }
+                                    )
+                                    HomeCard(
+                                        insight = "Perfect Event Spaces",
+                                        heading = "Venue",
+                                        illustration = painterResource(R.drawable.ill_venue_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFD3CDE8),
+                                        waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF6448D6),
+                                        onClick = { navigateTo("venues") }
+                                    )
+                                }
+                            }
+
+                            item(key = "row_2_cards") {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(BackgroundPrimary)
+                                        .padding(horizontal = 12.dp, vertical = 4.dp)
+                                ) {
+                                    HomeCard(
+                                        insight = "Capture and Smile",
+                                        heading = "Moments",
+                                        illustration = painterResource(R.drawable.ill_moments_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFC3D4E8),
+                                        waveColor = Color(0x1A014594).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF3D58B4),
+                                        onClick = { navigateTo("moments") }
+                                    )
+
+                                    HomeCard(
+                                        insight = "Invite and Celebrate",
+                                        heading = "Cards",
+                                        illustration = painterResource(R.drawable.ill_cards_and_guests_card),
+                                        modifier = Modifier.weight(1f),
+                                        cardBgColor = Color(0xFFE8D0CE),
+                                        waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
+                                        insightColor = Color(0xFF5D1D1B),
+                                        onClick = { navigateTo("cards") }
+                                    )
+                                }
+                            }
+
+                            item(key = "explore_divider") {
+                                OrDivider(dividerGap = 12.dp, text = "EXPLORE", modifier = Modifier.background(BackgroundPrimary).padding(horizontal = 12.dp, vertical = 8.dp))
+                            }
+
+                            item(key = "trending_venues") {
+                                VenueCarousel(
+                                    title = "Trending Venues in Patna",
+                                    venues = trendingVenues,
+                                    isLoading = isVenuesLoading,
+                                    onVenueClick = { venue ->
+                                        selectedVenueForDetail = venue
+                                        currentScreen = "venue_detail"
+                                    },
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onFavoriteToggle = handleVenueFavoriteToggle,
+                                    onSeeAllClick = { navigateTo("venues") },
+                                    onOfferClick = { venue ->
+                                        offersToShow = venue.offers
+                                        showOfferSheet = true
+                                    },
+                                    modifier = Modifier.background(BackgroundPrimary)
+                                )
+                            }
+
+                            item(key = "more_venues") {
+                                VenueCarousel(
+                                    title = "More Venues to Explore",
+                                    venues = exploreVenues,
+                                    isLoading = isVenuesLoading,
+                                    onVenueClick = { venue ->
+                                        selectedVenueForDetail = venue
+                                        currentScreen = "venue_detail"
+                                    },
+                                    onFavoriteToggle = handleVenueFavoriteToggle,
+                                    cardSize = CompactCardSize.MEDIUM,
+                                    onSeeAllClick = { navigateTo("venues") },
+                                    onOfferClick = { venue ->
+                                        offersToShow = venue.offers
+                                        showOfferSheet = true
+                                    },
+                                    modifier = Modifier.background(BackgroundPrimary)
+                                )
+                            }
+
+                            item(key = "dashed_divider") {
+                                DashedDivider(modifier = Modifier.background(BackgroundPrimary))
+                            }
+
+                            item(key = "vendor_categories") {
+                                ExploreCategoriesHorizontal(
+                                    categories = vendorCategories,
+                                    onCategoryClick = { category ->
+                                        selectedCategory = category
+                                        navigateTo("vendors")
+                                    }
+                                )
+                            }
+
+                            item(key = "footer") {
+                                FooterJansify(modifier = Modifier.background(BackgroundPrimary))
+                            }
+                        }
+                    }
+
+                    // Drag Gesture Overlay placed on top of Scaffold content
+                    if (scrollOffset < fadeDistancePx) {
+                        val topBarInset = 80.dp
+                        val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
+
+                        if (overlayHeight > 0.dp) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .background(
-                                        color = BackgroundPrimary,
-                                        shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge)
-                                    )
-                                    .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
-                            ) {
-                                BudgetTrackerCard(
-                                    insight = "See your budget",
-                                    heading = "Budget Tracker",
-                                    illustration = painterResource(R.drawable.ill_budget_tracker_card),
-                                    progress = remainingPercentage,
-                                    amountText = amountText,
-                                    labelText = "left",
-                                    onClick = { navigateTo("budget") }
-                                )
-                            }
-                        }
-
-                        item(key = "row_1_cards") {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(BackgroundPrimary)
-                                    .padding(horizontal = 12.dp, vertical = 2.dp)
-                            ) {
-                                HomeCard(
-                                    insight = "Delicious and Elegant",
-                                    heading = "Catering Menu",
-                                    illustration = painterResource(R.drawable.ill_catering_menu_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFC4D4C2),
-                                    waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF47671A),
-                                    onClick = { navigateTo("catering") }
-                                )
-                                HomeCard(
-                                    insight = "Perfect Event Spaces",
-                                    heading = "Venue",
-                                    illustration = painterResource(R.drawable.ill_venue_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFD3CDE8),
-                                    waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF6448D6),
-                                    onClick = { navigateTo("venues") }
-                                )
-                            }
-                        }
-
-                        item(key = "row_2_cards") {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(BackgroundPrimary)
-                                    .padding(horizontal = 12.dp, vertical = 2.dp)
-                            ) {
-                                HomeCard(
-                                    insight = "Capture and Smile",
-                                    heading = "Moments",
-                                    illustration = painterResource(R.drawable.ill_moments_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFC3D4E8),
-                                    waveColor = Color(0x1A014594).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF3D58B4),
-                                    onClick = {}
-                                )
-
-                                HomeCard(
-                                    insight = "Invite and Celebrate",
-                                    heading = "Cards",
-                                    illustration = painterResource(R.drawable.ill_cards_and_guests_card),
-                                    modifier = Modifier.weight(1f),
-                                    cardBgColor = Color(0xFFE8D0CE),
-                                    waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
-                                    insightColor = Color(0xFF5D1D1B),
-                                    onClick = { navigateTo("cards") }
-                                )
-                            }
-                        }
-
-                        item(key = "explore_divider") {
-                            OrDivider(dividerGap = 12.dp, text = "EXPLORE", modifier = Modifier.background(BackgroundPrimary).padding(horizontal = 12.dp, vertical = 8.dp))
-                        }
-
-                        item(key = "trending_venues") {
-                            VenueCarousel(
-                                title = "Trending Venues in Patna",
-                                venues = trendingVenues,
-                                isLoading = isVenuesLoading,
-                                onVenueClick = { venue ->
-                                    selectedVenueForDetail = venue
-                                    currentScreen = "venue_detail"
-                                },
-                                cardSize = CompactCardSize.MEDIUM,
-                                onFavoriteToggle = handleVenueFavoriteToggle,
-                                onSeeAllClick = { navigateTo("venues") },
-                                onOfferClick = { venue ->
-                                    offersToShow = venue.offers
-                                    showOfferSheet = true
-                                },
-                                modifier = Modifier.background(BackgroundPrimary)
-                            )
-                        }
-
-                        item(key = "more_venues") {
-                            VenueCarousel(
-                                title = "More Venues to Explore",
-                                venues = exploreVenues,
-                                isLoading = isVenuesLoading,
-                                onVenueClick = { venue ->
-                                    selectedVenueForDetail = venue
-                                    currentScreen = "venue_detail"
-                                },
-                                onFavoriteToggle = handleVenueFavoriteToggle,
-                                cardSize = CompactCardSize.MEDIUM,
-                                onSeeAllClick = { navigateTo("venues") },
-                                onOfferClick = { venue ->
-                                    offersToShow = venue.offers
-                                    showOfferSheet = true
-                                },
-                                modifier = Modifier.background(BackgroundPrimary)
-                            )
-                        }
-
-                        item(key = "dashed_divider") {
-                            DashedDivider(modifier = Modifier.background(BackgroundPrimary))
-                        }
-
-                        item(key = "vendor_categories") {
-                            ExploreCategoriesHorizontal(
-                                categories = vendorCategories,
-                                onCategoryClick = { category ->
-                                    selectedCategory = category
-                                    navigateTo("vendors")
-                                }
-                            )
-                        }
-
-                        item(key = "footer") {
-                            FooterJansify(modifier = Modifier.background(BackgroundPrimary))
-                        }
-                    }
-                }
-
-                // Drag Gesture Overlay placed on top of Scaffold content
-                if (scrollOffset < fadeDistancePxVal) {
-                    val topBarInset = 80.dp
-                    val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
-
-                    if (overlayHeight > 0.dp) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = topBarInset)
-                                .height(overlayHeight)
-                                .align(Alignment.TopCenter)
-                                .pointerInput(headerPagerState) {
-                                    detectHorizontalDragGestures(
-                                        onDragStart = { totalHeaderDragX = 0f },
-                                        onDragEnd = {
-                                            coroutineScope.launch {
-                                                if (totalHeaderDragX < -60f) {
-                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
-                                                } else if (totalHeaderDragX > 60f) {
-                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
-                                                } else {
+                                    .padding(top = topBarInset)
+                                    .height(overlayHeight)
+                                    .align(Alignment.TopCenter)
+                                    .pointerInput(headerPagerState) {
+                                        detectHorizontalDragGestures(
+                                            onDragStart = { totalHeaderDragX = 0f },
+                                            onDragEnd = {
+                                                coroutineScope.launch {
+                                                    if (totalHeaderDragX < -60f) {
+                                                        headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
+                                                    } else if (totalHeaderDragX > 60f) {
+                                                        headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
+                                                    } else {
+                                                        headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                                    }
+                                                }
+                                            },
+                                            onDragCancel = {
+                                                coroutineScope.launch {
                                                     headerPagerState.animateScrollToPage(headerPagerState.currentPage)
                                                 }
+                                            },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                change.consume()
+                                                totalHeaderDragX += dragAmount
+                                                coroutineScope.launch {
+                                                    headerPagerState.dispatchRawDelta(-dragAmount)
+                                                }
                                             }
-                                        },
-                                        onDragCancel = {
-                                            coroutineScope.launch {
-                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage)
-                                            }
-                                        },
-                                        onHorizontalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            totalHeaderDragX += dragAmount
-                                            coroutineScope.launch {
-                                                headerPagerState.dispatchRawDelta(-dragAmount)
-                                            }
-                                        }
-                                    )
-                                }
-                        )
+                                        )
+                                    }
+                            )
+                        }
                     }
+                } // End scaling box
+
+                if (showOfferSheet) {
+                    OfferBottomSheet(
+                        offers = offersToShow,
+                        onDismiss = { showOfferSheet = false },
+                        onProgress = { sheetMotionProgress = it }
+                    )
                 }
-            } // End scaling box
 
-            if (showOfferSheet) {
-                OfferBottomSheet(
-                    offers = offersToShow,
-                    onDismiss = { showOfferSheet = false },
-                    onProgress = { sheetMotionProgress = it }
-                )
-            }
-
-            if (showSaveListBottomSheet) {
+                if (showSaveListBottomSheet) {
                     SaveListBottomSheet(
                         timelineEvents = timelineEvents,
                         isMySavedListChecked = isMySavedListChecked,
@@ -841,7 +861,7 @@ fun HomeTabContent(
                             }
                         },
                         isViewer = isViewer,
-                        onDismiss = { 
+                        onDismiss = {
                             showSaveListBottomSheet = false
                             activeTargetVenue = null
                             activeTargetVendor = null
@@ -896,6 +916,7 @@ fun HomeTabContent(
                             message = data.message ?: "",
                             type = data.type,
                             leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                            iconColor = Color.Unspecified,
                             buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                             onButtonClick = if (activeEvent?.multiDay == true) {
                                 {
@@ -973,6 +994,25 @@ fun HomeTabContent(
                     "cards" -> {
                         CardsScreen(
                             onBackClick = { currentScreen = "home" },
+                            eventViewModel = eventViewModel ?: hiltViewModel(),
+                            roomViewModel = roomViewModel ?: hiltViewModel(),
+                            cardViewModel = cardViewModel ?: hiltViewModel()
+                        )
+                    }
+                    "moments" -> {
+                        val eventId = activeEvent?.id ?: ""
+                        MomentsScreen(
+                            eventId = eventId,
+                            onBackClick = { currentScreen = "home" },
+                            onManageRoomClick = { currentScreen = "moments_room" },
+                            viewModel = momentsViewModel ?: hiltViewModel()
+                        )
+                    }
+                    "moments_room" -> {
+                        MomentsRoomContent(
+                            eventId = activeEvent?.id ?: "",
+                            onBackClick = { currentScreen = "moments" },
+                            roomViewModel = roomViewModel ?: hiltViewModel()
                         )
                     }
                     "vendors" -> {
@@ -1118,7 +1158,7 @@ fun HeaderMediaSlider(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true, device = "spec:width=411dp,height=891dp")
 @Composable
 fun HomeTabContentPreview() {

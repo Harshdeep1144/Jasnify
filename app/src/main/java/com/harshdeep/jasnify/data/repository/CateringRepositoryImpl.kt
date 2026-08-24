@@ -5,6 +5,7 @@ import com.google.firebase.firestore.SetOptions
 import com.harshdeep.jasnify.data.local.CateringDao
 import com.harshdeep.jasnify.data.local.CateringItemEntity
 import com.harshdeep.jasnify.data.local.CateringMetadataEntity
+import com.harshdeep.jasnify.data.remote.api.DishImageApi
 import com.harshdeep.jasnify.data.utils.CateringDefaults
 import com.harshdeep.jasnify.domain.repository.CateringRepository
 import kotlinx.coroutines.CoroutineScope
@@ -13,8 +14,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import javax.inject.Singleton
+import com.harshdeep.jasnify.BuildConfig
 
+@Singleton
 class CateringRepositoryImpl @Inject constructor(
+    private val dishImageApi: DishImageApi,
     private val cateringDao: CateringDao,
     private val firestore: FirebaseFirestore
 ) : CateringRepository {
@@ -167,4 +172,51 @@ class CateringRepositoryImpl @Inject constructor(
         val defaultItems = templateItems.map { it.toEntity(eventId) }
         addItems(defaultItems)
     }
+
+    override suspend fun searchDishImages(query: String): Result<List<String>> {
+        return try {
+            val cleanQuery = query
+                .replace(" dish food", "", ignoreCase = true)
+                .replace(" dish", "", ignoreCase = true)
+                .replace(" food", "", ignoreCase = true)
+                .replace("Indian", "", ignoreCase = true)
+                .replace("Bread", "", ignoreCase = true)
+                .replace("Continental", "", ignoreCase = true)
+                .replace("Mughlai", "", ignoreCase = true)
+                .replace("with Ice Cream", "", ignoreCase = true)
+                .replace("with Rabri", "", ignoreCase = true)
+                .replace("Kullhad", "", ignoreCase = true)
+                .trim()
+
+            android.util.Log.d("CateringRepo", "Wikipedia Search: $cleanQuery")
+            
+            val response = dishImageApi.searchDishImages("$cleanQuery dish")
+            val pages = response.query?.pages?.values ?: emptyList()
+            var urls = pages.mapNotNull { it.original?.source ?: it.thumbnail?.source }
+                .filter { it.isNotBlank() }
+
+            if (urls.isEmpty()) {
+                android.util.Log.d("CateringRepo", "Wikipedia failed for $cleanQuery. Using Fallback.")
+                
+                val mainWord = cleanQuery.split(" ").lastOrNull() ?: "food"
+                
+                // Use a mix of LoremFlickr and Pixabay-like static placeholders for high reliability
+                urls = listOf(
+                    "https://loremflickr.com/400/400/food,$mainWord",
+                    "https://loremflickr.com/400/400/culinary,$mainWord",
+                    "https://loremflickr.com/400/400/dish,$mainWord",
+                    "https://loremflickr.com/400/400/meal,$mainWord",
+                    "https://loremflickr.com/400/400/food,delicious"
+                )
+            }
+
+            android.util.Log.d("CateringRepo", "Final URL list: $urls")
+            Result.success(urls)
+        } catch (e: Exception) {
+            android.util.Log.e("CateringRepo", "Critical Search Error: ${e.message}")
+            val errorUrls = listOf("https://loremflickr.com/400/400/food")
+            Result.success(errorUrls)
+        }
+    }
+
 }

@@ -1,16 +1,21 @@
 package com.harshdeep.jasnify.presentation.viewmodels
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.messaging.FirebaseMessaging
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.util.Calendar
 import javax.inject.Inject
@@ -24,9 +29,11 @@ sealed class ProfileUpdateState {
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val auth: FirebaseAuth,
     private val userRepository: UserRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 
     private val _userProfile = MutableStateFlow<User?>(null)
@@ -34,6 +41,8 @@ class ProfileViewModel @Inject constructor(
 
     private val _updateState = MutableStateFlow<ProfileUpdateState>(ProfileUpdateState.Idle)
     val updateState: StateFlow<ProfileUpdateState> = _updateState.asStateFlow()
+
+    val isNotificationsEnabled: StateFlow<Boolean> = preferenceManager.isNotificationsEnabledFlow
 
     init {
         val uid = auth.currentUser?.uid
@@ -43,6 +52,34 @@ class ProfileViewModel @Inject constructor(
                     _userProfile.value = it
                 }
             }
+        }
+    }
+
+    fun toggleNotifications(enabled: Boolean) {
+        preferenceManager.setNotificationsEnabled(enabled)
+        preferenceManager.setHasUserManuallyToggledNotifications(true)
+        
+        if (enabled) {
+            val isGranted = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+                        PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+            
+            if (isGranted) {
+                FirebaseMessaging.getInstance().subscribeToTopic("all")
+            }
+        } else {
+            FirebaseMessaging.getInstance().unsubscribeFromTopic("all")
+        }
+    }
+
+    fun syncNotificationState(systemEnabled: Boolean) {
+        val prefEnabled = preferenceManager.isNotificationsEnabled()
+        // If system is disabled, we must reflect that
+        if (!systemEnabled && prefEnabled) {
+            toggleNotifications(false)
         }
     }
 

@@ -178,10 +178,16 @@ fun MyCardsEmptyState(
         modifier = modifier
             .fillMaxSize()
             .drawWithCache {
-                // Darker and more concentrated gradient near top
+                // Shift the center Y coordinate upward
+                val gradientCenter = Offset(
+                    x = size.width / 2f,
+                    y = size.height * 0.55f
+                )
+
                 val radialBrush = Brush.radialGradient(
                     colorStops = RadialGradientColorStops,
-                    radius = 480.dp.toPx()
+                    center = gradientCenter,
+                    radius = 520.dp.toPx()
                 )
                 onDrawBehind {
                     drawRect(brush = radialBrush)
@@ -392,7 +398,7 @@ fun MyCardsEmptyState(
                 style = typography.copy(
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    lineHeight = typography.fontSize, // 100% line height
+                    lineHeight = 28.sp,
                     color = ContentPrimary,
                 ),
                 modifier = Modifier.padding(horizontal = 32.dp)

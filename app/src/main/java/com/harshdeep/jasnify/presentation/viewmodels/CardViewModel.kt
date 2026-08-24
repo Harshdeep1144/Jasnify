@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.viewmodels
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.CardRoomData
@@ -12,6 +13,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -22,10 +24,25 @@ import javax.inject.Inject
 @HiltViewModel
 class CardViewModel @Inject constructor(
     private val repository: CardRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 
     private val _eventId = MutableStateFlow<String?>(null)
+
+    private val _recentColors = MutableStateFlow<List<String>>(
+        preferenceManager.getRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD)
+    )
+    val recentColors: StateFlow<List<String>> = _recentColors.asStateFlow()
+
+    fun addRecentColor(colorHex: String) {
+        val current = _recentColors.value.toMutableList()
+        current.remove(colorHex)
+        current.add(0, colorHex)
+        val limited = current.take(12)
+        _recentColors.value = limited
+        preferenceManager.saveRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD, limited)
+    }
 
     val myCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
         if (id == null) MutableStateFlow(emptyList<CardData>())

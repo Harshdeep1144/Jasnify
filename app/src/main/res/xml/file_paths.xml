@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
+    <!-- Internal Cache -->
+    <cache-path name="cache" path="/" />
+    <cache-path name="my_cache" path="." />
     <cache-path name="shared_images" path="shared_images/" />
+
+    <!-- Internal Files -->
+    <files-path name="files" path="/" />
+
+    <!-- External Paths (if needed) -->
+    <external-path name="external" path="." />
+    <external-cache-path name="external_cache" path="." />
 </paths>

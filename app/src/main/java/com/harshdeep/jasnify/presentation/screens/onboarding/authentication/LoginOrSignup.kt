@@ -2,6 +2,8 @@ package com.harshdeep.jasnify.presentation.screens.onboarding.authentication
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -103,8 +105,12 @@ fun LoginOrSignup(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
+    // Track which authentication method is currently active
+    var activeAuthMethod by remember { mutableStateOf<String?>(null) }
+
     // State for Custom Toast
     var toastData by remember { mutableStateOf(ToastData()) }
+    val haptic = LocalHapticFeedback.current
 
     val emailPattern = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")
 
@@ -127,10 +133,12 @@ fun LoginOrSignup(
             if (account.idToken != null) {
                 viewModel.signInWithGoogle(account, eventId)
             } else {
-                toastData = ToastData("Sign-in failed", ToastType.ERROR)
+                android.util.Log.e("LoginOrSignup", "Google Sign-in failed: idToken is null")
+                toastData = ToastData("Sign-in failed (null token)", ToastType.ERROR)
             }
 
         } catch (e: ApiException) {
+            android.util.Log.e("LoginOrSignup", "Google Sign-in failed: code=${e.statusCode}, message=${e.message}")
             toastData = ToastData("Sign-in failed", ToastType.ERROR)
         }
     }
@@ -165,6 +173,7 @@ fun LoginOrSignup(
                 navController.navigate(destination) {
                     popUpTo(Screen.OnboardingGraph.route) { inclusive = true }
                 }
+                viewModel.setCompletedOnboarding(true)
                 viewModel.resetAuthState()
             }
 
@@ -181,6 +190,18 @@ fun LoginOrSignup(
     // --- LaunchedEffect to dismiss CustomToast automatically ---
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR || toastData.message == "Authenticated with Google") {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true ||
+                    toastData.message?.contains("failed", ignoreCase = true) == true ||
+                    toastData.message?.contains("password", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000L.milliseconds) // Wait for 3 seconds
             toastData = toastData.copy(message = null) // Clear message to dismiss toast
         }
@@ -337,15 +358,18 @@ fun LoginOrSignup(
                                 }
 
                                 if (isValid) {
+                                    activeAuthMethod = "EMAIL"
                                     viewModel.handleEmailAuth(email, password, eventId)
                                 } else {
                                     toastData = ToastData(errorMessage, ToastType.ERROR)
                                 }
                             },
-                            text = if (authState is AuthState.Loading) "Loading..." else if (selectedTab == AuthTab.SIGN_UP) "Sign up" else "Log in",
+                            text = if (selectedTab == AuthTab.SIGN_UP) "Sign up" else "Log in",
                             modifier = Modifier.fillMaxWidth(),
                             shapeStyle = ButtonShapeStyle.Square,
                             containerColor = ContentPrimary,
+                            enabled = authState !is AuthState.Loading || activeAuthMethod == "EMAIL",
+                            isLoading = authState is AuthState.Loading && activeAuthMethod == "EMAIL"
                         )
 
                         if (selectedTab == AuthTab.LOG_IN) {
@@ -367,6 +391,7 @@ fun LoginOrSignup(
                         // Google Sign-In Button
                         AuthButton(
                             onClick = {
+                                activeAuthMethod = "GOOGLE"
                                 val signInIntent = googleSignInClient.signInIntent
                                 googleSignInLauncher.launch(signInIntent)
                             },
@@ -374,6 +399,8 @@ fun LoginOrSignup(
                             icon = painterResource(id = R.drawable.ic_google),
                             badgeText = "Fastest & Most Used",
                             borderColor = Color(0xFF008E11).copy(0.8f),
+                            enabled = authState !is AuthState.Loading || activeAuthMethod == "GOOGLE",
+                            isLoading = authState is AuthState.Loading && activeAuthMethod == "GOOGLE"
                         )
 
                         Spacer(modifier = Modifier.height(8.dp))

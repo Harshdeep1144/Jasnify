@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.venues
+package com.harshdeep.jasnify.presentation.screens.others
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -142,6 +142,7 @@ fun LocationScreen(
     onAddressSelected: (String) -> Unit,
     onBackClick: () -> Unit,
     backIcon: TopIcon = TopIcon.Predefined.BACK,
+    autoFocusSearch: Boolean = false,
     sharedTransitionScope: SharedTransitionScope? = null,
     animatedVisibilityScope: AnimatedVisibilityScope? = null
 ) {
@@ -150,7 +151,7 @@ fun LocationScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var text by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+    var isSearchActive by remember { mutableStateOf(autoFocusSearch) }
 
     var filteredSuggestions by remember { mutableStateOf<List<String>>(emptyList()) }
     var isSearchingLocation by remember { mutableStateOf(false) }
@@ -510,6 +511,7 @@ fun LocationScreen(
                             value = text,
                             onValueChange = { text = it },
                             onActiveChange = { isSearchActive = it },
+                            autoFocus = autoFocusSearch,
                             modifier = Modifier.sharedBounds(
                                 rememberSharedContentState(key = "location_picker"),
                                 animatedVisibilityScope = animatedVisibilityScope,
@@ -528,6 +530,7 @@ fun LocationScreen(
                         value = text,
                         onValueChange = { text = it },
                         onActiveChange = { isSearchActive = it },
+                        autoFocus = autoFocusSearch,
                         modifier = Modifier
                     )
                 }

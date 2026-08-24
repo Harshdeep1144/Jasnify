@@ -111,29 +111,28 @@ fun VendorMainContent(
     }
 
     val filteredAllVendors = remember(allVendors, searchQuery) {
-        val baseList = allVendors.ifEmpty { MockData.sampleVendors }
         val query = searchQuery.trim()
         if (query.isEmpty()) {
-            baseList.distinctBy { it.id }
+            allVendors
         } else {
-            baseList.filter {
+            allVendors.filter {
                 it.name.contains(query, ignoreCase = true) ||
                         it.category.contains(query, ignoreCase = true) ||
                         it.locality.contains(query, ignoreCase = true) ||
                         it.city.contains(query, ignoreCase = true) ||
                         it.location.contains(query, ignoreCase = true)
-            }.distinctBy { it.id }
+            }
         }
     }
 
-    val (makeupVendors, photographyVendors, mehendiVendors) = remember(allVendors) {
-        val base = allVendors.ifEmpty { MockData.sampleVendors }
-        val grouped = base.groupBy { it.category }
-        Triple(
-            grouped["Makeup"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Makeup" } },
-            grouped["Photography"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Photography" } },
-            grouped["Mehendi"].orEmpty().ifEmpty { MockData.sampleVendors.filter { it.category == "Mehendi" } }
-        )
+    val makeupVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Makeup" }
+    }
+    val photographyVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Photography" }
+    }
+    val mehendiVendors = remember(allVendors) {
+        allVendors.filter { it.category == "Mehendi" }
     }
 
     LaunchedEffect(isSearchActive) {
@@ -189,7 +188,7 @@ fun VendorMainContent(
                                 onMenuClick = if (active) null else onMenuClick,
                                 onDropdownClick = if (active) null else onLocationClick,
                                 titleIcon = if (active) null else vendorTitlePainter,
-                                menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                 backIcon = TopIcon.Predefined.DOWN,
                                 isLargeTitle = true,
                                 isLeftAligned = !active,

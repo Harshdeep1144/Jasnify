@@ -27,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -98,6 +100,7 @@ enum class EventCreationStep(val title: String, val stepNumber: Int) {
 fun EventCreation(
     navController: NavController,
     eventViewModel: EventViewModel = hiltViewModel(),
+    authViewModel: com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel = hiltViewModel(),
     fromProfile: Boolean = false
 ) {
     SetStatusBarTheme(
@@ -131,8 +134,20 @@ fun EventCreation(
 
     // --- Toast State ---
     var toastData by remember { mutableStateOf(ToastData()) }
+    val haptic = LocalHapticFeedback.current
+
     LaunchedEffect(toastData.message) {
         if (toastData.message != null && toastData.type != ToastType.SUCCESS) {
+            if (toastData.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000L.milliseconds)
             toastData = toastData.copy(message = null)
         }
@@ -181,6 +196,7 @@ fun EventCreation(
                 val successMessage = (eventState as EventCreationState.Success).message
                 toastData = ToastData(successMessage, ToastType.SUCCESS)
 
+                authViewModel.setCompletedOnboarding(true)
                 delay(500L.milliseconds)
 
                 navController.navigate(Screen.MainAppScreen.route) {
@@ -355,7 +371,8 @@ fun EventCreation(
                         modifier = Modifier.fillMaxWidth(),
                         type = ButtonType.Primary,
                         shapeStyle = ButtonShapeStyle.Square,
-                        enabled = isContinueEnabled
+                        enabled = isContinueEnabled,
+                        isLoading = eventState is EventCreationState.Loading
                     )
 
                     if (currentStep == EventCreationStep.EVENT_TYPE) {

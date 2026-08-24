@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.repository.ChecklistRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,10 +13,25 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ChecklistViewModel @Inject constructor(
-    private val repository: ChecklistRepository
+    private val repository: ChecklistRepository,
+    private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 
     private val _eventId = MutableStateFlow<String?>(null)
+
+    private val _recentColors = MutableStateFlow<List<String>>(
+        preferenceManager.getRecentColors(PreferenceManager.KEY_RECENT_COLORS_CHECKLIST)
+    )
+    val recentColors: StateFlow<List<String>> = _recentColors.asStateFlow()
+
+    fun addRecentColor(colorHex: String) {
+        val current = _recentColors.value.toMutableList()
+        current.remove(colorHex)
+        current.add(0, colorHex)
+        val limited = current.take(12)
+        _recentColors.value = limited
+        preferenceManager.saveRecentColors(PreferenceManager.KEY_RECENT_COLORS_CHECKLIST, limited)
+    }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val checklists: StateFlow<List<Checklist>> = _eventId

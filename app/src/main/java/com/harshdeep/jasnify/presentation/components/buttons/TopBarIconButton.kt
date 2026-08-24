@@ -112,12 +112,11 @@ fun TopBarIconButton(
         else -> iconColor
     }
 
-    val defaultOutline = MaterialTheme.colorScheme.outline
-    val borderBrush: Brush = remember(borderGradientColors, borderColor, defaultOutline) {
+    val borderBrush: Brush = remember(borderGradientColors, borderColor) {
         when {
             borderGradientColors != null -> Brush.verticalGradient(borderGradientColors)
             borderColor != null -> SolidColor(borderColor)
-            else -> SolidColor(defaultOutline.copy(alpha = 0.16f))
+            else -> SolidColor(Color.White.copy(alpha = 0.20f))
         }
     }
 

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -226,6 +227,7 @@ private fun <T> FloatingBottomTab(
 ) {
     val density = LocalDensity.current
     var tabBoundsMap by remember { mutableStateOf(mapOf<Int, TabBounds>()) }
+    val isAllIconOnly = remember(items) { items.all { it.label.isEmpty() } }
 
     val selectedIndex = remember(items, selectedValue) {
         items.indexOfFirst { it.value == selectedValue }.coerceAtLeast(0)
@@ -253,10 +255,17 @@ private fun <T> FloatingBottomTab(
 
     Box(
         modifier = modifier
-            .fillMaxWidth()
-            .background(brush = BottomGradientBrush)
-            .navigationBarsPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .then(
+                if (isAllIconOnly) {
+                    Modifier.wrapContentSize()
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .background(brush = BottomGradientBrush)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                }
+            ),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
@@ -295,10 +304,11 @@ private fun <T> FloatingBottomTab(
                 ) {
                     items.forEachIndexed { index, item ->
                         val isSelected = item.value == selectedValue
+                        val isIconOnly = item.label.isEmpty()
 
                         Box(
                             modifier = Modifier
-                                .defaultMinSize(minWidth = 165.dp)
+                                .defaultMinSize(minWidth = if (isIconOnly) 79.79.dp else 164.58.dp)
                                 .height(56.dp)
                                 .onGloballyPositioned { coordinates ->
                                     with(density) {
@@ -314,7 +324,7 @@ private fun <T> FloatingBottomTab(
                                 .noRippleClickable {
                                     onItemSelected(item.value)
                                 }
-                                .padding(horizontal = 20.dp),
+                                .padding(horizontal = if (isIconOnly) 0.dp else 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             BottomNavItemContent(
@@ -352,10 +362,10 @@ private fun <T> BottomNavItemContent(
                 tint = contentColor,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.width(8.dp))
         }
 
         if (item.badgeCount != null) {
+            if (item.icon != null) Spacer(modifier = Modifier.width(8.dp))
             Surface(
                 color = contentColor,
                 shape = SquircleShape(100, 0.1f),
@@ -372,50 +382,18 @@ private fun <T> BottomNavItemContent(
                     )
                 }
             }
-            Spacer(modifier = Modifier.width(8.dp))
         }
 
-        Text(
-            text = item.label,
-            color = contentColor,
-            fontWeight = FontWeight.Medium,
-            style = JasnifyTheme.typography.displaySmall
-        )
+        if (item.label.isNotEmpty()) {
+            if (item.icon != null || item.badgeCount != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = item.label,
+                color = contentColor,
+                fontWeight = FontWeight.Medium,
+                style = JasnifyTheme.typography.displaySmall
+            )
+        }
     }
-}
-
-// --- Previews ---
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewStandardBottomTab() {
-    var selectedValue by remember { mutableIntStateOf(1) }
-
-    val items = listOf(
-        TabItem("Home", 1, badgeCount = 24),
-        TabItem("Profile", 2, badgeCount = 5),
-    )
-    BottomTab(
-        items = items,
-        selectedValue = selectedValue,
-        onItemSelected = { newValue -> selectedValue = newValue },
-        style = BottomTabStyle.STANDARD
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun PreviewFloatingBottomTab() {
-    var selectedValue by remember { mutableIntStateOf(1) }
-
-    val items = listOf(
-        TabItem("Explore Content", 1),
-        TabItem("Saved Items & Collections", 2),
-    )
-    BottomTab(
-        items = items,
-        selectedValue = selectedValue,
-        onItemSelected = { newValue -> selectedValue = newValue },
-        style = BottomTabStyle.FLOATING
-    )
 }

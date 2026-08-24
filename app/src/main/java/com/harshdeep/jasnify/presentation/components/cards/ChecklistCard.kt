@@ -50,7 +50,7 @@ fun ChecklistCard(
             ) {
                 Text(
                     text = checklist.dateTime,
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
+                    style = JasnifyTheme.typography.labelMedium,
                     color = ContentSecondary
                 )
                 Spacer(Modifier.width(4.dp))

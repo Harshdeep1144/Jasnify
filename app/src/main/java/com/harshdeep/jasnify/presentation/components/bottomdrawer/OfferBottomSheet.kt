@@ -144,7 +144,7 @@ fun OfferBottomSheet(
                             Spacer(modifier = Modifier.height(16.dp))
 
                             Text(
-                                text = "Terms & Conditions",
+                                text = "Terms of Use",
                                 style = JasnifyTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Medium,
                                 color = ContentSecondary

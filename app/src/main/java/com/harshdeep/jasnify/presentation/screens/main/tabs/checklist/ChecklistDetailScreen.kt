@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -65,6 +66,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
@@ -76,18 +80,17 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.dialogs.ColorPickerWheel
 import com.harshdeep.jasnify.presentation.components.others.ChecklistItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.theme.CloudWhisper
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.LightSkyBlue
-import com.harshdeep.jasnify.theme.PaleLavender
-import com.harshdeep.jasnify.theme.SoftMint
-import com.harshdeep.jasnify.theme.SoftPeach
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -682,19 +685,48 @@ private fun areColorsEqual(c1: Color, c2: Color): Boolean {
 @Composable
 fun ColorPickerBottomSheet(
     initialColor: Color,
+    recentColors: List<Color> = emptyList(),
     onColorPreview: (Color) -> Unit,
     onConfirm: (Color) -> Unit,
     onDismiss: () -> Unit,
     onProgress: ((Float) -> Unit)? = null
 ) {
     var selectedColor by remember { mutableStateOf(initialColor) }
+    var showColorWheel by remember { mutableStateOf(false) }
 
-    val colors = remember(initialColor) {
+    val colors = remember(initialColor, recentColors) {
         val matchesExisting = BaseColorPalette.any { areColorsEqual(it, initialColor) }
-        if (matchesExisting) {
+        val finalBase = if (matchesExisting) {
             BaseColorPalette
         } else {
             listOf(initialColor) + BaseColorPalette
+        }
+        (recentColors + finalBase).distinctBy { it.toArgb() }
+    }
+
+    if (showColorWheel) {
+        Dialog(
+            onDismissRequest = { showColorWheel = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
+                    .noRippleClickable { showColorWheel = false },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(modifier = Modifier.noRippleClickable { }) {
+                    ColorPickerWheel(
+                        initialColor = selectedColor,
+                        onColorSelected = { newColor ->
+                            selectedColor = newColor
+                            onColorPreview(newColor)
+                        },
+                        onDismiss = { showColorWheel = false }
+                    )
+                }
+            }
         }
     }
 
@@ -718,12 +750,92 @@ fun ColorPickerBottomSheet(
                 color = ContentPrimary
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            val chunkedColors = remember(colors) { colors.chunked(6) }
+            if (recentColors.isNotEmpty()) {
+                Text(
+                    text = "RECENT COLORS",
+                    style = JasnifyTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                    color = ContentSecondary,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    recentColors.take(6).forEach { color ->
+                        ColorCircle(
+                            color = color,
+                            isSelected = areColorsEqual(color, selectedColor),
+                            onClick = {
+                                selectedColor = color
+                                onColorPreview(color)
+                            }
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            Text(
+                text = "PALETTE",
+                style = JasnifyTheme.typography.labelSmall.copy(letterSpacing = 1.sp),
+                color = ContentSecondary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // First row takes 5 colors (to accommodate the color wheel at index 0)
+            val paletteOnly = colors.filter { c -> recentColors.none { areColorsEqual(it, c) } }
+            val firstRowColors = remember(paletteOnly) { paletteOnly.take(5) }
+            val remainingRowsColors = remember(paletteOnly) { paletteOnly.drop(5).chunked(6) }
 
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                chunkedColors.forEach { rowColors ->
+                // First Row: Color Wheel + First 5 Colors
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(
+                                brush = Brush.sweepGradient(
+                                    listOf(
+                                        Color.Red,
+                                        Color.Yellow,
+                                        Color.Green,
+                                        Color.Cyan,
+                                        Color.Blue,
+                                        Color.Magenta,
+                                        Color.Red
+                                    )
+                                )
+                            )
+                            .noRippleClickable {
+                                showColorWheel = true
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(20.dp)
+                                .clip(CircleShape)
+                                .background(selectedColor)
+                        )
+                    }
+
+                    firstRowColors.forEach { color ->
+                        ColorCircle(
+                            color = color,
+                            isSelected = areColorsEqual(color, selectedColor),
+                            onClick = {
+                                selectedColor = color
+                                onColorPreview(color)
+                            }
+                        )
+                    }
+                }
+
+                // Subsequent Rows: 6 Colors per row
+                remainingRowsColors.forEach { rowColors ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         rowColors.forEach { color ->
                             ColorCircle(

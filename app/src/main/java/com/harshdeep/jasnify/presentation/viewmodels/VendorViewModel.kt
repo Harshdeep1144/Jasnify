@@ -12,11 +12,9 @@ import com.harshdeep.jasnify.domain.repository.VendorRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class VendorViewModel @Inject constructor(
@@ -30,6 +28,8 @@ class VendorViewModel @Inject constructor(
 
     private val _isReviewSubmitting = MutableStateFlow(false)
     val isReviewSubmitting: StateFlow<Boolean> = _isReviewSubmitting.asStateFlow()
+
+    private val _eventId = MutableStateFlow<String?>(null)
 
     fun submitReview(
         vendorId: String,
@@ -107,6 +107,16 @@ class VendorViewModel @Inject constructor(
     val allVendors: StateFlow<List<Vendor>> = repository.getAllVendors()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, _eventId) { all, eventId ->
+        val saved = if (eventId != null) repository.getSavedVendors(eventId).first() else emptyList()
+        val savedKeys = saved.map { "${it.vendorName}-${it.category}" }.toSet()
+        val base = all.ifEmpty { com.harshdeep.jasnify.data.mock.MockData.sampleVendors }
+        base.map { vendor ->
+            vendor.copy(favorite = savedKeys.contains("${vendor.name}-${vendor.category}"))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _selectedVendorId = MutableStateFlow<String?>(null)
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -122,8 +132,6 @@ class VendorViewModel @Inject constructor(
             _selectedVendorId.value = id
         }
     }
-
-    private val _eventId = MutableStateFlow<String?>(null)
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
     val savedVendors: StateFlow<List<SavedVendor>> = _eventId

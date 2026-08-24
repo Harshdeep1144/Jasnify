@@ -1,7 +1,7 @@
 [versions]
 
-kotlin = "2.2.10"
-hilt = "2.54"
+kotlin = "2.1.0"
+hilt = "2.60.1"
 composeBom = "2024.09.00"
 agp = "9.2.1"
 coreKtx = "1.17.0"
@@ -86,6 +86,7 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
 firebase-ai = { group = "com.google.firebase", name = "firebase-ai" }
 firebase-appcheck-debug = { group = "com.google.firebase", name = "firebase-appcheck-debug" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging" }
 
 
 [plugins]

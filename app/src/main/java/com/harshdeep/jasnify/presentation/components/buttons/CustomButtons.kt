@@ -11,17 +11,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -140,6 +143,7 @@ fun CustomTextButton(
     contentColor: Color? = null,
     disabledContainerColor: Color? = null,
     disabledContentColor: Color? = null,
+    isLoading: Boolean = false
 ) {
     val (colors, height, shape) = getButtonStyles(
         size = size,
@@ -167,18 +171,36 @@ fun CustomTextButton(
     val finalBorder = customBorder?: null
 
     Button(
-        onClick = onClick,
+        onClick = if (isLoading) ({}) else onClick,
         modifier = modifier.height(height),
         enabled = enabled,
         shape = shape,
         border = finalBorder,
-        colors = colors,
+        colors = if (isLoading) {
+            ButtonDefaults.buttonColors(
+                containerColor = colors.containerColor,
+                contentColor = colors.contentColor,
+                disabledContainerColor = colors.containerColor,
+                disabledContentColor = colors.contentColor
+            )
+        } else colors,
         contentPadding = contentPadding
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.wrapContentHeight(unbounded = true) // Allows the row to be outside bounds
-        ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(iconSize),
+                    color = colors.contentColor,
+                    strokeWidth = 2.dp
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .wrapContentHeight(unbounded = true) // Allows the row to be outside bounds
+                    .graphicsLayer { alpha = if (isLoading) 0f else 1f }
+            ) {
 
             // Leading Icon
             if (leadingIcon != null) {
@@ -215,6 +237,7 @@ fun CustomTextButton(
         }
     }
 }
+}
 
 // --- Custom Icon Button Composable (Icon Only) ---
 
@@ -231,6 +254,7 @@ fun CustomIconButton(
     contentColor: Color? = null,
     disabledContainerColor: Color? = null,
     disabledContentColor: Color? = null,
+    isLoading: Boolean = false
 ) {
     val (colors, height, _) = getButtonStyles(
         size = size,
@@ -259,18 +283,35 @@ fun CustomIconButton(
     }
 
     Button(
-        onClick = onClick,
+        onClick = if (isLoading) ({}) else onClick,
         modifier = modifier.size(iconButtonSize),
         enabled = enabled,
         shape = shape,
-        colors = colors,
+        colors = if (isLoading) {
+            ButtonDefaults.buttonColors(
+                containerColor = colors.containerColor,
+                contentColor = colors.contentColor,
+                disabledContainerColor = colors.containerColor,
+                disabledContentColor = colors.contentColor
+            )
+        } else colors,
         contentPadding = PaddingValues(0.dp)
     ) {
-        Icon(
-            painter = icon,
-            contentDescription = null,
-            modifier = Modifier.size(iconSize)
-        )
+        Box(contentAlignment = Alignment.Center) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(iconSize * 0.7f),
+                    color = colors.contentColor,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Icon(
+                    painter = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize)
+                )
+            }
+        }
     }
 }
 

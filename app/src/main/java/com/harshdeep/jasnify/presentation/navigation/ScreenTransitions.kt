@@ -1,9 +1,12 @@
 package com.harshdeep.jasnify.presentation.navigation
 
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -23,6 +26,68 @@ object MotionConstants {
  * Pre-configured ContentTransform instances for navigation transitions.
  */
 object ScreenTransitions {
+
+    val smoothDepthEasing = CubicBezierEasing(0.25f, 0.1f, 0.25f, 1.0f)
+
+    // Zoom Depth Forward (Home -> Detail)
+    val ZoomDepthForwardTransition: ContentTransform =
+        (scaleIn(
+            initialScale = 0.9f,
+            animationSpec = tween(
+                durationMillis = 300,
+                delayMillis = 100,
+                easing = smoothDepthEasing
+            )
+        ) + fadeIn(
+            animationSpec = tween(
+                durationMillis = 300,
+                delayMillis = 100,
+                easing = smoothDepthEasing
+            )
+        )).togetherWith(
+            scaleOut(
+                targetScale = 1.1f,
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = smoothDepthEasing
+                )
+            ) + fadeOut(
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = smoothDepthEasing
+                )
+            )
+        )
+
+    // Zoom Depth Return (Detail -> Home)
+    val ZoomDepthReturnTransition: ContentTransform =
+        (scaleIn(
+            initialScale = 1.1f,
+            animationSpec = tween(
+                durationMillis = 300,
+                delayMillis = 80,
+                easing = smoothDepthEasing
+            )
+        ) + fadeIn(
+            animationSpec = tween(
+                durationMillis = 300,
+                delayMillis = 80,
+                easing = smoothDepthEasing
+            )
+        )).togetherWith(
+            scaleOut(
+                targetScale = 0.9f,
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = smoothDepthEasing
+                )
+            ) + fadeOut(
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = smoothDepthEasing
+                )
+            )
+        )
 
 // =========================================================================
 //  STATIC BACKGROUND TRANSITIONS (Previous screen DOES NOT change position)

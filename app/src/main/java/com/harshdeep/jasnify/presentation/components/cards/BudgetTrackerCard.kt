@@ -53,6 +53,7 @@ import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -103,11 +104,11 @@ fun BudgetTrackerCard(
             .border(
                 width = 1.dp,
                 color = Color(0x33006363),
-                shape = SquircleShape(20.dp, CornerSmoothingDefault)
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
             )
-            .clip(SquircleShape(20.dp, CornerSmoothingDefault))
+            .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
             .noRippleClickable { onClick() },
-        shape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+        shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
             containerColor = Color(0xFFBED4D4),
             contentColor = ContentPrimary

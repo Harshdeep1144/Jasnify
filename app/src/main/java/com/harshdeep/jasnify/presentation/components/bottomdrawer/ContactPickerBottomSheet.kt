@@ -1,5 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
@@ -35,9 +38,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -56,16 +61,19 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.SearchBarType
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceInvPrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
 
@@ -103,6 +111,8 @@ private val FooterCardShape = SquircleShape(
 @Composable
 fun ContactPickerBottomSheet(
     contacts: List<Contact>,
+    hasPermission: Boolean,
+    onPermissionRequest: () -> Unit,
     onDismiss: () -> Unit,
     onAddManuallyClick: () -> Unit,
     onContactsSelected: (List<Contact>, Boolean) -> Unit,
@@ -120,25 +130,50 @@ fun ContactPickerBottomSheet(
     var includePhoneNo by remember { mutableStateOf(true) }
     var currentSheetHeight by remember { mutableStateOf<Dp?>(620.dp) }
 
-    val filteredContacts = remember(contacts, searchQuery, existingGuestIdentifiers) {
-        val trimmedQuery = searchQuery.trim()
-        val base = if (trimmedQuery.isEmpty()) {
-            contacts
-        } else {
-            contacts.filter {
-                it.name.contains(trimmedQuery, ignoreCase = true) ||
-                        it.phoneNumber.contains(trimmedQuery)
-            }
-        }
+    val animatedSheetHeight by animateDpAsState(
+        targetValue = currentSheetHeight ?: 1000.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessLow),
+        label = "SheetHeightAnimation"
+    )
 
-        if (existingGuestIdentifiers.isEmpty()) {
-            base
-        } else {
-            base.filter { contact ->
-                val identifier = contact.name.lowercase() + contact.phoneNumber
-                !existingGuestIdentifiers.contains(identifier)
+    val mockContacts = remember {
+        listOf(
+            Contact("m1", "Kavita N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=47"),
+            Contact("m2", "Akriti R.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=32"),
+            Contact("m3", "Tarun C.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=12"),
+            Contact("m4", "Lina A.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=45"),
+            Contact("m5", "Sameer N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=68"),
+            Contact("m6", "Rahul M.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=11"),
+            Contact("m7", "Priya S.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=23"),
+            Contact("m8", "Arjun K.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=56"),
+            Contact("m9", "Neha P.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=5"),
+            Contact("m10", "Vikram J.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=60")
+        )
+    }
+
+    val displayContacts = if (hasPermission) {
+        remember(contacts, searchQuery, existingGuestIdentifiers) {
+            val trimmedQuery = searchQuery.trim()
+            val base = if (trimmedQuery.isEmpty()) {
+                contacts
+            } else {
+                contacts.filter {
+                    it.name.contains(trimmedQuery, ignoreCase = true) ||
+                            it.phoneNumber.contains(trimmedQuery)
+                }
+            }
+
+            if (existingGuestIdentifiers.isEmpty()) {
+                base
+            } else {
+                base.filter { contact ->
+                    val identifier = contact.name.lowercase() + contact.phoneNumber
+                    !existingGuestIdentifiers.contains(identifier)
+                }
             }
         }
+    } else {
+        mockContacts
     }
 
     CustomBottomSheet(
@@ -148,7 +183,7 @@ fun ContactPickerBottomSheet(
         showCloseButton = true,
         sheetGesturesEnabled = false,
         showDragHandle = true,
-        sheetHeight = currentSheetHeight,
+        sheetHeight = animatedSheetHeight,
         hasToast = hasToast,
         toast = toast
     ) {
@@ -180,122 +215,155 @@ fun ContactPickerBottomSheet(
                 )
             }
 
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .nestedScroll(remember {
-                        object : NestedScrollConnection {
-                            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                                if (available.y < 0 && currentSheetHeight != null) {
-                                    currentSheetHeight = null
-                                }
-                                return Offset.Zero
-                            }
-                        }
-                    }),
-                contentPadding = PaddingValues(bottom = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                itemsIndexed(
-                    items = filteredContacts,
-                    key = { _, contact -> contact.id + contact.phoneNumber },
-                    contentType = { _, _ -> "contact_item" }
-                ) { index, contact ->
-                    val isSelected = selectedPhoneNumbers.contains(contact.phoneNumber)
-
-                    val itemShape = when {
-                        filteredContacts.size == 1 -> SingleContactItemShape
-                        index == 0 -> TopContactItemShape
-                        index == filteredContacts.lastIndex -> BottomContactItemShape
-                        else -> MiddleContactItemShape
-                    }
-
-                    ContactItem(
-                        contact = contact,
-                        isSelected = isSelected,
-                        shape = itemShape,
-                        onToggle = {
-                            if (isSelected) {
-                                selectedContacts.removeAll { it.phoneNumber == contact.phoneNumber }
-                            } else {
-                                selectedContacts.add(contact)
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp)
+                        .nestedScroll(remember {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    if (available.y < 0 && currentSheetHeight != null) {
+                                        currentSheetHeight = null
+                                    }
+                                    return Offset.Zero
+                                }
                             }
+                        }),
+                    contentPadding = PaddingValues(bottom = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    itemsIndexed(
+                        items = displayContacts,
+                        key = { _, contact -> contact.id + contact.phoneNumber },
+                        contentType = { _, _ -> "contact_item" }
+                    ) { index, contact ->
+                        val isSelected = selectedPhoneNumbers.contains(contact.phoneNumber)
+
+                        val itemShape = when {
+                            displayContacts.size == 1 -> SingleContactItemShape
+                            index == 0 -> TopContactItemShape
+                            index == displayContacts.lastIndex -> BottomContactItemShape
+                            else -> MiddleContactItemShape
                         }
-                    )
+
+                        ContactItem(
+                            contact = contact,
+                            isSelected = isSelected && hasPermission,
+                            shape = itemShape,
+                            isBlurred = !hasPermission,
+                            onToggle = {
+                                if (hasPermission) {
+                                    if (isSelected) {
+                                        selectedContacts.removeAll { it.phoneNumber == contact.phoneNumber }
+                                    } else {
+                                        selectedContacts.add(contact)
+                                    }
+                                } else {
+                                    onPermissionRequest()
+                                }
+                            }
+                        )
+                    }
+                }
+
+                if (!hasPermission) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Transparent),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CustomTextButton(
+                            onClick = onPermissionRequest,
+                            text = "View Your Contacts",
+                            leadingIcon = painterResource(id = R.drawable.ic_eye_closed),
+                            containerColor = SurfaceInvPrimary,
+                            contentColor = ContentInvPrimary,
+                            shapeStyle = ButtonShapeStyle.Round
+                        )
+                    }
                 }
             }
 
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+            if(hasPermission){
+                HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp)
-                    .clip(FooterCardShape)
-                    .background(SurfaceSecondary)
-            ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .padding(12.dp)
                         .clip(FooterCardShape)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            includePhoneNo = !includePhoneNo
-                        }
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(SurfaceSecondary)
                 ) {
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(FooterCardShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                includePhoneNo = !includePhoneNo
+                            }
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_phone),
-                            contentDescription = null,
-                            tint = ContentSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = "Include Contact No.",
-                            style = JasnifyTheme.typography.headingSmall,
-                            color = ContentSecondary,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_phone),
+                                contentDescription = null,
+                                tint = ContentSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = "Include Contact No.",
+                                style = JasnifyTheme.typography.headingSmall,
+                                color = ContentSecondary,
+                            )
+                        }
+
+                        Switch(
+                            checked = includePhoneNo,
+                            onCheckedChange = { includePhoneNo = it },
+                            modifier = Modifier
+                                .height(24.dp)
+                                .scale(0.8f),
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = ContentInvPrimary,
+                                checkedTrackColor = ContentBrand,
+                                uncheckedThumbColor = ContentInvPrimary,
+                                uncheckedTrackColor = ContentTertiary,
+                                uncheckedBorderColor = Color.Transparent
+                            )
                         )
                     }
 
-                    Switch(
-                        checked = includePhoneNo,
-                        onCheckedChange = { includePhoneNo = it },
-                        modifier = Modifier
-                            .height(24.dp)
-                            .scale(0.8f),
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = ContentInvPrimary,
-                            checkedTrackColor = ContentBrand,
-                            uncheckedThumbColor = ContentInvPrimary,
-                            uncheckedTrackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                        )
+                    CustomTextButton(
+                        onClick = {
+                            if (!hasPermission) {
+                                onPermissionRequest()
+                            } else if (selectedContacts.isEmpty()) {
+                                onContactsSelected(emptyList(), includePhoneNo)
+                            } else {
+                                onContactsSelected(selectedContacts.toList(), includePhoneNo)
+                                onDismiss()
+                            }
+                        },
+                        text = "Import Selected (${selectedContacts.size})",
+                        modifier = Modifier.fillMaxWidth(),
+                        type = ButtonType.Primary,
+                        shapeStyle = ButtonShapeStyle.Square
                     )
                 }
-
-                CustomTextButton(
-                    onClick = {
-                        if (selectedContacts.isEmpty()) {
-                            onContactsSelected(emptyList(), includePhoneNo)
-                        } else {
-                            onContactsSelected(selectedContacts.toList(), includePhoneNo)
-                            onDismiss()
-                        }
-                    },
-                    text = "Import Selected (${selectedContacts.size})",
-                    modifier = Modifier.fillMaxWidth(),
-                    type = ButtonType.Primary,
-                    shapeStyle = ButtonShapeStyle.Square
-                )
             }
         }
     }
@@ -306,6 +374,7 @@ private fun ContactItem(
     contact: Contact,
     isSelected: Boolean,
     shape: Shape,
+    isBlurred: Boolean = false,
     onToggle: () -> Unit
 ) {
     Row(
@@ -313,60 +382,66 @@ private fun ContactItem(
             .fillMaxWidth()
             .clip(shape)
             .background(SurfaceSecondary)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
+            .noRippleClickable {
                 onToggle()
             }
+            .then(if (isBlurred) Modifier.blur(12.dp) else Modifier)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        CustomChecker(
-            checked = isSelected,
-            onCheckedChange = { onToggle() },
-            activeColor = ContentPrimary
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Box(
+        Row(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(BackgroundSecondary)
+                .weight(1f),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            if (!contact.photoUri.isNullOrEmpty()) {
-                AsyncImage(
-                    model = contact.photoUri,
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
+            if(!isBlurred){
+                CustomChecker(
+                    checked = isSelected,
+                    onCheckedChange = { onToggle() },
+                    activeColor = ContentPrimary
                 )
-            } else {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_profile_placeholder),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize()
+
+                Spacer(modifier = Modifier.width(12.dp))
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(BackgroundSecondary)
+            ) {
+                if (!contact.photoUri.isNullOrEmpty()) {
+                    AsyncImage(
+                        model = contact.photoUri,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    Image(
+                        painter = painterResource(id = R.drawable.ic_profile_placeholder),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = contact.name,
+                    style = JasnifyTheme.typography.labelXLarge,
+                    color = ContentPrimary,
+                    maxLines = 1,
+                    modifier = Modifier.basicMarquee()
+                )
+                Text(
+                    text = contact.phoneNumber,
+                    style = JasnifyTheme.typography.labelLarge,
+                    color = ContentSecondary
                 )
             }
-        }
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = contact.name,
-                style = JasnifyTheme.typography.labelXLarge,
-                color = ContentPrimary,
-                maxLines = 1,
-                modifier = Modifier.basicMarquee()
-            )
-            Text(
-                text = contact.phoneNumber,
-                style = JasnifyTheme.typography.labelLarge,
-                color = ContentSecondary
-            )
         }
     }
 }
@@ -374,48 +449,22 @@ private fun ContactItem(
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
 fun PreviewContactPickerBottomSheet() {
-    val mockContacts = listOf(
-        Contact(
-            id = "1",
-            name = "Kavita N.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "2",
-            name = "Akriti R.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "3",
-            name = "Tarun C.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "4",
-            name = "Lina A.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "5",
-            name = "Sameer N.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
-        ),
-        Contact(
-            id = "6",
-            name = "Rahul M.",
-            phoneNumber = "+91 98765 43210",
-            photoUri = null
+    val mockContacts = remember {
+        listOf(
+            Contact("m1", "Kavita N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=47"),
+            Contact("m2", "Akriti R.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=32"),
+            Contact("m3", "Tarun C.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=12"),
+            Contact("m4", "Lina A.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=45"),
+            Contact("m5", "Sameer N.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=68"),
+            Contact("m6", "Rahul M.", "+91 98765 43210 xxx", "https://i.pravatar.cc/150?img=11")
         )
-    )
+    }
 
     JasnifyTheme {
         ContactPickerBottomSheet(
             contacts = mockContacts,
+            hasPermission = false,
+            onPermissionRequest = {},
             onDismiss = {},
             onAddManuallyClick = {},
             onContactsSelected = { _, _ -> },

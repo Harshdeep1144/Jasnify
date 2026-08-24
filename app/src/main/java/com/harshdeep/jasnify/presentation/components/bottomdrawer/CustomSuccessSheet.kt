@@ -15,6 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -35,6 +37,12 @@ fun CustomSuccessBottomSheet(
     height: Dp = 400.dp,
     onProgress: ((Float) -> Unit)? = null
 ) {
+    val haptic = LocalHapticFeedback.current
+
+    LaunchedEffect(Unit) {
+        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+
     LaunchedEffect(coolDownMillis) {
         delay(coolDownMillis.milliseconds)
         onDismiss()

@@ -1,6 +1,8 @@
 package com.harshdeep.jasnify.presentation.screens.budget
 
+import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -41,7 +43,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -68,7 +72,9 @@ import com.harshdeep.jasnify.presentation.components.others.PieChartSlice
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.components.states.BudgetLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -87,8 +93,7 @@ enum class BudgetScreenView {
     EXPENSE_SUMMARY,
     EXPENSE_CATEGORY,
     CATEGORY_DETAIL,
-    MANAGE_ROOM_ACCESS,
-    AI_CHAT
+    MANAGE_ROOM_ACCESS
 }
 
 private val DefaultCategoryList = listOf(
@@ -134,6 +139,7 @@ private fun parseExpenseAmount(amountStr: String): Double {
     return amountStr.replace("₹", "").replace(",", "").toDoubleOrNull() ?: 0.0
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BudgetScreen(
@@ -143,6 +149,7 @@ fun BudgetScreen(
     roomViewModel: RoomViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
+    var showAiChat by remember { mutableStateOf(false) }
     var currentView by remember { mutableStateOf(BudgetScreenView.BUDGET_TRACKER) }
     var aiChatContext by remember { mutableStateOf("") }
 
@@ -153,6 +160,11 @@ fun BudgetScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        BudgetLoadingState()
+        return
+    }
 
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
@@ -211,21 +223,36 @@ fun BudgetScreen(
     }
 
     var toastData by remember { mutableStateOf(ToastData()) }
+    val haptic = LocalHapticFeedback.current
+
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
 
-    BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER) {
-        currentView = when (currentView) {
-            BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
-            BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
-            BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
-            BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
-            BudgetScreenView.AI_CHAT -> BudgetScreenView.EXPENSE_SUMMARY
-            BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
+    BackHandler(enabled = currentView != BudgetScreenView.BUDGET_TRACKER || showAiChat) {
+        if (showAiChat) {
+            showAiChat = false
+        } else {
+            currentView = when (currentView) {
+                BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
+                BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
+            }
         }
     }
 
@@ -429,7 +456,7 @@ fun BudgetScreen(
                             focusManager.clearFocus()
                         },
                     floatingActionButton = {
-                        if (currentView == BudgetScreenView.BUDGET_TRACKER && !isViewer) {
+                        if (currentView == BudgetScreenView.BUDGET_TRACKER && !isViewer && !showAiChat) {
                             CustomIconButton(
                                 onClick = {
                                     expenseToEdit = null
@@ -492,10 +519,7 @@ fun BudgetScreen(
                                     getCategoryColor = getCategoryColor,
                                     isViewer = isViewer,
                                     onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
-                                    onAddExpenseClick = {
-                                        expenseToEdit = null
-                                        showAddExpenseSheet = true
-                                    },
+                                    onManageCategoriesClick = { currentView = BudgetScreenView.EXPENSE_CATEGORY },
                                     onAiOverviewClick = {
                                         aiChatContext = """
                                             Budget Summary for ${activeEvent?.name ?: "Event"}:
@@ -509,7 +533,7 @@ fun BudgetScreen(
                                             Recent Expenses:
                                             ${allExpenses.take(10).joinToString("\n") { "- ${it.title}: ${it.amount} (${it.category})" }}
                                         """.trimIndent()
-                                        currentView = BudgetScreenView.AI_CHAT
+                                        showAiChat = true
                                     },
                                     formatAmount = { formatter.format(it.toLong()) }
                                 )
@@ -528,11 +552,11 @@ fun BudgetScreen(
                                         selectedCategoryForMenu = it
                                         showCategoryMenuBottomSheet = true
                                     },
-                                    onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
                                     onAddCategoryClick = {
                                         categoryToRename = null
                                         showAddCustomCategorySheet = true
-                                    }
+                                    },
+                                    eventId = activeEvent?.id
                                 )
 
                                 BudgetScreenView.CATEGORY_DETAIL -> {
@@ -588,19 +612,46 @@ fun BudgetScreen(
                                     onLeaveClick = { showLeaveConfirmation = true },
                                     onToastShow = { toastData = it }
                                 )
-
-                                BudgetScreenView.AI_CHAT -> {
-                                    AiChatScreen(
-                                        eventId = activeEvent?.id,
-                                        initialContext = aiChatContext,
-                                        onBackClick = {
-                                            currentView = BudgetScreenView.EXPENSE_SUMMARY
-                                            focusManager.clearFocus()
-                                        }
-                                    )
-                                }
                             }
                         }
+                    }
+
+                    if (!isAnyBottomSheetOpen && !showAiChat && expensesEntities.isNotEmpty()) {
+                        AskAiButton(
+                            onClick = {
+                                aiChatContext = """
+                                    Budget Overview for ${activeEvent?.name ?: "Event"}:
+                                    Total Budget: ₹$formattedTotalBudget
+                                    Total Spent: $formattedTotalSpent
+                                    Remaining: $formattedRemaining (${(remainingPercentage * 100).toInt()}%)
+                                    
+                                    Category Breakdown:
+                                    ${computedCategories.joinToString("\n") { "${it.name}: ${it.amountFormatted}" }}
+                                """.trimIndent()
+                                showAiChat = true
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(bottom = 240.dp)
+                                .zIndex(150f)
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = showAiChat,
+                        enter = slideInVertically(initialOffsetY = { it }),
+                        exit = slideOutVertically(targetOffsetY = { it }),
+                        modifier = Modifier.zIndex(200f)
+                    ) {
+                        AiChatScreen(
+                            eventId = activeEvent?.id,
+                            initialContext = aiChatContext,
+                            shouldStartNewSession = true,
+                            onBackClick = {
+                                showAiChat = false
+                                focusManager.clearFocus()
+                            }
+                        )
                     }
 
                     AnimatedVisibility(

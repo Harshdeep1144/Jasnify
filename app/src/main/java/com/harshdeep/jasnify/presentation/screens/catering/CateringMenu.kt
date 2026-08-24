@@ -1,7 +1,10 @@
 package com.harshdeep.jasnify.presentation.screens.catering
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -23,6 +26,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -43,13 +47,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccessTime
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,8 +75,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -88,6 +95,7 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -97,6 +105,7 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
@@ -105,19 +114,29 @@ import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.data.models.eventTypes
+import com.harshdeep.jasnify.domain.model.Offer
+import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
+import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -144,13 +163,21 @@ import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
+import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.components.states.CateringLoadingState
 import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
+import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorCategoryDetailContent
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.ContentInvPrimary
@@ -164,9 +191,17 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.net.toUri
+import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
+import com.harshdeep.jasnify.theme.ContentBrandDark
+import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 
 private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
 private val DEFAULT_TYPES = listOf("Starters", "Beverages", "Main Course", "Desserts")
@@ -193,7 +228,10 @@ data class MenuItem(
 enum class CateringMenuView {
     MENU,
     MANAGE_ROOM_ACCESS,
-    AI_CHAT
+    VENDOR_CATEGORY_DETAIL,
+    VENDOR_DETAIL,
+    LOCATION_SELECTOR,
+    TIMELINE_DETAIL
 }
 
 @Composable
@@ -309,26 +347,67 @@ fun getCategoryStyle(categoryName: String): CategoryStyle {
     }
 }
 
+private val CateringDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun CateringMenuScreen(
     onBackClick: () -> Unit,
+    navController: NavHostController? = null,
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+    onChatClick: (Vendor) -> Unit = {},
     cateringViewModel: CateringViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    roomViewModel: RoomViewModel = hiltViewModel()
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    vendorViewModel: VendorViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
-    val coroutineScope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
 
     val cateringItemsEntities by cateringViewModel.cateringItems.collectAsStateWithLifecycle()
-    val isLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
+    val isCateringLoading by cateringViewModel.isLoading.collectAsStateWithLifecycle()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        CateringLoadingState()
+        return
+    }
+
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+
+    val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
+    val allVendorsFromRepo by vendorViewModel.allVendors.collectAsStateWithLifecycle()
+    val isVendorsLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
+
+    val vendorSavedDestinations = remember(savedVendorsFromCloud) {
+        savedVendorsFromCloud.associate { "${it.vendorName}-${it.category}" to it.destination }
+    }
+
+    val exploreVendors = remember(allVendorsFromRepo, vendorSavedDestinations) {
+        val base = allVendorsFromRepo.ifEmpty { MockData.sampleVendors }
+        base.map { vendor ->
+            vendor.copy(favorite = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}"))
+        }
+    }
+
+    val foodCategoryItem = remember {
+        vendorCategories.find {
+            it.name.contains("Food", ignoreCase = true) || it.name.contains("Catering", ignoreCase = true)
+        } ?: vendorCategories.first()
+    }
+
+    val foodCategoryVendors = remember(exploreVendors, foodCategoryItem.name) {
+        exploreVendors.filter { it.category == foodCategoryItem.name }
+    }
+
+    val foodCategorySavedVendors = remember(savedVendorsFromCloud, foodCategoryItem.name) {
+        savedVendorsFromCloud.filter { it.category == foodCategoryItem.name }
+    }
 
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
@@ -366,6 +445,7 @@ fun CateringMenuScreen(
         val id = activeEventId
         if (id != null) {
             cateringViewModel.setEventId(id)
+            vendorViewModel.setEventId(id)
             roomViewModel.verifyAccess(id, "Catering", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Catering")
         } else {
@@ -380,47 +460,58 @@ fun CateringMenuScreen(
         }
     }
 
-    var searchText by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
+    var selectedCity by remember { mutableStateOf("City, State") }
 
+    val timelineEvents by remember(activeEvent) {
+        derivedStateOf {
+            activeEvent?.subEvents?.map { subEvent ->
+                val formattedDate = subEvent.date?.let { timestamp ->
+                    CateringDateFormatter.format(Date(timestamp))
+                } ?: "Date TBD"
+
+                TimelineEvent(
+                    id = subEvent.id,
+                    date = formattedDate,
+                    event = subEvent.name,
+                    venues = emptyList()
+                )
+            } ?: emptyList()
+        }
+    }
+
+    var searchText by remember { mutableStateOf("") }
+    var showAiChat by remember { mutableStateOf(false) }
+    var isSearchActive by remember { mutableStateOf(false) }
     var isMultiSelectActive by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
     val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
 
-    val mainListState = rememberLazyListState()
+    val mainListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val categoryListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    val categorySavedGridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
 
-    LaunchedEffect(isSearchActive) {
-        if (!isSearchActive && (mainListState.firstVisibleItemIndex > 0 || mainListState.firstVisibleItemScrollOffset > 0)) {
-            mainListState.animateScrollToItem(0)
-        }
-    }
+    var screenStack by remember { mutableStateOf(listOf(CateringMenuView.MENU)) }
+    val currentView by remember(screenStack) { derivedStateOf { screenStack.last() } }
 
-    BackHandler(enabled = isSelectionMode) {
-        selectedItemIds = emptySet()
-        isMultiSelectActive = false
-        focusManager.clearFocus()
-    }
-
-    BackHandler(enabled = isSearchActive && !isSelectionMode) {
-        isSearchActive = false
-        searchText = ""
-        focusManager.clearFocus()
-        coroutineScope.launch {
-            mainListState.animateScrollToItem(0)
-        }
-    }
-
-    var currentView by remember { mutableStateOf(CateringMenuView.MENU) }
     var aiChatContext by remember { mutableStateOf("") }
 
-    BackHandler(enabled = currentView != CateringMenuView.MENU) {
-        currentView = CateringMenuView.MENU
-    }
+    var selectedCategoryTab by remember { mutableStateOf("explore") }
+    var selectedSavedViewType by remember { mutableStateOf("By Timeline") }
+    var selectedVendor by remember { mutableStateOf<Vendor?>(null) }
+    var selectedTimelineEventId by remember { mutableStateOf<String?>(null) }
 
-    var selectedFilterTab by remember { mutableStateOf("All Items") }
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVendor by remember { mutableStateOf<Vendor?>(null) }
+    var showOfferSheet by remember { mutableStateOf(false) }
+    var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
+    var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
 
     var toastData by remember { mutableStateOf(ToastData()) }
     var activeToastData by remember { mutableStateOf<ToastData?>(null) }
+
+    val isSavedListToast = remember(toastData.message, lastSavedVendor) {
+        toastData.message?.contains("Saved List") == true && lastSavedVendor != null
+    }
 
     LaunchedEffect(toastData) {
         if (toastData.message != null) {
@@ -435,11 +526,49 @@ fun CateringMenuScreen(
                 }
             }
             activeToastData = toastData
-            delay(2000.milliseconds)
+            delay(2500.milliseconds)
             toastData = toastData.copy(message = null)
         }
     }
 
+    val handleVendorClick: (Vendor) -> Unit = { vendor ->
+        selectedVendor = vendor
+        screenStack = screenStack + CateringMenuView.VENDOR_DETAIL
+    }
+
+    val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
+        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+        if (alreadySaved) {
+            activeTargetVendor = vendor
+            showSaveListBottomSheet = true
+        } else {
+            vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
+            lastSavedVendor = vendor
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+        }
+    }
+
+    val handleTimelineSeeAll: (TimelineEvent) -> Unit = { event ->
+        selectedTimelineEventId = event.id
+        screenStack = screenStack + CateringMenuView.TIMELINE_DETAIL
+    }
+
+    val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
+        if (selectedTimelineEventId == "mysaved") {
+            TimelineEvent(id = "mysaved", date = "Default List", event = "My Saved List")
+        } else {
+            timelineEvents.find { it.id == selectedTimelineEventId }
+        }
+    }
+
+    val currentSelectedTimelineVendors = remember(selectedTimelineEventId, vendorSavedDestinations, foodCategoryVendors) {
+        val targetId = selectedTimelineEventId ?: return@remember emptyList<Vendor>()
+        foodCategoryVendors.filter { v ->
+            vendorSavedDestinations["${v.name}-${v.category}"] == targetId
+        }.map { it.copy(favorite = true) }
+    }
+
+    var selectedFilterTab by remember { mutableStateOf("All Items") }
     var selectedItemForDetails by remember { mutableStateOf<MenuItem?>(null) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
 
@@ -452,12 +581,6 @@ fun CateringMenuScreen(
     var showAddItemSheet by remember { mutableStateOf(false) }
     var showSuccessSheet by remember { mutableStateOf(false) }
     var successMessage by remember { mutableStateOf("") }
-
-    LaunchedEffect(showSuccessSheet) {
-        if (showSuccessSheet) {
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-    }
 
     var editingItem by remember { mutableStateOf<MenuItem?>(null) }
 
@@ -495,6 +618,8 @@ fun CateringMenuScreen(
                     showMenuBottomSheet ||
                     showRoomMenuBottomSheet ||
                     showRoomAccessBottomSheet ||
+                    showSaveListBottomSheet ||
+                    showOfferSheet ||
                     userToRemove != null ||
                     showLeaveConfirmation
         }
@@ -535,6 +660,10 @@ fun CateringMenuScreen(
                 return Offset.Zero
             }
         }
+    }
+
+    LaunchedEffect(showAiChat, isBottomBarVisible) {
+        onBottomBarVisibilityChange(!showAiChat && isBottomBarVisible)
     }
 
     val targetScale = if (isAnyBottomSheetOpen) {
@@ -601,6 +730,28 @@ fun CateringMenuScreen(
         filteredItems.groupBy { it.type }
     }
 
+    BackHandler {
+        when {
+            showAiChat -> showAiChat = false
+            showSaveListBottomSheet -> showSaveListBottomSheet = false
+            showOfferSheet -> showOfferSheet = false
+            isSelectionMode -> {
+                selectedItemIds = emptySet()
+                isMultiSelectActive = false
+                focusManager.clearFocus()
+            }
+            isSearchActive -> {
+                isSearchActive = false
+                searchText = ""
+                focusManager.clearFocus()
+            }
+            screenStack.size > 1 -> {
+                screenStack = screenStack.dropLast(1)
+            }
+            else -> onBackClick()
+        }
+    }
+
     RoomAccessGuardian(
         hasAccess = hasAccess,
         roomName = "Catering",
@@ -624,7 +775,19 @@ fun CateringMenuScreen(
                 AnimatedContent(
                     targetState = currentView,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                        when {
+                            targetState == CateringMenuView.VENDOR_DETAIL ||
+                                    targetState == CateringMenuView.LOCATION_SELECTOR ||
+                                    targetState == CateringMenuView.TIMELINE_DETAIL ->
+                                ScreenTransitions.SlideBottomToTopFastTransition
+
+                            initialState == CateringMenuView.VENDOR_DETAIL ||
+                                    initialState == CateringMenuView.LOCATION_SELECTOR ||
+                                    initialState == CateringMenuView.TIMELINE_DETAIL ->
+                                ScreenTransitions.SlideTopToBottomFastTransition
+
+                            else -> fadeIn(animationSpec = tween(250)) togetherWith fadeOut(animationSpec = tween(200))
+                        }
                     },
                     label = "CateringMenuTransition"
                 ) { targetScreen ->
@@ -740,11 +903,6 @@ fun CateringMenuScreen(
                                                     onValueChange = { searchText = it },
                                                     onActiveChange = { active ->
                                                         isSearchActive = active
-                                                        if (!active) {
-                                                            coroutineScope.launch {
-                                                                mainListState.animateScrollToItem(0)
-                                                            }
-                                                        }
                                                     },
                                                     placeholder = "Search Menu",
                                                     modifier = Modifier.weight(1f)
@@ -857,7 +1015,7 @@ fun CateringMenuScreen(
                                         }
                                     }
 
-                                    if (isLoading) {
+                                    if (isCateringLoading && categorizedItems.isEmpty()) {
                                         items(count = 3, contentType = { "skeleton" }) {
                                             Spacer(Modifier.height(12.dp))
                                             SkeletonMenuCategoryCard(brush = shimmerBrush())
@@ -940,21 +1098,32 @@ fun CateringMenuScreen(
 
                                             if (index == highlightInsertIndex && !isSelectionMode && !isSearchActive) {
                                                 item(key = "highlighted_top_vendors", contentType = "carousel") {
+                                                    val foodVendors = remember(foodCategoryVendors) {
+                                                        foodCategoryVendors.ifEmpty { MockData.sampleFood }
+                                                    }
                                                     HighlightedVendors(
-                                                        title = "Top Vendors",
-                                                        subtitle = "Curated for you",
-                                                        vendors = MockData.sampleFood,
+                                                        title = "TOP VENDORS",
+                                                        subtitle = "CURATED FOR YOU",
+                                                        vendors = foodVendors,
+                                                        isHeadingTop = true,
                                                         headerImage = painterResource(id = R.drawable.ill_vendor_food_serve),
                                                         buttonText = "View all",
                                                         buttonTrailingIcon = painterResource(id = R.drawable.ic_arrow_right),
                                                         onButtonClick = {
                                                             focusManager.clearFocus()
+                                                            screenStack = screenStack + CateringMenuView.VENDOR_CATEGORY_DETAIL
                                                         },
                                                         onVendorClick = { vendor ->
                                                             focusManager.clearFocus()
+                                                            handleVendorClick(vendor)
                                                         },
-                                                        onFavoriteToggle = { vendor -> },
-                                                        onOfferClick = { vendor -> },
+                                                        onFavoriteToggle = { vendor ->
+                                                            handleFavoriteToggle(vendor)
+                                                        },
+                                                        onOfferClick = { vendor ->
+                                                            offersToShow = vendor.offers
+                                                            showOfferSheet = true
+                                                        },
                                                         modifier = Modifier.padding(horizontal = 12.dp)
                                                     )
                                                     Spacer(Modifier.height(12.dp))
@@ -982,56 +1151,35 @@ fun CateringMenuScreen(
                                         .align(Alignment.BottomCenter)
                                         .zIndex(10f)
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .background(brush = BottomGradientBrush)
-                                            .navigationBarsPadding()
-                                            .padding(horizontal = 12.dp, vertical = 12.dp)
-                                    ) {
-                                        Surface(
+                                    if(!isViewer){
+                                        Box(
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .height(62.dp)
-                                                .pill360Shadow(
-                                                    ambientColor = Color.Black.copy(alpha = 0.10f),
-                                                    ambientBlur = 12.dp,
-                                                    ambientSpread = 2.dp,
-                                                    spotColor = Color.Black.copy(alpha = 0.15f),
-                                                    spotBlur = 18.dp,
-                                                    spotOffsetY = 4.dp
-                                                ),
-                                            color = SurfacePrimary,
-                                            shape = CircleShape
+                                                .background(brush = BottomGradientBrush)
+                                                .navigationBarsPadding()
+                                                .padding(horizontal = 12.dp, vertical = 12.dp)
                                         ) {
-                                            Row(
+                                            Surface(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .padding(4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
+                                                    .height(62.dp)
+                                                    .pill360Shadow(
+                                                        ambientColor = Color.Black.copy(alpha = 0.10f),
+                                                        ambientBlur = 12.dp,
+                                                        ambientSpread = 2.dp,
+                                                        spotColor = Color.Black.copy(alpha = 0.15f),
+                                                        spotBlur = 18.dp,
+                                                        spotOffsetY = 4.dp
+                                                    ),
+                                                color = SurfacePrimary,
+                                                shape = CircleShape
                                             ) {
-                                                CustomTextButton(
-                                                    onClick = {
-                                                        focusManager.clearFocus()
-                                                        aiChatContext = """
-                                                            Catering Menu for ${activeEvent?.name ?: "Event"}:
-                                                            Total Items: ${allMenuItems.size}
-                                                            
-                                                            Menu items:
-                                                            ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
-                                                        """.trimIndent()
-                                                        currentView = CateringMenuView.AI_CHAT
-                                                    },
-                                                    text = "Ask AI",
-                                                    type = ButtonType.Secondary,
-                                                    shapeStyle = ButtonShapeStyle.Round,
-                                                    leadingIcon = painterResource(id = R.drawable.ic_ai),
-                                                    modifier = if (isViewer) Modifier.weight(1f) else Modifier
-                                                )
-
-                                                if (!isViewer) {
-                                                    Spacer(Modifier.width(4.dp))
-
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(4.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
                                                     CustomTextButton(
                                                         onClick = {
                                                             focusManager.clearFocus()
@@ -1053,7 +1201,144 @@ fun CateringMenuScreen(
                                         }
                                     }
                                 }
+
+                                if (!isSelectionMode && !isSearchActive && isBottomBarVisible && !showAiChat) {
+                                    AskAiButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            aiChatContext = """
+                                                Catering Menu for ${activeEvent?.name ?: "Event"}:
+                                                Total Items: ${allMenuItems.size}
+                                                
+                                                Menu items:
+                                                ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
+                                            """.trimIndent()
+                                            showAiChat = true
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 240.dp)
+                                            .zIndex(150f)
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showAiChat,
+                                    enter = slideInVertically(initialOffsetY = { it }),
+                                    exit = slideOutVertically(targetOffsetY = { it }),
+                                    modifier = Modifier.zIndex(200f)
+                                ) {
+                                    AiChatScreen(
+                                        eventId = activeEvent?.id,
+                                        initialContext = aiChatContext,
+                                        shouldStartNewSession = true,
+                                        onBackClick = {
+                                            showAiChat = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
+                                }
                             }
+                        }
+
+                        CateringMenuView.VENDOR_CATEGORY_DETAIL -> {
+                            VendorCategoryDetailContent(
+                                category = foodCategoryItem,
+                                allVendors = foodCategoryVendors,
+                                savedVendorsForCategory = foodCategorySavedVendors,
+                                selectedCity = selectedCity,
+                                onBackClick = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                onLocationClick = {
+                                    screenStack = screenStack + CateringMenuView.LOCATION_SELECTOR
+                                },
+                                onMenuClick = { showMenuBottomSheet = true },
+                                onVendorClick = handleVendorClick,
+                                onFavoriteToggle = handleFavoriteToggle,
+                                vendorSavedDestinations = vendorSavedDestinations,
+                                timelineEvents = timelineEvents,
+                                selectedTab = selectedCategoryTab,
+                                onSelectedTabChange = { selectedCategoryTab = it },
+                                selectedViewType = selectedSavedViewType,
+                                onSelectedViewTypeChange = { selectedSavedViewType = it },
+                                isLoading = isVendorsLoading,
+                                onTimelineSeeAll = handleTimelineSeeAll,
+                                onOfferClick = { vendor ->
+                                    offersToShow = vendor.offers
+                                    showOfferSheet = true
+                                },
+                                listState = categoryListState,
+                                gridState = categorySavedGridState
+                            )
+                        }
+
+                        CateringMenuView.VENDOR_DETAIL -> {
+                            selectedVendor?.let { vendor ->
+                                val detailData = remember(vendor, exploreVendors, vendorSavedDestinations) {
+                                    val base = exploreVendors.find { it.name == vendor.name && it.category == vendor.category } ?: vendor
+                                    base.copy(favorite = vendorSavedDestinations.containsKey("${base.name}-${base.category}"))
+                                }
+                                VendorDetailScreen(
+                                    vendorDetail = detailData,
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    },
+                                    onFavoriteToggle = { handleFavoriteToggle(it) },
+                                    onChatClick = { onChatClick(it) }
+                                )
+                            }
+                        }
+
+                        CateringMenuView.TIMELINE_DETAIL -> {
+                            currentSelectedTimelineEvent?.let { event ->
+                                SavedTimelineItemsScreen(
+                                    title = "Saved Vendors",
+                                    date = event.date,
+                                    event = event.event,
+                                    vendors = currentSelectedTimelineVendors,
+                                    onVendorClick = handleVendorClick,
+                                    onVendorFavoriteToggle = handleFavoriteToggle,
+                                    onBackClick = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        } else {
+                                            onBackClick()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        CateringMenuView.LOCATION_SELECTOR -> {
+                            LocationScreen(
+                                initialSearches = emptyList(),
+                                currentAddress = selectedCity,
+                                onAddressSelected = {
+                                    selectedCity = it
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                onBackClick = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    } else {
+                                        onBackClick()
+                                    }
+                                },
+                                backIcon = TopIcon.Predefined.DOWN
+                            )
                         }
 
                         CateringMenuView.MANAGE_ROOM_ACCESS -> {
@@ -1063,7 +1348,7 @@ fun CateringMenuScreen(
                                     roomViewModel = roomViewModel,
                                     currentUserRole = currentUserRole,
                                     onBackClick = {
-                                        currentView = CateringMenuView.MENU
+                                        if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
                                         focusManager.clearFocus()
                                     },
                                     onMenuClick = {
@@ -1076,27 +1361,16 @@ fun CateringMenuScreen(
                                     onLeave = {
                                         showLeaveConfirmation = true
                                     },
-                                    onShowToast = { toastData = it }
+                                          onShowToast = { toastData = it }
                                 )
                             }
-                        }
-
-                        CateringMenuView.AI_CHAT -> {
-                            AiChatScreen(
-                                eventId = activeEvent?.id,
-                                initialContext = aiChatContext,
-                                onBackClick = {
-                                    currentView = CateringMenuView.MENU
-                                    focusManager.clearFocus()
-                                }
-                            )
                         }
                     }
                 }
             }
 
             AnimatedVisibility(
-                visible = toastData.message != null && !isAnyBottomSheetOpen,
+                visible = toastData.message != null && !isSavedListToast && !isAnyBottomSheetOpen,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }) + fadeIn(),
                 exit = slideOutVertically(targetOffsetY = { -it - 500 }) + fadeOut(),
                 modifier = Modifier
@@ -1113,7 +1387,98 @@ fun CateringMenuScreen(
                     )
                 }
             }
+
+            AnimatedVisibility(
+                visible = toastData.message != null && isSavedListToast && !isAnyBottomSheetOpen,
+                enter = slideInVertically(initialOffsetY = { it + 500 }),
+                exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 80.dp)
+                    .fillMaxWidth()
+                    .zIndex(100f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                CustomToast(
+                    message = toastData.message ?: "",
+                    type = toastData.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    buttonText = if (activeEvent?.multiDay == true) "Change" else null,
+                    onButtonClick = if (activeEvent?.multiDay == true) {
+                        {
+                            toastData = ToastData()
+                            lastSavedVendor?.let { vendor ->
+                                activeTargetVendor = vendor
+                                showSaveListBottomSheet = true
+                            }
+                        }
+                    } else null
+                )
+            }
         }
+    }
+
+    if (showOfferSheet) {
+        OfferBottomSheet(
+            offers = offersToShow,
+            onDismiss = { showOfferSheet = false },
+            onProgress = { sheetMotionProgress = it }
+        )
+    }
+
+    if (showSaveListBottomSheet) {
+        val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] }
+        SaveListBottomSheet(
+            timelineEvents = timelineEvents,
+            isMySavedListChecked = currentDest == "mysaved",
+            onMySavedListToggled = { checked ->
+                activeTargetVendor?.let { vendor ->
+                    if (checked) {
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
+                    } else {
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, null)
+                    }
+                }
+            },
+            selectedEventId = if (currentDest != "mysaved") currentDest else null,
+            onEventSelected = { eventId ->
+                activeTargetVendor?.let { vendor ->
+                    vendorViewModel.toggleSaveVendor(vendor, isViewer, eventId)
+                }
+            },
+            onAddNewEvent = { subEventItem ->
+                activeEvent?.let { event ->
+                    val newSubEvent = SubEvent(
+                        id = subEventItem.id,
+                        name = subEventItem.name,
+                        date = subEventItem.date,
+                        completed = subEventItem.isCompleted
+                    )
+                    eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+
+                    activeTargetVendor?.let { vendor ->
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, subEventItem.id)
+                    }
+                }
+            },
+            isViewer = isViewer,
+            onDismiss = { showSaveListBottomSheet = false },
+            onDone = {
+                activeTargetVendor?.let { vendor ->
+                    val isSaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+                    if (isSaved) {
+                        lastSavedVendor = vendor
+                        toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                    } else {
+                        toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                    }
+                }
+                showSaveListBottomSheet = false
+                activeTargetVendor = null
+            },
+            onProgress = { sheetMotionProgress = it }
+        )
     }
 
     if (showDetailsBottomSheet && selectedItemForDetails != null) {
@@ -1122,7 +1487,7 @@ fun CateringMenuScreen(
 
         CustomBottomSheet(
             heading = "Item Details",
-            sheetHeight = if (!isViewer) 248.dp else 178.dp,
+            sheetHeight = null,
             onProgress = { progress -> sheetMotionProgress = progress },
             onDismiss = {
                 focusManager.clearFocus()
@@ -1136,6 +1501,9 @@ fun CateringMenuScreen(
             ItemDetailsSheetContent(
                 item = currentItem,
                 canEdit = !isViewer,
+                onFetchImages = { query ->
+                    cateringViewModel.fetchDishImages(query)
+                },
                 onDeleteClick = {
                     focusManager.clearFocus()
                     itemToDelete = currentItem
@@ -1156,7 +1524,6 @@ fun CateringMenuScreen(
             )
         }
     }
-
     if (showDeleteConfirmationSheet) {
         val count = selectedItemIds.size
         val deleteHeading = if (isSelectionMode) {
@@ -1437,7 +1804,7 @@ fun CateringMenuScreen(
                         icon = userDefaultPainter,
                         onClick = {
                             showMenuBottomSheet = false
-                            currentView = CateringMenuView.MANAGE_ROOM_ACCESS
+                            screenStack = screenStack + CateringMenuView.MANAGE_ROOM_ACCESS
                         }
                     )
                 )
@@ -1530,13 +1897,12 @@ fun CateringMenuScreen(
                     roomViewModel.removeAccess(eventId, "Catering", currentUserUid)
                 }
                 toastData = ToastData("You left the room", ToastType.DEFAULT)
-                currentView = CateringMenuView.MENU
+                screenStack = listOf(CateringMenuView.MENU)
                 showLeaveConfirmation = false
             }
         )
     }
 }
-
 
 @Composable
 fun MenuCategoryCard(
@@ -1662,11 +2028,30 @@ fun MenuCategoryCard(
 fun ItemDetailsSheetContent(
     item: MenuItem,
     canEdit: Boolean = true,
+    onFetchImages: suspend (String) -> List<String>,
     onDeleteClick: () -> Unit,
-    onEditClick: () -> Unit
+    onEditClick: () -> Unit,
+    onRecentActivityClick: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val itemCategoryStyle = remember(item.type) { getCategoryStyle(item.type) }
+
+    var imageUrls by remember(item.id, item.name, item.cuisine) { mutableStateOf<List<String>>(emptyList()) }
+    var isImagesLoading by remember(item.id, item.name, item.cuisine) { mutableStateOf(true) }
+
+    // State to manage tooltip visibility
+    var showTooltip by remember { mutableStateOf(false) }
+
+    LaunchedEffect(item.id, item.name, item.cuisine) {
+        isImagesLoading = true
+        val query = "${item.name} ${item.cuisine}"
+        android.util.Log.d("CateringUI", "Fetching images for: $query")
+        val results = onFetchImages(query)
+        android.util.Log.d("CateringUI", "Received ${results.size} URLs: $results")
+        imageUrls = results
+        isImagesLoading = false
+    }
 
     Column(
         modifier = Modifier
@@ -1679,7 +2064,7 @@ fun ItemDetailsSheetContent(
         Card(
             modifier = Modifier.fillMaxWidth(),
             shape = CardSquircleShape,
-            colors = CardDefaults.cardColors(containerColor = Color.Transparent),
+            colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
             Box(
                 modifier = Modifier
@@ -1689,60 +2074,277 @@ fun ItemDetailsSheetContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
+                        .padding(vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    val isVeg = item.dietary == Dietary.Veg
-                    val drawableRes = if (isVeg) R.drawable.ic_veg else R.drawable.ic_non_veg
-
-                    Image(
-                        painter = painterResource(id = drawableRes),
-                        contentDescription = if (isVeg) "Vegetarian" else "Non-Vegetarian",
-                        modifier = Modifier.size(20.dp)
-                    )
-
-                    Text(
-                        text = item.name,
-                        style = JasnifyTheme.typography.labelXLarge,
-                        color = itemCategoryStyle.headerTextColor,
-                        fontWeight = FontWeight.Medium,
-                    )
-
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
-                    )
-
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "CUISINE",
-                                style = JasnifyTheme.typography.labelSmall,
-                                color = ContentSecondary,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 1.sp
+                    // Header: Search Preview label and Info Icon with Tooltip
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_inspirations),
+                                contentDescription = "Search",
+                                tint = ContentSecondary,
+                                modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = item.cuisine,
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentPrimary,
+                                text = "Search Preview",
+                                style = JasnifyTheme.typography.labelMedium,
+                                color = ContentSecondary,
                             )
                         }
 
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "TYPE",
-                                style = JasnifyTheme.typography.labelSmall,
-                                color = ContentSecondary,
-                                fontWeight = FontWeight.Medium,
-                                letterSpacing = 1.sp
+                        // Info Icon Anchor + Popup Tooltip
+                        Box {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_info),
+                                contentDescription = "Info",
+                                tint = ContentSecondary,
+                                modifier = Modifier
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .noRippleClickable {
+                                        showTooltip = true
+                                    }
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = item.type,
-                                style = JasnifyTheme.typography.labelXLarge,
-                                color = ContentPrimary,
+                            InfoTooltip(
+                                visible = showTooltip,
+                                tooltipText = "We show relevant results based on your saved info.",
+                                onDismiss = { showTooltip = false }
+                            )
+                        }
+                    }
+
+                    // Image Carousel / Web link
+                    Box(modifier = Modifier.fillMaxWidth().height(160.dp)) {
+                        if (isImagesLoading) {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp)
+                            ) {
+                                items(3) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(160.dp)
+                                            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .background(shimmerBrush())
+                                    )
+                                }
+                            }
+                        } else if (imageUrls.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .height(136.dp)
+                                    .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                    .background(SurfaceSecondary)
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                    .clickable {
+                                        val googleSearchQuery = "${item.name} ${item.type} ${item.cuisine}"
+                                        val queryUri =
+                                            "https://www.google.com/search?q=${Uri.encode(googleSearchQuery)}&tbm=isch".toUri()
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, queryUri))
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_google),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "Tap to search images on Google",
+                                        style = JasnifyTheme.typography.labelLarge,
+                                        color = ContentBrandDark
+                                    )
+                                }
+                            }
+                        } else {
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                items(imageUrls) { url ->
+                                    SubcomposeAsyncImage(
+                                        model = ImageRequest.Builder(context)
+                                            .data(url)
+                                            .addHeader("User-Agent", "JasnifyEventApp/1.0 (contact@jasnify.app)")
+                                            .crossfade(true)
+                                            .build(),
+                                        contentDescription = item.name,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .size(160.dp)
+                                            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault)),
+                                        loading = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(shimmerBrush())
+                                            )
+                                        },
+                                        error = {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxSize()
+                                                    .background(SurfaceSecondary),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    painter = painterResource(id = R.drawable.ic_food),
+                                                    contentDescription = null,
+                                                    tint = ContentTertiary,
+                                                    modifier = Modifier.size(48.dp)
+                                                )
+                                            }
+                                        }
+                                    )
+                                }
+
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(160.dp)
+                                            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .background(SurfaceBrandSecondary)
+                                            .border(1.dp, ContentBrandDark, SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .clickable {
+                                                val googleSearchQuery = "${item.name} ${item.type} ${item.cuisine}"
+                                                val queryUri =
+                                                    "https://www.google.com/search?q=${Uri.encode(googleSearchQuery)}&tbm=isch".toUri()
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, queryUri))
+                                            },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_google),
+                                                contentDescription = "Google",
+                                                tint = Color.Unspecified,
+                                                modifier = Modifier.size(28.dp)
+                                            )
+                                            Text(
+                                                text = "google.com ↗",
+                                                color = ContentBrandDark,
+                                                style = JasnifyTheme.typography.labelLarge.copy(
+                                                    textDecoration = TextDecoration.Underline
+                                                )
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Column(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ){
+                        val isVeg = item.dietary == Dietary.Veg
+                        val drawableRes = if (isVeg) R.drawable.ic_veg else R.drawable.ic_non_veg
+
+                        Image(
+                            painter = painterResource(id = drawableRes),
+                            contentDescription = if (isVeg) "Vegetarian" else "Non-Vegetarian",
+                            modifier = Modifier.size(24.dp)
+                        )
+
+                        Text(
+                            text = item.name,
+                            style = JasnifyTheme.typography.headingLarge,
+                            color = itemCategoryStyle.headerTextColor,
+                            fontWeight = FontWeight.Medium
+                        )
+
+                        HorizontalDivider(
+                            thickness = 1.dp,
+                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f)
+                        )
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "CUISINE",
+                                    style = JasnifyTheme.typography.labelSmall,
+                                    color = ContentSecondary,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = item.cuisine,
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentPrimary
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "TYPE",
+                                    style = JasnifyTheme.typography.labelSmall,
+                                    color = ContentSecondary,
+                                    fontWeight = FontWeight.Medium,
+                                    letterSpacing = 1.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = item.type,
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentPrimary
+                                )
+                            }
+                        }
+
+                        DashedDivider()
+                        Spacer(Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onRecentActivityClick() },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.AccessTime,
+                                    contentDescription = "Recent Activity",
+                                    tint = ContentTertiary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Text(
+                                    text = "Recent Activity",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentSecondary
+                                )
+                            }
+
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_right_chevron),
+                                contentDescription = "Go",
+                                tint = ContentPrimary,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }
@@ -1755,7 +2357,7 @@ fun ItemDetailsSheetContent(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CustomIconButton(

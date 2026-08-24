@@ -117,6 +117,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.toArgb
@@ -154,6 +155,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
@@ -268,6 +270,7 @@ fun EditCardDetailsScreen(
     initialData: CardData = CardData(),
     allCards: List<CardData> = emptyList(),
     cardRoomData: CardRoomData? = null,
+    viewModel: com.harshdeep.jasnify.presentation.viewmodels.CardViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
     onDataChange: (CardData) -> Unit = {},
     onBackClick: () -> Unit = {},
     onUploadImage: (Uri, (String) -> Unit, (String) -> Unit) -> Unit = { _, _, _ -> },
@@ -344,6 +347,15 @@ fun EditCardDetailsScreen(
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
     val isImeVisible = WindowInsets.isImeVisible
+
+    val recentColorsHex by viewModel.recentColors.collectAsStateWithLifecycle()
+    var displayedRecentColors by remember { mutableStateOf<List<Color>>(emptyList()) }
+
+    LaunchedEffect(activeTab) {
+        if (activeTab == EditorTab.COLOR) {
+            displayedRecentColors = recentColorsHex.map { Color(it.toLong(16)) }
+        }
+    }
 
     fun updateCardState(newCard: CardData) {
         val latest = history.getOrNull(historyIndex) ?: normalizedInitialData
@@ -506,6 +518,7 @@ fun EditCardDetailsScreen(
                                 val currentAlpha = (target.colorHex shr 24) and 0xFFL
                                 val alphaToUse = if (currentAlpha == 0L) 0xFFL else currentAlpha
                                 val newRgb = newColor.toArgb().toLong() and 0x00FFFFFFL
+                                viewModel.addRecentColor(String.format("%08X", (0xFF shl 24) or newRgb.toInt()))
                                 target.copy(colorHex = (alphaToUse shl 24) or newRgb)
                             }
                         },
@@ -1062,7 +1075,7 @@ fun EditCardDetailsScreen(
                                                 val activeRgb = selectedElement.colorHex and 0x00FFFFFFL
                                                 val matchIndex = ColorPaletteHexes.indexOfFirst { (it and 0x00FFFFFFL) == activeRgb }
                                                 if (matchIndex >= 0) {
-                                                    colorRowLazyListState.animateScrollToItem(matchIndex + 2)
+                                                    colorRowLazyListState.animateScrollToItem(matchIndex + displayedRecentColors.size)
                                                 }
                                             }
 
@@ -1075,21 +1088,44 @@ fun EditCardDetailsScreen(
                                                     .padding(vertical = 16.dp),
                                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                                             ) {
-                                                LazyRow(
-                                                    state = colorRowLazyListState,
+                                                Row(
                                                     modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                                    contentPadding = PaddingValues(horizontal = 16.dp),
                                                     verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    item(key = "eyedropper") {
+                                                    // Fixed Actions
+                                                    Row(
+                                                        modifier = Modifier.padding(start = 16.dp),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        // Color Wheel (Fixed)
                                                         Box(
                                                             modifier = Modifier
                                                                 .size(56.dp)
                                                                 .clip(CircleShape)
-                                                                .noRippleClickable {
-                                                                    showEyeDropper = true
-                                                                },
+                                                                .background(
+                                                                    brush = Brush.sweepGradient(
+                                                                        listOf(
+                                                                            Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red
+                                                                        )
+                                                                    )
+                                                                )
+                                                                .noRippleClickable { showColorPicker = true },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(24.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(SurfacePrimary)
+                                                            )
+                                                        }
+
+                                                        // Eyedropper (Fixed)
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(56.dp)
+                                                                .clip(CircleShape)
+                                                                .noRippleClickable { showEyeDropper = true },
                                                             contentAlignment = Alignment.Center
                                                         ) {
                                                             Icon(
@@ -1101,68 +1137,77 @@ fun EditCardDetailsScreen(
                                                         }
                                                     }
 
-                                                    item(key = "wheel_picker") {
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(56.dp)
-                                                                .clip(CircleShape)
-                                                                .background(
-                                                                    brush = Brush.sweepGradient(
-                                                                        listOf(
-                                                                            Color.Red,
-                                                                            Color.Yellow,
-                                                                            Color.Green,
-                                                                            Color.Cyan,
-                                                                            Color.Blue,
-                                                                            Color.Magenta,
-                                                                            Color.Red
-                                                                        )
-                                                                    )
-                                                                )
-                                                                .noRippleClickable {
-                                                                    showColorPicker = true
-                                                                },
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
+                                                    // Scrollable Colors (Recent + Palette)
+                                                    LazyRow(
+                                                        state = colorRowLazyListState,
+                                                        modifier = Modifier.weight(1f),
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                                        contentPadding = PaddingValues(start = 8.dp, end = 16.dp),
+                                                        verticalAlignment = Alignment.CenterVertically
+                                                    ) {
+                                                        // 1. Recent Colors
+                                                        items(displayedRecentColors) { color ->
+                                                            val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (color.toArgb().toLong() and 0x00FFFFFFL)
                                                             Box(
                                                                 modifier = Modifier
-                                                                    .size(24.dp)
+                                                                    .size(56.dp)
                                                                     .clip(CircleShape)
-                                                                    .background(SurfacePrimary)
-                                                            )
+                                                                    .background(color)
+                                                                    .border(1.dp, Color(0x26000000), CircleShape)
+                                                                    .clickable {
+                                                                        updateElement(selectedElement.id) { target ->
+                                                                            val activeAlpha = (target.colorHex shr 24) and 0xFFL
+                                                                            val updatedColorHex = (activeAlpha shl 24) or (color.toArgb().toLong() and 0x00FFFFFFL)
+                                                                            viewModel.addRecentColor(String.format("%08X", (0xFF shl 24) or (color.toArgb() and 0x00FFFFFF)))
+                                                                            target.copy(colorHex = updatedColorHex)
+                                                                        }
+                                                                    },
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                if (isSelected) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.ic_check),
+                                                                        contentDescription = "Selected",
+                                                                        tint = if (color.luminance() > 0.5f) Color.Black else Color.White,
+                                                                        modifier = Modifier.size(32.dp)
+                                                                    )
+                                                                }
+                                                            }
                                                         }
-                                                    }
 
-                                                    items(
-                                                        items = ColorPaletteHexes,
-                                                        key = { it }
-                                                    ) { hex ->
-                                                        val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
-                                                        val swatchColor = Color(hex.toInt())
+                                                        // 2. Palette Colors
+                                                        items(
+                                                            items = ColorPaletteHexes,
+                                                            key = { it }
+                                                        ) { hex ->
+                                                            val isSelected = (selectedElement.colorHex and 0x00FFFFFFL) == (hex and 0x00FFFFFFL)
+                                                            val swatchColor = Color(hex.toInt())
 
-                                                        Box(
-                                                            modifier = Modifier
-                                                                .size(56.dp)
-                                                                .clip(CircleShape)
-                                                                .background(swatchColor)
-                                                                .border(1.dp, Color(0x26000000), CircleShape)
-                                                                .clickable {
-                                                                    val swatchRgb = hex and 0x00FFFFFFL
-                                                                    updateElement(selectedElement.id) { target ->
-                                                                        val activeAlpha = (target.colorHex shr 24) and 0xFFL
-                                                                        val updatedColorHex = (activeAlpha shl 24) or swatchRgb
-                                                                        target.copy(colorHex = updatedColorHex)
-                                                                    }
-                                                                },
-                                                            contentAlignment = Alignment.Center
-                                                        ) {
-                                                            if (isSelected) {
-                                                                Icon(
-                                                                    painter = painterResource(R.drawable.ic_check),
-                                                                    contentDescription = "Selected",
-                                                                    tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
-                                                                    modifier = Modifier.size(32.dp)
-                                                                )
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .size(56.dp)
+                                                                    .clip(CircleShape)
+                                                                    .background(swatchColor)
+                                                                    .border(1.dp, Color(0x26000000), CircleShape)
+                                                                    .clickable {
+                                                                        val swatchRgb = hex and 0x00FFFFFFL
+                                                                        updateElement(selectedElement.id) { target ->
+                                                                            val activeAlpha = (target.colorHex shr 24) and 0xFFL
+                                                                            val updatedColorHex = (activeAlpha shl 24) or swatchRgb
+                                                                            viewModel.addRecentColor(String.format("%08X", (0xFF shl 24) or swatchRgb.toInt()))
+                                                                            target.copy(colorHex = updatedColorHex)
+                                                                        }
+                                                                    },
+                                                                contentAlignment = Alignment.Center
+                                                            ) {
+                                                                if (isSelected) {
+                                                                    Icon(
+                                                                        painter = painterResource(R.drawable.ic_check),
+                                                                        contentDescription = "Selected",
+                                                                        tint = if ((hex and 0x00FFFFFFL) == 0xFFFFFFL || (hex and 0x00FFFFFFL) == 0xE5E5E5L) Color.Black else Color.White,
+                                                                        modifier = Modifier.size(32.dp)
+                                                                    )
+                                                                }
                                                             }
                                                         }
                                                     }

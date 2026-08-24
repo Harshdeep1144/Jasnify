@@ -88,4 +88,8 @@ class CateringViewModel @Inject constructor(
             repository.seedDefaultItems(eventType, eventId)
         }
     }
+
+    suspend fun fetchDishImages(query: String): List<String> {
+        return repository.searchDishImages(query).getOrElse { emptyList() }
+    }
 }

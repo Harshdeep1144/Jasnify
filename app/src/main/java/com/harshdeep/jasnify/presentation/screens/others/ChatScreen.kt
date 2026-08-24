@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.others
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -18,6 +19,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
@@ -37,6 +40,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
 import sv.lib.squircleshape.SquircleShape
 
@@ -152,6 +156,13 @@ fun ChatContent(
     modifier: Modifier = Modifier,
     scrollState: LazyListState = rememberLazyListState()
 ) {
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        delay(150) // Small delay to allow enter transition/layout to complete smoothly
+        focusRequester.requestFocus()
+    }
+
     Scaffold(
         topBar = {
             Surface(
@@ -178,7 +189,8 @@ fun ChatContent(
                 ChatInputBar(
                     value = messageText,
                     onValueChange = onMessageChange,
-                    onSendClick = onSendClick
+                    onSendClick = onSendClick,
+                    focusRequester = focusRequester
                 )
             }
         },
@@ -282,7 +294,8 @@ fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSendClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    focusRequester: FocusRequester = remember { FocusRequester() }
 ) {
     Surface(
         color = Color.Transparent,
@@ -322,7 +335,9 @@ fun ChatInputBar(
                     onValueChange = onValueChange,
                     textStyle = JasnifyTheme.typography.labelLarge.copy(color = ContentPrimary),
                     cursorBrush = SolidColor(ContentPrimary),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
                 )
             }
 
@@ -334,7 +349,13 @@ fun ChatInputBar(
                         if (value.isNotBlank()) SurfacePrimary else SurfacePrimary.copy(alpha = 0.5f),
                         CircleShape
                     )
-                    .clickable(enabled = value.isNotBlank()) { onSendClick() },
+                    .clickable(
+                        enabled = value.isNotBlank(),
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        onSendClick()
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

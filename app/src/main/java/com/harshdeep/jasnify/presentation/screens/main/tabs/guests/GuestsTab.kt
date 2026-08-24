@@ -1,6 +1,9 @@
 package com.harshdeep.jasnify.presentation.screens.main.tabs.guests
 
 import android.Manifest
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.pm.PackageManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -19,7 +22,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -53,6 +58,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -69,19 +75,25 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
@@ -115,8 +127,12 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.states.GuestsLoadingState
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -136,6 +152,8 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
+import android.os.Build
+import androidx.annotation.RequiresApi
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -150,6 +168,16 @@ enum class GuestsView {
     ROOM_ACCESS
 }
 
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
+
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GuestsTab(
@@ -169,6 +197,11 @@ fun GuestsTab(
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
     val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
+
+    if (activeEvent == null) {
+        GuestsLoadingState()
+        return
+    }
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -191,6 +224,8 @@ fun GuestsTab(
     val searchHistoryManager = remember { SearchHistoryManager(context) }
     var recentSearches by remember { mutableStateOf(searchHistoryManager.getRecentSearches()) }
     var currentView by remember { mutableStateOf(GuestsView.MAIN) }
+    var showAiChat by remember { mutableStateOf(false) }
+    var aiChatContext by remember { mutableStateOf("") }
     var selectedGuestTypeForDetail by remember { mutableStateOf<String?>(null) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -233,7 +268,6 @@ fun GuestsTab(
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
     val mainListState = rememberLazyListState()
 
-    var isBannerDismissed by remember { mutableStateOf(false) }
 
     val topBarMaxScrollPx = with(density) { 56.dp.toPx() }
     val topBarScrollProgress by remember {
@@ -246,14 +280,14 @@ fun GuestsTab(
         }
     }
 
-    val guestsNestedScrollConnection = remember(mainListState, currentView, isSearchActive, isMultiSelectMode) {
+    val guestsNestedScrollConnection = remember(mainListState, currentView, isSearchActive, isMultiSelectMode, guests.size) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) return Offset.Zero
 
                 val delta = available.y
                 val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
-                if (!canScroll) {
+                if (!canScroll || guests.size < 5) {
                     isHeaderVisible = true
                     return Offset.Zero
                 }
@@ -281,19 +315,44 @@ fun GuestsTab(
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
     var activeToastData by remember { mutableStateOf<ToastData?>(null) }
-
-    LaunchedEffect(toastData?.message) {
-        if (toastData?.message != null) {
-            activeToastData = toastData
-            delay(3000.milliseconds)
-            toastData = null
-        }
-    }
+    val haptic = LocalHapticFeedback.current
 
     var hasContactPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                hasContactPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(toastData?.message) {
+        val currentToast = toastData
+        if (currentToast?.message != null) {
+            if (currentToast.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (currentToast.message.contains("Please", ignoreCase = true) ||
+                    currentToast.message.contains("enter", ignoreCase = true) ||
+                    currentToast.message.contains("select", ignoreCase = true)
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
+            activeToastData = currentToast
+            delay(3000.milliseconds)
+            toastData = null
+        }
     }
 
     val isOwner = activeEvent?.ownerId == currentUserUid
@@ -332,7 +391,7 @@ fun GuestsTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            hasAccess == true && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && toastData?.message == null && isHeaderVisible && !isSearchActive
+            (hasAccess == true || hasAccess == null) && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && isHeaderVisible && !isSearchActive && !showAiChat
         }
     }
 
@@ -362,14 +421,46 @@ fun GuestsTab(
         label = "backdropCornerRadius"
     )
 
+    val openAppSettings = {
+        try {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                data = android.net.Uri.fromParts("package", context.packageName, null)
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+            context.startActivity(intent)
+        }
+    }
+
+    var isRequestingFromBanner by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         hasContactPermission = isGranted
         if (isGranted) {
             phoneContacts = ContactHelper.fetchContacts(context)
-            showContactPicker = true
+            if (!isRequestingFromBanner) {
+                showContactPicker = true
+            }
+        } else {
+            val activity = context.findActivity()
+            val showRationale = activity?.let {
+                ActivityCompat.shouldShowRequestPermissionRationale(it, Manifest.permission.READ_CONTACTS)
+            } ?: false
+
+            // If we can't show the system dialog anymore (permanently denied), show the settings toast
+            if (!showRationale) {
+                toastData = ToastData(
+                    message = "Please enable Contacts Permission in App Settings.",
+                    type = ToastType.DEFAULT,
+                    buttonText = "Settings",
+                    onButtonClick = openAppSettings
+                )
+            }
         }
+        isRequestingFromBanner = false
     }
 
     val guestTypes = remember {
@@ -440,14 +531,14 @@ fun GuestsTab(
         hasContactPermission = isGranted
         if (isGranted) {
             phoneContacts = ContactHelper.fetchContacts(context)
-            showContactPicker = true
-        } else {
-            permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
         }
+        showContactPicker = true
     }
 
-    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode) {
-        if (isSearchActive) {
+    BackHandler(enabled = currentView != GuestsView.MAIN || isSearchActive || isMultiSelectMode || showAiChat) {
+        if (showAiChat) {
+            showAiChat = false
+        } else if (isSearchActive) {
             if (searchQuery.isNotEmpty()) {
                 searchHistoryManager.addSearch(searchQuery)
                 recentSearches = searchHistoryManager.getRecentSearches()
@@ -518,27 +609,21 @@ fun GuestsTab(
                                         item(key = "top_bar", contentType = "header") {
                                             AnimatedVisibility(
                                                 visible = !isSearchActive,
-                                                enter = expandVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessLow,
-                                                        dampingRatio = 0.85f
-                                                    )
-                                                ) + fadeIn(
-                                                    animationSpec = tween(
-                                                        durationMillis = 280,
-                                                        easing = FastOutSlowInEasing
-                                                    )
+                                                enter = fadeIn(
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                                ) + slideInVertically(
+                                                    initialOffsetY = { -it },
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
+                                                ) + expandVertically(
+                                                    animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
                                                 ),
-                                                exit = shrinkVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                        dampingRatio = 0.9f
-                                                    )
-                                                ) + fadeOut(
-                                                    animationSpec = tween(
-                                                        durationMillis = 200,
-                                                        easing = FastOutSlowInEasing
-                                                    )
+                                                exit = fadeOut(
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                                ) + slideOutVertically(
+                                                    targetOffsetY = { -it },
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
+                                                ) + shrinkVertically(
+                                                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
                                                 )
                                             ) {
                                                 Box(
@@ -552,7 +637,7 @@ fun GuestsTab(
                                                     CustomTopBar(
                                                         title = "Guests",
                                                         titleIcon = painterResource(R.drawable.ill_guests),
-                                                        menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                                        menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
                                                         onMenuClick = {
@@ -575,21 +660,7 @@ fun GuestsTab(
                                                 .zIndex(10f)
                                         ) {
                                             // Sticky Multi-Select Top Bar
-                                            AnimatedVisibility(
-                                                visible = isMultiSelectMode,
-                                                enter = expandVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessLow,
-                                                        dampingRatio = 0.85f
-                                                    )
-                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
-                                                exit = shrinkVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                        dampingRatio = 0.9f
-                                                    )
-                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
-                                            ) {
+                                            if (isMultiSelectMode) {
                                                 CustomTopBar(
                                                     title = "${selectedGuestIds.size} selected",
                                                     onBackClick = {
@@ -607,22 +678,8 @@ fun GuestsTab(
                                                 )
                                             }
 
-                                            // Search Bar + Add Button Row (Hidden in Multi-Select Mode)
-                                            AnimatedVisibility(
-                                                visible = !isMultiSelectMode,
-                                                enter = expandVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessLow,
-                                                        dampingRatio = 0.85f
-                                                    )
-                                                ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
-                                                exit = shrinkVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                        dampingRatio = 0.9f
-                                                    )
-                                                ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
-                                            ) {
+                                            // Search Bar + Add Button Row (Hidden in Multi-Select Mode AND Empty State)
+                                            if (!isMultiSelectMode && guests.isNotEmpty()) {
                                                 Row(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -645,20 +702,24 @@ fun GuestsTab(
 
                                                     AnimatedVisibility(
                                                         visible = !isSearchActive && !isViewer,
-                                                        enter = expandHorizontally(
-                                                            animationSpec = spring(
-                                                                stiffness = Spring.StiffnessLow,
-                                                                dampingRatio = 0.85f
-                                                            ),
-                                                            expandFrom = Alignment.Start
-                                                        ) + fadeIn(tween(250, easing = FastOutSlowInEasing)),
-                                                        exit = shrinkHorizontally(
-                                                            animationSpec = spring(
-                                                                stiffness = Spring.StiffnessMediumLow,
-                                                                dampingRatio = 0.9f
-                                                            ),
-                                                            shrinkTowards = Alignment.Start
-                                                        ) + fadeOut(tween(180, easing = FastOutSlowInEasing))
+                                                        enter = fadeIn(
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ) + slideInHorizontally(
+                                                            initialOffsetX = { it },
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ) + expandHorizontally(
+                                                            expandFrom = Alignment.End,
+                                                            animationSpec = tween(durationMillis = 250, easing = FastOutSlowInEasing)
+                                                        ),
+                                                        exit = fadeOut(
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        ) + slideOutHorizontally(
+                                                            targetOffsetX = { it },
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        ) + shrinkHorizontally(
+                                                            shrinkTowards = Alignment.End,
+                                                            animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing)
+                                                        )
                                                     ) {
                                                         Row {
                                                             Spacer(modifier = Modifier.width(8.dp))
@@ -674,31 +735,7 @@ fun GuestsTab(
                                             }
 
                                             // Filter Chips Row (Kept Sticky in Both Modes)
-                                            AnimatedVisibility(
-                                                visible = !isSearchActive && guests.isNotEmpty(),
-                                                enter = expandVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessLow,
-                                                        dampingRatio = 0.85f
-                                                    )
-                                                ) + fadeIn(
-                                                    animationSpec = tween(
-                                                        durationMillis = 280,
-                                                        easing = FastOutSlowInEasing
-                                                    )
-                                                ),
-                                                exit = shrinkVertically(
-                                                    animationSpec = spring(
-                                                        stiffness = Spring.StiffnessMediumLow,
-                                                        dampingRatio = 0.9f
-                                                    )
-                                                ) + fadeOut(
-                                                    animationSpec = tween(
-                                                        durationMillis = 180,
-                                                        easing = FastOutSlowInEasing
-                                                    )
-                                                )
-                                            ) {
+                                            if (!isSearchActive && guests.isNotEmpty()) {
                                                 LazyRow(
                                                     modifier = Modifier
                                                         .fillMaxWidth()
@@ -919,14 +956,15 @@ fun GuestsTab(
                                                 }
                                             }
                                         } else {
-                                            if (!hasContactPermission && !isBannerDismissed) {
+                                            if (!hasContactPermission && !SessionState.hasShownImportContactsBanner) {
                                                 item(key = "contacts_banner", contentType = "banner") {
                                                     ImportContactsBanner(
                                                         onAllowAccessClick = {
+                                                            isRequestingFromBanner = true
                                                             permissionLauncher.launch(Manifest.permission.READ_CONTACTS)
                                                         },
                                                         onDismissClick = {
-                                                            isBannerDismissed = true
+                                                            SessionState.hasShownImportContactsBanner = true
                                                         },
                                                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                                     )
@@ -1006,6 +1044,11 @@ fun GuestsTab(
                                                             .fillMaxWidth()
                                                             .padding(top = 16.dp)
                                                     )
+                                                }
+                                            }
+                                            else{
+                                                item{
+                                                    Spacer(Modifier.height(32.dp))
                                                 }
                                             }
                                         }
@@ -1088,6 +1131,45 @@ fun GuestsTab(
                                         }
                                     }
                                 }
+
+                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat) {
+                                    AskAiButton(
+                                        onClick = {
+                                            focusManager.clearFocus()
+                                            aiChatContext = """
+                                                Guest List for ${activeEvent?.name ?: "Event"}:
+                                                Total Guests: ${guests.size}
+                                                Invited: ${guests.count { it.invited }}
+                                                Pending: ${guests.count { !it.invited }}
+                                                
+                                                Guest Types:
+                                                ${guestTypes.joinToString("\n") { type -> "- $type: ${guests.count { it.type == type }} guests" }}
+                                            """.trimIndent()
+                                            showAiChat = true
+                                        },
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(bottom = 240.dp)
+                                            .zIndex(150f)
+                                    )
+                                }
+
+                                AnimatedVisibility(
+                                    visible = showAiChat,
+                                    enter = slideInVertically(initialOffsetY = { it }),
+                                    exit = slideOutVertically(targetOffsetY = { it }),
+                                    modifier = Modifier.zIndex(200f)
+                                ) {
+                                    AiChatScreen(
+                                        eventId = activeEvent?.id,
+                                        initialContext = aiChatContext,
+                                        shouldStartNewSession = true,
+                                        onBackClick = {
+                                            showAiChat = false
+                                            focusManager.clearFocus()
+                                        }
+                                    )
+                                }
                             }
                         }
                         GuestsView.MANAGE_GUEST_TYPES -> {
@@ -1149,15 +1231,38 @@ fun GuestsTab(
                 }
             }
 
+            // 1. Action Toasts (Bottom to Top) - e.g., Permission Settings
             AnimatedVisibility(
-                visible = toastData?.message != null && !isAnyBottomSheetOpen,
+                visible = toastData?.message != null && toastData?.buttonText != null && !isAnyBottomSheetOpen,
+                enter = slideInVertically(initialOffsetY = { it + 500 }),
+                exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .zIndex(100f)
+                    .padding(horizontal = 12.dp, vertical = 120.dp)
+            ) {
+                toastData?.let { data ->
+                    CustomToast(
+                        message = data.message ?: "",
+                        type = data.type,
+                        buttonText = data.buttonText,
+                        onButtonClick = data.onButtonClick
+                    )
+                }
+            }
+
+            // 2. Info/Status Toasts (Top to Bottom) - e.g., Success/Error messages without buttons
+            // Shown regardless of sheet state so they appear at the very top of the screen
+            AnimatedVisibility(
+                visible = toastData?.message != null && toastData?.buttonText == null,
                 enter = slideInVertically(initialOffsetY = { -it - 500 }),
                 exit = slideOutVertically(targetOffsetY = { -it - 500 }),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .zIndex(100f)
+                    .zIndex(1001f) // High Z-index to show above sheets if necessary
                     .padding(horizontal = 12.dp, vertical = 16.dp)
             ) {
                 toastData?.let { data ->
@@ -1311,20 +1416,26 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it }),
-                        exit = slideOutVertically(targetOffsetY = { it }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    // Only show action toasts in the sheet slot. 
+                    // Info toasts are handled by the global top toast for better visibility.
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }
@@ -1363,20 +1474,26 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it }),
-                        exit = slideOutVertically(targetOffsetY = { it }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    // Only show action toasts in the sheet slot. 
+                    // Info toasts are handled by the global top toast for better visibility.
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }
@@ -1405,6 +1522,11 @@ fun GuestsTab(
         if (showContactPicker) {
             ContactPickerBottomSheet(
                 contacts = phoneContacts,
+                hasPermission = hasContactPermission,
+                onPermissionRequest = { 
+                    isRequestingFromBanner = false
+                    permissionLauncher.launch(Manifest.permission.READ_CONTACTS) 
+                },
                 onDismiss = { showContactPicker = false },
                 onProgress = { sheetMotionProgress = it },
                 onAddManuallyClick = {
@@ -1463,20 +1585,24 @@ fun GuestsTab(
                 },
                 hasToast = toastData != null,
                 toast = {
-                    AnimatedVisibility(
-                        visible = toastData?.message != null,
-                        enter = slideInVertically(initialOffsetY = { it }),
-                        exit = slideOutVertically(targetOffsetY = { it }),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(12.dp)
-                    ) {
-                        activeToastData?.let { data ->
-                            CustomToast(
-                                message = data.message ?: "",
-                                type = data.type
-                            )
+                    val isActionToast = toastData?.buttonText != null
+                    if (isActionToast) {
+                        AnimatedVisibility(
+                            visible = toastData?.message != null,
+                            enter = slideInVertically(initialOffsetY = { it + 500 }),
+                            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp)
+                        ) {
+                            activeToastData?.let { data ->
+                                CustomToast(
+                                    message = data.message ?: "",
+                                    type = data.type,
+                                    buttonText = data.buttonText,
+                                    onButtonClick = data.onButtonClick
+                                )
+                            }
                         }
                     }
                 }

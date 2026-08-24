@@ -90,6 +90,7 @@ fun CustomSearchBar(
     isTranslucent: Boolean = false,
     translucentAlpha: Float = 0.2f,
     isTransparent: Boolean = false,
+    autoFocus: Boolean = false,
     onValueChange: (String) -> Unit,
     onActiveChange: (Boolean) -> Unit = {}
 ) {
@@ -98,7 +99,7 @@ fun CustomSearchBar(
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
 
-    var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT) }
+    var isExpanded by remember { mutableStateOf(type == SearchBarType.DEFAULT || autoFocus) }
 
     val duration = 50
     val transitionEasing = FastOutSlowInEasing
@@ -358,7 +359,7 @@ fun CustomSearchBar(
             }
 
             LaunchedEffect(Unit) {
-                if (type == SearchBarType.COMPACT) {
+                if (type == SearchBarType.COMPACT || autoFocus) {
                     focusRequester.requestFocus()
                 }
             }

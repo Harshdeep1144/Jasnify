@@ -16,6 +16,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 fun CardRoomContent(
     eventId: String,
     roomViewModel: RoomViewModel,
+    currentUserRole: UserRole,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
     onRemove: (User) -> Unit,
@@ -27,10 +28,6 @@ fun CardRoomContent(
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUser = remember(auth.currentUser) { auth.currentUser }
 
-    val currentUserRole = remember(roomUsers, currentUser) {
-        roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
-    }
-
     val displayUsers = remember(roomUsers, currentUser, currentUserRole) {
         if (currentUser == null) return@remember roomUsers
 
@@ -38,7 +35,7 @@ fun CardRoomContent(
             uid = currentUser.uid,
             name = currentUser.displayName ?: "Me",
             email = currentUser.email.orEmpty(),
-            role = roomUsers.find { it.uid == currentUser.uid }?.role ?: currentUserRole,
+            role = currentUserRole,
             username = currentUser.email?.substringBefore("@") ?: "me"
         )
 

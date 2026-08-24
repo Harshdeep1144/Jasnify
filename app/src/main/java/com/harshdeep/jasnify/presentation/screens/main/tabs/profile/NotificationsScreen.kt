@@ -5,18 +5,33 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
 
 @Composable
-fun NotificationsScreen(onBack: () -> Unit) {
+fun NotificationsScreen(
+    profileViewModel: ProfileViewModel,
+    onBack: () -> Unit
+) {
+    val isEnabled by profileViewModel.isNotificationsEnabled.collectAsState()
+
     Scaffold(
         topBar = {
             Column(modifier = Modifier.statusBarsPadding()) {
@@ -37,9 +52,22 @@ fun NotificationsScreen(onBack: () -> Unit) {
         ) {
             ProfileMenuCell(
                 title = "Push Notifications",
-                subtitle = "On",
-                icon = painterResource(R.drawable.ic_info),
-                hasBorder = true
+                icon = painterResource(R.drawable.ic_notification),
+                hasBorder = true,
+                showArrow = false,
+                trailingContent = {
+                    Switch(
+                        checked = isEnabled,
+                        onCheckedChange = { profileViewModel.toggleNotifications(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ContentInvPrimary,
+                            checkedTrackColor = ContentBrand,
+                            uncheckedThumbColor = ContentInvPrimary,
+                            uncheckedTrackColor = ContentTertiary,
+                            uncheckedBorderColor = Color.Transparent
+                        )
+                    )
+                }
             )
         }
     }

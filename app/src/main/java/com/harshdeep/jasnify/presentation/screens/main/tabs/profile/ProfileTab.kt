@@ -6,10 +6,12 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -40,7 +43,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -71,13 +76,14 @@ import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
+import com.harshdeep.jasnify.presentation.components.states.ProfileLoadingState
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileUpdateState
 import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
@@ -91,7 +97,7 @@ enum class ProfileScreen {
     ManageEvents,
     MyEnquiries,
     Notifications,
-    TermsAndConditions,
+    TermsOfUse,
     PrivacyPolicy
 }
 
@@ -106,8 +112,7 @@ fun ProfileTab(
     authViewModel: AuthViewModel = hiltViewModel(),
     profileViewModel: ProfileViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    venueViewModel: VenueViewModel = hiltViewModel(),
-    enquiryViewModel: EnquiryViewModel = hiltViewModel()
+    enquiryViewModel: EnquiryViewModel = hiltViewModel(),
 ) {
     val mainGraphEntry = remember(mainNavController) {
         mainNavController.getBackStackEntry(Screen.MainAppGraph.route)
@@ -120,6 +125,11 @@ fun ProfileTab(
 
     val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val ownedEvents by eventViewModel.userEvents.collectAsStateWithLifecycle()
+
+    if (userProfile == null) {
+        ProfileLoadingState()
+        return
+    }
 
     val enquiries by remember(firebaseUser?.uid) {
         if (firebaseUser?.uid != null) {
@@ -146,12 +156,13 @@ fun ProfileTab(
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
 
     val profilePic: Any = if (userProfile != null) {
-        userProfile?.profilePictureUrl ?: R.drawable.ic_user_profile
+        userProfile?.profilePictureUrl ?: R.drawable.img_profile_placeholder
     } else {
-        firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+        firebaseUser?.photoUrl ?: R.drawable.img_profile_placeholder
     }
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
+    val profileLazyListState = rememberLazyListState()
 
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
@@ -186,7 +197,7 @@ fun ProfileTab(
     }
 
     LaunchedEffect(currentScreen, isAnyBottomSheetOpen) {
-        onBottomBarVisibilityChange(currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen)
+        onBottomBarVisibilityChange((currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen))
     }
 
     val targetScale = if (isAnyBottomSheetOpen) {
@@ -208,9 +219,22 @@ fun ProfileTab(
     )
 
     var toastData by remember { mutableStateOf(ToastData()) }
+    val haptic = LocalHapticFeedback.current
 
     LaunchedEffect(toastData.message) {
         if (toastData.message != null) {
+            if (toastData.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (toastData.message?.contains("Please", ignoreCase = true) == true ||
+                    toastData.message?.contains("enter", ignoreCase = true) == true ||
+                    toastData.message?.contains("select", ignoreCase = true) == true ||
+                    toastData.message?.contains("invalid", ignoreCase = true) == true ||
+                    toastData.message?.contains("don't have access", ignoreCase = true) == true
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(2000.milliseconds)
             toastData = toastData.copy(message = null)
         }
@@ -293,6 +317,7 @@ fun ProfileTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(BackgroundPrimary)
                 .graphicsLayer {
                     scaleX = backdropScale
                     scaleY = backdropScale
@@ -303,10 +328,32 @@ fun ProfileTab(
             AnimatedContent(
                 targetState = currentScreen,
                 transitionSpec = {
+                    val duration = 400
+                    val easing = FastOutSlowInEasing
                     if (targetState == ProfileScreen.Root) {
-                        (slideInHorizontally { -it } + fadeIn()) togetherWith (slideOutHorizontally { it } + fadeOut())
+                        // Sliding BACK to Root (Incoming from Left, Outgoing to Right)
+                        (slideInHorizontally(
+                            initialOffsetX = { -it / 3 },
+                            animationSpec = tween(duration, easing = easing)
+                        ) + fadeIn(tween(duration, easing = easing)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { it },
+                                    animationSpec = tween(duration, easing = easing)
+                                ) + fadeOut(tween(duration, easing = easing))
+                            )
                     } else {
-                        (slideInHorizontally { it } + fadeIn()) togetherWith (slideOutHorizontally { -it } + fadeOut())
+                        // Sliding FORWARD to Sub-screen (Incoming from Right, Outgoing to Left)
+                        (slideInHorizontally(
+                            initialOffsetX = { it },
+                            animationSpec = tween(duration, easing = easing)
+                        ) + fadeIn(tween(duration, easing = easing)))
+                            .togetherWith(
+                                slideOutHorizontally(
+                                    targetOffsetX = { -it / 3 },
+                                    animationSpec = tween(duration, easing = easing)
+                                ) + fadeOut(tween(duration, easing = easing))
+                            )
                     }
                 },
                 label = "ProfileTabNavigation",
@@ -319,15 +366,18 @@ fun ProfileTab(
                 }
                 when (screen) {
                     ProfileScreen.Root -> {
-                        ProfileTabContent(
+                        val notificationEnabled by profileViewModel.isNotificationsEnabled.collectAsState()
+                        ProfileRootScreen(
                             userName = userName,
                             userHandle = userHandle,
                             profilePic = profilePic,
                             eventCount = eventCount,
                             enquiryCount = enquiryCount,
+                            notificationEnabled = notificationEnabled,
                             onEditProfile = { showEditProfile = true },
                             onNavigateTo = { currentScreen = it },
-                            onLogout = { showLogoutDialog = true }
+                            onLogout = { showLogoutDialog = true },
+                            lazyListState = profileLazyListState
                         )
                     }
 
@@ -390,13 +440,14 @@ fun ProfileTab(
 
                     ProfileScreen.Notifications -> {
                         NotificationsScreen(
+                            profileViewModel = profileViewModel,
                             onBack = { currentScreen = ProfileScreen.Root }
                         )
                     }
 
-                    ProfileScreen.TermsAndConditions -> {
+                    ProfileScreen.TermsOfUse -> {
                         LegalScreen(
-                            title = "Terms & Conditions",
+                            title = "Terms of Use",
                             onBack = { currentScreen = ProfileScreen.Root }
                         )
                     }

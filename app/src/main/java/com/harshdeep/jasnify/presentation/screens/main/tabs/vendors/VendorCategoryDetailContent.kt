@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 import android.content.Context
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -42,6 +43,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -62,6 +64,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
@@ -75,7 +78,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardFull
-import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
+import com.harshdeep.jasnify.presentation.components.carousels.HighlightedVendors
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
@@ -94,10 +97,113 @@ import com.harshdeep.jasnify.presentation.components.states.SearchSuggestionItem
 import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.venues.KEY_RECENT_SEARCHES
+import com.harshdeep.jasnify.presentation.screens.venues.PREFS_NAME
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 
 private val FilterOptions = listOf("Most Relevant", "Top-Rated", "Price: Highest First", "Price: Lowest First")
 private val ViewOptions = listOf("By Timeline", "All Saved")
+
+@Immutable
+data class CategoryHighlightedTheme(
+    val backgroundColor: Color,
+    val titleColor: Color,
+    val subtitleColor: Color,
+    val title: String,
+    val subtitle: String
+)
+
+fun getCategoryHighlightedTheme(categoryName: String): CategoryHighlightedTheme {
+    val normalized = categoryName.lowercase().trim()
+    return when {
+        normalized.contains("photo") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFC7F3FF),
+            titleColor = Color(0xFF005066),
+            subtitleColor = Color(0xFF005066),
+            title = "Photographers",
+            subtitle = "Top-Rated"
+        )
+        normalized.contains("food") || normalized.contains("cater") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFFFDCCC),
+            titleColor = Color(0xFF662000),
+            subtitleColor = Color(0xFF662000),
+            title = "Food & Catering",
+            subtitle = "Top-Rated for"
+        )
+        normalized.contains("groom") || normalized.contains("salon") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFCFE8FF),
+            titleColor = Color(0xFF003566),
+            subtitleColor = Color(0xFF003566),
+            title = "Grooming",
+            subtitle = "Top-Rated For"
+        )
+        normalized.contains("makeup") || normalized.contains("beauty") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFFFD6DC),
+            titleColor = Color(0xFF66000F),
+            subtitleColor = Color(0xFF66000F),
+            title = "Makeup Artists",
+            subtitle = "Top-Rated"
+        )
+        normalized.contains("mehendi") || normalized.contains("mehndi") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFFFE2D1),
+            titleColor = Color(0xFF662500),
+            subtitleColor = Color(0xFF662500),
+            title = "Mehendi Artists",
+            subtitle = "Top-Rated"
+        )
+        normalized.contains("jewel") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFFFE0BA),
+            titleColor = Color(0xFF663800),
+            subtitleColor = Color(0xFF663800),
+            title = "Jewellery",
+            subtitle = "Top-Rated for"
+        )
+        normalized.contains("outfit") || normalized.contains("cloth") || normalized.contains("wear") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFF7D6FF),
+            titleColor = Color(0xFF520066),
+            subtitleColor = Color(0xFF520066),
+            title = "Outfits",
+            subtitle = "Top-Rated for"
+        )
+        normalized.contains("entertain") || normalized.contains("music") || normalized.contains("dj") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFD2DBFF),
+            titleColor = Color(0xFF001466),
+            subtitleColor = Color(0xFF001466),
+            title = "Entertainment",
+            subtitle = "Top-Rated for"
+        )
+        normalized.contains("gift") -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFFFE4E6),
+            titleColor = Color(0xFF660008),
+            subtitleColor = Color(0xFF660008),
+            title = "Gift Items",
+            subtitle = "Top-Rated for"
+        )
+        else -> CategoryHighlightedTheme(
+            backgroundColor = Color(0xFFD9E9FF),
+            titleColor = Color(0xFF003680),
+            subtitleColor = Color(0xFF003680),
+            title = categoryName,
+            subtitle = "TOP-RATED"
+        )
+    }
+}
+
+@DrawableRes
+fun getCategoryIllustrationRes(categoryName: String): Int {
+    val normalized = categoryName.lowercase().trim()
+    return when {
+        normalized.contains("groom") -> R.drawable.ill_vendor_grooming
+        normalized.contains("makeup") -> R.drawable.ill_vendor_makeup
+        normalized.contains("photo") -> R.drawable.ill_vendor_photographers
+        normalized.contains("mehendi") || normalized.contains("mehndi") -> R.drawable.ill_vendor_mehendi
+        normalized.contains("jewel") -> R.drawable.ill_vendor_jewellery
+        normalized.contains("outfit") || normalized.contains("cloth") || normalized.contains("wear") -> R.drawable.ill_bride_and_groom
+        normalized.contains("entertain") || normalized.contains("music") || normalized.contains("dj") -> R.drawable.ill_vendor_entertainment
+        normalized.contains("food") || normalized.contains("cater") -> R.drawable.ill_vendor_food_serve
+        normalized.contains("gift") -> R.drawable.ill_vendor_gifts
+        else -> R.drawable.ill_vendor_grooming
+    }
+}
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -123,7 +229,6 @@ fun VendorCategoryDetailContent(
     onOfferClick: (Vendor) -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
     gridState: LazyGridState = rememberLazyGridState(),
-    isBottomBarVisible: Boolean = true
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -145,6 +250,14 @@ fun VendorCategoryDetailContent(
     var recentSearchesNames by remember { mutableStateOf(getCategoryRecentSearches(context, category.name)) }
 
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
+
+    val categoryIllustration = remember(category.name) {
+        getCategoryIllustrationRes(category.name)
+    }
+
+    val categoryHighlightTheme = remember(category.name) {
+        getCategoryHighlightedTheme(category.name)
+    }
 
     val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, vendorSavedDestinations, category.name) {
         val baseList = allVendors.ifEmpty { MockData.sampleVendors.filter { it.category == category.name } }
@@ -410,21 +523,30 @@ fun VendorCategoryDetailContent(
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }
                             } else if (!isSearchActive) {
-                                item(key = "top_rated_carousel", contentType = "vendor_carousel") {
-                                    val topRatedVendors = remember(filteredVendors) {
-                                        filteredVendors.filter { it.rating >= 4.5 }
+                                item(key = "highlighted_top_vendors_header", contentType = "highlighted_vendors") {
+                                    val topVendors = remember(filteredVendors) {
+                                        val highRated = filteredVendors.filter { it.rating >= 4.5 }
+                                        highRated.ifEmpty { filteredVendors.take(6) }
                                     }
-                                    VendorCarousel(
-                                        title = "Top-Rated ${category.name}",
-                                        vendors = topRatedVendors,
-                                        isLoading = isLoading,
+                                    HighlightedVendors(
+                                        title = categoryHighlightTheme.title,
+                                        subtitle = categoryHighlightTheme.subtitle,
+                                        vendors = topVendors,
+                                        isHeadingTop = false,
+                                        headerImage = painterResource(id = categoryIllustration),
+                                        backgroundColor = categoryHighlightTheme.backgroundColor,
+                                        titleColor = categoryHighlightTheme.titleColor,
+                                        subtitleColor = categoryHighlightTheme.subtitleColor,
+                                        buttonText = null,
+                                        onButtonClick = null,
                                         onVendorClick = { vendor ->
                                             saveCategoryRecentSearch(context, category.name, vendor.name)
                                             recentSearchesNames = getCategoryRecentSearches(context, category.name)
                                             onVendorClick(vendor)
                                         },
                                         onFavoriteToggle = onFavoriteToggle,
-                                        onOfferClick = { onOfferClick(it) }
+                                        onOfferClick = { onOfferClick(it) },
+                                        modifier = Modifier.padding(horizontal = 12.dp)
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                 }

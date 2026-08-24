@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -40,13 +41,12 @@ import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.VendorCardCompact
 import com.harshdeep.jasnify.presentation.components.states.CompactCardLoading
 import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
-import sv.lib.squircleshape.SquircleShape
-import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import sv.lib.squircleshape.SquircleShape
 
 @Composable
 fun HighlightedVendors(
@@ -54,6 +54,7 @@ fun HighlightedVendors(
     subtitle: String,
     vendors: List<Vendor>,
     modifier: Modifier = Modifier,
+    isHeadingTop: Boolean = false,
     headerImage: Painter? = null,
     isLoading: Boolean = false,
     onVendorClick: (Vendor) -> Unit = {},
@@ -73,7 +74,11 @@ fun HighlightedVendors(
         modifier = modifier
             .fillMaxWidth()
             .clip(SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
-            .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerExtraLarge, CornerSmoothingDefault))
+            .border(
+                1.dp,
+                MaterialTheme.colorScheme.outline.copy(0.16f),
+                SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+            )
             .background(backgroundColor)
     ) {
         Column(
@@ -93,43 +98,51 @@ fun HighlightedVendors(
                     if (isLoading && shimmerBrush != null) {
                         Box(
                             modifier = Modifier
-                                .width(160.dp)
-                                .height(28.dp)
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(shimmerBrush)
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Box(
-                            modifier = Modifier
                                 .width(110.dp)
                                 .height(14.dp)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(shimmerBrush)
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .width(160.dp)
+                                .height(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(shimmerBrush)
+                        )
                     } else {
-                        Text(
-                            text = title.uppercase(),
-                            style = JasnifyTheme.typography.displayLarge.copy(
-                                fontFamily = FontFamily(
-                                    Font(R.font.facadflux_bold)
+                        val titleComposable = @Composable {
+                            Text(
+                                text = title.uppercase(),
+                                style = JasnifyTheme.typography.displayLarge.copy(
+                                    fontFamily = FontFamily(Font(R.font.facadflux_bold)),
+                                    lineHeight = JasnifyTheme.typography.displayLarge.fontSize
                                 ),
-                                lineHeight = JasnifyTheme.typography.displayLarge.fontSize
-                            ),
-                            fontWeight = FontWeight.Bold,
-                            color = titleColor,
-                        )
+                                fontWeight = FontWeight.Bold,
+                                color = titleColor,
+                            )
+                        }
 
-                        Text(
-                            text = subtitle.uppercase(),
-                            style = JasnifyTheme.typography.labelSmall.copy(
-                                fontFamily = FontFamily(
-                                    Font(R.font.facadflux_bold)
+                        val subtitleComposable = @Composable {
+                            Text(
+                                text = subtitle.uppercase(),
+                                style = JasnifyTheme.typography.labelSmall.copy(
+                                    fontFamily = FontFamily(Font(R.font.facadflux_bold)),
+                                    lineHeight = JasnifyTheme.typography.labelSmall.fontSize
                                 ),
-                                lineHeight = JasnifyTheme.typography.labelSmall.fontSize
-                            ),
-                            color = subtitleColor,
-                            letterSpacing = 2.sp
-                        )
+                                color = subtitleColor,
+                                letterSpacing = 2.sp
+                            )
+                        }
+
+                        if (isHeadingTop) {
+                            titleComposable()
+                            subtitleComposable()
+                        } else {
+                            subtitleComposable()
+                            titleComposable()
+                        }
                     }
                 }
 
@@ -172,7 +185,9 @@ fun HighlightedVendors(
                             onCardClick = { onVendorClick(vendor) },
                             onFavoriteToggle = { onFavoriteToggle(vendor) },
                             onOfferClick = { onOfferClick(vendor) },
-                            compactCardSize = cardSize
+                            compactCardSize = cardSize,
+                            vendorNameColor = titleColor,
+                            locationColor = ContentPrimary,
                         )
                     }
                 }
@@ -198,41 +213,45 @@ fun HighlightedVendors(
     }
 }
 
-
-
-@Preview(name = "Highlighted Vendors - Content State", showBackground = true)
+@Preview(name = "Highlighted Vendors - Heading Down (Default)", showBackground = true)
 @Composable
-private fun HighlightedVendorsContentPreview() {
+private fun HighlightedVendorsHeadingDownPreview() {
     val sampleVendors = listOf(
-        Vendor(
-            id = "1",
-            name = "Unique Catering...",
-            city = "Noida",
-        ),
-        Vendor(
-            id = "2",
-            name = "Terminal Cateri...",
-            city = "New Delhi",
-        ),
-        Vendor(
-            id = "3",
-            name = "Royal Caterers",
-            city = "Ghaziabad",
-        )
+        Vendor(id = "1", name = "Vivid Visions", city = "New Delhi"),
+        Vendor(id = "2", name = "Pixela Photogra...", city = "Noida"),
+        Vendor(id = "3", name = "Frames & Focus", city = "Gurgaon")
+    )
+
+    HighlightedVendors(
+        title = "Photographers",
+        subtitle = "Top-Rated",
+        vendors = sampleVendors,
+        isHeadingTop = false,
+        isLoading = false,
+        buttonText = null,
+        onButtonClick = null,
+        modifier = Modifier.padding(16.dp)
+    )
+}
+
+@Preview(name = "Highlighted Vendors - Heading Top", showBackground = true)
+@Composable
+private fun HighlightedVendorsHeadingTopPreview() {
+    val sampleVendors = listOf(
+        Vendor(id = "1", name = "Unique Catering...", city = "Noida"),
+        Vendor(id = "2", name = "Terminal Cateri...", city = "New Delhi"),
+        Vendor(id = "3", name = "Royal Caterers", city = "Ghaziabad")
     )
 
     HighlightedVendors(
         title = "Top Vendors",
         subtitle = "Curated for you",
         vendors = sampleVendors,
+        isHeadingTop = true,
         isLoading = false,
-        headerImage = painterResource(R.drawable.ic_google), // Replace with cloche/food icon drawable
         buttonText = "View all",
-        buttonTrailingIcon = painterResource(R.drawable.ic_google), // Replace with arrow icon drawable
+        buttonTrailingIcon = painterResource(R.drawable.ic_arrow_right),
         onButtonClick = {},
-        onVendorClick = {},
-        onFavoriteToggle = {},
-        onOfferClick = {},
         modifier = Modifier.padding(16.dp)
     )
 }
@@ -245,24 +264,8 @@ private fun HighlightedVendorsLoadingPreview() {
         subtitle = "Curated for you",
         vendors = emptyList(),
         isLoading = true,
-        headerImage = painterResource(R.drawable.ic_google),
         buttonText = "View all",
         onButtonClick = {},
         modifier = Modifier.padding(16.dp)
     )
-}
-
-
-@Preview(name = "Highlighted Vendors - Both States", showBackground = true)
-@Composable
-private fun HighlightedVendorsBothStatesPreview() {
-    Column(
-        modifier = Modifier
-            .padding(16.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        HighlightedVendorsContentPreview()
-        HighlightedVendorsLoadingPreview()
-    }
 }

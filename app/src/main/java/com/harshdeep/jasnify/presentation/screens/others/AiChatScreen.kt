@@ -3,9 +3,11 @@ package com.harshdeep.jasnify.presentation.screens.others
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import androidx.annotation.RequiresApi
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -36,7 +38,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -67,6 +68,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.FloatingActionButton
@@ -113,7 +115,6 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.firebase.firestore.DocumentId
 import com.google.firebase.firestore.IgnoreExtraProperties
 import com.google.firebase.firestore.PropertyName
 import com.harshdeep.jasnify.R
@@ -126,10 +127,12 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
+import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
@@ -164,6 +167,13 @@ import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmall
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.guests.GuestsTab
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
+import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
+import androidx.navigation.NavHostController
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
@@ -199,14 +209,16 @@ data class AiMessage(
     var showBudgetSummary: Boolean = false,
     @get:PropertyName("feedback")
     @set:PropertyName("feedback")
-    var feedback: Int = 0 // 0 = neutral, 1 = liked, -1 = disliked
+    var feedback: Int = 0
 )
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun AiChatScreen(
     modifier: Modifier = Modifier,
     eventId: String? = null,
     initialContext: String? = null,
+    shouldStartNewSession: Boolean = false,
     viewModel: GenerativeViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     budgetViewModel: BudgetViewModel = hiltViewModel(),
@@ -215,6 +227,8 @@ fun AiChatScreen(
     vendorViewModel: VendorViewModel = hiltViewModel(),
     checklistViewModel: ChecklistViewModel = hiltViewModel(),
     guestViewModel: GuestViewModel = hiltViewModel(),
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    mainNavController: NavHostController? = null,
     onBackClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -244,6 +258,15 @@ fun AiChatScreen(
     val isGenerating by viewModel.isGenerating.collectAsStateWithLifecycle()
     val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
     val currentChatId by viewModel.currentChatId.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        if (shouldStartNewSession) {
+            viewModel.createNewChatSession()
+        }
+    }
+
+    var currentSubScreen by remember { mutableStateOf("chat") }
+    var selectedVendorCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
     var recentlyDeletedSession by remember { mutableStateOf<ChatSession?>(null) }
@@ -553,22 +576,9 @@ fun AiChatScreen(
         }
     }
 
-    val displayedMessages = remember(
-        messages,
-        isVoiceMode,
-        voiceModeStartTime,
-        streamedDisplayMessage,
-        activeSpeakingMessageId
-    ) {
+    val displayedMessages = remember(messages, isVoiceMode, voiceModeStartTime) {
         if (isVoiceMode) {
-            val voiceSessionMessages = messages.filter { it.timestamp >= voiceModeStartTime }
-            if (activeSpeakingMessageId != null && streamedDisplayMessage != null) {
-                voiceSessionMessages.map { msg ->
-                    if (msg.id == activeSpeakingMessageId) streamedDisplayMessage!! else msg
-                }
-            } else {
-                voiceSessionMessages
-            }
+            messages.filter { it.timestamp >= voiceModeStartTime }
         } else {
             messages
         }
@@ -650,15 +660,36 @@ fun AiChatScreen(
         }
     }
 
-    BackHandler(enabled = isDrawerOpen || selectedVenueDetail != null || selectedVendorDetail != null || selectedChecklistDetail != null || selectedGuestDetail != null || selectedExpenseDetail != null) {
-        if (isDrawerOpen) {
-            isDrawerOpen = false
-        } else {
-            selectedVenueDetail = null
-            selectedVendorDetail = null
-            selectedChecklistDetail = null
-            selectedGuestDetail = null
-            selectedExpenseDetail = null
+    BackHandler(
+        enabled = currentSubScreen != "chat" ||
+                isVoiceMode ||
+                isDrawerOpen ||
+                selectedVenueDetail != null ||
+                selectedVendorDetail != null ||
+                selectedChecklistDetail != null ||
+                selectedGuestDetail != null ||
+                selectedExpenseDetail != null
+    ) {
+        when {
+            currentSubScreen != "chat" -> {
+                currentSubScreen = "chat"
+                selectedVendorCategory = null
+            }
+            isVoiceMode -> {
+                isVoiceMode = false
+                hasSpokenFirstMessage = false
+                interruptAndSaveSpokenPortion()
+            }
+            isDrawerOpen -> {
+                isDrawerOpen = false
+            }
+            else -> {
+                selectedVenueDetail = null
+                selectedVendorDetail = null
+                selectedChecklistDetail = null
+                selectedGuestDetail = null
+                selectedExpenseDetail = null
+            }
         }
     }
 
@@ -667,308 +698,395 @@ fun AiChatScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        if (displayedMessages.isEmpty() && !isVoiceMode) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_ai),
-                    contentDescription = null,
-                    tint = ContentSecondary,
-                    modifier = Modifier.size(64.dp)
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "How can I help you today?",
-                    style = JasnifyTheme.typography.headingMedium,
-                    color = ContentSecondary
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Ask anything about your expenses, guest lists, vendors, or event planning.",
-                    style = JasnifyTheme.typography.bodyMedium,
-                    color = ContentSecondary.copy(alpha = 0.7f),
-                    textAlign = TextAlign.Center
-                )
-            }
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(
-                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 68.dp,
-                    bottom = if (isVoiceMode) 270.dp else 120.dp
-                )
-            ) {
-                items(displayedMessages, key = { it.id.ifEmpty { UUID.randomUUID().toString() } }) { message ->
-                    if (message.isUser) {
-                        UserMessageBubble(message = message)
-                    } else {
-                        if (message.text.isNotBlank()) {
-                            val allowAttachments = !isVoiceMode || fullyCompletedMessageIds.contains(message.id)
-                            AiMessageContent(
-                                message = message,
-                                allVenues = if (allowAttachments) allVenues else emptyList(),
-                                allVendors = if (allowAttachments) allVendors else emptyList(),
-                                guests = if (allowAttachments) guests else emptyList(),
-                                expenses = if (allowAttachments) expenses else emptyList(),
-                                checklists = if (allowAttachments) checklists else emptyList(),
-                                budgetSettings = if (allowAttachments) budgetSettings else null,
-                                onFeedbackClick = { feedbackType ->
-                                    viewModel.toggleMessageFeedback(message.id, feedbackType)
-                                },
-                                onVenueClick = { selectedVenueDetail = it },
-                                onVendorClick = { selectedVendorDetail = it },
-                                onGuestClick = { selectedGuestDetail = it },
-                                onExpenseClick = { selectedExpenseDetail = it },
-                                onChecklistClick = { selectedChecklistDetail = it }
+        AnimatedContent(
+            targetState = currentSubScreen,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(300))
+                    .togetherWith(fadeOut(animationSpec = tween(300)))
+            },
+            label = "ai_sub_screen_transition",
+            modifier = Modifier.fillMaxSize()
+        ) { screen ->
+            when (screen) {
+                "chat" -> {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (displayedMessages.isEmpty() && !isVoiceMode) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_ai),
+                                    contentDescription = null,
+                                    tint = ContentSecondary,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    text = "How can I help you today?",
+                                    style = JasnifyTheme.typography.headingMedium,
+                                    color = ContentSecondary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "Ask anything about your expenses, guest lists, vendors, or event planning.",
+                                    style = JasnifyTheme.typography.bodyMedium,
+                                    color = ContentSecondary.copy(alpha = 0.7f),
+                                    textAlign = TextAlign.Center
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                contentPadding = PaddingValues(
+                                    top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 68.dp,
+                                    bottom = if (isVoiceMode) 270.dp else 120.dp
+                                )
+                            ) {
+                                items(
+                                    displayedMessages,
+                                    key = { it.id.ifEmpty { UUID.randomUUID().toString() } }) { message ->
+                                    if (message.isUser) {
+                                        UserMessageBubble(message = message)
+                                    } else {
+                                        val allowAttachments =
+                                            !isVoiceMode || fullyCompletedMessageIds.contains(message.id)
+                                        AiMessageContent(
+                                            message = message,
+                                            isStreaming = isGenerating && message.id == displayedMessages.lastOrNull()?.id,
+                                            allVenues = if (allowAttachments) allVenues else emptyList(),
+                                            allVendors = if (allowAttachments) allVendors else emptyList(),
+                                            guests = if (allowAttachments) guests else emptyList(),
+                                            expenses = if (allowAttachments) expenses else emptyList(),
+                                            checklists = if (allowAttachments) checklists else emptyList(),
+                                            budgetSettings = if (allowAttachments) budgetSettings else null,
+                                            onFeedbackClick = { feedbackType ->
+                                                viewModel.toggleMessageFeedback(
+                                                    message.id,
+                                                    feedbackType
+                                                )
+                                            },
+                                            onVenueClick = { selectedVenueDetail = it },
+                                            onVendorClick = { selectedVendorDetail = it },
+                                            onGuestClick = { selectedGuestDetail = it },
+                                            onExpenseClick = { selectedExpenseDetail = it },
+                                            onChecklistClick = { selectedChecklistDetail = it },
+                                            onSeeAllVenues = { currentSubScreen = "venues" },
+                                            onSeeAllVendors = { currentSubScreen = "vendors" },
+                                            onSeeAllGuests = { currentSubScreen = "guests" },
+                                            onSeeAllBudget = { currentSubScreen = "budget" }
+                                        )
+                                    }
+                                }
+
+                                item(key = "keyboard_bottom_spacer") {
+                                    Spacer(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(animatedKeyboardSpacerDp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                                .background(brush = TopGradientBrushLightTheme)
+                                .statusBarsPadding()
+                                .zIndex(10f)
+                        ) {
+                            CustomTopBar(
+                                title = "",
+                                onBackClick = onBackClick,
+                                onMenuClick = { isDrawerOpen = true },
+                                backIcon = TopIcon.Predefined.DOWN,
+                                menuIcon = TopIcon.Predefined.MENU_MODERN,
+                                buttonStyle = ButtonBackground.TRANSLUCENT
                             )
                         }
-                    }
-                }
 
-                if (isGenerating) {
-                    item(key = "generating_indicator") {
-                        GeneratingIndicator()
-                    }
-                }
-
-                item(key = "keyboard_bottom_spacer") {
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(animatedKeyboardSpacerDp)
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .background(brush = TopGradientBrushLightTheme)
-                .statusBarsPadding()
-                .zIndex(10f)
-        ) {
-            CustomTopBar(
-                title = "",
-                onBackClick = onBackClick,
-                onMenuClick = { isDrawerOpen = true },
-                backIcon = TopIcon.Predefined.DOWN,
-                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                buttonStyle = ButtonBackground.OPAQUE
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showScrollToBottomButton && !isVoiceMode,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .imePadding()
-                .padding(end = 16.dp, bottom = 108.dp)
-                .zIndex(15f)
-        ) {
-            FloatingActionButton(
-                onClick = {
-                    coroutineScope.launch {
-                        if (displayedMessages.isNotEmpty()) {
-                            listState.animateScrollToItem(displayedMessages.size)
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .size(42.dp)
-                    .shadow(4.dp, CircleShape),
-                shape = CircleShape,
-                containerColor = SurfaceBrandPrimary,
-                contentColor = ContentInvPrimary
-            ) {
-                Icon(
-                    imageVector = Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Scroll to bottom",
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .imePadding()
-                .background(brush = BottomGradientBrush)
-                .navigationBarsPadding()
-                .padding(horizontal = 12.dp, vertical = 12.dp)
-                .zIndex(10f)
-        ) {
-            AiChatInput(
-                value = inputText,
-                onValueChange = { inputText = it },
-                isVoiceMode = isVoiceMode,
-                hasSpokenFirstMessage = hasSpokenFirstMessage,
-                isMicMuted = isMicMuted,
-                isAiSpeaking = isAiSpeaking,
-                isGenerating = isGenerating,
-                audioRms = audioRms,
-                placeholderPrefix = "Search for ",
-                dynamicPlaceholders = listOf(
-                    "fixed and variable expenses",
-                    "photographers & vendors",
-                    "venue availability",
-                    "guest invitations & RSVPs",
-                    "checklist progress"
-                ),
-                onSendClick = {
-                    if (inputText.isNotBlank()) {
-                        val query = inputText
-                        inputText = ""
-                        viewModel.sendMessage(query)
-                    }
-                },
-                onStopClick = { },
-                onVoiceClick = {
-                    val hasPermission = ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.RECORD_AUDIO
-                    ) == PackageManager.PERMISSION_GRANTED
-
-                    if (hasPermission) {
-                        enableVoiceMode()
-                    } else {
-                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                    }
-                },
-                onToggleMicMute = {
-                    isMicMuted = !isMicMuted
-                },
-                onCancelVoice = {
-                    isVoiceMode = false
-                    hasSpokenFirstMessage = false
-                    interruptAndSaveSpokenPortion()
-                }
-            )
-        }
-
-        if (isDrawerOpen) {
-            val drawerWidthDp = 320.dp
-            val drawerWidthPx = with(density) { drawerWidthDp.toPx() }
-            val animatedOffsetX = remember { Animatable(-drawerWidthPx) }
-
-            LaunchedEffect(Unit) {
-                animatedOffsetX.animateTo(
-                    targetValue = 0f,
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioLowBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                )
-            }
-
-            fun closeDrawerSmoothly() {
-                coroutineScope.launch {
-                    animatedOffsetX.animateTo(
-                        targetValue = -drawerWidthPx,
-                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
-                    )
-                    isDrawerOpen = false
-                }
-            }
-
-            val currentFraction = (1f - (abs(animatedOffsetX.value) / drawerWidthPx)).coerceIn(0f, 1f)
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.45f * currentFraction))
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) {
-                        closeDrawerSmoothly()
-                    }
-                    .zIndex(25f)
-            )
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(30f),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                val velocityTracker = remember { VelocityTracker() }
-
-                ChatSidebarDrawer(
-                    sessions = chatSessions,
-                    currentChatId = currentChatId,
-                    onSelectChat = { chatId ->
-                        viewModel.selectChatSession(chatId)
-                        closeDrawerSmoothly()
-                    },
-                    onNewChatClick = {
-                        viewModel.createNewChatSession("New Chat")
-                        closeDrawerSmoothly()
-                    },
-                    onDeleteChat = { session ->
-                        recentlyDeletedSession = session
-                        viewModel.deleteChatSession(session.id)
-                        toastData = ToastData("Chat deleted", ToastType.DEFAULT)
-                    },
-                    modifier = Modifier
-                        .offset { IntOffset(x = animatedOffsetX.value.roundToInt(), y = 0) }
-                        .pointerInput(Unit) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { velocityTracker.resetTracking() },
-                                onDragEnd = {
-                                    val velocity = velocityTracker.calculateVelocity().x
-                                    val shouldDismiss = animatedOffsetX.value < -(drawerWidthPx * 0.35f) || velocity < -1000f
-
+                        AnimatedVisibility(
+                            visible = showScrollToBottomButton && !isVoiceMode,
+                            enter = fadeIn() + scaleIn(),
+                            exit = fadeOut() + scaleOut(),
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .imePadding()
+                                .padding(end = 16.dp, bottom = 108.dp)
+                                .zIndex(15f)
+                        ) {
+                            FloatingActionButton(
+                                onClick = {
                                     coroutineScope.launch {
-                                        if (shouldDismiss) {
-                                            animatedOffsetX.animateTo(
-                                                targetValue = -drawerWidthPx,
-                                                animationSpec = tween(
-                                                    durationMillis = 220,
-                                                    easing = FastOutSlowInEasing
-                                                )
-                                            )
-                                            isDrawerOpen = false
-                                        } else {
-                                            animatedOffsetX.animateTo(
-                                                targetValue = 0f,
-                                                animationSpec = spring(
-                                                    dampingRatio = Spring.DampingRatioNoBouncy,
-                                                    stiffness = Spring.StiffnessMediumLow
-                                                )
-                                            )
+                                        if (displayedMessages.isNotEmpty()) {
+                                            listState.animateScrollToItem(displayedMessages.size)
                                         }
                                     }
                                 },
-                                onDragCancel = {
-                                    coroutineScope.launch {
-                                        animatedOffsetX.animateTo(0f)
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .shadow(4.dp, CircleShape),
+                                shape = CircleShape,
+                                containerColor = SurfaceBrandPrimary,
+                                contentColor = ContentInvPrimary
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                    contentDescription = "Scroll to bottom",
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth()
+                                .imePadding()
+                                .background(brush = BottomGradientBrush)
+                                .navigationBarsPadding()
+                                .padding(horizontal = 12.dp, vertical = 12.dp)
+                                .zIndex(10f)
+                        ) {
+                            AiChatInput(
+                                value = inputText,
+                                onValueChange = { inputText = it },
+                                isVoiceMode = isVoiceMode,
+                                hasSpokenFirstMessage = hasSpokenFirstMessage,
+                                isMicMuted = isMicMuted,
+                                isAiSpeaking = isAiSpeaking,
+                                isGenerating = isGenerating,
+                                audioRms = audioRms,
+                                placeholderPrefix = "Search for ",
+                                dynamicPlaceholders = listOf(
+                                    "fixed and variable expenses",
+                                    "photographers & vendors",
+                                    "venue availability",
+                                    "guest invitations & RSVPs",
+                                    "checklist progress"
+                                ),
+                                onSendClick = {
+                                    if (inputText.isNotBlank()) {
+                                        val query = inputText
+                                        inputText = ""
+                                        viewModel.sendMessage(query)
                                     }
                                 },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    velocityTracker.addPosition(change.uptimeMillis, change.position)
-                                    val newOffset = (animatedOffsetX.value + dragAmount).coerceIn(-drawerWidthPx, 0f)
-                                    coroutineScope.launch {
-                                        animatedOffsetX.snapTo(newOffset)
+                                onStopClick = { },
+                                onVoiceClick = {
+                                    val hasPermission = ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.RECORD_AUDIO
+                                    ) == PackageManager.PERMISSION_GRANTED
+
+                                    if (hasPermission) {
+                                        enableVoiceMode()
+                                    } else {
+                                        audioPermissionLauncher.launch(
+                                            Manifest.permission.RECORD_AUDIO
+                                        )
                                     }
-                                    change.consume()
+                                },
+                                onToggleMicMute = {
+                                    isMicMuted = !isMicMuted
+                                },
+                                onCancelVoice = {
+                                    isVoiceMode = false
+                                    hasSpokenFirstMessage = false
+                                    interruptAndSaveSpokenPortion()
                                 }
                             )
                         }
-                )
+
+                        if (isDrawerOpen) {
+                            val drawerWidthDp = 320.dp
+                            val drawerWidthPx = with(density) { drawerWidthDp.toPx() }
+                            val animatedOffsetX = remember { Animatable(-drawerWidthPx) }
+
+                            LaunchedEffect(Unit) {
+                                animatedOffsetX.animateTo(
+                                    targetValue = 0f,
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                )
+                            }
+
+                            fun closeDrawerSmoothly() {
+                                coroutineScope.launch {
+                                    animatedOffsetX.animateTo(
+                                        targetValue = -drawerWidthPx,
+                                        animationSpec = tween(
+                                            durationMillis = 260,
+                                            easing = FastOutSlowInEasing
+                                        )
+                                    )
+                                    isDrawerOpen = false
+                                }
+                            }
+
+                            val currentFraction =
+                                (1f - (abs(animatedOffsetX.value) / drawerWidthPx)).coerceIn(0f, 1f)
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.45f * currentFraction))
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        closeDrawerSmoothly()
+                                    }
+                                    .zIndex(25f)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .zIndex(30f),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                val velocityTracker = remember { VelocityTracker() }
+
+                                ChatSidebarDrawer(
+                                    sessions = chatSessions,
+                                    currentChatId = currentChatId,
+                                    onSelectChat = { chatId ->
+                                        viewModel.selectChatSession(chatId)
+                                        closeDrawerSmoothly()
+                                    },
+                                    onNewChatClick = {
+                                        viewModel.createNewChatSession("New Chat")
+                                        closeDrawerSmoothly()
+                                    },
+                                    onDeleteChat = { session ->
+                                        recentlyDeletedSession = session
+                                        viewModel.deleteChatSession(session.id)
+                                        toastData = ToastData("Chat deleted", ToastType.DEFAULT)
+                                    },
+                                    modifier = Modifier
+                                        .offset {
+                                            IntOffset(
+                                                x = animatedOffsetX.value.roundToInt(),
+                                                y = 0
+                                            )
+                                        }
+                                        .pointerInput(Unit) {
+                                            detectHorizontalDragGestures(
+                                                onDragStart = { velocityTracker.resetTracking() },
+                                                onDragEnd = {
+                                                    val velocity =
+                                                        velocityTracker.calculateVelocity().x
+                                                    val shouldDismiss =
+                                                        animatedOffsetX.value < -(drawerWidthPx * 0.35f) || velocity < -1000f
+
+                                                    coroutineScope.launch {
+                                                        if (shouldDismiss) {
+                                                            animatedOffsetX.animateTo(
+                                                                targetValue = -drawerWidthPx,
+                                                                animationSpec = tween(
+                                                                    durationMillis = 220,
+                                                                    easing = FastOutSlowInEasing
+                                                                )
+                                                            )
+                                                            isDrawerOpen = false
+                                                        } else {
+                                                            animatedOffsetX.animateTo(
+                                                                targetValue = 0f,
+                                                                animationSpec = spring(
+                                                                    dampingRatio = Spring.DampingRatioNoBouncy,
+                                                                    stiffness = Spring.StiffnessMediumLow
+                                                                )
+                                                            )
+                                                        }
+                                                    }
+                                                },
+                                                onDragCancel = {
+                                                    coroutineScope.launch {
+                                                        animatedOffsetX.animateTo(0f)
+                                                    }
+                                                },
+                                                onHorizontalDrag = { change, dragAmount ->
+                                                    velocityTracker.addPosition(
+                                                        change.uptimeMillis,
+                                                        change.position
+                                                    )
+                                                    val newOffset =
+                                                        (animatedOffsetX.value + dragAmount).coerceIn(
+                                                            -drawerWidthPx,
+                                                            0f
+                                                        )
+                                                    coroutineScope.launch {
+                                                        animatedOffsetX.snapTo(newOffset)
+                                                    }
+                                                    change.consume()
+                                                }
+                                            )
+                                        }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                "budget" -> {
+                    BudgetScreen(
+                        onBackClick = { currentSubScreen = "chat" },
+                        viewModel = budgetViewModel,
+                        eventViewModel = eventViewModel,
+                        roomViewModel = roomViewModel
+                    )
+                }
+
+                "guests" -> {
+                    GuestsTab(
+                        onBackClick = { currentSubScreen = "chat" },
+                        guestViewModel = guestViewModel,
+                        eventViewModel = eventViewModel,
+                        roomViewModel = roomViewModel
+                    )
+                }
+
+                "venues" -> {
+                    VenueScreen(
+                        onBackClick = { currentSubScreen = "chat" },
+                        onVenueClick = { selectedVenueDetail = it },
+                        onChatClick = { venue ->
+                            val merchantId = venue.merchantId.ifBlank { "unknown_merchant" }
+                            val itemId = venue.id.ifBlank { "unknown_venue" }
+                            mainNavController?.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
+                        },
+                        eventViewModel = eventViewModel,
+                        venueViewModel = venueViewModel,
+                        roomViewModel = roomViewModel
+                    )
+                }
+
+                "vendors" -> {
+                    VendorsTab(
+                        mainNavController = mainNavController ?: NavHostController(context),
+                        onBottomBarVisibilityChange = {},
+                        onBackClick = {
+                            currentSubScreen = "chat"
+                            selectedVendorCategory = null
+                        },
+                        initialCategory = selectedVendorCategory,
+                        vendorViewModel = vendorViewModel,
+                        eventViewModel = eventViewModel,
+                        roomViewModel = roomViewModel
+                    )
+                }
             }
         }
 
@@ -1043,7 +1161,6 @@ fun AiChatScreen(
                     message = data.message ?: "",
                     type = data.type,
                     leadingIcon = painterResource(id = R.drawable.ic_delete),
-                    iconColor = ContentInvPrimary,
                     buttonText = if (recentlyDeletedSession != null) "Undo" else null,
                     onButtonClick = {
                         recentlyDeletedSession?.let { session ->
@@ -1372,7 +1489,7 @@ fun SwipeToDismissChatSessionItem(
 @Composable
 fun GeneratingIndicator() {
     Row(
-        modifier = Modifier.padding(vertical = 20.dp, horizontal = 24.dp),
+        modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
@@ -1436,6 +1553,7 @@ fun UserMessageBubble(
 @Composable
 fun AiMessageContent(
     message: AiMessage,
+    isStreaming: Boolean = false,
     allVenues: List<Venue> = emptyList(),
     allVendors: List<Vendor> = emptyList(),
     guests: List<Guest> = emptyList(),
@@ -1448,6 +1566,10 @@ fun AiMessageContent(
     onGuestClick: (Guest) -> Unit = {},
     onExpenseClick: (ExpenseEntity) -> Unit = {},
     onChecklistClick: (Checklist) -> Unit = {},
+    onSeeAllVenues: () -> Unit = {},
+    onSeeAllVendors: () -> Unit = {},
+    onSeeAllGuests: () -> Unit = {},
+    onSeeAllBudget: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -1457,6 +1579,24 @@ fun AiMessageContent(
     ) {
         if (message.text.isNotBlank()) {
             FormattedAiText(text = message.text)
+        } else if (isStreaming) {
+            GeneratingIndicator()
+        }
+
+        if (message.showBudgetSummary && budgetSettings != null) {
+            val totalBudget = budgetSettings.totalBudget ?: 0.0
+            val spent = expenses.sumOf { it.amount }
+            val remaining = (totalBudget - spent).coerceAtLeast(0.0)
+            val progress = if (totalBudget > 0) (remaining / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
+
+            Spacer(modifier = Modifier.height(12.dp))
+            BudgetTrackerCard(
+                heading = "Budget Status",
+                progress = progress,
+                amountText = "₹${remaining.toLong()}",
+                labelText = "left",
+                onClick = onSeeAllBudget
+            )
         }
 
         if (message.venueIds.isNotEmpty()) {
@@ -1468,7 +1608,7 @@ fun AiMessageContent(
                     venues = matchedVenues,
                     onVenueClick = onVenueClick,
                     onFavoriteToggle = {},
-                    onSeeAllClick = {},
+                    onSeeAllClick = onSeeAllVenues,
                     onOfferClick = {},
                     cardSize = CompactCardSize.MEDIUM
                 )
@@ -1484,7 +1624,7 @@ fun AiMessageContent(
                     vendors = matchedVendors,
                     onVendorClick = onVendorClick,
                     onFavoriteToggle = {},
-                    onSeeAllClick = {},
+                    onSeeAllClick = onSeeAllVendors,
                     onOfferClick = {},
                     cardSize = CompactCardSize.MEDIUM
                 )
@@ -1492,15 +1632,28 @@ fun AiMessageContent(
         }
 
         if (message.guestIds.isNotEmpty()) {
-            val matchedGuests = guests.filter { message.guestIds.contains(it.id) }
+            val matchedGuests = guests.filter { message.guestIds.contains(it.id) }.take(5)
             matchedGuests.forEach { guest ->
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 GuestCard(
                     name = guest.name,
                     label = guest.type,
                     isInvited = guest.invited,
                     onInviteClick = {},
                     onCardClick = { onGuestClick(guest) }
+                )
+            }
+
+            if (guests.size > matchedGuests.size) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "See all guests (${guests.size}) →",
+                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                    color = ContentBrandDark,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .clickable { onSeeAllGuests() }
+                        .padding(vertical = 4.dp, horizontal = 2.dp)
                 )
             }
         }
@@ -1533,37 +1686,39 @@ fun AiMessageContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (message.text.isNotBlank() && !isStreaming) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        val isLiked = message.feedback == 1
-        val isDisliked = message.feedback == -1
+            val isLiked = message.feedback == 1
+            val isDisliked = message.feedback == -1
 
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = { onFeedbackClick(1) },
-                modifier = Modifier.size(28.dp)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    painter = if (isLiked) painterResource(R.drawable.ic_thumbs_up_filled) else painterResource(R.drawable.ic_thumbs_up),
-                    contentDescription = "Helpful",
-                    tint = ContentSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+                IconButton(
+                    onClick = { onFeedbackClick(1) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        painter = if (isLiked) painterResource(R.drawable.ic_thumbs_up_filled) else painterResource(R.drawable.ic_thumbs_up),
+                        contentDescription = "Helpful",
+                        tint = ContentSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
 
-            IconButton(
-                onClick = { onFeedbackClick(-1) },
-                modifier = Modifier.size(28.dp)
-            ) {
-                Icon(
-                    painter = if (isDisliked) painterResource(R.drawable.ic_thumbs_down_filled) else painterResource(R.drawable.ic_thumbs_down),
-                    contentDescription = "Unhelpful",
-                    tint = ContentSecondary,
-                    modifier = Modifier.size(20.dp)
-                )
+                IconButton(
+                    onClick = { onFeedbackClick(-1) },
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        painter = if (isDisliked) painterResource(R.drawable.ic_thumbs_down_filled) else painterResource(R.drawable.ic_thumbs_down),
+                        contentDescription = "Unhelpful",
+                        tint = ContentSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }
@@ -1629,6 +1784,7 @@ fun FormattedAiText(
     )
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)
 @Composable
 fun AiChatScreenPreview() {

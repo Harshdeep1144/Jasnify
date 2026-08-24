@@ -111,11 +111,21 @@ fun CardsScreen(
     val cardRoomData by cardViewModel.cardRoomData.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
 
-    val currentUser = remember { FirebaseAuth.getInstance().currentUser }
-    val canEdit = remember(roomUsers, currentUser) {
-        val userRole = roomUsers.find { it.uid == currentUser?.uid }?.role ?: UserRole.VIEWER
-        userRole != UserRole.VIEWER
+    val auth = remember { FirebaseAuth.getInstance() }
+    val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
+
+    val currentUserRole = remember(activeEvent, roomUsers, currentUserUid) {
+        val isOwner = activeEvent?.ownerId == currentUserUid
+        val currentUserInRoom = roomUsers.find { it.uid == currentUserUid }
+        when {
+            isOwner -> UserRole.OWNER
+            currentUserInRoom != null -> currentUserInRoom.role
+            else -> UserRole.VIEWER
+        }
     }
+    val isOwner = currentUserRole == UserRole.OWNER
+    val isViewer = currentUserRole == UserRole.VIEWER
+    val canEdit = !isViewer
 
     var currentView by remember { mutableStateOf(CardsView.MAIN) }
     var previousView by remember { mutableStateOf<CardsView?>(null) }
@@ -400,6 +410,7 @@ fun CardsScreen(
                                     CardRoomContent(
                                         eventId = event.id,
                                         roomViewModel = roomViewModel,
+                                        currentUserRole = currentUserRole,
                                         onBackClick = { currentView = CardsView.MAIN },
                                         onMenuClick = { showRoomMenuBottomSheet = true },
                                         onRemove = { userToRemove = it },
@@ -428,13 +439,19 @@ fun CardsScreen(
                 AnimatedVisibility(
                     visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
                     enter = slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = tween(durationMillis = 260)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 260)),
+                        initialOffsetY = { fullHeight -> fullHeight * 2 },
+                        animationSpec = spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f
+                        )
+                    ) + fadeIn(animationSpec = tween(durationMillis = 200)),
                     exit = slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = tween(durationMillis = 260)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 260)),
+                        targetOffsetY = { fullHeight -> fullHeight * 2 },
+                        animationSpec = spring(
+                            dampingRatio = 0.85f,
+                            stiffness = 380f
+                        )
+                    ) + fadeOut(animationSpec = tween(durationMillis = 180)),
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .zIndex(10f)
@@ -479,7 +496,7 @@ fun CardsScreen(
                 ),
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Room Access",
+                        text = if (isOwner) "Manage Room Access" else "Room Members",
                         icon = painterResource(R.drawable.ic_user_default),
                         onClick = {
                             showMenuSheet = false

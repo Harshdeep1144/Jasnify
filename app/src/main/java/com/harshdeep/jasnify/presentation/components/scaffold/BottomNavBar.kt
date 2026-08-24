@@ -243,7 +243,7 @@ fun PillBottomNavBar(
     ) {
         Surface(
             modifier = Modifier
-                .fillMaxWidth()
+                .width(368.dp)
                 .height(62.dp)
                 .pill360Shadow(
                     ambientColor = Color.Black.copy(alpha = 0.10f),

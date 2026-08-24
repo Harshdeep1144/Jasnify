@@ -2,20 +2,32 @@ package com.harshdeep.jasnify
 
 import android.app.Application
 import android.util.Log
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.decode.VideoFrameDecoder
 import com.cloudinary.android.MediaManager
 import com.google.firebase.Firebase
 import com.google.firebase.appcheck.appCheck
 import com.google.firebase.appcheck.debug.DebugAppCheckProviderFactory
 import com.google.firebase.appcheck.playintegrity.PlayIntegrityAppCheckProviderFactory
 import com.google.firebase.initialize
+import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.HiltAndroidApp
 
 @HiltAndroidApp
-class JasnifyApplication: Application() {
+class JasnifyApplication: Application(), ImageLoaderFactory {
     override fun onCreate() {
         super.onCreate()
 
         Firebase.initialize(this)
+
+        // Subscribe to global notifications topic
+        FirebaseMessaging.getInstance().subscribeToTopic("all")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d("JasnifyApp", "Subscribed to 'all' topic")
+                }
+            }
 
         // Initialize Firebase App Check for local development
         if (BuildConfig.DEBUG) {
@@ -41,5 +53,13 @@ class JasnifyApplication: Application() {
         } catch (_: Exception) {
             // Already initialized
         }
+    }
+
+    override fun newImageLoader(): ImageLoader {
+        return ImageLoader.Builder(this)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .build()
     }
 }

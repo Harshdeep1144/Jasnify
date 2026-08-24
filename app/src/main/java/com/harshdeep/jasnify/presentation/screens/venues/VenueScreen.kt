@@ -1,8 +1,15 @@
 package com.harshdeep.jasnify.presentation.screens.venues
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -22,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -53,6 +61,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,12 +73,15 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -83,6 +95,9 @@ import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.domain.model.VenueReviewsData
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.LocationAccessBottomSheet
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
@@ -97,13 +112,15 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
+import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
-import com.harshdeep.jasnify.presentation.screens.room.RoomScreen
+import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -154,6 +171,8 @@ fun clearRecentSearches(context: Context) {
     prefs.edit { remove(KEY_RECENT_SEARCHES) }
 }
 
+private val VenueDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
+
 @OptIn(ExperimentalMaterial3Api::class)
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
@@ -168,8 +187,19 @@ fun VenueScreen(
     eventViewModel: EventViewModel = hiltViewModel(),
     venueViewModel: VenueViewModel = hiltViewModel(),
     enquiryViewModel: EnquiryViewModel = hiltViewModel()
-) {
-    var currentAddress by remember { mutableStateOf(selectedLocation) }
+){
+    val context = LocalContext.current
+    val recentLocations = remember { LocationHelper.getRecentLocations(context) }
+    var showAiChat by remember { mutableStateOf(false) }
+    var currentAddress by remember { 
+        mutableStateOf(
+            if (selectedLocation == "City, State" && recentLocations.isNotEmpty()) {
+                recentLocations.first()
+            } else {
+                selectedLocation
+            }
+        )
+    }
     var screenStack by remember { mutableStateOf(listOf(VenueScreenState.MAIN)) }
     val screenState = screenStack.last()
     var selectedTab by remember { mutableStateOf(initialTab) }
@@ -179,6 +209,7 @@ fun VenueScreen(
 
     val mainListState = rememberLazyListState()
 
+    val coroutineScope = rememberCoroutineScope()
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
@@ -219,6 +250,35 @@ fun VenueScreen(
     var showMenuSheet by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
     var offersToShow by remember { mutableStateOf<List<Offer>>(emptyList()) }
+    var showLocationAccessSheet by remember { mutableStateOf(false) }
+    var autoFocusLocationSearch by remember { mutableStateOf(false) }
+
+    val gpsResolutionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+        }
+    }
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+        val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+        if (fineLocationGranted || coarseLocationGranted) {
+            LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        if (!SessionState.hasShownVenueLocationAccess) {
+            delay(500.milliseconds)
+            showLocationAccessSheet = true
+        }
+    }
 
     var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
     var isMySavedListChecked by remember { mutableStateOf(true) }
@@ -227,10 +287,9 @@ fun VenueScreen(
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
-            val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
             activeEvent?.subEvents?.map { subEvent ->
                 val formattedDate = subEvent.date?.let { timestamp ->
-                    sdf.format(Date(timestamp))
+                    VenueDateFormatter.format(Date(timestamp))
                 } ?: "Date TBD"
 
                 TimelineEvent(
@@ -298,6 +357,7 @@ fun VenueScreen(
     }
 
     var toastData by remember { mutableStateOf<ToastData?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     val sortOptions = remember {
         listOf(
@@ -318,7 +378,18 @@ fun VenueScreen(
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
     LaunchedEffect(toastData?.message) {
-        if (toastData?.message != null) {
+        val currentToast = toastData
+        if (currentToast?.message != null) {
+            if (currentToast.type == ToastType.ERROR) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (currentToast.message.contains("Please", ignoreCase = true) ||
+                    currentToast.message.contains("enter", ignoreCase = true) ||
+                    currentToast.message.contains("select", ignoreCase = true)
+                ) {
+                    delay(80.milliseconds)
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                }
+            }
             delay(3000.milliseconds)
             toastData = null
         }
@@ -327,22 +398,26 @@ fun VenueScreen(
     val focusManager = LocalFocusManager.current
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
-    BackHandler(enabled = screenStack.size > 1) {
-        when (screenState) {
-            VenueScreenState.VENUE_DETAIL -> {
-                selectedVenueForDetail = null
-                venueViewModel.setSelectedVenueId(null)
+    BackHandler(enabled = screenStack.size > 1 || showAiChat) {
+        if (showAiChat) {
+            showAiChat = false
+        } else {
+            when (screenState) {
+                VenueScreenState.VENUE_DETAIL -> {
+                    selectedVenueForDetail = null
+                    venueViewModel.setSelectedVenueId(null)
+                }
+                VenueScreenState.TIMELINE_DETAIL -> {
+                    selectedTimelineEventId = null
+                }
+                else -> {}
             }
-            VenueScreenState.TIMELINE_DETAIL -> {
-                selectedTimelineEventId = null
-            }
-            else -> {}
+            screenStack = screenStack.dropLast(1)
         }
-        screenStack = screenStack.dropLast(1)
     }
 
     val isAnySheetVisible = showRoomMenuBottomSheet || (userToRemove != null) ||
-            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation || showOfferSheet
+            showFilterDialog || showSaveListBottomSheet || showMenuSheet || showLeaveConfirmation || showOfferSheet || showLocationAccessSheet
 
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
@@ -426,13 +501,18 @@ fun VenueScreen(
                     when (targetState) {
                         VenueScreenState.LOCATION_PICKER -> {
                             LocationScreen(
-                                initialSearches = emptyList(),
+                                initialSearches = recentLocations,
                                 currentAddress = currentAddress,
                                 onAddressSelected = {
                                     currentAddress = it
+                                    autoFocusLocationSearch = false
                                     screenStack = screenStack.dropLast(1)
                                 },
-                                onBackClick = { screenStack = screenStack.dropLast(1) },
+                                onBackClick = { 
+                                    autoFocusLocationSearch = false
+                                    screenStack = screenStack.dropLast(1) 
+                                },
+                                autoFocusSearch = autoFocusLocationSearch
                             )
                         }
                         VenueScreenState.ROOM_ACCESS -> {
@@ -553,6 +633,41 @@ fun VenueScreen(
             OfferBottomSheet(
                 offers = offersToShow,
                 onDismiss = { showOfferSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (showLocationAccessSheet) {
+            LocationAccessBottomSheet(
+                title = "Discover the best \n venues around you",
+                subtitle = "Allow location permissions for best \n recommendations around you",
+                onDismiss = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                },
+                onAllowClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                    
+                    if (LocationHelper.hasLocationPermission(context)) {
+                        LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
+                            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+                        }
+                    } else {
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                },
+                onManualClick = {
+                    showLocationAccessSheet = false
+                    SessionState.hasShownVenueLocationAccess = true
+                    autoFocusLocationSearch = true
+                    screenStack = screenStack + VenueScreenState.LOCATION_PICKER
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
@@ -707,6 +822,7 @@ fun VenueScreen(
                     message = data.message ?: "",
                     type = data.type,
                     leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    iconColor = Color.Unspecified,
                     buttonText = if (activeEvent?.multiDay == true) "Change" else null,
                     onButtonClick = if (activeEvent?.multiDay == true) {
                         {
@@ -722,6 +838,30 @@ fun VenueScreen(
                     } else null
                 )
             }
+        }
+
+        if (!isAnySheetVisible && screenState == VenueScreenState.MAIN && !showAiChat) {
+            AskAiButton(
+                onClick = { showAiChat = true },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 240.dp)
+                    .zIndex(150f)
+            )
+        }
+
+        AnimatedVisibility(
+            visible = showAiChat,
+            enter = slideInVertically(initialOffsetY = { it }),
+            exit = slideOutVertically(targetOffsetY = { it }),
+            modifier = Modifier.zIndex(200f)
+        ) {
+            AiChatScreen(
+                eventId = activeEvent?.id,
+                shouldStartNewSession = true,
+                onBackClick = { showAiChat = false },
+                mainNavController = null
+            )
         }
     }
 
@@ -812,8 +952,7 @@ fun VenueMainContent(
     onShowFilterDialogChange: (Boolean) -> Unit,
     isLoading: Boolean = false,
     onTimelineSeeAll: (TimelineEvent) -> Unit = {},
-    onOfferClick: (Venue) -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    onOfferClick: (Venue) -> Unit = {},    listState: LazyListState = rememberLazyListState()
 ) {
     val focusManager = LocalFocusManager.current
 
