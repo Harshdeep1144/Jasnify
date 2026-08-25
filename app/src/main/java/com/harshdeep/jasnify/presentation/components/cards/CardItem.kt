@@ -55,6 +55,7 @@ fun CardItem(
     showControls: Boolean = false,
     forCapture: Boolean = false,
     isLiked: Boolean = false,
+    shape: androidx.compose.ui.graphics.Shape? = null,
     onLikeClick: (() -> Unit)? = null,
     onShareClick: (() -> Unit)? = null,
     onUpdate: (CardData) -> Unit = {}
@@ -81,7 +82,7 @@ fun CardItem(
         cardWidthDp in 1f..180f -> CornerMedium
         else -> CornerLargeIncrease // Covers <= 280dp as well as fallback between 180dp and 390dp
     }
-    val cardShape = SquircleShape(cornerRadius)
+    val cardShape = shape ?: SquircleShape(cornerRadius)
 
     Box(
         modifier = modifier
