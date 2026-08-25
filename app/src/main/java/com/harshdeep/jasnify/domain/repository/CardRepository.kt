@@ -21,6 +21,6 @@ interface CardRepository {
     suspend fun saveJasnifyCard(data: CardData)
     suspend fun saveJasnifyCards(cards: List<CardData>)
     suspend fun incrementCardShare(cardId: String, isJasnifyCard: Boolean)
-    suspend fun updateCardLikes(cardId: String, isJasnifyCard: Boolean, newLikesCount: Int)
-    fun checkIsCardsAdmin(uid: String): Flow<Boolean>
+    suspend fun toggleJasnifyCardLike(cardId: String, userId: String, shouldLike: Boolean)
+    fun checkIsCardsAdmin(uid: String): Flow<Map<String, Any>?>
 }

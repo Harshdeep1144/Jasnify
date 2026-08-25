@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -61,6 +63,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -79,29 +82,30 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.Save
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.others.VideoPlayer
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
-import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
-import com.harshdeep.jasnify.presentation.components.others.CustomToast
-import com.harshdeep.jasnify.presentation.components.others.ToastData
-import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonContent
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
-import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
-import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
-import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
+import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
+import com.harshdeep.jasnify.presentation.screens.main.MainSkeletonContent
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
+import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -109,11 +113,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
-import com.harshdeep.jasnify.domain.model.TopSlider
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -129,13 +129,49 @@ private const val PARALLAX_RATE = 0.5f
 sealed class HeaderMedia {
     abstract val actionType: String
     abstract val targetRoute: String
+    abstract val contentColor: String?
 
-    data class ImageResource(val resId: Int, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
-    data class ImageUrl(val url: String, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
-    data class VideoResource(val resId: Int, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
-    data class VideoUrl(val url: String, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
-    data class LottieUrl(val url: String, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
-    data class LottieResource(val resId: Int, override val actionType: String = "", override val targetRoute: String = "") : HeaderMedia()
+    data class ImageResource(
+        val resId: Int,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class ImageUrl(
+        val url: String,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class VideoResource(
+        val resId: Int,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class VideoUrl(
+        val url: String,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class LottieUrl(
+        val url: String,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class LottieResource(
+        val resId: Int,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
 }
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
@@ -166,9 +202,8 @@ fun HomeTab(
         savedVenuesFromCloud.associate { it.venueName to it.destination }
     }
 
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
-        // Trigger notification permission check only when user is on the Home screen
         (context as? com.harshdeep.jasnify.MainActivity)?.triggerNotificationPermissionCheck()
     }
 
@@ -180,7 +215,6 @@ fun HomeTab(
         eventViewModel.fetchUserEvents()
     }
 
-    // Propagate event ID to related ViewModels once activeEvent is available
     LaunchedEffect(activeEvent?.id) {
         activeEvent?.id?.let { id ->
             budgetViewModel.setEventId(id)
@@ -276,9 +310,7 @@ fun HomeTab(
 }
 
 @OptIn(ExperimentalFoundationApi::class)
-@SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue",
-    "LocalContextResourcesRead"
-)
+@SuppressLint("ConfigurationScreenWidthHeight", "FrequentlyChangingValue")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun HomeTabContent(
@@ -303,57 +335,31 @@ fun HomeTabContent(
     activeEvent: Event? = null,
     homeConfig: com.harshdeep.jasnify.domain.model.HomeScreenConfig? = null
 ) {
-    val localContext = LocalContext.current
     var currentScreen by remember { mutableStateOf("home") }
     var selectedCategory by remember { mutableStateOf<VendorCategoryItem?>(null) }
     var selectedVenueForDetail by remember { mutableStateOf<Venue?>(null) }
     var selectedVendorForDetail by remember { mutableStateOf<Vendor?>(null) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Header media items
     val headerMediaItems = remember(homeConfig) {
         val hardcodedDefaults = listOf(
-            HeaderMedia.ImageResource(R.drawable.bg_home),
-            HeaderMedia.ImageUrl("https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"),
+            HeaderMedia.ImageResource(R.drawable.app_hero_display_default)
         )
 
-        // 1. Try Firestore
         val remoteItems = homeConfig?.topSlider?.filter { it.isActive && it.mediaUrl.isNotBlank() }?.map {
-            val url = it.mediaUrl
+            val url = it.mediaUrl.trim()
             when {
-                url.endsWith(".mp4", ignoreCase = true) -> HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute)
-                url.endsWith(".json", ignoreCase = true) -> HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute)
-                else -> HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute)
+                url.endsWith(".mp4", ignoreCase = true) -> HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                url.endsWith(".json", ignoreCase = true) -> HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                else -> HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute, it.contentColor)
             }
         } ?: emptyList()
 
-        if (remoteItems.isNotEmpty()) return@remember remoteItems
-
-        // 2. Try app_slider_default.json
-        val localJsonItems = try {
-            val jsonString = localContext.resources.openRawResource(R.raw.app_slider_default).bufferedReader().use { it.readText() }
-            val listType = object : TypeToken<List<TopSlider>>() {}.type
-            val items: List<TopSlider> = Gson().fromJson(jsonString, listType)
-            items.filter { it.isActive && it.mediaUrl.isNotBlank() }.map {
-                val url = it.mediaUrl
-                when {
-                    url.endsWith(".mp4", ignoreCase = true) -> HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute)
-                    url.endsWith(".json", ignoreCase = true) -> HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute)
-                    else -> HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute)
-                }
-            }
-        } catch (_: Exception) {
-            // If parsing as list fails, try treating the whole file as a single Lottie animation
-            listOf(HeaderMedia.LottieResource(R.raw.app_slider_default))
+        remoteItems.ifEmpty {
+            hardcodedDefaults
         }
-
-        if (localJsonItems.isNotEmpty()) return@remember localJsonItems
-
-        // 3. Absolute Fallback
-        hardcodedDefaults
     }
 
-    // Infinite virtual page configuration for seamless forward looping
     val virtualPageCount = remember(headerMediaItems.size) {
         if (headerMediaItems.size > 1) Int.MAX_VALUE else headerMediaItems.size
     }
@@ -364,6 +370,28 @@ fun HomeTabContent(
     val headerPagerState = rememberPagerState(
         initialPage = initialPage,
         pageCount = { virtualPageCount }
+    )
+
+    val targetHeaderColor = remember(headerPagerState.currentPage, headerMediaItems) {
+        if (headerMediaItems.isEmpty()) Color.White
+        else {
+            val actualIndex = headerPagerState.currentPage % headerMediaItems.size
+            val colorHex = headerMediaItems[actualIndex].contentColor
+            if (colorHex.isNullOrBlank()) Color.White
+            else {
+                try {
+                    Color(colorHex.toColorInt())
+                } catch (_: Exception) {
+                    Color.White
+                }
+            }
+        }
+    }
+
+    val currentHeaderColor by animateColorAsState(
+        targetValue = targetHeaderColor,
+        animationSpec = tween(durationMillis = 600),
+        label = "headerColorTransition"
     )
 
     var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
@@ -570,7 +598,6 @@ fun HomeTabContent(
         }
     }
 
-    // Snap behavior on release
     LaunchedEffect(lazyListState.isScrollInProgress) {
         if (!lazyListState.isScrollInProgress) {
             val currentScroll = scrollOffset
@@ -593,6 +620,23 @@ fun HomeTabContent(
             } else 0f
         }
     }
+
+    val useDarkIcons = remember {
+        derivedStateOf {
+            if (currentScreen != "home") {
+                true
+            } else {
+                val alpha = topBarAlphaState.value
+                if (alpha > 0.5f) {
+                    true
+                } else {
+                    targetHeaderColor.luminance() <= 0.5f
+                }
+            }
+        }
+    }
+
+    SetStatusBarTheme(useDarkIcons = useDarkIcons.value)
 
     AnimatedContent(
         targetState = currentScreen,
@@ -657,6 +701,7 @@ fun HomeTabContent(
                                 title = eventName,
                                 dateString = eventDateString,
                                 alpha = topBarAlphaState.value,
+                                contentColorOverride = currentHeaderColor,
                                 onMenuClick = onMenuClick
                             )
                         },
@@ -760,7 +805,13 @@ fun HomeTabContent(
                             }
 
                             item(key = "explore_divider") {
-                                OrDivider(dividerGap = 12.dp, text = "EXPLORE", modifier = Modifier.background(BackgroundPrimary).padding(horizontal = 12.dp, vertical = 8.dp))
+                                OrDivider(
+                                    dividerGap = 12.dp,
+                                    text = "EXPLORE",
+                                    modifier = Modifier
+                                        .background(BackgroundPrimary)
+                                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
                             }
 
                             item(key = "trending_venues") {
@@ -823,7 +874,6 @@ fun HomeTabContent(
                         }
                     }
 
-                    // Drag Gesture Overlay placed on top of Scaffold content
                     if (scrollOffset < fadeDistancePx) {
                         val topBarInset = 80.dp
                         val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
@@ -866,7 +916,7 @@ fun HomeTabContent(
                             )
                         }
                     }
-                } // End scaling box
+                }
 
                 if (showOfferSheet) {
                     OfferBottomSheet(
@@ -1118,8 +1168,7 @@ fun HomeTabContent(
                                     currentScreen = "home"
                                 },
                                 onChatClick = { vendorChat ->
-                                    val merchantId =
-                                        vendorChat.merchantId.ifBlank { "unknown_merchant" }
+                                    val merchantId = vendorChat.merchantId.ifBlank { "unknown_merchant" }
                                     val itemId = vendorChat.id.ifBlank { "unknown_vendor" }
                                     mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Vendor")
                                 },
@@ -1146,7 +1195,6 @@ fun HeaderMediaSlider(
 
     val context = LocalContext.current
 
-    // Continuous auto-slide forward loop (always moving left-to-right)
     LaunchedEffect(pagerState, mediaList.size) {
         if (mediaList.size > 1) {
             while (true) {
@@ -1176,9 +1224,8 @@ fun HeaderMediaSlider(
                     onMediaClick(media)
                 }
         ) {
-            // Static safety placeholder behind every dynamic element
             Image(
-                painter = painterResource(id = R.drawable.bg_home),
+                painter = painterResource(id = R.drawable.app_hero_display_default),
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
@@ -1198,8 +1245,8 @@ fun HeaderMediaSlider(
                         model = ImageRequest.Builder(context)
                             .data(media.url)
                             .crossfade(true)
-                            .placeholder(R.drawable.bg_home)
-                            .error(R.drawable.bg_home)
+                            .placeholder(R.drawable.app_hero_display_default)
+                            .error(R.drawable.app_hero_display_default)
                             .build(),
                         contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
                         contentScale = ContentScale.Crop,

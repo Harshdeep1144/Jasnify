@@ -229,7 +229,9 @@ class CardRepositoryImpl @Inject constructor(
                             CardTheme(
                                 name = card.bgName.ifBlank { "New Theme" },
                                 url = url,
-                                isDefault = false
+                                isDefault = false,
+                                adminName = card.adminName,
+                                adminUsername = card.adminUsername
                             )
                         )
                     }
@@ -257,35 +259,49 @@ class CardRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateCardLikes(cardId: String, isJasnifyCard: Boolean, newLikesCount: Int) {
-        if (isJasnifyCard) {
-            firestore.collection("jasnify_cards")
-                .document(cardId)
-                .update("likesCount", newLikesCount)
-                .await()
+    override suspend fun toggleJasnifyCardLike(cardId: String, userId: String, shouldLike: Boolean) {
+        val docRef = firestore.collection("jasnify_cards").document(cardId)
+        
+        if (shouldLike) {
+            docRef.update(
+                "likesCount", FieldValue.increment(1),
+                "likedBy", FieldValue.arrayUnion(userId)
+            ).await()
+        } else {
+            docRef.update(
+                "likesCount", FieldValue.increment(-1),
+                "likedBy", FieldValue.arrayRemove(userId)
+            ).await()
         }
     }
 
-    override fun checkIsCardsAdmin(uid: String): Flow<Boolean> = callbackFlow {
+    override fun checkIsCardsAdmin(uid: String): Flow<Map<String, Any>?> = callbackFlow {
         if (uid.isEmpty()) {
-            trySend(false)
+            trySend(null)
             close()
             return@callbackFlow
         }
 
+        // Structure: admins (coll) -> card_admins (doc)
+        // Inside card_admins, each field is a User UID containing a map of details
         val listener = firestore.collection("admins").document("card_admins")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(false)
+                    trySend(null)
                     return@addSnapshotListener
                 }
 
                 if (snapshot != null && snapshot.exists()) {
-                    val docUid = snapshot.getString("uid")
-                    val isActive = snapshot.getBoolean("isActive") ?: false
-                    trySend(isActive && docUid == uid)
+                    // Get the map for this specific UID directly from the document fields
+                    val userData = snapshot.get(uid) as? Map<String, Any>
+                    val isActive = userData?.get("isActive") as? Boolean ?: false
+                    if (isActive) {
+                        trySend(userData)
+                    } else {
+                        trySend(null)
+                    }
                 } else {
-                    trySend(false)
+                    trySend(null)
                 }
             }
         awaitClose { listener.remove() }

@@ -105,8 +105,11 @@ fun CardsMainContent(
 
     var cardToCapture by remember { mutableStateOf<CardData?>(null) }
 
-    val onShareTrigger: (CardData, Boolean) -> Unit = remember(context, graphicsLayer) {
+    val onShareTrigger: (CardData, Boolean) -> Unit = remember(context, graphicsLayer, onShareIncrement) {
         { data: CardData, whatsappOnly: Boolean ->
+            // Update the share count in the database immediately on click
+            onShareIncrement(data)
+            
             coroutineScope.launch {
                 cardToCapture = data
                 delay(100.milliseconds)

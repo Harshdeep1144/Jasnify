@@ -9,6 +9,7 @@ data class TopSlider(
     var actionType: String = "NAVIGATE_ROOM",
     var targetRoute: String = "",
     val order: Int = 0,
+    var contentColor: String? = null,
     @get:PropertyName("isActive") @set:PropertyName("isActive") var isActive: Boolean = true
 )
 

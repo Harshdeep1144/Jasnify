@@ -271,8 +271,9 @@ fun ExploreTabContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 rowItems.forEach { card ->
-                                    val isLiked = likedCards.any { it.id == card.id }
-                                    val interactionSource = remember { MutableInteractionSource() }
+                                        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                        val isLiked = card.likedBy.contains(currentUserId)
+                                        val interactionSource = remember { MutableInteractionSource() }
                                     val isPressed by interactionSource.collectIsPressedAsState()
                                     val scale by animateFloatAsState(
                                         targetValue = if (isPressed) 0.96f else 1f,
@@ -318,7 +319,7 @@ fun ExploreTabContent(
                                                                 showControls = true,
                                                                 isLiked = isLiked,
                                                                 onLikeClick = { onLikeToggle(card) },
-                                                                onShareClick = null,
+                                                                onShareClick = { onShareTrigger(card) },
                                                                 modifier = Modifier.fillMaxSize()
                                                             )
                                                         }

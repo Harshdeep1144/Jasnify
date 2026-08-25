@@ -133,7 +133,9 @@ data class CardTheme(
     var name: String = "",
     var resId: Int = 0,
     var url: String? = null,
-    var isDefault: Boolean = false
+    var isDefault: Boolean = false,
+    var adminName: String? = null,
+    var adminUsername: String? = null
 )
 
 data class CardRoomData(
@@ -151,7 +153,10 @@ data class CardData(
     var eventType: String = "all events",
     var likesCount: Int = 0,
     var sharesCount: Int = 0,
-    var lastEdited: Long = System.currentTimeMillis()
+    var lastEdited: Long = System.currentTimeMillis(),
+    var adminName: String? = null,
+    var adminUsername: String? = null,
+    var likedBy: List<String> = emptyList()
 )
 
 fun defaultElements(
