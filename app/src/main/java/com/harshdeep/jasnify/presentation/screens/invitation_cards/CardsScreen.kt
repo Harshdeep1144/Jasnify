@@ -1,8 +1,8 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalSharedTransitionApi
@@ -43,7 +43,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -117,6 +116,8 @@ fun CardsScreen(
     val myCards by cardViewModel.myCards.collectAsStateWithLifecycle()
     val likedCards by cardViewModel.likedCards.collectAsStateWithLifecycle()
     val jasnifyCards by cardViewModel.jasnifyCards.collectAsStateWithLifecycle()
+    val globalCardThemes by cardViewModel.globalCardThemes.collectAsStateWithLifecycle()
+    val isCardAdmin by cardViewModel.isCardAdmin.collectAsStateWithLifecycle()
     val cardRoomData by cardViewModel.cardRoomData.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
 
@@ -148,7 +149,7 @@ fun CardsScreen(
     val exploreLazyListState = rememberLazyListState()
     val myCardsGridState = rememberLazyGridState()
     val explorePagerState = rememberPagerState(
-        initialPage = (Int.MAX_VALUE / 2) - ((Int.MAX_VALUE / 2) % 5),
+        initialPage = (Int.MAX_VALUE / 2),
         pageCount = { Int.MAX_VALUE }
     )
 
@@ -318,6 +319,7 @@ fun CardsScreen(
                                     animatedVisibilityScope = this@AnimatedContent,
                                     sharedTransitionScope = this@SharedTransitionLayout,
                                     canEdit = canEdit,
+                                    isCardAdmin = isCardAdmin,
                                     nestedScrollConnection = nestedScrollConnection,
                                     onToggleCardSelection = { id ->
                                         selectedCardIds = if (selectedCardIds.contains(id)) {
@@ -348,21 +350,40 @@ fun CardsScreen(
                                         previousView = CardsView.MAIN
                                         currentView = CardsView.FULL_VIEW
                                     },
-                                    onLikeToggle = { card -> 
+                                    onLikeToggle = { card ->
                                         val isJasnify = jasnifyCards.any { it.id == card.id }
-                                        cardViewModel.toggleLikedCard(card, isJasnify) 
+                                        cardViewModel.toggleLikedCard(card, isJasnify)
                                     },
                                     onShareIncrement = { card ->
                                         val isJasnify = jasnifyCards.any { it.id == card.id }
                                         cardViewModel.incrementCardShare(card, isJasnify)
                                     },
                                     onEditDetailsClick = { card ->
-                                        editingCard = if (card.id.startsWith("template_") || jasnifyCards.any { it.id == card.id }) {
+                                        val isGlobalCard = jasnifyCards.any { it.id == card.id } || card.id.startsWith("template_")
+
+                                        // ADMIN: Keep the same ID so updates overwrite/modify the existing global card.
+                                        // REGULAR USER: Assign a new UUID so they create an isolated personal copy.
+                                        editingCard = if (isGlobalCard && !isCardAdmin) {
                                             card.copy(id = UUID.randomUUID().toString())
                                         } else {
                                             card
                                         }
                                         currentView = CardsView.EDIT_DETAILS
+                                    },
+                                    onAddNewClick = {
+                                        editingCard = CardData(id = UUID.randomUUID().toString())
+                                        currentView = CardsView.EDIT_DETAILS
+                                    },
+                                    onPublishSelectedToJasnify = {
+                                        val cardsToPublish = myCards.filter { selectedCardIds.contains(it.id) }
+                                        cardViewModel.publishCardsToJasnify(cardsToPublish) {
+                                            val count = cardsToPublish.size
+                                            selectedCardIds = emptySet()
+                                            toastData = ToastData(
+                                                message = if (count == 1) "1 card published to Explore" else "$count cards published to Explore",
+                                                type = ToastType.DEFAULT
+                                            )
+                                        }
                                     }
                                 )
                             }
@@ -379,7 +400,8 @@ fun CardsScreen(
                                             previousView = null
                                         },
                                         onEditDetailsClick = {
-                                            editingCard = if (card.id.startsWith("template_")) {
+                                            val isGlobalCard = jasnifyCards.any { it.id == card.id } || card.id.startsWith("template_")
+                                            editingCard = if (isGlobalCard && !isCardAdmin) {
                                                 card.copy(id = UUID.randomUUID().toString())
                                             } else {
                                                 card
@@ -401,17 +423,22 @@ fun CardsScreen(
                                         previousView = CardsView.LIKED_CARDS
                                         currentView = CardsView.FULL_VIEW
                                     },
-                                    onLikeToggle = { card -> cardViewModel.toggleLikedCard(card) }
+                                    onLikeToggle = { card ->
+                                        val isJasnify = jasnifyCards.any { it.id == card.id }
+                                        cardViewModel.toggleLikedCard(card, isJasnify)
+                                    }
                                 )
                             }
                             CardsView.EDIT_DETAILS -> {
                                 editingCard?.let { card ->
                                     EditCardDetailsScreen(
                                         initialData = card,
-                                        allCards = myCards,
                                         cardRoomData = cardRoomData,
+                                        globalCardThemes = globalCardThemes,
                                         onDataChange = { updated ->
+                                            // ALWAYS save to user's event collection so it shows in "My Edits"
                                             cardViewModel.saveMyCard(updated)
+
                                             selectedCard = updated
                                             editingCard = updated
                                         },
@@ -439,7 +466,6 @@ fun CardsScreen(
                                     )
                                 }
                             }
-
                             CardsView.HELP_FEEDBACK -> {
                                 com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
                                     profileViewModel = profileViewModel,

@@ -88,9 +88,8 @@ private val GridBackgroundBrush = Brush.verticalGradient(
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun ExploreTabContent(
-    templates: List<CardData>,
-    likedCards: List<CardData>,
     jasnifyCards: List<CardData>,
+    likedCards: List<CardData>,
     lazyListState: LazyListState,
     pagerState: PagerState,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -151,8 +150,13 @@ fun ExploreTabContent(
         val sharePainter = painterResource(id = R.drawable.ic_share)
         val whatsappPainter = painterResource(id = R.drawable.ic_whatsapp)
 
-        val chunkedTemplates = remember(templates) {
-            templates.chunked(2)
+        val chunkedCards = remember(jasnifyCards) {
+            jasnifyCards.chunked(2)
+        }
+
+        val top10Cards = remember(jasnifyCards) {
+            jasnifyCards.sortedByDescending { (it.likesCount + it.sharesCount) / 2.0 }
+                .take(10)
         }
 
         LazyColumn(
@@ -167,11 +171,9 @@ fun ExploreTabContent(
                     modifier = Modifier.padding(vertical = 36.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val displayCards = if (jasnifyCards.isNotEmpty()) jasnifyCards else templates
-                    if (displayCards.isNotEmpty()) {
-                        val currentCarouselCard = displayCards[pagerState.currentPage % displayCards.size]
+                    if (top10Cards.isNotEmpty()) {
+                        val currentCarouselCard = top10Cards[pagerState.currentPage % top10Cards.size]
                         val carouselKey = "carousel_${currentCarouselCard.id}"
-                        val isJasnify = jasnifyCards.any { it.id == currentCarouselCard.id }
 
                         with(sharedTransitionScope) {
                             Box(
@@ -183,9 +185,9 @@ fun ExploreTabContent(
                                 )
                             ) {
                                 CardCarousel(
-                                    cardData = currentCarouselCard,
+                                    cards = top10Cards,
                                     pagerState = pagerState,
-                                    isLiked = { _ -> likedCards.any { it.id == currentCarouselCard.id } },
+                                    isLiked = { card -> likedCards.any { it.id == card.id } },
                                     onLikeClick = onLikeToggle,
                                     onCardClick = { card -> onCardClick(card, carouselKey) }
                                 )
@@ -194,25 +196,6 @@ fun ExploreTabContent(
 
                         Spacer(modifier = Modifier.height(24.dp))
                         
-                        // Show Engagement Stats if it's a Jasnify Card
-                        if (isJasnify) {
-                            Row(
-                                modifier = Modifier.padding(bottom = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                androidx.compose.material3.Text(
-                                    text = "❤️ ${currentCarouselCard.likesCount}",
-                                    style = JasnifyTheme.typography.labelMedium,
-                                    color = ContentPrimary
-                                )
-                                androidx.compose.material3.Text(
-                                    text = "🔄 ${currentCarouselCard.sharesCount}",
-                                    style = JasnifyTheme.typography.labelMedium,
-                                    color = ContentPrimary
-                                )
-                            }
-                        }
-
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -282,57 +265,85 @@ fun ExploreTabContent(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        chunkedTemplates.forEach { rowItems ->
+                        chunkedCards.forEach { rowItems ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                rowItems.forEach { template ->
-                                    val isLiked = likedCards.any { it.id == template.id }
+                                rowItems.forEach { card ->
+                                    val isLiked = likedCards.any { it.id == card.id }
                                     val interactionSource = remember { MutableInteractionSource() }
                                     val isPressed by interactionSource.collectIsPressedAsState()
                                     val scale by animateFloatAsState(
                                         targetValue = if (isPressed) 0.96f else 1f,
                                         label = "scale"
                                     )
-                                    val trendingKey = "trending_${template.id}"
+                                    val trendingKey = "trending_${card.id}"
 
-                                    with(sharedTransitionScope) {
                                         Box(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .aspectRatio(280f / 373f)
-                                                .sharedBounds(
-                                                    sharedContentState = rememberSharedContentState(key = trendingKey),
-                                                    animatedVisibilityScope = animatedVisibilityScope,
-                                                    zIndexInOverlay = 1f,
-                                                    clipInOverlayDuringTransition = OverlayClip(CardCarouselShape)
-                                                )
                                         ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxSize()
-                                                    .graphicsLayer {
-                                                        scaleX = scale
-                                                        scaleY = scale
-                                                    }
-                                                    .clip(CardCarouselShape)
-                                                    .clickable(
-                                                        interactionSource = interactionSource,
-                                                        indication = null
-                                                    ) { onCardClick(template, trendingKey) }
+                                            Column(
+                                                horizontalAlignment = Alignment.Start,
+                                                verticalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                CardItem(
-                                                    data = template,
-                                                    showControls = true,
-                                                    isLiked = isLiked,
-                                                    onLikeClick = { onLikeToggle(template) },
-                                                    onShareClick = null,
-                                                    modifier = Modifier.fillMaxSize()
-                                                )
+                                                with(sharedTransitionScope) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .aspectRatio(280f / 373f)
+                                                            .sharedBounds(
+                                                                sharedContentState = rememberSharedContentState(key = trendingKey),
+                                                                animatedVisibilityScope = animatedVisibilityScope,
+                                                                zIndexInOverlay = 1f,
+                                                                clipInOverlayDuringTransition = OverlayClip(CardCarouselShape)
+                                                            )
+                                                    ) {
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .fillMaxSize()
+                                                                .graphicsLayer {
+                                                                    scaleX = scale
+                                                                    scaleY = scale
+                                                                }
+                                                                .clip(CardCarouselShape)
+                                                                .clickable(
+                                                                    interactionSource = interactionSource,
+                                                                    indication = null
+                                                                ) { onCardClick(card, trendingKey) }
+                                                        ) {
+                                                            CardItem(
+                                                                data = card,
+                                                                showControls = true,
+                                                                isLiked = isLiked,
+                                                                onLikeClick = { onLikeToggle(card) },
+                                                                onShareClick = null,
+                                                                modifier = Modifier.fillMaxSize()
+                                                            )
+                                                        }
+                                                    }
+                                                }
+
+                                                // Stats at bottom of card chunk
+                                                Row(
+                                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    androidx.compose.material3.Text(
+                                                        text = "❤️ ${card.likesCount}",
+                                                        style = JasnifyTheme.typography.labelSmall,
+                                                        color = ContentPrimary
+                                                    )
+                                                    androidx.compose.material3.Text(
+                                                        text = "🔄 ${card.sharesCount}",
+                                                        style = JasnifyTheme.typography.labelSmall,
+                                                        color = ContentPrimary
+                                                    )
+                                                }
                                             }
                                         }
-                                    }
                                 }
                                 if (rowItems.size == 1) {
                                     Spacer(modifier = Modifier.weight(1f))
@@ -400,9 +411,8 @@ fun ExploreTabContentPreview() {
         SharedTransitionLayout {
             AnimatedVisibility(visible = true) {
                 ExploreTabContent(
-                    templates = sampleTemplates,
+                    jasnifyCards = sampleTemplates,
                     likedCards = emptyList(),
-                    jasnifyCards = emptyList(),
                     lazyListState = exploreLazyListState,
                     pagerState = explorePagerState,
                     animatedVisibilityScope = this,

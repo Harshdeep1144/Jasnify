@@ -1,6 +1,7 @@
 package com.harshdeep.jasnify.presentation.screens.invitation_cards
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
@@ -8,12 +9,19 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,47 +29,45 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.Event
-import com.harshdeep.jasnify.domain.model.getTemplateElements
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-
-private val TemplateBackgrounds = listOf(
-    R.drawable.bg_invitation_card_01,
-    R.drawable.bg_invitation_card_02,
-    R.drawable.bg_invitation_card_03,
-    R.drawable.bg_invitation_card_04,
-    R.drawable.bg_invitation_card_05,
-    R.drawable.bg_invitation_card_06,
-    R.drawable.bg_invitation_card_07,
-    R.drawable.bg_invitation_card_08,
-)
 
 private val ZeroInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
 
@@ -81,6 +87,7 @@ fun CardsMainContent(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
+    isCardAdmin: Boolean,
     nestedScrollConnection: NestedScrollConnection,
     onToggleCardSelection: (String) -> Unit,
     onBackClick: () -> Unit,
@@ -88,24 +95,13 @@ fun CardsMainContent(
     onCardClick: (CardData, String) -> Unit,
     onLikeToggle: (CardData) -> Unit,
     onShareIncrement: (CardData) -> Unit,
-    onEditDetailsClick: (CardData) -> Unit
+    onEditDetailsClick: (CardData) -> Unit,
+    onAddNewClick: () -> Unit,
+    onPublishSelectedToJasnify: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val graphicsLayer = rememberGraphicsLayer()
-
-    val templates = remember(activeEvent) {
-        val userName = activeEvent?.ownerName ?: "Taylor & Travis"
-        val formattedDateString = activeEvent?.date?.let { timestamp ->
-            val date = Date(timestamp)
-            SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(date).uppercase()
-        } ?: "SEPTEMBER 14, 2026"
-
-        TemplateBackgrounds.mapIndexed { index, resId ->
-            val elements = getTemplateElements(index, userName, formattedDateString)
-            CardData(id = "template_$index", backgroundRes = resId, bgName = "", elements = elements)
-        }
-    }
 
     var cardToCapture by remember { mutableStateOf<CardData?>(null) }
 
@@ -173,7 +169,6 @@ fun CardsMainContent(
                     .fillMaxSize()
                     .padding(innerPadding)
             ) {
-                // Horizontal Slide Animation between Tabs
                 AnimatedContent(
                     targetState = selectedTab,
                     transitionSpec = {
@@ -202,7 +197,6 @@ fun CardsMainContent(
                     when (tab) {
                         CardsTab.EXPLORE -> {
                             ExploreTabContent(
-                                templates = templates,
                                 likedCards = likedCards,
                                 jasnifyCards = jasnifyCards,
                                 lazyListState = exploreLazyListState,
@@ -213,14 +207,14 @@ fun CardsMainContent(
                                 nestedScrollConnection = nestedScrollConnection,
                                 onCardClick = onCardClick,
                                 onLikeToggle = onLikeToggle,
-                                onShareTrigger = { card -> 
+                                onShareTrigger = { card ->
                                     onShareIncrement(card)
-                                    onShareTrigger(card, false) 
+                                    onShareTrigger(card, false)
                                 },
                                 onEditDetailsClick = onEditDetailsClick,
-                                onWhatsappShare = { card -> 
+                                onWhatsappShare = { card ->
                                     onShareIncrement(card)
-                                    onShareTrigger(card, true) 
+                                    onShareTrigger(card, true)
                                 }
                             )
                         }
@@ -242,6 +236,82 @@ fun CardsMainContent(
                     }
                 }
             }
+        }
+
+
+        // ============================================== Card Admin Options =================================================
+
+
+        // Admin Multi-Select Bottom Bar in My Edits Tab
+        AnimatedVisibility(
+            visible = isSelectionMode && isCardAdmin && selectedTab == CardsTab.MY_CARDS,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(16.dp)
+                .zIndex(20f)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(brush = BottomGradientBrush)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 12.dp, vertical = 12.dp)
+            ) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(62.dp)
+                        .pill360Shadow(
+                            ambientColor = Color.Black.copy(alpha = 0.10f),
+                            ambientBlur = 12.dp,
+                            ambientSpread = 2.dp,
+                            spotColor = Color.Black.copy(alpha = 0.15f),
+                            spotBlur = 18.dp,
+                            spotOffsetY = 4.dp
+                        ),
+                    color = SurfacePrimary,
+                    shape = CircleShape
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CustomTextButton(
+                            onClick = onPublishSelectedToJasnify,
+                            text = "Publish to Jasnify",
+                            type = ButtonType.Primary,
+                            shapeStyle = ButtonShapeStyle.Round,
+                            leadingIcon = painterResource(R.drawable.ic_plus),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        }
+
+        // FAB for Admin to Add New Jasnify Card
+        AnimatedVisibility(
+            visible = (selectedTab == CardsTab.MY_CARDS) && isCardAdmin && !isSelectionMode,
+            enter = androidx.compose.animation.scaleIn() + fadeIn(),
+            exit = androidx.compose.animation.scaleOut() + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = 132.dp, end = 24.dp)
+                .zIndex(15f)
+        ) {
+            CustomIconButton(
+                icon = painterResource(R.drawable.ic_plus),
+                onClick = onAddNewClick,
+                containerColor = com.harshdeep.jasnify.theme.ContentBrand,
+                contentColor = com.harshdeep.jasnify.theme.SurfacePrimary,
+                size = ButtonSize.Large
+            )
         }
     }
 }

@@ -10,13 +10,7 @@ import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.repository.CardRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -25,10 +19,20 @@ import javax.inject.Inject
 class CardViewModel @Inject constructor(
     private val repository: CardRepository,
     private val cloudinaryManager: CloudinaryManager,
-    private val preferenceManager: PreferenceManager
+    private val preferenceManager: PreferenceManager,
+    private val auth: com.google.firebase.auth.FirebaseAuth
 ) : ViewModel() {
 
     private val _eventId = MutableStateFlow<String?>(null)
+
+    val isCardAdmin: StateFlow<Boolean> = flow {
+        val uid = auth.currentUser?.uid
+        if (!uid.isNullOrEmpty()) {
+            emitAll(repository.checkIsCardsAdmin(uid))
+        } else {
+            emit(false)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _recentColors = MutableStateFlow<List<String>>(
         preferenceManager.getRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD)
@@ -62,17 +66,8 @@ class CardViewModel @Inject constructor(
     val jasnifyCards: StateFlow<List<CardData>> = repository.getJasnifyCards()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    init {
-        viewModelScope.launch {
-            repository.getJasnifyCards().map { it.isEmpty() }.collect { isEmpty ->
-                if (isEmpty) {
-                    com.harshdeep.jasnify.domain.model.getJasnifyCardsMock().forEach { mockCard ->
-                        repository.saveJasnifyCard(mockCard)
-                    }
-                }
-            }
-        }
-    }
+    val globalCardThemes: StateFlow<List<CardTheme>> = repository.getGlobalCardThemes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setEventId(eventId: String) {
         _eventId.value = eventId
@@ -117,6 +112,19 @@ class CardViewModel @Inject constructor(
         }
     }
 
+    fun saveAsJasnifyCard(data: CardData) {
+        viewModelScope.launch {
+            repository.saveJasnifyCard(data)
+        }
+    }
+
+    fun publishCardsToJasnify(cards: List<CardData>, onComplete: () -> Unit = {}) {
+        viewModelScope.launch {
+            repository.saveJasnifyCards(cards)
+            onComplete()
+        }
+    }
+
     fun uploadThemeImage(uri: Uri, onSuccess: (String) -> Unit, onError: (String) -> Unit) {
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
@@ -127,7 +135,10 @@ class CardViewModel @Inject constructor(
                     url = url,
                     isDefault = false
                 )
+                
+                // Save to room's local themes so it appears in the editor selector
                 repository.saveCardTheme(eventId, newTheme)
+                
                 onSuccess(url)
             } catch (e: Exception) {
                 onError(e.message ?: "Upload failed")

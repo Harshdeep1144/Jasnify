@@ -139,6 +139,7 @@ dependencies {
     // Coil image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
+    implementation("io.coil-kt:coil-svg:2.6.0")
 
     // Media3
     implementation(libs.androidx.media3.exoplayer)

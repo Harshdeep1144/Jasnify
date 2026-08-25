@@ -76,4 +76,10 @@ abstract class RepositoryModule {
     abstract fun bindMomentsRepository(
         momentsRepositoryImpl: com.harshdeep.jasnify.data.repository.MomentsRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.MomentsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindConfigRepository(
+        configRepositoryImpl: com.harshdeep.jasnify.data.repository.ConfigRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.ConfigRepository
 }
