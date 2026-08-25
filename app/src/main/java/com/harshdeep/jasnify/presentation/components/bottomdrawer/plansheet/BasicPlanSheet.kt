@@ -44,6 +44,7 @@ fun BasicPlanSheet(
         heading = "Basic Plan",
         onDismiss = onDismiss,
         onProgress = onProgress,
+        showDragHandle = false,
         sheetHeight = null,
     ) {
         Column(

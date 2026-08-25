@@ -7,16 +7,15 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import com.harshdeep.jasnify.MainActivity
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.notifications.model.NotificationConfig
 import java.net.HttpURLConnection
 import java.net.URL
-import androidx.core.graphics.toColorInt
-import androidx.core.net.toUri
 
 class NotificationHelper(private val context: Context) {
 
@@ -24,7 +23,7 @@ class NotificationHelper(private val context: Context) {
         context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
     fun showNotification(config: NotificationConfig) {
-        val channelId = config.channelId
+        val channelId = config.channelId.ifBlank { "jasnify_default_channel" }
         createNotificationChannel(channelId)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -35,9 +34,14 @@ class NotificationHelper(private val context: Context) {
         }
 
         val pendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
+            context,
+            0,
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
+
+        // Fetches #006363 directly from colors.xml
+        val brandColor = ContextCompat.getColor(context, R.color.notification_default_color)
 
         val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(R.drawable.ic_app_logo)
@@ -46,37 +50,56 @@ class NotificationHelper(private val context: Context) {
             .setAutoCancel(true)
             .setPriority(getPriority(config.priority))
             .setContentIntent(pendingIntent)
-            .setColor("#557373".toColorInt())
+            .setColor(brandColor)
+            .setColorized(true)
 
-        // Override accent color if provided in config
-        config.backgroundColor?.let {
-            try {
-                builder.color = it.toColorInt()
-            } catch (e: Exception) { }
-        }
-
-        // Handle UI Types for System Notification
         when (config.uiType) {
-            "bigText" -> {
-                builder.setStyle(NotificationCompat.BigTextStyle().bigText(config.body))
-            }
             "bigPicture", "promo" -> {
                 config.imageUrl?.let { url ->
                     val bitmap = getBitmapFromUrl(url)
                     if (bitmap != null) {
-                        builder.setStyle(NotificationCompat.BigPictureStyle().bigPicture(bitmap).setSummaryText(config.body))
+                        builder.setStyle(
+                            NotificationCompat.BigPictureStyle()
+                                .bigPicture(bitmap)
+                                .setBigContentTitle(config.title)
+                                .setSummaryText(config.body)
+                        )
+                        builder.setLargeIcon(bitmap)
+                    } else {
+                        builder.setStyle(NotificationCompat.BigTextStyle().bigText(config.body))
                     }
+                } ?: run {
+                    builder.setStyle(NotificationCompat.BigTextStyle().bigText(config.body))
                 }
+            }
+            "bigText" -> {
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(config.body))
+            }
+            else -> {
+                builder.setStyle(NotificationCompat.BigTextStyle().bigText(config.body))
             }
         }
 
         notificationManager.notify(System.currentTimeMillis().toInt(), builder.build())
     }
 
+    fun sendUserGreeting(name: String, customMessage: String? = null) {
+        val greeting = "Hi, ${name.substringBefore(" ").trim()}"
+        val body = customMessage ?: "Welcome back to Jasnify! We're glad to see you again."
+
+        val config = NotificationConfig(
+            title = greeting,
+            body = body,
+            channelId = "user_greetings",
+            priority = 2
+        )
+        showNotification(config)
+    }
+
     private fun createNotificationChannel(channelId: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Default Channel"
-            val descriptionText = "App Notifications"
+            val name = "Jasnify Notifications"
+            val descriptionText = "General App Notifications"
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(channelId, name, importance).apply {
                 description = descriptionText
@@ -98,9 +121,10 @@ class NotificationHelper(private val context: Context) {
             val url = URL(imageUrl)
             val connection = url.openConnection() as HttpURLConnection
             connection.doInput = true
+            connection.connectTimeout = 5000
+            connection.readTimeout = 5000
             connection.connect()
-            val input = connection.inputStream
-            BitmapFactory.decodeStream(input)
+            BitmapFactory.decodeStream(connection.inputStream)
         } catch (e: Exception) {
             null
         }

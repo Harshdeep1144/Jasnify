@@ -45,6 +45,7 @@ fun ProPlanSheet(
         heading = "Pro Plan",
         onDismiss = onDismiss,
         onProgress = onProgress,
+        showDragHandle = false,
         sheetHeight = null,
     ) {
         Column(

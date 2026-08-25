@@ -1136,7 +1136,7 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
                                     }
                                 }
 
-                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat) {
+                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat && guests.isNotEmpty()) {
                                     AskAiButton(
                                         onClick = {
                                             focusManager.clearFocus()

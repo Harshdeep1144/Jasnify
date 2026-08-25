@@ -44,6 +44,15 @@ class UserRepositoryImpl @Inject constructor(
         firestore.collection("users").document(user.uid).set(user, com.google.firebase.firestore.SetOptions.merge()).await()
     }
 
+    override suspend fun updateFcmToken(uid: String, token: String) {
+        if (uid.isBlank()) return
+        try {
+            firestore.collection("users").document(uid).update("fcmToken", token).await()
+        } catch (e: Exception) {
+            // If document doesn't exist, we might need to create it or ignore
+        }
+    }
+
     override suspend fun deleteUserProfile(uid: String) {
         firestore.collection("users").document(uid).delete().await()
     }

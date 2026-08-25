@@ -59,10 +59,18 @@ class MainActivity : ComponentActivity() {
             val authViewModel: AuthViewModel = hiltViewModel()
             val auth = FirebaseAuth.getInstance()
             
-            // Keep user's lastActive status updated
+            // Keep user's lastActive status updated and sync FCM Token
             LaunchedEffect(auth.currentUser?.uid) {
                 auth.currentUser?.uid?.let { uid ->
                     authViewModel.updateLastActive(uid, isMerchant = false)
+                    
+                    // Sync FCM token to Firestore
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val token = task.result
+                            authViewModel.updateFcmToken(uid, token)
+                        }
+                    }
                 }
             }
 

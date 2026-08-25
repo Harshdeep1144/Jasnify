@@ -13,6 +13,7 @@ import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.repository.UserRepository
+import com.harshdeep.jasnify.notifications.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -187,6 +188,16 @@ class ProfileViewModel @Inject constructor(
 
     fun resetUpdateState() {
         _updateState.value = ProfileUpdateState.Idle
+    }
+
+    /**
+     * Sends a personalized greeting notification to the user's device.
+     */
+    fun sendGreetingNotification() {
+        val user = _userProfile.value ?: return
+        if (user.name.isNotBlank()) {
+            NotificationHelper(context).sendUserGreeting(user.name)
+        }
     }
 
     fun submitFeedback(rating: Int, feedback: String) {
