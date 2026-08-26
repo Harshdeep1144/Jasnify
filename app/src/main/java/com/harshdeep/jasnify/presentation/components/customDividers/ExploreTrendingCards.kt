@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -96,6 +97,7 @@ fun ExploreTrendingCards(modifier: Modifier = Modifier) {
                 text = "EXPLORE",
                 style = JasnifyTheme.typography.labelSmall,
                 color = Color(0xFF4D2A15),
+                letterSpacing = 2.sp
             )
 
             Text(

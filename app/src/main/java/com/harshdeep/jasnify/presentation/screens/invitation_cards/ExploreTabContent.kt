@@ -347,7 +347,7 @@ private fun CardRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 16.dp),
+            .padding(bottom = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         rowItems.forEach { card ->
@@ -468,9 +468,9 @@ private fun CardInteractionRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .padding(all = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.Center
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -493,6 +493,7 @@ private fun CardInteractionRow(
                 color = ContentPrimary
             )
         }
+        Spacer(Modifier.width(12.dp))
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -518,73 +519,18 @@ private fun CardInteractionRow(
     }
 }
 
+
 @OptIn(ExperimentalSharedTransitionApi::class)
-@Preview(showBackground = true, backgroundColor = 0xFFFAF7F2, widthDp = 390, heightDp = 844)
+@Preview(showBackground = true)
 @Composable
 fun ExploreTabContentPreview() {
     JasnifyTheme {
-        val sampleTemplates = remember {
-            listOf(
-                CardData(
-                    id = "template_0",
-                    backgroundRes = R.drawable.bg_invitation_card_01,
-                    bgName = "Classic Elegance",
-                    elements = getTemplateElements(0)
-                ),
-                CardData(
-                    id = "template_1",
-                    backgroundRes = R.drawable.bg_invitation_card_02,
-                    bgName = "Floral Romance",
-                    elements = getTemplateElements(1)
-                ),
-                CardData(
-                    id = "template_2",
-                    backgroundRes = R.drawable.bg_invitation_card_03,
-                    bgName = "Golden Glamour",
-                    elements = getTemplateElements(2)
-                ),
-                CardData(
-                    id = "template_3",
-                    backgroundRes = R.drawable.bg_invitation_card_04,
-                    bgName = "Modern Minimalist",
-                    elements = getTemplateElements(3)
-                )
-            )
-        }
-
-        val exploreLazyListState = rememberLazyListState()
-        val explorePagerState = rememberPagerState(
-            initialPage = 0,
-            pageCount = { sampleTemplates.size }
+        CardInteractionRow(
+            likesCount = 10,
+            sharesCount = 5,
+            isLiked = true,
+            onLikeClick = {},
+            onShareClick = {}
         )
-
-        val dummyNestedScrollConnection = remember {
-            object : NestedScrollConnection {
-                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset = Offset.Zero
-            }
-        }
-
-        SharedTransitionLayout {
-            AnimatedVisibility(visible = true) {
-                ExploreTabContent(
-                    jasnifyCards = sampleTemplates,
-                    likedCards = emptyList(),
-                    cardStyles = listOf("All", "Classic", "Modern"),
-                    selectedStyle = "All",
-                    onStyleClick = {},
-                    lazyListState = exploreLazyListState,
-                    pagerState = explorePagerState,
-                    animatedVisibilityScope = this,
-                    sharedTransitionScope = this@SharedTransitionLayout,
-                    canEdit = true,
-                    nestedScrollConnection = dummyNestedScrollConnection,
-                    onCardClick = { _, _ -> },
-                    onLikeToggle = {},
-                    onShareTrigger = {},
-                    onEditDetailsClick = {},
-                    onWhatsappShare = {}
-                )
-            }
-        }
     }
 }

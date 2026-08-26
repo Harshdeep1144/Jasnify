@@ -128,7 +128,6 @@ fun HighlightedVendors(
                             Text(
                                 text = subtitle.uppercase(),
                                 style = JasnifyTheme.typography.labelSmall.copy(
-                                    fontFamily = FontFamily(Font(R.font.facadflux_bold)),
                                     lineHeight = JasnifyTheme.typography.labelSmall.fontSize
                                 ),
                                 color = subtitleColor,
@@ -187,6 +186,7 @@ fun HighlightedVendors(
                             onOfferClick = { onOfferClick(vendor) },
                             compactCardSize = cardSize,
                             vendorNameColor = titleColor,
+                            isVendorNameBold = true,
                             locationColor = ContentPrimary,
                         )
                     }

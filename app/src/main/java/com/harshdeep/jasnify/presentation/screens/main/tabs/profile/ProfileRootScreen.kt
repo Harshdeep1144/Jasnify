@@ -49,10 +49,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -108,6 +110,7 @@ fun ProfileRootScreen(
 ) {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
+    val haptic = LocalHapticFeedback.current
 
     val editIcon = painterResource(R.drawable.ic_edit)
     val eventsStackIcon = painterResource(R.drawable.ic_events_stack)
@@ -160,6 +163,7 @@ fun ProfileRootScreen(
                 targetValue = 0.92f,
                 animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
             )
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
             // Soft expansion back to 1.0f
             avatarScale.animateTo(
                 targetValue = 1f,

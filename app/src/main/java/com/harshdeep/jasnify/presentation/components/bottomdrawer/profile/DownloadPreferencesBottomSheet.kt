@@ -7,10 +7,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Switch
@@ -56,6 +61,7 @@ fun DownloadPreferencesBottomSheet(
     CustomBottomSheet(
         heading = "Download Preferences",
         onDismiss = onDismiss,
+        sheetHeight = null,
         onProgress = onProgress,
         showCloseButton = true,
         showDragHandle = false
@@ -63,7 +69,7 @@ fun DownloadPreferencesBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(all = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             QualityOption(
@@ -99,8 +105,10 @@ fun DownloadPreferencesBottomSheet(
                 Text(
                     text = "Remember my settings for 7 days",
                     style = JasnifyTheme.typography.labelXLarge,
-                    color = ContentSecondary
+                    color = ContentSecondary,
+                    modifier = Modifier.weight(1f)
                 )
+                Spacer(modifier = Modifier.width(8.dp))
                 Switch(
                     checked = rememberSettings,
                     onCheckedChange = { rememberSettings = it },

@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -169,27 +170,39 @@ fun CardFullView(
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
-                    val isLiked = remember(card.likedBy, currentUserId) { 
-                        card.likedBy.contains(currentUserId) 
+                    
+                    // Local state for instant feedback
+                    var localIsLiked by remember(card.id, card.likedBy, currentUserId) {
+                        mutableStateOf(card.likedBy.contains(currentUserId))
+                    }
+                    var localLikesCount by remember(card.id, card.likesCount) {
+                        mutableIntStateOf(card.likesCount)
+                    }
+                    var localSharesCount by remember(card.id, card.sharesCount) {
+                        mutableIntStateOf(card.sharesCount)
                     }
 
                     Row(
                         modifier = Modifier
                             .padding(vertical = 4.dp, horizontal = 8.dp)
                             .noRippleClickable(
-                                onClick = { onLikeToggle(card) }
+                                onClick = { 
+                                    localIsLiked = !localIsLiked
+                                    if (localIsLiked) localLikesCount++ else localLikesCount--
+                                    onLikeToggle(card) 
+                                }
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            painter = painterResource(id = if (isLiked) R.drawable.ic_no_border_heart_filled else R.drawable.ic_top_bar_heart),
+                            painter = painterResource(id = if (localIsLiked) R.drawable.ic_no_border_heart_filled else R.drawable.ic_top_bar_heart),
                             contentDescription = "Like",
-                            tint = if (isLiked) Color.Unspecified else ContentInvPrimary,
+                            tint = if (localIsLiked) Color.Unspecified else ContentInvPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${card.likesCount}",
+                            text = "$localLikesCount",
                             style = JasnifyTheme.typography.labelLarge,
                             color = ContentInvPrimary
                         )
@@ -199,7 +212,10 @@ fun CardFullView(
                         modifier = Modifier
                             .padding(vertical = 4.dp, horizontal = 8.dp)
                             .noRippleClickable(
-                                onClick = { onShareTrigger(card) }
+                                onClick = { 
+                                    localSharesCount++
+                                    onShareTrigger(card) 
+                                }
                             ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -211,7 +227,7 @@ fun CardFullView(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "${card.sharesCount}",
+                            text = "$localSharesCount",
                             style = JasnifyTheme.typography.labelLarge,
                             color = ContentInvPrimary
                         )

@@ -43,8 +43,11 @@ import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
+import sv.lib.squircleshape.SquircleShape
 import kotlin.math.absoluteValue
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -148,6 +151,7 @@ fun CardCarousel(
                     CardItem(
                         data = currentCard,
                         pageOffset = pageOffset,
+                        shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
                         showControls = showControls,
                         isLiked = isLiked(currentCard),
                         onLikeClick = {

@@ -227,7 +227,7 @@ fun PlanCard(
             .height(160.dp),
         shape = cardShape,
         color = Color.Transparent,
-        border = BorderStroke(1.dp, Color(0x1A000000))
+        border = BorderStroke(1.dp, Color(0x0D000000))
     ) {
         Box(
             modifier = Modifier
@@ -242,10 +242,20 @@ fun PlanCard(
                         .matchParentSize()
                         .alpha(0.6f),
                     alignment = Alignment.CenterEnd,
-                    contentScale = ContentScale.Inside // or ContentScale.None / ContentScale.Fit
+                    contentScale = ContentScale.Inside
                 )
             }
-
+            if (planType == PlanType.PRO) {
+                Image(
+                    painter = painterResource(id = R.drawable.bg_pro_plan_pattern),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .alpha(0.6f),
+                    alignment = Alignment.CenterEnd,
+                    contentScale = ContentScale.Inside
+                )
+            }
             if (planType == PlanType.ULTIMATE) {
                 FluidWaterGradientBackground(
                     modifier = Modifier.matchParentSize()
@@ -304,7 +314,7 @@ fun PlanCard(
                         if (buttonText != null && onUpgradeNowClick != null) {
                             Surface(
                                 onClick = onUpgradeNowClick,
-                                color = (if (isDarkCard) Color(0xFF142928) else ContentPrimary).copy(alpha = 0.7f),
+                                color = (if (isDarkCard) Color(0xFF142928) else ContentPrimary).copy(alpha = 0.5f),
                                 shape = RoundedCornerShape(100),
                                 modifier = Modifier.padding(end = 12.dp)
                             ) {

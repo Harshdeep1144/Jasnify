@@ -83,35 +83,41 @@ fun AllCardsDivider(modifier: Modifier = Modifier) {
             modifier = Modifier.size(width = 96.dp, height = 55.26.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            // Card 1: Fixed base card (Bottom of stack)
+            val rightmostOffsetX = 54.dp
+
+            // Card 1: Slides out furthest left (bottom layer)
             StackedCardItem(
                 imageResId = R.drawable.trending_card_preview_01,
+                initialOffsetX = rightmostOffsetX,
                 targetOffsetX = 0.dp,
-                launchDelayMillis = 0,
+                launchDelayMillis = 450,
                 zIndex = 1f
             )
 
-            // Card 2: Slides horizontally right
+            // Card 2: Slides out left
             StackedCardItem(
                 imageResId = R.drawable.trending_card_preview_02,
+                initialOffsetX = rightmostOffsetX,
                 targetOffsetX = 18.dp,
-                launchDelayMillis = 80,
+                launchDelayMillis = 300,
                 zIndex = 2f
             )
 
-            // Card 3: Slides further right
+            // Card 3: Slides slightly left
             StackedCardItem(
                 imageResId = R.drawable.trending_card_preview_03,
+                initialOffsetX = rightmostOffsetX,
                 targetOffsetX = 36.dp,
-                launchDelayMillis = 160,
+                launchDelayMillis = 150,
                 zIndex = 3f
             )
 
-            // Card 4: Slides to the far right (Top of stack)
+            // Card 4: Static right-most card (top layer)
             StackedCardItem(
                 imageResId = R.drawable.trending_card_preview_04,
-                targetOffsetX = 54.dp,
-                launchDelayMillis = 240,
+                initialOffsetX = rightmostOffsetX,
+                targetOffsetX = rightmostOffsetX,
+                launchDelayMillis = 0,
                 zIndex = 4f
             )
         }
@@ -123,6 +129,7 @@ private fun StackedCardItem(
     imageResId: Int,
     targetOffsetX: Dp,
     modifier: Modifier = Modifier,
+    initialOffsetX: Dp = targetOffsetX,
     zIndex: Float = 0f,
     width: Dp = 41.44.dp,
     height: Dp = 55.26.dp,
@@ -138,13 +145,13 @@ private fun StackedCardItem(
         launchProgress.animateTo(
             targetValue = 1f,
             animationSpec = spring(
-                dampingRatio = Spring.DampingRatioLowBouncy,
-                stiffness = Spring.StiffnessLow
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessVeryLow // Slower and smoother motion
             )
         )
     }
 
-    val maxShadowElevationPx = with(density) { 4.dp.toPx() }
+    val startXPx = with(density) { initialOffsetX.toPx() }
     val targetXPx = with(density) { targetOffsetX.toPx() }
 
     Box(
@@ -153,15 +160,13 @@ private fun StackedCardItem(
             .size(width = width, height = height)
             .graphicsLayer {
                 val progress = launchProgress.value
-                val clamped = progress.coerceIn(0f, 1f)
 
-                alpha = clamped
-                shadowElevation = maxShadowElevationPx * clamped
+                alpha = 1f
                 shape = cardShape
                 clip = false
 
-                // Pure horizontal translation (Y stays 0)
-                translationX = targetXPx * progress
+                // Interpolates smoothly from rightmost position to target left position
+                translationX = startXPx + (targetXPx - startXPx) * progress
                 translationY = 0f
             }
             .background(color = ContentInvPrimary, shape = cardShape)

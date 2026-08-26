@@ -165,11 +165,11 @@ fun CateringMenuMainContent(
                             }
                     ) {
                         CustomTopBar(
-                            title = "Catering Menu",
+                            title = if (isSelectionMode) "${selectedItemIds.size} Selected" else "Catering Menu",
                             onBackClick = onBackClick,
                             onMenuClick = onMenuClick,
                             menuIcon = if (isSelectionMode) TopIcon.Predefined.CLOSE else TopIcon.Predefined.MENU_VERTICAL,
-                            isLargeTitle = true,
+                            isLargeTitle = !isSelectionMode,
                             buttonStyle = ButtonBackground.OPAQUE
                         )
                     }

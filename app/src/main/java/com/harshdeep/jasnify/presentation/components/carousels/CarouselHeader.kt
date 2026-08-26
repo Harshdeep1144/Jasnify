@@ -55,8 +55,7 @@ fun CarouselHeader(
                     text = subtitle.uppercase(),
                     style = JasnifyTheme.typography.labelSmall,
                     color = ContentSecondary,
-                    letterSpacing = 2.sp,
-                    fontFamily = facadFluxBold
+                    letterSpacing = 2.sp
                 )
             }
 
@@ -74,8 +73,7 @@ fun CarouselHeader(
                     text = subtitle.uppercase(),
                     style = JasnifyTheme.typography.labelSmall,
                     color = ContentSecondary,
-                    letterSpacing = 2.sp,
-                    fontFamily = facadFluxBold
+                    letterSpacing = 2.sp
                 )
             }
         }

@@ -291,7 +291,8 @@ fun HomeMainView(
                 }
             }
 
-            val topBarInset = 80.dp
+            val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val topBarInset = statusBarHeight + 64.dp // Account for status bar + HomeTopBar height for clickable gesture
             val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
 
             if (overlayHeight > 0.dp) {

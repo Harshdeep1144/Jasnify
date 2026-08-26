@@ -45,6 +45,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -156,6 +158,8 @@ private fun BasicBottomNavBar(
     modifier: Modifier = Modifier,
     applyPadding: Boolean = true
 ) {
+    val haptic = LocalHapticFeedback.current
+
     BottomAppBar(
         containerColor = SurfacePrimary,
         windowInsets = if (applyPadding) BottomAppBarDefaults.windowInsets else ZeroInsets,
@@ -182,6 +186,7 @@ private fun BasicBottomNavBar(
                 alwaysShowLabel = true,
                 onClick = {
                     if (!isSelected) {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         onItemSelected(screen)
                     }
                 },
@@ -206,6 +211,7 @@ fun PillBottomNavBar(
     applyPadding: Boolean = true
 ) {
     var isInitialComposition by remember { mutableStateOf(true) }
+    val haptic = LocalHapticFeedback.current
 
     val animatedIndex by animateFloatAsState(
         targetValue = selectedIndex.toFloat(),
@@ -298,6 +304,7 @@ fun PillBottomNavBar(
                                     indication = null
                                 ) {
                                     if (!isSelected) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onItemSelected(screen)
                                     }
                                 },

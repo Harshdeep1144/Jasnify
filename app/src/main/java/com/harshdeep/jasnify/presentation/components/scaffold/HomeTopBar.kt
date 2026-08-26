@@ -24,6 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -52,6 +54,7 @@ fun HomeTopBar(
     contentColorOverride: Color? = null
 ) {
     val alpha = alphaProvider()
+    val haptic = LocalHapticFeedback.current
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
 
     // Smoothly interpolate between the header's color (White or Custom) and the standard primary content color
@@ -149,7 +152,10 @@ fun HomeTopBar(
 
         TopBarIconButton(
             icon = TopIcon.Predefined.MENU_MODERN,
-            onClick = onMenuClick,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onMenuClick()
+            },
             backgroundStyle = buttonBackground,
             iconColor = contentColor,
             iconSize = 24.dp,
