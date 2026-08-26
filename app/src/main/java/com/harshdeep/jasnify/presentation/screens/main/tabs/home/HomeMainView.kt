@@ -246,7 +246,8 @@ fun HomeMainView(
 
                     item(key = "trending_venues") {
                         VenueCarousel(
-                            title = "Trending Venues in Patna",
+                            title = "Trending Venues",
+                            subtitle = "Near Greater Noida",
                             venues = trendingVenues,
                             isLoading = isVenuesLoading,
                             onVenueClick = onVenueClick,
@@ -260,7 +261,8 @@ fun HomeMainView(
 
                     item(key = "more_venues") {
                         VenueCarousel(
-                            title = "More Venues to Explore",
+                            title = "More Venues",
+                            subtitle = "To Explore",
                             venues = exploreVenues,
                             isLoading = isVenuesLoading,
                             onVenueClick = onVenueClick,

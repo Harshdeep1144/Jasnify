@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
@@ -87,6 +88,7 @@ fun ProPlanSheet(
                 text = "Upgrade to Pro Plan",
                 enabled = isUpgradeEnabled,
                 shapeStyle = ButtonShapeStyle.Square,
+                leadingIcon = painterResource(R.drawable.ic_lock),
                 modifier = Modifier.fillMaxWidth()
             )
         }

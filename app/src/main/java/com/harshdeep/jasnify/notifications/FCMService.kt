@@ -22,6 +22,9 @@ class FCMService : FirebaseMessagingService() {
     @Inject
     lateinit var auth: FirebaseAuth
 
+    @Inject
+    lateinit var remoteUIManager: RemoteUIManager
+
     private lateinit var notificationHelper: NotificationHelper
 
     override fun onCreate() {
@@ -42,9 +45,22 @@ class FCMService : FirebaseMessagingService() {
                     body = remoteMessage.data["body"] ?: "",
                     imageUrl = remoteMessage.data["imageUrl"],
                     uiType = remoteMessage.data["uiType"] ?: "bigPicture",
-                    deepLink = remoteMessage.data["deepLink"]
+                    deepLink = remoteMessage.data["deepLink"],
+                    buttonText = remoteMessage.data["buttonText"],
+                    backgroundColor = remoteMessage.data["backgroundColor"],
+                    textColor = remoteMessage.data["textColor"],
+                    buttonColor = remoteMessage.data["buttonColor"],
+                    headerBackgroundImage = remoteMessage.data["headerBackgroundImage"],
+                    headerHeight = remoteMessage.data["headerHeight"]?.toIntOrNull() ?: 80,
+                    imageHeight = remoteMessage.data["imageHeight"]?.toIntOrNull() ?: 180,
+                    showCloseButton = remoteMessage.data["showCloseButton"]?.toBoolean() ?: true
                 )
-                notificationHelper.showNotification(config)
+
+                if (config.uiType == "bottomSheet") {
+                    remoteUIManager.triggerBottomSheet(config)
+                } else {
+                    notificationHelper.showNotification(config)
+                }
             }
         }
     }
@@ -59,7 +75,11 @@ class FCMService : FirebaseMessagingService() {
 
                 val config = document.toObject(NotificationConfig::class.java)
                 if (config != null) {
-                    notificationHelper.showNotification(config)
+                    if (config.uiType == "bottomSheet") {
+                        remoteUIManager.triggerBottomSheet(config)
+                    } else {
+                        notificationHelper.showNotification(config)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("FCMService", "Error fetching notification config", e)

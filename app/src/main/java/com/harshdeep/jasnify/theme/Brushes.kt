@@ -44,10 +44,21 @@ val TopBrandGradientBrush = Brush.verticalGradient(
         val fraction = index / 15f
         val x = 1f - fraction
 
-        // Smooth fade from #AFCCCC80 at the top to transparent at the bottom
         val easedAlpha = x * x * (3f - 2f * x)
         val alpha = easedAlpha * 0.5f
 
         fraction to Color(0xFFAFCCCC).copy(alpha = alpha)
+    }
+)
+
+val TopBrandDarkGradientBrush = Brush.verticalGradient(
+    colorStops = Array(16) { index ->
+        val fraction = index / 15f
+        val x = 1f - fraction
+
+        val easedAlpha = x * x * (3f - 2f * x)
+        val alpha = easedAlpha * 0.5f
+
+        fraction to ContentBrand.copy(alpha = alpha)
     }
 )

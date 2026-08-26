@@ -3,10 +3,13 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.profile
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,6 +57,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
 import com.airbnb.lottie.compose.LottieAnimation
 import com.airbnb.lottie.compose.LottieCompositionSpec
@@ -65,6 +69,9 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -74,6 +81,7 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.theme.TopBrandDarkGradientBrush
 import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
 import kotlinx.coroutines.delay
@@ -115,8 +123,16 @@ fun ProfileRootScreen(
     val placeholderIcon = painterResource(R.drawable.img_profile_placeholder)
 
     var headerHeightDp by remember { mutableStateOf(configuration.screenHeightDp.dp * 0.5f) }
-
     var isReadyToPlay by remember { mutableStateOf(false) }
+
+    var toastData by remember { mutableStateOf(ToastData()) }
+
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000L.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
+    }
 
     // Load Lottie composition
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg_pattern))
@@ -192,21 +208,21 @@ fun ProfileRootScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        // 1. Brand Gradient Backdrop
+        // Brand Gradient Backdrop
         if (gradientAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(headerHeightDp)
+                    .height(headerHeightDp * 1.5f)
                     .graphicsLayer {
                         translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
                         alpha = gradientAlpha * (1f - overlayAlpha)
                     }
-                    .background(TopBrandGradientBrush)
+                    .background(TopBrandDarkGradientBrush)
             )
         }
 
-        // 2. Full-bleed Lottie Animation Overlay
+        // Full-bleed Lottie Animation Overlay
         if (isReadyToPlay && gradientAlpha < 1f) {
             Box(
                 modifier = Modifier
@@ -228,7 +244,7 @@ fun ProfileRootScreen(
             }
         }
 
-        // 3. Scrollable Foreground Content Layer
+        // Scrollable Foreground Content Layer
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -324,9 +340,10 @@ fun ProfileRootScreen(
                         price = "$5/month",
                         buttonText = "Upgrade Now",
                         planType = PlanType.PRO,
-                        onButtonClick = { onPlanClick(PlanType.PRO) },
+                        onUpgradeNowClick = {
+                            toastData = ToastData("Coming Soon!", ToastType.DEFAULT)
+                        },
                         onViewBenefitsClick = { onPlanClick(PlanType.PRO) },
-                        buttonEnabled = false,
                         buttonLeadingIcon = lockIcon
                     )
                     PlanCard(
@@ -334,9 +351,10 @@ fun ProfileRootScreen(
                         price = "$20/month",
                         buttonText = "Upgrade Now",
                         planType = PlanType.ULTIMATE,
-                        onButtonClick = { onPlanClick(PlanType.ULTIMATE) },
+                        onUpgradeNowClick = {
+                            toastData = ToastData("Coming Soon!", ToastType.DEFAULT)
+                        },
                         onViewBenefitsClick = { onPlanClick(PlanType.ULTIMATE) },
-                        buttonEnabled = false,
                         buttonLeadingIcon = lockIcon
                     )
                 }
@@ -482,6 +500,21 @@ fun ProfileRootScreen(
                 }
                 .background(TopGradientBrushLightTheme)
         )
+
+        // Pinned Toast Notification (Animated from Top)
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(message = toastData.message.orEmpty(), type = toastData.type)
+        }
     }
 }
 

@@ -268,7 +268,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_makeup", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Top Makeup Artists in $selectedCity",
+                            title = "Top Makeup Artists",
+                            subtitle = "In $selectedCity",
                             vendors = makeupVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
@@ -284,7 +285,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_photography", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Best Photographers in $selectedCity",
+                            title = "Best Photographers",
+                            subtitle = "In $selectedCity",
                             vendors = photographyVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
@@ -300,7 +302,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_mehendi", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Expert Mehendi Artists in $selectedCity",
+                            title = "Expert Mehendi Artists",
+                            subtitle = "In $selectedCity",
                             vendors = mehendiVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->

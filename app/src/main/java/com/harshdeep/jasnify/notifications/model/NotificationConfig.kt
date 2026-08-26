@@ -12,6 +12,11 @@ data class NotificationConfig(
     @get:PropertyName("uiType") @set:PropertyName("uiType") var uiType: String = "standard", // standard, bigText, bigPicture, promo, alert
     @get:PropertyName("backgroundColor") @set:PropertyName("backgroundColor") var backgroundColor: String? = null,
     @get:PropertyName("textColor") @set:PropertyName("textColor") var textColor: String? = null,
+    @get:PropertyName("buttonColor") @set:PropertyName("buttonColor") var buttonColor: String? = null,
+    @get:PropertyName("headerBackgroundImage") @set:PropertyName("headerBackgroundImage") var headerBackgroundImage: String? = null,
+    @get:PropertyName("headerHeight") @set:PropertyName("headerHeight") var headerHeight: Int = 80,
     @get:PropertyName("buttonText") @set:PropertyName("buttonText") var buttonText: String? = null,
+    @get:PropertyName("imageHeight") @set:PropertyName("imageHeight") var imageHeight: Int = 180,
+    @get:PropertyName("showCloseButton") @set:PropertyName("showCloseButton") var showCloseButton: Boolean = true,
     @get:PropertyName("metadata") @set:PropertyName("metadata") var metadata: Map<String, String>? = null
 )
