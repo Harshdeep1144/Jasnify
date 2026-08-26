@@ -15,11 +15,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -37,7 +35,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -53,6 +54,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.PlanType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -61,7 +66,6 @@ import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -71,21 +75,9 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.time.Duration.Companion.milliseconds
 
 private val CellGroupShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-
-private data class OneShotParticle(
-    val iconRes: Int,
-    val angleDeg: Double,
-    val targetDistance: Float,
-    val delayMs: Long
-)
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.O)
@@ -103,6 +95,9 @@ fun ProfileRootScreen(
     onPlanClick: (PlanType) -> Unit,
     lazyListState: LazyListState = rememberLazyListState()
 ) {
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+
     val editIcon = painterResource(R.drawable.ic_edit)
     val eventsStackIcon = painterResource(R.drawable.ic_events_stack)
     val messageTypingIcon = painterResource(R.drawable.ic_message_typing)
@@ -116,44 +111,26 @@ fun ProfileRootScreen(
     val lockIcon = painterResource(R.drawable.ic_lock)
     val placeholderIcon = painterResource(R.drawable.img_profile_placeholder)
 
-    // 16 icons expanding across a wider dispersion radius (up to 155dp)
-    val particleList = remember {
-        listOf(
-            OneShotParticle(R.drawable.ic_food, 12.0, 142f, 0L),
-            OneShotParticle(R.drawable.ic_gifts, 34.0, 128f, 60L),
-            OneShotParticle(R.drawable.ic_photographers, 58.0, 150f, 30L),
-            OneShotParticle(R.drawable.ic_makeup, 82.0, 132f, 90L),
-            OneShotParticle(R.drawable.ic_entertainment, 105.0, 148f, 20L),
-            OneShotParticle(R.drawable.ic_outfits, 128.0, 135f, 75L),
-            OneShotParticle(R.drawable.ic_jewellery, 150.0, 155f, 40L),
-            OneShotParticle(R.drawable.ic_mehendi, 172.0, 130f, 100L),
-            OneShotParticle(R.drawable.ic_grooming, 195.0, 146f, 15L),
-            OneShotParticle(R.drawable.ic_vendor, 218.0, 134f, 70L),
-            OneShotParticle(R.drawable.ic_paint, 240.0, 152f, 35L),
-            OneShotParticle(R.drawable.ic_book, 262.0, 129f, 95L),
-            OneShotParticle(R.drawable.ic_calendar, 285.0, 149f, 25L),
-            OneShotParticle(R.drawable.ic_pen, 308.0, 136f, 80L),
-            OneShotParticle(R.drawable.ic_category, 330.0, 154f, 45L),
-            OneShotParticle(R.drawable.ic_coin_hand, 352.0, 132f, 110L)
-        )
-    }
+    // Ensure non-zero default height based on device configuration
+    var headerHeightDp by remember { mutableStateOf(configuration.screenHeightDp.dp * 0.42f) }
 
-    // Individual animates for each particle
-    val animProgressList = remember { List(particleList.size) { Animatable(0f) } }
+    // Load and play Lottie animation from raw resources
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg))
+    val lottieAnimState = animateLottieCompositionAsState(
+        composition = composition,
+        isPlaying = true,
+        iterations = 1
+    )
 
-    LaunchedEffect(Unit) {
-        delay(180.milliseconds)
-        particleList.forEachIndexed { index, particle ->
-            launch {
-                delay(particle.delayMs.milliseconds)
-                animProgressList[index].animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = 2000,
-                        easing = FastOutSlowInEasing
-                    )
-                )
-            }
+    // Smooth transition to brand gradient when animation finishes
+    val gradientAlpha = remember { Animatable(0f) }
+
+    LaunchedEffect(lottieAnimState.isAtEnd) {
+        if (lottieAnimState.isAtEnd) {
+            gradientAlpha.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+            )
         }
     }
 
@@ -164,14 +141,6 @@ fun ProfileRootScreen(
         if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries"
     }
 
-    // Dynamic brand gradient height relative to screen height
-    val configuration = LocalConfiguration.current
-    val dynamicGradientHeight = remember(configuration.screenHeightDp) {
-        (configuration.screenHeightDp.dp * 0.40f).coerceIn(480.dp, 560.dp)
-    }
-
-    // Calculate fade alpha: starts at 0 and reaches 1 over the top scroll range
-    val density = LocalDensity.current
     val scrollThresholdPx = with(density) { 160.dp.toPx() }
     val overlayAlpha by remember {
         derivedStateOf {
@@ -188,35 +157,60 @@ fun ProfileRootScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        // Extended Brand Gradient Backdrop scaled dynamically to screen size
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(dynamicGradientHeight)
-                .graphicsLayer {
-                    translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
-                    alpha = (1f - overlayAlpha)
-                }
-                .background(TopBrandGradientBrush)
-        )
+        // 1. Full-bleed Launching Lottie Animation (From top status bar down to Plan Cards)
+        if (gradientAlpha.value < 1f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeightDp)
+                    .graphicsLayer {
+                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                        alpha = (1f - gradientAlpha.value) * (1f - overlayAlpha)
+                    }
+            ) {
+                LottieAnimation(
+                    composition = composition,
+                    progress = { lottieAnimState.progress },
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center
+                )
+            }
+        }
 
+        // 2. Brand Gradient Backdrop (Fades in over the backdrop once Lottie reaches completion)
+        if (gradientAlpha.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeightDp)
+                    .graphicsLayer {
+                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                        alpha = gradientAlpha.value * (1f - overlayAlpha)
+                    }
+                    .background(TopBrandGradientBrush)
+            )
+        }
+
+        // 3. Scrollable Foreground Content Layer
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState
         ) {
-            // 1. User Header
+            // User Header
             item(key = "user_header", contentType = "header") {
-                val headerHeight = remember(configuration.screenHeightDp) {
-                    configuration.screenHeightDp.dp * 0.4f
-                }
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            val measured = with(density) { coordinates.size.height.toDp() }
+                            if (measured > 0.dp) {
+                                headerHeightDp = measured
+                            }
+                        }
                         .statusBarsPadding()
-                        .defaultMinSize(minHeight = headerHeight)
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp, vertical = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
@@ -226,61 +220,20 @@ fun ProfileRootScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
+                        // User Avatar
                         Box(
-                            contentAlignment = Alignment.Center
+                            modifier = Modifier
+                                .size(128.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceSecondary)
                         ) {
-                            particleList.forEachIndexed { index, particle ->
-                                val progress = animProgressList[index].value
-
-                                if (progress > 0f && progress < 1f) {
-                                    val currentDistance = 45f + ((particle.targetDistance - 45f) * progress)
-                                    val rad = Math.toRadians(particle.angleDeg)
-
-                                    val horizontalMultiplier = 1.6f
-                                    val verticalMultiplier = 0.65f
-
-                                    val offsetX = (currentDistance * cos(rad) * horizontalMultiplier).dp
-                                    val offsetY = (currentDistance * sin(rad) * verticalMultiplier).dp
-
-                                    val alpha = when {
-                                        progress < 0.22f -> (progress / 0.22f) * 0.95f
-                                        progress < 0.65f -> 0.95f
-                                        else -> ((1f - progress) / 0.35f) * 0.95f
-                                    }.coerceIn(0f, 0.95f)
-
-                                    val scale = 0.6f + (0.5f * progress)
-
-                                    Icon(
-                                        painter = painterResource(particle.iconRes),
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .offset(x = offsetX, y = offsetY)
-                                            .graphicsLayer {
-                                                this.alpha = alpha
-                                                scaleX = scale
-                                                scaleY = scale
-                                            }
-                                            .size(16.dp),
-                                        tint = ContentBrand
-                                    )
-                                }
-                            }
-
-                            // Profile Picture Container
-                            Box(
-                                modifier = Modifier
-                                    .size(128.dp)
-                                    .clip(CircleShape)
-                                    .background(SurfaceSecondary)
-                            ) {
-                                AsyncImage(
-                                    model = profilePic,
-                                    contentDescription = "Profile Picture",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop,
-                                    placeholder = placeholderIcon
-                                )
-                            }
+                            AsyncImage(
+                                model = profilePic,
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                                placeholder = placeholderIcon
+                            )
                         }
 
                         Spacer(Modifier.height(14.dp))
@@ -310,7 +263,7 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 2. Plan Cards
+            // Plan Cards
             item(key = "plan_cards", contentType = "plan_carousel") {
                 Row(
                     modifier = Modifier
@@ -349,7 +302,7 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 3. Grid Actions
+            // Grid Actions
             item(key = "grid_actions", contentType = "grid_actions") {
                 Row(
                     modifier = Modifier
@@ -374,7 +327,7 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 4. Menu Items
+            // Menu Items
             item(key = "menu_items", contentType = "menu_items") {
                 Column(
                     modifier = Modifier
@@ -472,13 +425,13 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 5. Footer
+            // Footer
             item(key = "footer", contentType = "footer") {
                 FooterJansify()
             }
         }
 
-        // Pinned Top Status Bar Gradient Overlay (fades in as user scrolls)
+        // Pinned Status Bar Gradient Overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()

@@ -61,13 +61,13 @@ fun LocationAccessBottomSheet(
             ) {
                 // Illustration (Layered Map and Pin)
                 Box(
-                    modifier = Modifier.height(80.dp),
+                    modifier = Modifier.height(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.img_hero_venueaddress),
                         contentDescription = null,
-                        modifier = Modifier.height(80.dp),
+                        modifier = Modifier.height(120.dp),
                         tint = Color.Unspecified
                     )
                 }
@@ -131,7 +131,7 @@ fun LocationAccessBottomSheet(
                     }
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

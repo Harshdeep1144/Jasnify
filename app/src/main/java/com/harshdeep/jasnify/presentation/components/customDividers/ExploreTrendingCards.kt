@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.explore
+package com.harshdeep.jasnify.presentation.components.customDividers
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing

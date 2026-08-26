@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.home
 
 import android.annotation.SuppressLint
 import android.os.Build
+import android.os.Build.VERSION.SDK_INT
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
@@ -67,8 +68,16 @@ import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import coil.ImageLoader
 import coil.compose.AsyncImage
+import coil.decode.GifDecoder
+import coil.decode.ImageDecoderDecoder
+import coil.decode.SvgDecoder
 import coil.request.ImageRequest
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.LottieConstants
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Event
@@ -82,6 +91,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.Save
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
+import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
@@ -93,7 +103,6 @@ import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
-import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
@@ -109,6 +118,7 @@ import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.HomeViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
@@ -139,6 +149,13 @@ sealed class HeaderMedia {
     ) : HeaderMedia()
 
     data class ImageUrl(
+        val url: String,
+        override val actionType: String = "",
+        override val targetRoute: String = "",
+        override val contentColor: String? = null
+    ) : HeaderMedia()
+
+    data class GifUrl(
         val url: String,
         override val actionType: String = "",
         override val targetRoute: String = "",
@@ -189,7 +206,7 @@ fun HomeTab(
     roomViewModel: RoomViewModel = hiltViewModel(),
     momentsViewModel: MomentsViewModel = hiltViewModel(),
     cardViewModel: CardViewModel = hiltViewModel(),
-    homeViewModel: com.harshdeep.jasnify.presentation.viewmodels.HomeViewModel = hiltViewModel()
+    homeViewModel: HomeViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val homeConfig by homeViewModel.homeScreenConfig.collectAsStateWithLifecycle()
@@ -348,10 +365,21 @@ fun HomeTabContent(
 
         val remoteItems = homeConfig?.topSlider?.filter { it.isActive && it.mediaUrl.isNotBlank() }?.map {
             val url = it.mediaUrl.trim()
+            val cleanUrl = url.substringBefore('?').lowercase()
+
             when {
-                url.endsWith(".mp4", ignoreCase = true) -> HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute, it.contentColor)
-                url.endsWith(".json", ignoreCase = true) -> HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute, it.contentColor)
-                else -> HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".webm") || cleanUrl.endsWith(".mkv") -> {
+                    HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                }
+                cleanUrl.endsWith(".json") -> {
+                    HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                }
+                cleanUrl.endsWith(".gif") -> {
+                    HeaderMedia.GifUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                }
+                else -> {
+                    HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                }
             }
         } ?: emptyList()
 
@@ -410,8 +438,16 @@ fun HomeTabContent(
 
     val isAnySheetVisible = showSaveListBottomSheet || showOfferSheet
     val targetScale = if (isAnySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
-    val backdropScale by animateFloatAsState(targetValue = targetScale, animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f), label = "backdropScale")
-    val backdropCornerRadius by animateDpAsState(targetValue = if (isAnySheetVisible) 32.dp else 0.dp, animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy), label = "backdropCornerRadius")
+    val backdropScale by animateFloatAsState(
+        targetValue = targetScale,
+        animationSpec = spring(stiffness = 380f, dampingRatio = 0.82f),
+        label = "backdropScale"
+    )
+    val backdropCornerRadius by animateDpAsState(
+        targetValue = if (isAnySheetVisible) 32.dp else 0.dp,
+        animationSpec = spring(stiffness = 380f, dampingRatio = Spring.DampingRatioNoBouncy),
+        label = "backdropCornerRadius"
+    )
 
     val isSavedListToast = remember(toastData, lastSavedVenue, lastSavedVendor) {
         toastData?.message?.contains("Saved List") == true && (lastSavedVenue != null || lastSavedVendor != null)
@@ -1195,6 +1231,19 @@ fun HeaderMediaSlider(
 
     val context = LocalContext.current
 
+    val customImageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components {
+                if (SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                } else {
+                    add(GifDecoder.Factory())
+                }
+                add(SvgDecoder.Factory())
+            }
+            .build()
+    }
+
     LaunchedEffect(pagerState, mediaList.size) {
         if (mediaList.size > 1) {
             while (true) {
@@ -1240,19 +1289,28 @@ fun HeaderMediaSlider(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-                is HeaderMedia.ImageUrl -> {
-                    AsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data(media.url)
-                            .crossfade(true)
-                            .placeholder(R.drawable.app_hero_display_default)
-                            .error(R.drawable.app_hero_display_default)
-                            .build(),
-                        contentDescription = "Header Slide Remote Image ${actualIndex + 1}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+
+                is HeaderMedia.ImageUrl, is HeaderMedia.GifUrl -> {
+                    val url = if (media is HeaderMedia.ImageUrl) media.url else (media as HeaderMedia.GifUrl).url
+                    var hasImageError by remember(url) { mutableStateOf(false) }
+
+                    if (!hasImageError) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(url)
+                                .crossfade(true)
+                                .placeholder(R.drawable.app_hero_display_default)
+                                .error(R.drawable.app_hero_display_default)
+                                .build(),
+                            imageLoader = customImageLoader,
+                            contentDescription = "Header Slide Remote Asset ${actualIndex + 1}",
+                            contentScale = ContentScale.Crop,
+                            onError = { hasImageError = true },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
+
                 is HeaderMedia.VideoResource -> {
                     VideoPlayer(
                         videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
@@ -1262,6 +1320,7 @@ fun HeaderMediaSlider(
                         isLooping = true
                     )
                 }
+
                 is HeaderMedia.VideoUrl -> {
                     VideoPlayer(
                         videoUrl = media.url,
@@ -1271,27 +1330,35 @@ fun HeaderMediaSlider(
                         isLooping = true
                     )
                 }
+
                 is HeaderMedia.LottieUrl -> {
-                    val composition by com.airbnb.lottie.compose.rememberLottieComposition(
-                        com.airbnb.lottie.compose.LottieCompositionSpec.Url(media.url)
+                    val compositionResult = rememberLottieComposition(
+                        spec = LottieCompositionSpec.Url(media.url)
                     )
-                    com.airbnb.lottie.compose.LottieAnimation(
-                        composition = composition,
-                        modifier = Modifier.fillMaxSize(),
-                        iterations = com.airbnb.lottie.compose.LottieConstants.IterateForever,
-                        contentScale = ContentScale.Crop
-                    )
+
+                    if (compositionResult.value != null && !compositionResult.isFailure) {
+                        LottieAnimation(
+                            composition = compositionResult.value,
+                            modifier = Modifier.fillMaxSize(),
+                            iterations = LottieConstants.IterateForever,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
+
                 is HeaderMedia.LottieResource -> {
-                    val composition by com.airbnb.lottie.compose.rememberLottieComposition(
-                        com.airbnb.lottie.compose.LottieCompositionSpec.RawRes(media.resId)
+                    val compositionResult = rememberLottieComposition(
+                        spec = LottieCompositionSpec.RawRes(media.resId)
                     )
-                    com.airbnb.lottie.compose.LottieAnimation(
-                        composition = composition,
-                        modifier = Modifier.fillMaxSize(),
-                        iterations = com.airbnb.lottie.compose.LottieConstants.IterateForever,
-                        contentScale = ContentScale.Crop
-                    )
+
+                    if (compositionResult.value != null && !compositionResult.isFailure) {
+                        LottieAnimation(
+                            composition = compositionResult.value,
+                            modifier = Modifier.fillMaxSize(),
+                            iterations = LottieConstants.IterateForever,
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 }
             }
         }

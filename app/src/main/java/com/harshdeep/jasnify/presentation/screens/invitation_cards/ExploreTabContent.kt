@@ -6,6 +6,7 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,6 +14,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -25,6 +27,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
@@ -33,14 +37,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -53,6 +58,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.getTemplateElements
@@ -61,8 +67,12 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.carousels.CardCarousel
-import com.harshdeep.jasnify.presentation.components.explore.ExploreTrendingCards
+import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
+import com.harshdeep.jasnify.presentation.components.chip.FilterChip
+import com.harshdeep.jasnify.presentation.components.customDividers.AllCardsDivider
+import com.harshdeep.jasnify.presentation.components.customDividers.ExploreTrendingCards
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
+import com.harshdeep.jasnify.presentation.components.states.StandaloneEmptyState
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -74,27 +84,14 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import sv.lib.squircleshape.SquircleShape
 
 private val CardCarouselShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
-private val GridTopShape = SquircleShape(
-    CornerLargeIncrease,
-    CornerLargeIncrease,
-    0.dp,
-    0.dp,
-    CornerSmoothingDefault
-)
-private val GridBackgroundBrush = Brush.verticalGradient(
-    colorStops = arrayOf(
-        0.0f to SurfacePrimary.copy(alpha = 0.50f),
-        0.40f to SurfacePrimary.copy(alpha = 0.70f),
-        0.80f to SurfacePrimary.copy(alpha = 0.90f),
-        1.0f to SurfacePrimary
-    )
-)
 
-@OptIn(ExperimentalSharedTransitionApi::class)
+@OptIn(ExperimentalSharedTransitionApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ExploreTabContent(
     jasnifyCards: List<CardData>,
     likedCards: List<CardData>,
+    selectedStyle: String,
+    onStyleClick: (String) -> Unit,
     lazyListState: LazyListState,
     pagerState: PagerState,
     animatedVisibilityScope: AnimatedVisibilityScope,
@@ -107,12 +104,35 @@ fun ExploreTabContent(
     onEditDetailsClick: (CardData) -> Unit,
     onWhatsappShare: (CardData) -> Unit
 ) {
+    val cardStyles = listOf("All", "Classic", "Modern", "Minimalist", "Joyful", "Vintage")
+    
+    val sortedCards = remember(jasnifyCards) {
+        jasnifyCards.sortedByDescending { (it.likesCount + it.sharesCount) / 2.0 }
+    }
+
+    val trendingCards = remember(sortedCards) {
+        sortedCards.take(4)
+    }
+
+    val carouselCards = remember(sortedCards) {
+        sortedCards.drop(4).take(10)
+    }
+
+    val restCards = remember(sortedCards, selectedStyle) {
+        if (selectedStyle == "All") sortedCards
+        else sortedCards.filter { it.cardStyle.equals(selectedStyle, ignoreCase = true) }
+    }
+
+    val chunkedRestCards = remember(restCards) {
+        restCards.chunked(2)
+    }
+    
     Box(modifier = Modifier.fillMaxSize()) {
         val density = LocalDensity.current
         val trendingOffset by remember {
             derivedStateOf {
                 val layoutInfo = lazyListState.layoutInfo
-                val trendingItem = layoutInfo.visibleItemsInfo.find { it.index == 1 }
+                val trendingItem = layoutInfo.visibleItemsInfo.find { it.key == "trending_header" }
                 trendingItem?.offset
             }
         }
@@ -155,15 +175,6 @@ fun ExploreTabContent(
         val sharePainter = painterResource(id = R.drawable.ic_share)
         val whatsappPainter = painterResource(id = R.drawable.ic_whatsapp)
 
-        val chunkedCards = remember(jasnifyCards) {
-            jasnifyCards.chunked(2)
-        }
-
-        val top10Cards = remember(jasnifyCards) {
-            jasnifyCards.sortedByDescending { (it.likesCount + it.sharesCount) / 2.0 }
-                .take(10)
-        }
-
         LazyColumn(
             state = lazyListState,
             modifier = Modifier
@@ -171,13 +182,14 @@ fun ExploreTabContent(
                 .nestedScroll(nestedScrollConnection),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // --- Carousel Section (Cards 5-14) ---
             item(key = "carousel_section", contentType = "carousel") {
                 Column(
                     modifier = Modifier.padding(vertical = 36.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    if (top10Cards.isNotEmpty()) {
-                        val currentCarouselCard = top10Cards[pagerState.currentPage % top10Cards.size]
+                    if (carouselCards.isNotEmpty()) {
+                        val currentCarouselCard = carouselCards[pagerState.currentPage % carouselCards.size]
                         val carouselKey = "carousel_${currentCarouselCard.id}"
 
                         with(sharedTransitionScope) {
@@ -190,7 +202,7 @@ fun ExploreTabContent(
                                 )
                             ) {
                                 CardCarousel(
-                                    cards = top10Cards,
+                                    cards = carouselCards,
                                     pagerState = pagerState,
                                     isLiked = { card -> likedCards.any { it.id == card.id } },
                                     onLikeClick = onLikeToggle,
@@ -236,91 +248,79 @@ fun ExploreTabContent(
                 }
             }
 
+            // --- Trending Cards Section (Top 4 Cards) ---
             item(key = "trending_header", contentType = "trending_header") {
                 Spacer(Modifier.height(64.dp))
                 ExploreTrendingCards()
             }
 
-            item(key = "template_grid", contentType = "template_grid") {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+            items(
+                items = trendingCards.chunked(2),
+                key = { row -> "trending_row_${row.firstOrNull()?.id}" },
+                contentType = { "template_row" }
+            ) { rowItems ->
+                CardRow(
+                    rowItems = rowItems,
+                    prefix = "trending",
+                    sharedTransitionScope = sharedTransitionScope,
+                    animatedVisibilityScope = animatedVisibilityScope,
+                    onCardClick = onCardClick,
+                    onLikeToggle = onLikeToggle,
+                    onShareTrigger = onShareTrigger
+                )
+            }
+
+            // --- All Cards Section (Rest of Cards + Filter) ---
+            item(key = "all_cards_divider", contentType = "all_cards_divider") {
+                Spacer(Modifier.height(64.dp))
+                AllCardsDivider()
+            }
+
+            stickyHeader(key = "all_cards_filters", contentType = "all_cards_filters") {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BackgroundPrimary)
+                        .padding(bottom = 16.dp, top = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    chunkedCards.forEach { rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            rowItems.forEach { card ->
-                                val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
-                                val isLiked = card.likedBy.contains(currentUserId)
-                                val interactionSource = remember { MutableInteractionSource() }
-                                val isPressed by interactionSource.collectIsPressedAsState()
-                                val scale by animateFloatAsState(
-                                    targetValue = if (isPressed) 0.96f else 1f,
-                                    label = "scale"
-                                )
-                                val trendingKey = "trending_${card.id}"
-
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.Start
-                                    ) {
-                                        with(sharedTransitionScope) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .aspectRatio(280f / 373f)
-                                                    .sharedBounds(
-                                                        sharedContentState = rememberSharedContentState(key = trendingKey),
-                                                        animatedVisibilityScope = animatedVisibilityScope,
-                                                        zIndexInOverlay = 1f,
-                                                        clipInOverlayDuringTransition = OverlayClip(RectangleShape)
-                                                    )
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .fillMaxSize()
-                                                        .graphicsLayer {
-                                                            scaleX = scale
-                                                            scaleY = scale
-                                                        }
-                                                        .clip(RectangleShape)
-                                                        .clickable(
-                                                            interactionSource = interactionSource,
-                                                            indication = null
-                                                        ) { onCardClick(card, trendingKey) }
-                                                ) {
-                                                    CardItem(
-                                                        data = card,
-                                                        showControls = false,
-                                                        isLiked = isLiked,
-                                                        shape = RectangleShape,
-                                                        onLikeClick = { onLikeToggle(card) },
-                                                        onShareClick = { onShareTrigger(card) },
-                                                        modifier = Modifier.fillMaxSize()
-                                                    )
-                                                }
-                                            }
-                                        }
-
-                                        CardInteractionRow(
-                                            card = card,
-                                            isLiked = isLiked,
-                                            onLikeClick = { onLikeToggle(card) },
-                                            onShareClick = { onShareTrigger(card) }
-                                        )
-                                    }
-                                }
-                            }
-                            if (rowItems.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
-                            }
-                        }
+                    items(cardStyles) { style ->
+                        FilterChip(
+                            label = style,
+                            isSelected = selectedStyle == style,
+                            onClick = { onStyleClick(style) },
+                            shapeStyle = ChipShapeStyle.Round,
+                            hasStroke = true
+                        )
                     }
+                }
+            }
+
+            if (restCards.isEmpty()) {
+                item(key = "empty_state") {
+                    StandaloneEmptyState(
+                        message = "No $selectedStyle cards found",
+                        iconRes = R.drawable.ic_share_card,
+                        modifier = Modifier.fillParentMaxHeight(0.5f)
+                    )
+                }
+            } else {
+                items(
+                    items = chunkedRestCards,
+                    key = { row: List<CardData> -> "row_${row.firstOrNull()?.id ?: "empty"}" },
+                    contentType = { "template_row" }
+                ) { rowItems ->
+                    CardRow(
+                        rowItems = rowItems,
+                        prefix = "rest",
+                        sharedTransitionScope = sharedTransitionScope,
+                        animatedVisibilityScope = animatedVisibilityScope,
+                        onCardClick = onCardClick,
+                        onLikeToggle = onLikeToggle,
+                        onShareTrigger = onShareTrigger
+                    )
                 }
             }
 
@@ -332,9 +332,133 @@ fun ExploreTabContent(
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
+@Composable
+private fun CardRow(
+    rowItems: List<CardData>,
+    prefix: String,
+    sharedTransitionScope: SharedTransitionScope,
+    animatedVisibilityScope: AnimatedVisibilityScope,
+    onCardClick: (CardData, String) -> Unit,
+    onLikeToggle: (CardData) -> Unit,
+    onShareTrigger: (CardData) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        rowItems.forEach { card ->
+            val transitionKey = "${prefix}_${card.id}"
+            Box(
+                modifier = Modifier.weight(1f)
+            ) {
+                Column(horizontalAlignment = Alignment.Start) {
+                    with(sharedTransitionScope) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(280f / 373f)
+                                .sharedBounds(
+                                    sharedContentState = rememberSharedContentState(key = transitionKey),
+                                    animatedVisibilityScope = animatedVisibilityScope,
+                                    zIndexInOverlay = 1f,
+                                    clipInOverlayDuringTransition = OverlayClip(RectangleShape)
+                                )
+                        ) {
+                            ExploreCardItem(
+                                card = card,
+                                transitionKey = transitionKey,
+                                onCardClick = onCardClick,
+                                onLikeToggle = onLikeToggle,
+                                onShareTrigger = onShareTrigger
+                            )
+                        }
+                    }
+
+                    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
+                    
+                    // Local state for instant feedback
+                    var localIsLiked by remember(card.id, card.likedBy, currentUserId) {
+                        mutableStateOf(card.likedBy.contains(currentUserId))
+                    }
+                    var localLikesCount by remember(card.id, card.likesCount) {
+                        mutableIntStateOf(card.likesCount)
+                    }
+                    var localSharesCount by remember(card.id, card.sharesCount) {
+                        mutableIntStateOf(card.sharesCount)
+                    }
+
+                    CardInteractionRow(
+                        likesCount = localLikesCount,
+                        sharesCount = localSharesCount,
+                        isLiked = localIsLiked,
+                        onLikeClick = { 
+                            localIsLiked = !localIsLiked
+                            if (localIsLiked) localLikesCount++ else localLikesCount--
+                            onLikeToggle(card) 
+                        },
+                        onShareClick = { 
+                            localSharesCount++
+                            onShareTrigger(card) 
+                        }
+                    )
+                }
+            }
+        }
+        if (rowItems.size == 1) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun ExploreCardItem(
+    card: CardData,
+    transitionKey: String,
+    onCardClick: (CardData, String) -> Unit,
+    onLikeToggle: (CardData) -> Unit,
+    onShareTrigger: (CardData) -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        label = "scale"
+    )
+    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+    val isLiked = remember(card.likedBy, currentUserId) { card.likedBy.contains(currentUserId) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RectangleShape)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null
+            ) { onCardClick(card, transitionKey) }
+    ) {
+        CardItem(
+            data = card,
+            showControls = false,
+            isLiked = isLiked,
+            shape = RectangleShape,
+            onLikeClick = { onLikeToggle(card) },
+            onShareClick = { onShareTrigger(card) },
+            modifier = Modifier.fillMaxSize()
+        )
+    }
+}
+
 @Composable
 private fun CardInteractionRow(
-    card: CardData,
+    likesCount: Int,
+    sharesCount: Int,
     isLiked: Boolean,
     onLikeClick: () -> Unit,
     onShareClick: () -> Unit,
@@ -345,7 +469,7 @@ private fun CardInteractionRow(
             .fillMaxWidth()
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -356,14 +480,14 @@ private fun CardInteractionRow(
             )
         ) {
             Icon(
-                painter = painterResource(id = if (isLiked) R.drawable.ic_heart_filled else R.drawable.ic_top_bar_heart),
+                painter = painterResource(id = if (isLiked) R.drawable.ic_no_border_heart_filled else R.drawable.ic_top_bar_heart),
                 contentDescription = "Like",
                 tint = if (isLiked) Color.Unspecified else ContentPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "${card.likesCount}",
+                text = "$likesCount",
                 style = JasnifyTheme.typography.labelLarge,
                 color = ContentPrimary
             )
@@ -381,11 +505,11 @@ private fun CardInteractionRow(
                 painter = painterResource(id = R.drawable.ic_share),
                 contentDescription = "Share",
                 tint = ContentPrimary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "${card.sharesCount}",
+                text = "$sharesCount",
                 style = JasnifyTheme.typography.labelLarge,
                 color = ContentPrimary
             )
@@ -444,6 +568,8 @@ fun ExploreTabContentPreview() {
                 ExploreTabContent(
                     jasnifyCards = sampleTemplates,
                     likedCards = emptyList(),
+                    selectedStyle = "All",
+                    onStyleClick = {},
                     lazyListState = exploreLazyListState,
                     pagerState = explorePagerState,
                     animatedVisibilityScope = this,

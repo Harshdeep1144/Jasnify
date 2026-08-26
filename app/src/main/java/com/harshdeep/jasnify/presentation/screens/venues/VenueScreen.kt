@@ -75,7 +75,6 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -120,6 +119,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
+import com.harshdeep.jasnify.presentation.components.states.VenueLoadingState
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
@@ -473,174 +473,178 @@ fun VenueScreen(
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = backdropScaleState.value
-                    scaleY = backdropScaleState.value
-                    val radius = backdropCornerRadiusState.value
-                    clip = isAnySheetVisible || radius > 0.dp
-                    shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
-                }
-                .background(BackgroundPrimary)
-        ) {
-            RoomAccessGuardian(
-                hasAccess = hasAccess,
-                roomName = "Venue",
-                onBackClick = onBackClick
+        if (activeEvent == null || isLoading) {
+            VenueLoadingState()
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        scaleX = backdropScaleState.value
+                        scaleY = backdropScaleState.value
+                        val radius = backdropCornerRadiusState.value
+                        clip = isAnySheetVisible || radius > 0.dp
+                        shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                    }
+                    .background(BackgroundPrimary)
             ) {
-                AnimatedContent(
-                    targetState = screenState,
-                    transitionSpec = {
-                        when {
-                            targetState == VenueScreenState.VENUE_DETAIL || targetState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideBottomToTopFastTransition
-                            initialState == VenueScreenState.VENUE_DETAIL || initialState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideTopToBottomFastTransition
-                            else -> ScreenTransitions.FadeInOutDefaultTransition
-                        }
-                    },
-                    label = "venue_screen_transition",
-                    modifier = Modifier.fillMaxSize()
-                ) { targetState ->
-                    when (targetState) {
-                        VenueScreenState.LOCATION_PICKER -> {
-                            LocationScreen(
-                                initialSearches = recentLocations,
-                                currentAddress = currentAddress,
-                                onAddressSelected = {
-                                    currentAddress = it
-                                    autoFocusLocationSearch = false
-                                    screenStack = screenStack.dropLast(1)
-                                },
-                                onBackClick = { 
-                                    autoFocusLocationSearch = false
-                                    screenStack = screenStack.dropLast(1) 
-                                },
-                                autoFocusSearch = autoFocusLocationSearch
-                            )
-                        }
-                        VenueScreenState.ROOM_ACCESS -> {
-                            activeEvent?.id?.let { id ->
-                                VenueRoomContent(
-                                    eventId = id,
-                                    roomViewModel = roomViewModel,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) },
-                                    onMenuClick = {
-                                        focusManager.clearFocus()
-                                        showRoomMenuBottomSheet = true
-                                    },
-                                    onRemove = { targetUser ->
-                                        userToRemove = targetUser
-                                    },
-                                    onLeave = {
-                                        showLeaveConfirmation = true
-                                    },
-                                    onShowToast = { toastData = it }
-                                )
+                RoomAccessGuardian(
+                    hasAccess = hasAccess,
+                    roomName = "Venue",
+                    onBackClick = onBackClick
+                ) {
+                    AnimatedContent(
+                        targetState = screenState,
+                        transitionSpec = {
+                            when {
+                                targetState == VenueScreenState.VENUE_DETAIL || targetState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideBottomToTopFastTransition
+                                initialState == VenueScreenState.VENUE_DETAIL || initialState == VenueScreenState.HELP_FEEDBACK -> ScreenTransitions.SlideTopToBottomFastTransition
+                                else -> ScreenTransitions.FadeInOutDefaultTransition
                             }
-                        }
-                        VenueScreenState.VENUE_DETAIL -> {
-                            selectedVenueForDetail?.let { venue ->
-                                val detailData = remember(venue, allVenues, venueReviews, venueSavedDestinations) {
-                                    val base = allVenues.find { it.id == venue.id } ?: venue
-
-                                    val reactiveBase = base.copy(favorite = venueSavedDestinations.containsKey(base.name))
-
-                                    if (venueReviews.isNotEmpty()) {
-                                        reactiveBase.copy(
-                                            reviewsData = reactiveBase.reviewsData?.copy(reviews = venueReviews)
-                                                ?: VenueReviewsData(reviews = venueReviews)
-                                        )
-                                    } else {
-                                        reactiveBase
-                                    }
-                                }
-                                VenueDetailScreen(
-                                    venueDetail = detailData,
-                                    onBackClick = {
-                                        selectedVenueForDetail = null
-                                        venueViewModel.setSelectedVenueId(null)
+                        },
+                        label = "venue_screen_transition",
+                        modifier = Modifier.fillMaxSize()
+                    ) { targetState ->
+                        when (targetState) {
+                            VenueScreenState.LOCATION_PICKER -> {
+                                LocationScreen(
+                                    initialSearches = recentLocations,
+                                    currentAddress = currentAddress,
+                                    onAddressSelected = {
+                                        currentAddress = it
+                                        autoFocusLocationSearch = false
                                         screenStack = screenStack.dropLast(1)
                                     },
-                                    onFavoriteToggle = {
-                                        handleFavoriteToggle(detailData)
+                                    onBackClick = { 
+                                        autoFocusLocationSearch = false
+                                        screenStack = screenStack.dropLast(1) 
                                     },
-                                    onChatClick = { venueChat ->
-                                        onChatClick(venueChat)
-                                    },
-                                    onAiSearchClick = { query ->
-                                        aiChatInitialContext = query
-                                        showAiChat = true
-                                    },
-                                    modifier = Modifier.fillMaxSize()
+                                    autoFocusSearch = autoFocusLocationSearch
                                 )
                             }
-                        }
-                        VenueScreenState.MAIN -> {
-                            VenueMainContent(
-                                exploreVenues = exploreVenues,
-                                savedTimelineEvents = savedTimelineEvents,
-                                selectedLocation = currentAddress,
-                                onVenueClick = { venue ->
-                                    selectedVenueForDetail = venue
-                                    venueViewModel.setSelectedVenueId(venue.id)
-                                    screenStack = screenStack + VenueScreenState.VENUE_DETAIL
-                                    onVenueClick(venue)
-                                },
-                                onLocationSelectorClick = {
-                                    screenStack = screenStack + VenueScreenState.LOCATION_PICKER
-                                },
-                                onBackClick = onBackClick,
-                                onShowMenuSheetChange = { showMenuSheet = it },
-                                venueSavedDestinations = venueSavedDestinations,
-                                onFavoriteToggle = handleFavoriteToggle,
-                                selectedTab = selectedTab,
-                                onSelectedTabChange = { selectedTab = it },
-                                selectedViewType = selectedViewType,
-                                onSelectedViewTypeChange = { selectedViewType = it },
-                                appliedSortOption = appliedSortOption,
-                                appliedFilterOptions = appliedFilterOptions,
-                                onShowFilterDialogChange = { showFilterDialog = it },
-                                isLoading = isLoading,
-                                onTimelineSeeAll = { event ->
-                                    selectedTimelineEventId = event.id
-                                    screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
-                                },
-                                onOfferClick = { venue ->
-                                    offersToShow = venue.offers
-                                    showOfferSheet = true
-                                },
-                                listState = mainListState
-                            )
-                        }
-                        VenueScreenState.TIMELINE_DETAIL -> {
-                            currentSelectedTimelineEvent?.let { event ->
-                                SavedTimelineItemsScreen(
-                                    title = "Saved Venues",
-                                    date = event.date,
-                                    event = event.event,
-                                    venues = event.venues,
+                            VenueScreenState.ROOM_ACCESS -> {
+                                activeEvent?.id?.let { id ->
+                                    VenueRoomContent(
+                                        eventId = id,
+                                        roomViewModel = roomViewModel,
+                                        onBackClick = { screenStack = screenStack.dropLast(1) },
+                                        onMenuClick = {
+                                            focusManager.clearFocus()
+                                            showRoomMenuBottomSheet = true
+                                        },
+                                        onRemove = { targetUser ->
+                                            userToRemove = targetUser
+                                        },
+                                        onLeave = {
+                                            showLeaveConfirmation = true
+                                        },
+                                        onShowToast = { toastData = it }
+                                    )
+                                }
+                            }
+                            VenueScreenState.VENUE_DETAIL -> {
+                                selectedVenueForDetail?.let { venue ->
+                                    val detailData = remember(venue, allVenues, venueReviews, venueSavedDestinations) {
+                                        val base = allVenues.find { it.id == venue.id } ?: venue
+
+                                        val reactiveBase = base.copy(favorite = venueSavedDestinations.containsKey(base.name))
+
+                                        if (venueReviews.isNotEmpty()) {
+                                            reactiveBase.copy(
+                                                reviewsData = reactiveBase.reviewsData?.copy(reviews = venueReviews)
+                                                    ?: VenueReviewsData(reviews = venueReviews)
+                                            )
+                                        } else {
+                                            reactiveBase
+                                        }
+                                    }
+                                    VenueDetailScreen(
+                                        venueDetail = detailData,
+                                        onBackClick = {
+                                            selectedVenueForDetail = null
+                                            venueViewModel.setSelectedVenueId(null)
+                                            screenStack = screenStack.dropLast(1)
+                                        },
+                                        onFavoriteToggle = {
+                                            handleFavoriteToggle(detailData)
+                                        },
+                                        onChatClick = { venueChat ->
+                                            onChatClick(venueChat)
+                                        },
+                                        onAiSearchClick = { query ->
+                                            aiChatInitialContext = query
+                                            showAiChat = true
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                            }
+                            VenueScreenState.MAIN -> {
+                                VenueMainContent(
+                                    exploreVenues = exploreVenues,
+                                    savedTimelineEvents = savedTimelineEvents,
+                                    selectedLocation = currentAddress,
                                     onVenueClick = { venue ->
                                         selectedVenueForDetail = venue
                                         venueViewModel.setSelectedVenueId(venue.id)
                                         screenStack = screenStack + VenueScreenState.VENUE_DETAIL
+                                        onVenueClick(venue)
                                     },
-                                    onVenueFavoriteToggle = handleFavoriteToggle,
-                                    onBackClick = { screenStack = screenStack.dropLast(1) }
+                                    onLocationSelectorClick = {
+                                        screenStack = screenStack + VenueScreenState.LOCATION_PICKER
+                                    },
+                                    onBackClick = onBackClick,
+                                    onShowMenuSheetChange = { showMenuSheet = it },
+                                    venueSavedDestinations = venueSavedDestinations,
+                                    onFavoriteToggle = handleFavoriteToggle,
+                                    selectedTab = selectedTab,
+                                    onSelectedTabChange = { selectedTab = it },
+                                    selectedViewType = selectedViewType,
+                                    onSelectedViewTypeChange = { selectedViewType = it },
+                                    appliedSortOption = appliedSortOption,
+                                    appliedFilterOptions = appliedFilterOptions,
+                                    onShowFilterDialogChange = { showFilterDialog = it },
+                                    isLoading = isLoading,
+                                    onTimelineSeeAll = { event ->
+                                        selectedTimelineEventId = event.id
+                                        screenStack = screenStack + VenueScreenState.TIMELINE_DETAIL
+                                    },
+                                    onOfferClick = { venue ->
+                                        offersToShow = venue.offers
+                                        showOfferSheet = true
+                                    },
+                                    listState = mainListState
                                 )
                             }
-                        }
+                            VenueScreenState.TIMELINE_DETAIL -> {
+                                currentSelectedTimelineEvent?.let { event ->
+                                    SavedTimelineItemsScreen(
+                                        title = "Saved Venues",
+                                        date = event.date,
+                                        event = event.event,
+                                        venues = event.venues,
+                                        onVenueClick = { venue ->
+                                            selectedVenueForDetail = venue
+                                            venueViewModel.setSelectedVenueId(venue.id)
+                                            screenStack = screenStack + VenueScreenState.VENUE_DETAIL
+                                        },
+                                        onVenueFavoriteToggle = handleFavoriteToggle,
+                                        onBackClick = { screenStack = screenStack.dropLast(1) }
+                                    )
+                                }
+                            }
 
-                        VenueScreenState.HELP_FEEDBACK -> {
-                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
-                                profileViewModel = profileViewModel,
-                                onBack = {
-                                    if (screenStack.size > 1) {
-                                        screenStack = screenStack.dropLast(1)
-                                    }
-                                },
-                                onShowAiChat = { showAiChat = true }
-                            )
+                            VenueScreenState.HELP_FEEDBACK -> {
+                                com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                    profileViewModel = profileViewModel,
+                                    onBack = {
+                                        if (screenStack.size > 1) {
+                                            screenStack = screenStack.dropLast(1)
+                                        }
+                                    },
+                                    onShowAiChat = { showAiChat = true }
+                                )
+                            }
                         }
                     }
                 }
@@ -864,7 +868,7 @@ fun VenueScreen(
                 onClick = { showAiChat = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 240.dp)
+                    .padding(bottom = 176.dp)
                     .zIndex(150f)
             )
         }

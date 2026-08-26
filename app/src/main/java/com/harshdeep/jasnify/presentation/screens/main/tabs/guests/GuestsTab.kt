@@ -196,15 +196,11 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
 
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
     val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
-
-    if (activeEvent == null) {
-        GuestsLoadingState()
-        return
-    }
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -222,6 +218,11 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
         } else {
             roomViewModel.setAccessState(true)
         }
+    }
+
+    if (activeEvent == null || isLoading) {
+        GuestsLoadingState()
+        return
     }
 
     val searchHistoryManager = remember { SearchHistoryManager(context) }

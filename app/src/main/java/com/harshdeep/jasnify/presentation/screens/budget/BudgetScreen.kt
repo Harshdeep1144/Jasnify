@@ -165,11 +165,6 @@ fun BudgetScreen(
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
 
-    if (activeEvent == null) {
-        BudgetLoadingState()
-        return
-    }
-
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
 
@@ -204,6 +199,11 @@ fun BudgetScreen(
             roomViewModel.verifyAccess(id, "Budget", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Budget")
         }
+    }
+
+    if (activeEvent == null) {
+        BudgetLoadingState()
+        return
     }
 
     val indianLocale = remember { Locale("en", "IN") }

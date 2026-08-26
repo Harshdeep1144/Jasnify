@@ -151,6 +151,7 @@ data class CardData(
     var elements: List<TextElement> = defaultElements(),
     var theme: CardTheme? = null,
     var eventType: String = "all events",
+    var cardStyle: String = "Classic",
     var likesCount: Int = 0,
     var sharesCount: Int = 0,
     var lastEdited: Long = System.currentTimeMillis(),
@@ -370,6 +371,7 @@ fun getJasnifyCardsMock(): List<CardData> = listOf(
         backgroundRes = R.drawable.bg_invitation_card_01,
         theme = CardTheme(name = "Royal", resId = R.drawable.bg_invitation_card_01),
         eventType = "Wedding",
+        cardStyle = "Classic",
         elements = getTemplateElements(0, "Aarav & Ishani", "AUGUST 15, 2026", "THE UMAID BHAWAN, JODHPUR"),
         likesCount = 1240,
         sharesCount = 450
@@ -380,6 +382,7 @@ fun getJasnifyCardsMock(): List<CardData> = listOf(
         backgroundRes = R.drawable.bg_invitation_card_02,
         theme = CardTheme(name = "Floral", resId = R.drawable.bg_invitation_card_02),
         eventType = "Reception",
+        cardStyle = "Modern",
         elements = getTemplateElements(1, "Kabir & Zoya", "OCTOBER 10, 2026", "JW MARRIOTT, MUMBAI"),
         likesCount = 890,
         sharesCount = 210
@@ -390,6 +393,7 @@ fun getJasnifyCardsMock(): List<CardData> = listOf(
         backgroundRes = R.drawable.bg_invitation_card_03,
         theme = CardTheme(name = "Modern", resId = R.drawable.bg_invitation_card_03),
         eventType = "Party",
+        cardStyle = "Minimalist",
         elements = getTemplateElements(7, "Rohan's Bash", "NOV 14, 2026", "SKY LOUNGE, AER"),
         likesCount = 2300,
         sharesCount = 670

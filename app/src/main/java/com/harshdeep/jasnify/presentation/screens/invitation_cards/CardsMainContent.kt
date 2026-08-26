@@ -79,6 +79,8 @@ fun CardsMainContent(
     myCards: List<CardData>,
     likedCards: List<CardData>,
     jasnifyCards: List<CardData>,
+    selectedStyle: String,
+    onStyleClick: (String) -> Unit,
     activeEvent: Event?,
     selectedCardIds: Set<String>,
     exploreLazyListState: LazyListState,
@@ -202,6 +204,8 @@ fun CardsMainContent(
                             ExploreTabContent(
                                 likedCards = likedCards,
                                 jasnifyCards = jasnifyCards,
+                                selectedStyle = selectedStyle,
+                                onStyleClick = onStyleClick,
                                 lazyListState = exploreLazyListState,
                                 pagerState = explorePagerState,
                                 animatedVisibilityScope = animatedVisibilityScope,

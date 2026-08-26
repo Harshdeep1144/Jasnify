@@ -26,11 +26,39 @@ class CardViewModel @Inject constructor(
 
     private val _eventId = MutableStateFlow<String?>(null)
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val processingCardLikes = mutableSetOf<String>()
 
     private val _adminDetails = MutableStateFlow<Map<String, Any>?>(null)
     val isCardAdmin: StateFlow<Boolean> = _adminDetails.map { it != null }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    private val _recentColors = MutableStateFlow<List<String>>(
+        preferenceManager.getRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD)
+    )
+    val recentColors: StateFlow<List<String>> = _recentColors.asStateFlow()
+
+    val myCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
+        if (id == null) MutableStateFlow(emptyList<CardData>())
+        else repository.getMyCards(id).map { list -> list.sortedByDescending { it.lastEdited } }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val likedCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
+        if (id == null) MutableStateFlow(emptyList())
+        else repository.getLikedCards(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    private val _selectedStyle = MutableStateFlow("All")
+    val selectedStyle: StateFlow<String> = _selectedStyle.asStateFlow()
+
+    val jasnifyCards: StateFlow<List<CardData>> = repository.getJasnifyCards()
+        .onEach { _isLoading.value = false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val globalCardThemes: StateFlow<List<CardTheme>> = repository.getGlobalCardThemes()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     init {
         val uid = auth.currentUser?.uid
@@ -43,10 +71,9 @@ class CardViewModel @Inject constructor(
         }
     }
 
-    private val _recentColors = MutableStateFlow<List<String>>(
-        preferenceManager.getRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD)
-    )
-    val recentColors: StateFlow<List<String>> = _recentColors.asStateFlow()
+    fun setSelectedStyle(style: String) {
+        _selectedStyle.value = style
+    }
 
     fun addRecentColor(colorHex: String) {
         val current = _recentColors.value.toMutableList()
@@ -56,27 +83,6 @@ class CardViewModel @Inject constructor(
         _recentColors.value = limited
         preferenceManager.saveRecentColors(PreferenceManager.KEY_RECENT_COLORS_CARD, limited)
     }
-
-    val myCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
-        if (id == null) MutableStateFlow(emptyList<CardData>())
-        else repository.getMyCards(id).map { list -> list.sortedByDescending { it.lastEdited } }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val likedCards: StateFlow<List<CardData>> = _eventId.flatMapLatest { id ->
-        if (id == null) MutableStateFlow(emptyList())
-        else repository.getLikedCards(id)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val cardRoomData: StateFlow<CardRoomData?> = _eventId.flatMapLatest { id ->
-        if (id == null) MutableStateFlow(null)
-        else repository.getCardRoomData(id)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    val jasnifyCards: StateFlow<List<CardData>> = repository.getJasnifyCards()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val globalCardThemes: StateFlow<List<CardTheme>> = repository.getGlobalCardThemes()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun setEventId(eventId: String) {
         _eventId.value = eventId
@@ -112,23 +118,22 @@ class CardViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // 1. Toggle local "liked_cards" collection (your existing logic)
-                repository.toggleLikedCard(eventId, data)
+                val isAlreadyLiked = data.likedBy.contains(userId)
                 
-                if (isJasnifyCard) {
-                    val cardInList = jasnifyCards.value.find { it.id == data.id }
-                    val isAlreadyLiked = cardInList?.likedBy?.contains(userId) == true
+                // Prepare updated card object for personal collection
+                val updatedLikedBy = if (isAlreadyLiked) data.likedBy - userId else data.likedBy + userId
+                val updatedLikesCount = if (isAlreadyLiked) (data.likesCount - 1).coerceAtLeast(0) else data.likesCount + 1
+                val updatedData = data.copy(likedBy = updatedLikedBy, likesCount = updatedLikesCount)
 
-                    if (isAlreadyLiked) {
-                        // It's already liked, so this click means the user wants to UNLIKE
-                        repository.toggleJasnifyCardLike(data.id, userId, false)
-                    } else {
-                        // It's not liked, so this click means the user wants to LIKE
-                        repository.toggleJasnifyCardLike(data.id, userId, true)
-                    }
+                // 1. Toggle in personal event room
+                repository.toggleLikedCard(eventId, updatedData)
+                
+                // 2. Toggle in global collection if it's a Jasnify template
+                if (isJasnifyCard) {
+                    repository.toggleJasnifyCardLike(data.id, userId, !isAlreadyLiked)
                 }
             } finally {
-                delay(500) // Cooldown to allow Firestore listener to update
+                delay(400)
                 processingCardLikes.remove(data.id)
             }
         }
@@ -178,10 +183,7 @@ class CardViewModel @Inject constructor(
                     adminName = admin?.get("name") as? String,
                     adminUsername = admin?.get("username") as? String
                 )
-                
-                // Save to room's local themes so it appears in the editor selector
                 repository.saveCardTheme(eventId, newTheme)
-                
                 onSuccess(url)
             } catch (e: Exception) {
                 onError(e.message ?: "Upload failed")
@@ -195,4 +197,13 @@ class CardViewModel @Inject constructor(
             repository.updateCardThemeName(eventId, themeId, newName)
         }
     }
+
+    fun getCardRoomData(eventId: String): Flow<CardRoomData?> {
+        return repository.getCardRoomData(eventId)
+    }
+
+    val cardRoomData: StateFlow<CardRoomData?> = _eventId.flatMapLatest { id ->
+        if (id == null) MutableStateFlow(null)
+        else repository.getCardRoomData(id)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 }

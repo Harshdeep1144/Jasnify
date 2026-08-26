@@ -2,8 +2,8 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.checklist
 
 import android.annotation.SuppressLint
 import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.activity.compose.BackHandler
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.BoundsTransform
@@ -63,8 +63,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -145,17 +145,14 @@ fun ChecklistsTab(
     val navBarStyle by uiViewModel.navBarStyle.collectAsStateWithLifecycle()
 
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
-
-    if (activeEvent == null) {
-        ChecklistLoadingState(
-            navBarStyle = navBarStyle
-        )
-        return
-    }
-
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
-    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    
+    val checklists by viewModel.checklists.collectAsStateWithLifecycle()
+    val archivedChecklists by viewModel.archivedChecklists.collectAsStateWithLifecycle()
+    val recentColorsHex by viewModel.recentColors.collectAsStateWithLifecycle()
+    val recentColors = remember(recentColorsHex) { recentColorsHex.map { Color(it.toLong(16)) } }
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
 
     val auth = FirebaseAuth.getInstance()
     val currentUserUid = auth.currentUser?.uid ?: ""
@@ -182,10 +179,12 @@ fun ChecklistsTab(
         }
     }
 
-    val checklists by viewModel.checklists.collectAsStateWithLifecycle()
-    val archivedChecklists by viewModel.archivedChecklists.collectAsStateWithLifecycle()
-    val recentColorsHex by viewModel.recentColors.collectAsStateWithLifecycle()
-    val recentColors = remember(recentColorsHex) { recentColorsHex.map { Color(it.toLong(16)) } }
+    if (activeEvent == null) {
+        ChecklistLoadingState(
+            navBarStyle = navBarStyle
+        )
+        return
+    }
 
     var isGridView by remember { mutableStateOf(true) }
     var showAiChat by remember { mutableStateOf(false) }
@@ -1040,6 +1039,7 @@ fun ChecklistsTab(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)
 @Composable
 fun ChecklistsTabPreview() {

@@ -1458,11 +1458,13 @@ fun EditCardDetailsScreen(
             ) {
                 EyeDropperOverlay(
                     onColorPicked = { pickedColor ->
-                        updateElement(selectedElement.id) { target ->
-                            val alpha = (target.colorHex shr 24) and 0xFFL
-                            val alphaToUse = if (alpha == 0L) 0xFFL else alpha
-                            val newRgb = pickedColor.toArgb().toLong() and 0x00FFFFFFL
-                            target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                        if (pickedColor != Color.Transparent) {
+                            updateElement(selectedElement.id) { target ->
+                                val alpha = (target.colorHex shr 24) and 0xFFL
+                                val alphaToUse = if (alpha == 0L) 0xFFL else alpha
+                                val newRgb = pickedColor.toArgb().toLong() and 0x00FFFFFFL
+                                target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                            }
                         }
                         showEyeDropper = false
                     },

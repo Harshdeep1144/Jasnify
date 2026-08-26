@@ -106,21 +106,12 @@ fun CardItem(
             .background(Color(data.backgroundColorHex.toInt()))
     ) {
         // Background Image
-        if (data.backgroundUrl != null) {
-            AsyncImage(
-                model = data.backgroundUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Image(
-                painter = painterResource(id = data.backgroundRes),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
+        AsyncImage(
+            model = data.backgroundUrl ?: data.backgroundRes,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
 
         if (canvasSize.width > 0 && canvasSize.height > 0) {
             val canvasWidthPx = canvasSize.width.toFloat()

@@ -240,23 +240,31 @@ class MomentsRepositoryImpl @Inject constructor(
         // Remove from all_moments
         batch.delete(momentDoc.reference)
         
-        // Remove from folder moments
-        val folderMomentRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
-            .collection("folders").document(folderId)
-            .collection("moments").document(momentId)
-        batch.delete(folderMomentRef)
+        // Remove from folder moments (Use folderId from moment if passed one is empty)
+        val targetFolderId = if (folderId.isNotEmpty() && folderId != "all_moments_id") folderId else moment.folderId
+        
+        if (targetFolderId.isNotEmpty()) {
+            val folderMomentRef = firestore.collection("events").document(eventId)
+                .collection("rooms").document("moments")
+                .collection("folders").document(targetFolderId)
+                .collection("moments").document(momentId)
+            batch.delete(folderMomentRef)
 
-        // Update folder count
-        val folderRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
-            .collection("folders").document(folderId)
-        batch.update(folderRef, "itemCount", com.google.firebase.firestore.FieldValue.increment(-1))
+            // Update folder count
+            val folderRef = firestore.collection("events").document(eventId)
+                .collection("rooms").document("moments")
+                .collection("folders").document(targetFolderId)
+            batch.update(folderRef, "itemCount", com.google.firebase.firestore.FieldValue.increment(-1))
+        }
 
         batch.commit().await()
     }
 
     override suspend fun deleteFolder(eventId: String, folderId: String) {
+        if (folderId.isEmpty() || folderId == "all_moments_id") {
+            android.util.Log.e("MomentsRepo", "Attempted to delete protected or root folder: $folderId")
+            return
+        }
         try {
             val rootFolderRef = firestore.collection("events").document(eventId)
                 .collection("rooms").document("moments")

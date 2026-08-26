@@ -21,12 +21,15 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import sv.lib.squircleshape.SquircleShape
 
 @Composable
-fun CateringLoadingState(
+fun VenueLoadingState(
     modifier: Modifier = Modifier,
     brush: Brush = shimmerBrush()
 ) {
@@ -45,10 +48,14 @@ fun CateringLoadingState(
             // 1. Top Bar
             item {
                 CustomTopBar(
-                    title = "Catering Menu",
+                    title = "Venue",
                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                    backIcon = TopIcon.Predefined.BACK,
                     isLargeTitle = true,
-                    buttonStyle = ButtonBackground.OPAQUE
+                    isLeftAligned = false,
+                    buttonStyle = ButtonBackground.OPAQUE,
+                    onBackClick = {},
+                    onMenuClick = {}
                 )
             }
 
@@ -98,29 +105,33 @@ fun CateringLoadingState(
                 }
             }
 
-            // 3. Filter Chips Skeleton
+            // 3. Location Pill Skeleton
             item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
-                ) {
-                    items(4) {
-                        Box(
-                            modifier = Modifier
-                                .size(width = 80.dp, height = 32.dp)
-                                .clip(RoundedCornerShape(100))
-                                .background(brush)
-                        )
-                    }
-                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .height(56.dp)
+                        .clip(SquircleShape(16.dp))
+                        .background(SurfaceSecondary)
+                )
             }
 
-            // 4. Menu Categories Skeletons
-            items(3) {
-                Spacer(Modifier.height(12.dp))
-                SkeletonMenuCategoryCard(brush = brush)
+            // 4. Venue Cards Skeletons
+            items(4) {
+                FullCardLoading(
+                    modifier = Modifier.padding(12.dp),
+                    shimmerBrush = brush
+                )
             }
         }
+    }
+}
+
+@Preview
+@Composable
+private fun VenueLoadingStatePreview() {
+    JasnifyTheme {
+        VenueLoadingState()
     }
 }

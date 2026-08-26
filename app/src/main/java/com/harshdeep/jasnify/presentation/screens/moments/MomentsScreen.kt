@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.moments
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -24,8 +25,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,7 +38,6 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.CircleShape
@@ -50,11 +48,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,10 +58,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -78,41 +76,28 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.text.input.TextFieldValue
-import coil.compose.AsyncImage
 import coil.ImageLoader
+import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
-import android.graphics.drawable.BitmapDrawable
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.launch
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.DownloadPreferencesBottomSheet
-import com.harshdeep.jasnify.presentation.utils.noRippleClickable
-import com.harshdeep.jasnify.presentation.utils.noRippleCombinedClickable
-import com.harshdeep.jasnify.utils.ShareUtils
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
-import java.net.URL
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.DownloadPreferencesBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -126,13 +111,29 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.states.GenericLoadingState
-import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
+import com.harshdeep.jasnify.presentation.utils.noRippleCombinedClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.presentation.viewmodels.MomentsViewModel
-import com.harshdeep.jasnify.theme.*
+import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.BottomGradientBrush
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.utils.ShareUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import sv.lib.squircleshape.SquircleShape
-import java.util.concurrent.TimeUnit
+import java.io.File
+import java.io.FileOutputStream
+import java.net.URL
 import kotlin.time.Duration.Companion.milliseconds
 
 enum class MomentViewMode {
@@ -181,9 +182,9 @@ fun MomentsScreen(
     val canDeleteOwn = remember(userRole) { userRole == UserRole.EDITOR }
 
     val isAnySheetVisible by remember {
-        derivedStateOf { 
+        derivedStateOf {
             showFabMenu || showMoreMenu || showCreateFolderSheet || showDownloadPreferences ||
-            showDeleteMomentConfirmation || showDeleteFolderConfirmation 
+                    showDeleteMomentConfirmation || showDeleteFolderConfirmation
         }
     }
 
@@ -249,7 +250,6 @@ fun MomentsScreen(
     }
 
     val folders = remember(foldersFromDb, moments, selectedFolderId) {
-        // Only show \"All Moments\" at the root level (when no folder is selected)
         if (selectedFolderId.isEmpty()) {
             val allMomentsFolder = MomentFolder(
                 id = "all_moments_id",
@@ -258,8 +258,7 @@ fun MomentsScreen(
                 itemCount = moments.size,
                 isNew = false
             )
-            // Filter out any DB folder that already represents "All Moments" at the root
-            val filteredDbFolders = foldersFromDb.filter { 
+            val filteredDbFolders = foldersFromDb.filter {
                 !(it.name == "All Moments" && it.parentId == "")
             }
             listOf(allMomentsFolder) + filteredDbFolders
@@ -407,28 +406,28 @@ fun MomentsScreen(
     }
 
     val currentTitle = remember(viewMode, selectedFolderId, folderNavigationStack) {
-        when {
-            viewMode == MomentViewMode.Saved -> "Saved Moments"
-            viewMode == MomentViewMode.FolderContent && selectedFolderId == "all_moments_id" -> "All Moments"
-            viewMode == MomentViewMode.FolderContent && folderNavigationStack.isNotEmpty() -> folderNavigationStack.last().name
+        when (viewMode) {
+            MomentViewMode.Saved -> "Saved Moments"
+            MomentViewMode.FolderContent if selectedFolderId == "all_moments_id" -> "All Moments"
+            MomentViewMode.FolderContent if folderNavigationStack.isNotEmpty() -> folderNavigationStack.last().name
             else -> "Moments"
         }
     }
 
-    val galleryIconPainter = painterResource(R.drawable.ic_gallery)
-    val fileIconPainter = painterResource(R.drawable.ic_file)
+    val galleryIconPainter = painterResource(R.drawable.ic_gallery_icon)
+    val folderIconPainter = painterResource(R.drawable.ic_folder)
     val addIconPainter = rememberVectorPainter(Icons.Default.Add)
     val cameraIconPainter = painterResource(R.drawable.ic_camera)
     val uploadIconPainter = painterResource(R.drawable.ic_upload)
-    val profileIconPainter = painterResource(R.drawable.ic_profile)
-    val googleIconPainter = painterResource(R.drawable.ic_google)
+    val iCloudIconPainter = painterResource(R.drawable.ic_apple)
+    val googlePhotosIconPainter = painterResource(R.drawable.ic_google_photos)
     val heartIconPainter = painterResource(R.drawable.ic_top_bar_heart)
-    val userProfileIconPainter = painterResource(R.drawable.ic_user_profile)
+    val userProfileIconPainter = painterResource(R.drawable.ic_user_default)
     val deleteIconPainter = painterResource(R.drawable.ic_delete)
     val multiSelectIconPainter = painterResource(R.drawable.ic_multi_select)
     val downloadIconPainter = painterResource(R.drawable.ic_download)
 
-    val bottomTabItems = remember(galleryIconPainter, fileIconPainter) {
+    val bottomTabItems = remember(galleryIconPainter, folderIconPainter) {
         listOf(
             TabItem(
                 label = "",
@@ -438,7 +437,7 @@ fun MomentsScreen(
             TabItem(
                 label = "",
                 value = MomentViewMode.Folders,
-                icon = fileIconPainter
+                icon = folderIconPainter
             )
         )
     }
@@ -446,9 +445,9 @@ fun MomentsScreen(
     val addMenuItems = remember(
         cameraIconPainter,
         uploadIconPainter,
-        fileIconPainter,
-        profileIconPainter,
-        googleIconPainter,
+        folderIconPainter,
+        iCloudIconPainter,
+        googlePhotosIconPainter,
         context,
         photoPickerLauncher,
         googlePhotosPickerLauncher,
@@ -494,7 +493,7 @@ fun MomentsScreen(
                 ),
                 MenuSheetActionItem(
                     text = "Folder",
-                    icon = fileIconPainter,
+                    icon = folderIconPainter,
                     iconPlacement = IconPlacement.Top,
                     onClick = {
                         showFabMenu = false
@@ -505,7 +504,7 @@ fun MomentsScreen(
             listOf(
                 MenuSheetActionItem(
                     text = "iCloud",
-                    icon = profileIconPainter,
+                    icon = iCloudIconPainter,
                     iconPlacement = IconPlacement.Left,
                     onClick = {
                         showFabMenu = false
@@ -516,7 +515,8 @@ fun MomentsScreen(
             listOf(
                 MenuSheetActionItem(
                     text = "Google Photos",
-                    icon = googleIconPainter,
+                    icon = googlePhotosIconPainter,
+                    iconColor = Color.Unspecified,
                     iconPlacement = IconPlacement.Left,
                     onClick = {
                         showFabMenu = false
@@ -542,74 +542,82 @@ fun MomentsScreen(
         canAddContent, canDeleteAny, moments.isNotEmpty()
     ) {
         val list = mutableListOf<List<MenuSheetActionItem>>()
-        
-        val topRow = mutableListOf<MenuSheetActionItem>()
+
+        val primaryActions = mutableListOf<MenuSheetActionItem>()
         if (canAddContent) {
-            topRow.add(MenuSheetActionItem(
-                text = "Add Moments",
-                icon = addIconPainter,
-                iconPlacement = IconPlacement.Top,
-                onClick = {
-                    showMoreMenu = false
-                    showFabMenu = true
-                }
-            ))
+            primaryActions.add(
+                MenuSheetActionItem(
+                    text = "Add Moments",
+                    icon = addIconPainter,
+                    iconPlacement = IconPlacement.Top,
+                    onClick = {
+                        showMoreMenu = false
+                        showFabMenu = true
+                    }
+                )
+            )
         }
-        
+
         if (moments.isNotEmpty()) {
-            topRow.add(MenuSheetActionItem(
-                text = "Multi-Select",
-                icon = multiSelectIconPainter,
-                iconPlacement = IconPlacement.Top,
-                onClick = {
-                    showMoreMenu = false
-                    isForceMultiSelect = true
-                }
-            ))
+            primaryActions.add(
+                MenuSheetActionItem(
+                    text = "Multi-Select",
+                    icon = multiSelectIconPainter,
+                    iconPlacement = IconPlacement.Top,
+                    onClick = {
+                        showMoreMenu = false
+                        isForceMultiSelect = true
+                    }
+                )
+            )
         }
-        
-        if (topRow.isNotEmpty()) {
-            list.add(topRow)
-        }
-        
-        list.add(listOf(
+
+        primaryActions.add(
             MenuSheetActionItem(
                 text = "Saved Moments",
                 icon = heartIconPainter,
-                iconPlacement = IconPlacement.Left,
+                iconPlacement = IconPlacement.Top,
                 onClick = {
                     showMoreMenu = false
                     viewMode = MomentViewMode.Saved
                 }
             )
-        ))
+        )
 
-        list.add(listOf(
-            MenuSheetActionItem(
-                text = "Download Preferences",
-                icon = downloadIconPainter,
-                iconPlacement = IconPlacement.Left,
-                onClick = {
-                    showMoreMenu = false
-                    showDownloadPreferences = true
-                }
-            )
-        ))
-        
-        if (canDeleteAny) {
-            list.add(listOf(
+        list.add(primaryActions)
+
+        // Download Preferences card
+        list.add(
+            listOf(
                 MenuSheetActionItem(
-                    text = "Manage Room Access",
-                    icon = userProfileIconPainter,
+                    text = "Download Preferences",
+                    icon = downloadIconPainter,
                     iconPlacement = IconPlacement.Left,
                     onClick = {
                         showMoreMenu = false
-                        onManageRoomClick()
+                        showDownloadPreferences = true
                     }
                 )
-            ))
+            )
+        )
+
+        // Room Access card (if owner)
+        if (canDeleteAny) {
+            list.add(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = userProfileIconPainter,
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMoreMenu = false
+                            onManageRoomClick()
+                        }
+                    )
+                )
+            )
         }
-        
+
         list
     }
 
@@ -697,7 +705,7 @@ fun MomentsScreen(
                                 buttonStyle = ButtonBackground.OPAQUE,
                                 buttonColor = SurfaceSecondary,
                                 menuIcon = if (isSelectionMode) {
-                                    val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all { 
+                                    val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all {
                                         canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
                                     }
                                     if (canDeleteSelection) TopIcon.CustomPainter(deleteIconPainter) else TopIcon.Predefined.MENU_HORIZONTAL
@@ -726,13 +734,13 @@ fun MomentsScreen(
                                 },
                                 onMenuClick = {
                                     if (isSelectionMode) {
-                                        val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all { 
+                                        val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all {
                                             canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
                                         }
                                         if (canDeleteSelection) {
                                             showDeleteMomentConfirmation = true
                                         } else {
-                                            showMoreMenu = true 
+                                            showMoreMenu = true
                                         }
                                     } else {
                                         showMoreMenu = true
@@ -740,10 +748,58 @@ fun MomentsScreen(
                                 }
                             )
 
+                            // Large Banner with top large icon and bottom content
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp)
+                                    .border(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                        shape = SquircleShape(24.dp, CornerSmoothingDefault)
+                                    )
+                                    .background(
+                                        color = SurfaceSecondary,
+                                        shape = SquircleShape(24.dp, CornerSmoothingDefault)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(R.drawable.ill_work_in_progress),
+                                        contentDescription = null,
+                                        tint = Color.Unspecified,
+                                        modifier = Modifier.size(156.dp)
+                                    )
+
+                                    Text(
+                                        text = "Work in Progress",
+                                        style = JasnifyTheme.typography.displayMedium,
+                                        color = ContentPrimary,
+                                        fontWeight = FontWeight.Medium,
+                                        textAlign = TextAlign.Center
+                                    )
+
+                                    Spacer(modifier = Modifier.height(8.dp))
+
+                                    Text(
+                                        text = "You can still upload your moments. Some actions may be temporarily limited.",
+                                        style = JasnifyTheme.typography.bodyLarge,
+                                        color = ContentSecondary,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
+                            }
+
                             Box(modifier = Modifier.weight(1f)) {
                                 when (viewMode) {
                                     MomentViewMode.AllMoments -> {
-                                        PhotosGrid(
+                                        MomentsGrid(
                                             moments = moments,
                                             subfolders = emptyList(),
                                             gridState = photosGridState,
@@ -767,7 +823,7 @@ fun MomentsScreen(
                                         )
                                     }
                                     MomentViewMode.FolderContent -> {
-                                        PhotosGrid(
+                                        MomentsGrid(
                                             moments = moments,
                                             subfolders = foldersFromDb,
                                             gridState = photosGridState,
@@ -811,7 +867,7 @@ fun MomentsScreen(
                                         }
                                     }
                                     MomentViewMode.Saved -> {
-                                        PhotosGrid(
+                                        MomentsGrid(
                                             moments = savedMoments,
                                             subfolders = emptyList(),
                                             gridState = photosGridState,
@@ -973,7 +1029,6 @@ fun MomentsScreen(
                         CreateFolderBottomSheet(
                             onDismiss = { showCreateFolderSheet = false },
                             onCreate = { folderName ->
-                                // If we are inside a folder, create it as a subfolder
                                 viewModel.createFolder(eventId, folderName, selectedFolderId)
                                 showCreateFolderSheet = false
                             },
@@ -1005,14 +1060,14 @@ fun MomentsScreen(
                             onDownload = { quality, remember ->
                                 viewModel.saveDownloadPreference(quality, remember)
                                 showDownloadPreferences = false
-                                
+
                                 val idsToDownload = if (selectedMomentIds.isNotEmpty()) {
                                     selectedMomentIds
                                 } else {
                                     selectedMomentForFullView?.id?.let { setOf(it) } ?: emptySet()
                                 }
                                 onDownloadTrigger(idsToDownload)
-                                
+
                                 if (selectedMomentIds.isNotEmpty()) {
                                     selectedMomentIds = emptySet()
                                     isForceMultiSelect = false
@@ -1044,7 +1099,7 @@ fun MomentsScreen(
                         val folderToDelete = folderNavigationStack.lastOrNull() ?: folders.find { it.id == selectedFolderId }
                         val hasSubfolders = foldersFromDb.isNotEmpty()
                         val hasMoments = moments.isNotEmpty()
-                        
+
                         val heading = if (hasSubfolders) "Delete folder hierarchy?" else "Delete folder?"
                         val subHeading = when {
                             hasSubfolders && hasMoments -> "This folder contains sub-folders and images. Everything inside will be permanently deleted."
@@ -1060,8 +1115,7 @@ fun MomentsScreen(
                             onDismiss = { showDeleteFolderConfirmation = false },
                             onConfirm = {
                                 viewModel.deleteFolder(eventId, selectedFolderId)
-                                
-                                // Navigate up one level
+
                                 val newStack = folderNavigationStack.dropLast(1)
                                 folderNavigationStack = newStack
                                 selectedFolderId = newStack.lastOrNull()?.id ?: ""

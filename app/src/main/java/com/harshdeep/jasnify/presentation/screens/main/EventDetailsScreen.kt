@@ -246,6 +246,18 @@ fun EventDetailsScreen(
         mutableStateListOf<SubEventItem>()
     }
 
+    val validSavedTimelines by remember {
+        derivedStateOf {
+            timelineItems.filter {
+                it.name.isNotBlank() &&
+                        it.date != null &&
+                        it.dateString.isNotBlank() &&
+                        it.dateString != "Not yet decided" &&
+                        it.dateString != "Select a date"
+            }
+        }
+    }
+
     var isSyncing by remember { mutableStateOf(false) }
 
     val isEditingAnyItem by remember {
@@ -567,7 +579,7 @@ fun EventDetailsScreen(
                                                 if (isDateAdded) {
                                                     CustomIconButton(
                                                         onClick = {
-                                                            if (timelineItems.isEmpty()) {
+                                                            if (validSavedTimelines.isEmpty()) {
                                                                 datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
                                                                 onDateSelectedCallback = { localDate ->
                                                                     singleDaySelectedDate = formatToOrdinalDate(localDate)
@@ -591,7 +603,7 @@ fun EventDetailsScreen(
                                                 } else {
                                                     CustomTextButton(
                                                         onClick = {
-                                                            if (timelineItems.isEmpty()) {
+                                                            if (validSavedTimelines.isEmpty()) {
                                                                 datePickerInitialDate = LocalDate.now()
                                                                 onDateSelectedCallback = { localDate ->
                                                                     singleDaySelectedDate = formatToOrdinalDate(localDate)
@@ -1015,21 +1027,12 @@ fun EventDetailsScreen(
                                     Spacer(Modifier.height(12.dp))
 
                                     if (pickDateSegmentSelected) {
-                                        val validSavedTimelines = remember(timelineItems) {
-                                            timelineItems.filter {
-                                                it.dateString.isNotBlank() &&
-                                                        it.dateString != "Not yet decided" &&
-                                                        it.dateString != "Select a date" &&
-                                                        it.name.isNotBlank()
-                                            }
-                                        }
-
                                         Box(
                                             modifier = Modifier
                                                 .matchParentSize()
                                                 .clip(SquircleShape(CornerLarge))
                                                 .clickable {
-                                                    if (timelineItems.isEmpty() || validSavedTimelines.isEmpty()) {
+                                                    if (validSavedTimelines.isEmpty()) {
                                                         datePickerInitialDate = parseFormattedDate(tempSelectedDateString)
                                                         onDateSelectedCallback = { localDate ->
                                                             tempSelectedDateString = formatToOrdinalDate(localDate)
@@ -1191,15 +1194,6 @@ fun EventDetailsScreen(
                                         .height(260.dp)
                                 ) {
                                     if (pickerActiveTab == 0) {
-                                        val validSavedTimelines = remember(timelineItems) {
-                                            timelineItems.filter {
-                                                it.dateString.isNotBlank() &&
-                                                        it.dateString != "Not yet decided" &&
-                                                        it.dateString != "Select a date" &&
-                                                        it.name.isNotBlank()
-                                            }
-                                        }
-
                                         if (validSavedTimelines.isEmpty()) {
                                             Box(
                                                 modifier = Modifier

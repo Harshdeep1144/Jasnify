@@ -4,22 +4,14 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,19 +22,23 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -60,7 +56,9 @@ fun CardFullView(
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
     onBackClick: () -> Unit,
-    onEditDetailsClick: () -> Unit
+    onEditDetailsClick: () -> Unit,
+    onLikeToggle: (CardData) -> Unit = {},
+    onShareIncrement: (CardData) -> Unit = {}
 ) {
     SetStatusBarTheme(useDarkIcons = false)
 
@@ -69,8 +67,9 @@ fun CardFullView(
     val graphicsLayer = rememberGraphicsLayer()
     var cardToCapture by remember { mutableStateOf<CardData?>(null) }
 
-    val onShareTrigger: (CardData) -> Unit = remember(context, graphicsLayer) {
+    val onShareTrigger: (CardData) -> Unit = remember(context, graphicsLayer, onShareIncrement) {
         { data: CardData ->
+            onShareIncrement(data)
             coroutineScope.launch {
                 cardToCapture = data
                 delay(100.milliseconds)
@@ -81,13 +80,12 @@ fun CardFullView(
         }
     }
 
-    val sharePainter = painterResource(R.drawable.ic_share)
     val editPainter = painterResource(R.drawable.ic_edit)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ContentPrimary)
+            .background(Color.Black)
     ) {
         // Hidden Capture Area
         Box(
@@ -117,9 +115,7 @@ fun CardFullView(
         ) {
             CustomTopBar(
                 onBackClick = onBackClick,
-                onMenuClick = { onShareTrigger(card) },
                 backIcon = TopIcon.Predefined.BACK_2,
-                menuIcon = TopIcon.CustomPainter(sharePainter),
                 textColor = ContentInvPrimary,
                 buttonStyle = ButtonBackground.OPAQUE,
                 buttonColor = Color(0xE53D3D3D)
@@ -127,16 +123,17 @@ fun CardFullView(
         }
 
         // Card Container with sharedBounds
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    top = 80.dp,
-                    bottom = if (canEdit) 120.dp else 32.dp,
+                    top = 100.dp,
+                    bottom = if (canEdit) 140.dp else 40.dp,
                     start = 12.dp,
                     end = 12.dp
                 ),
-            contentAlignment = Alignment.Center
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             with(sharedTransitionScope) {
                 Box(
@@ -157,6 +154,70 @@ fun CardFullView(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Like and Share Pill
+            Surface(
+                color = Color(0xFF262626),
+                shape = CircleShape,
+                modifier = Modifier.wrapContentSize()
+            ) {
+                Row(
+                    modifier = Modifier.padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val currentUserId = remember { FirebaseAuth.getInstance().currentUser?.uid }
+                    val isLiked = remember(card.likedBy, currentUserId) { 
+                        card.likedBy.contains(currentUserId) 
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .padding(vertical = 4.dp, horizontal = 8.dp)
+                            .noRippleClickable(
+                                onClick = { onLikeToggle(card) }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = if (isLiked) R.drawable.ic_no_border_heart_filled else R.drawable.ic_top_bar_heart),
+                            contentDescription = "Like",
+                            tint = if (isLiked) Color.Unspecified else ContentInvPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "${card.likesCount}",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentInvPrimary
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .padding(vertical = 4.dp, horizontal = 8.dp)
+                            .noRippleClickable(
+                                onClick = { onShareTrigger(card) }
+                            ),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_share),
+                            contentDescription = "Share",
+                            tint = ContentInvPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${card.sharesCount}",
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentInvPrimary
+                        )
+                    }
+                }
+            }
         }
 
         // Bottom Action Button
@@ -164,7 +225,8 @@ fun CardFullView(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(12.dp)
+                    .padding(vertical = 8.dp, horizontal = 12.dp)
+                    .navigationBarsPadding()
             ) {
                 CustomTextButton(
                     text = "Edit Details",
@@ -175,7 +237,7 @@ fun CardFullView(
                     shapeStyle = ButtonShapeStyle.Round,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding(),
+                        .height(56.dp)
                 )
             }
         }
