@@ -38,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -176,29 +177,39 @@ fun CateringMenuScreen(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        if ((activeEvent == null) || isEntering) {
-            CateringLoadingState()
-        } else {
-            // DEFER heavy composition to sub-composable
-            CateringMenuContent(
-                activeEvent = activeEvent!!,
-                isCateringLoading = isCateringLoading,
-                hasAccess = hasAccess,
-                cateringItemsEntities = cateringItemsEntities,
-                roomUsers = roomUsers,
-                savedVendorsFromCloud = savedVendorsFromCloud,
-                allVendorsFromRepo = allVendorsFromRepo,
-                isVendorsLoading = isVendorsLoading,
-                searchResults = searchResults,
-                onBackClick = onBackClick,
-                onBottomBarVisibilityChange = onBottomBarVisibilityChange,
-                onChatClick = onChatClick,
-                cateringViewModel = cateringViewModel,
-                eventViewModel = eventViewModel,
-                roomViewModel = roomViewModel,
-                vendorViewModel = vendorViewModel,
-                profileViewModel = profileViewModel
-            )
+        val showLoading = (activeEvent == null) || isEntering
+
+        AnimatedContent(
+            targetState = showLoading,
+            transitionSpec = {
+                fadeIn(animationSpec = tween(400)) togetherWith fadeOut(animationSpec = tween(400))
+            },
+            label = "CateringEntranceTransition"
+        ) { loading ->
+            if (loading) {
+                CateringLoadingState()
+            } else {
+                // DEFER heavy composition to sub-composable
+                CateringMenuContent(
+                    activeEvent = activeEvent!!,
+                    isCateringLoading = isCateringLoading,
+                    hasAccess = hasAccess,
+                    cateringItemsEntities = cateringItemsEntities,
+                    roomUsers = roomUsers,
+                    savedVendorsFromCloud = savedVendorsFromCloud,
+                    allVendorsFromRepo = allVendorsFromRepo,
+                    isVendorsLoading = isVendorsLoading,
+                    searchResults = searchResults,
+                    onBackClick = onBackClick,
+                    onBottomBarVisibilityChange = onBottomBarVisibilityChange,
+                    onChatClick = onChatClick,
+                    cateringViewModel = cateringViewModel,
+                    eventViewModel = eventViewModel,
+                    roomViewModel = roomViewModel,
+                    vendorViewModel = vendorViewModel,
+                    profileViewModel = profileViewModel
+                )
+            }
         }
     }
 }
@@ -304,7 +315,9 @@ fun CateringMenuContent(
     var isSearchActive by remember { mutableStateOf(false) }
     var isMultiSelectActive by remember { mutableStateOf(false) }
     var selectedItemIds by remember { mutableStateOf(emptySet<String>()) }
-    val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
+    val isSelectionMode by remember {
+        derivedStateOf { isMultiSelectActive || selectedItemIds.isNotEmpty() }
+    }
 
     val mainListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val categoryListState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
@@ -435,6 +448,80 @@ fun CateringMenuContent(
 
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
+    val handleItemClick: (MenuItem) -> Unit = remember(isSelectionMode, selectedItemIds) {
+        { item ->
+            focusManager.clearFocus()
+            if (isSelectionMode) {
+                selectedItemIds = if (selectedItemIds.contains(item.id)) {
+                    selectedItemIds - item.id
+                } else {
+                    selectedItemIds + item.id
+                }
+            } else {
+                selectedItemForDetails = item
+                showDetailsBottomSheet = true
+            }
+        }
+    }
+
+    val handleItemLongClick: (MenuItem) -> Unit = remember(selectedItemIds) {
+        { item ->
+            focusManager.clearFocus()
+            selectedItemIds = if (selectedItemIds.contains(item.id)) {
+                selectedItemIds - item.id
+            } else {
+                selectedItemIds + item.id
+            }
+        }
+    }
+
+    val handleResetFilters = remember {
+        {
+            focusManager.clearFocus()
+            selectedFilterTab = "All Items"
+            selectedCuisines = emptySet()
+            selectedTypes = emptySet()
+        }
+    }
+
+    val handleAddAnItemClick = remember {
+        {
+            focusManager.clearFocus()
+            editingItem = null
+            newItemName = ""
+            newItemCuisine = "Indian"
+            newItemType = "Starters"
+            newItemDietary = Dietary.Veg
+            showAddItemSheet = true
+        }
+    }
+
+    val handleAiChatClick = remember(activeEvent, allMenuItems) {
+        {
+            focusManager.clearFocus()
+            aiChatContext = """
+                Catering Menu for ${activeEvent.name}:
+                Total Items: ${allMenuItems.size}
+                
+                Menu items:
+                ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
+            """.trimIndent()
+            showAiChat = true
+        }
+    }
+
+    val handleMenuClick = remember(isSelectionMode) {
+        {
+            focusManager.clearFocus()
+            if (isSelectionMode) {
+                selectedItemIds = emptySet()
+                isMultiSelectActive = false
+            } else {
+                showMenuBottomSheet = true
+            }
+        }
+    }
+
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
@@ -459,10 +546,14 @@ fun CateringMenuContent(
     var isBottomBarVisible by remember { mutableStateOf(true) }
     var scrollAccumulator by remember { mutableFloatStateOf(0f) }
 
-    val nestedScrollConnection = remember(mainListState, isAnyBottomSheetOpen, isSelectionMode, isSearchActive) {
+    val currentIsAnyBottomSheetOpen by rememberUpdatedState(isAnyBottomSheetOpen)
+    val currentIsSelectionMode by rememberUpdatedState(isSelectionMode)
+    val currentIsSearchActive by rememberUpdatedState(isSearchActive)
+
+    val nestedScrollConnection = remember(mainListState) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (isAnyBottomSheetOpen || isSelectionMode || isSearchActive) return Offset.Zero
+                if (currentIsAnyBottomSheetOpen || currentIsSelectionMode || currentIsSearchActive) return Offset.Zero
 
                 val delta = available.y
                 val canScroll = mainListState.canScrollForward || mainListState.canScrollBackward
@@ -648,34 +739,10 @@ fun CateringMenuContent(
                                     focusManager.clearFocus()
                                     showTypeBottomSheet = true
                                 },
-                                onResetFilters = {
-                                    focusManager.clearFocus()
-                                    selectedFilterTab = "All Items"
-                                    selectedCuisines = emptySet()
-                                    selectedTypes = emptySet()
-                                },
+                                onResetFilters = handleResetFilters,
                                 selectedItemIds = selectedItemIds,
-                                onItemClick = { item ->
-                                    focusManager.clearFocus()
-                                    if (isSelectionMode) {
-                                        selectedItemIds = if (selectedItemIds.contains(item.id)) {
-                                            selectedItemIds - item.id
-                                        } else {
-                                            selectedItemIds + item.id
-                                        }
-                                    } else {
-                                        selectedItemForDetails = item
-                                        showDetailsBottomSheet = true
-                                    }
-                                },
-                                onItemLongClick = { item ->
-                                    focusManager.clearFocus()
-                                    selectedItemIds = if (selectedItemIds.contains(item.id)) {
-                                        selectedItemIds - item.id
-                                    } else {
-                                        selectedItemIds + item.id
-                                    }
-                                },
+                                onItemClick = handleItemClick,
+                                onItemLongClick = handleItemLongClick,
                                 isMultiSelectActive = isMultiSelectActive,
                                 onMultiSelectActiveChange = { isMultiSelectActive = it },
                                 onDeleteSelectedClick = {
@@ -692,41 +759,15 @@ fun CateringMenuContent(
                                 mainListState = mainListState,
                                 nestedScrollConnection = nestedScrollConnection,
                                 isBottomBarVisible = isBottomBarVisible,
-                                onAddAnItemClick = {
-                                    focusManager.clearFocus()
-                                    editingItem = null
-                                    newItemName = ""
-                                    newItemCuisine = "Indian"
-                                    newItemType = "Starters"
-                                    newItemDietary = Dietary.Veg
-                                    showAddItemSheet = true
-                                },
-                                onAiChatClick = {
-                                    focusManager.clearFocus()
-                                    aiChatContext = """
-                                        Catering Menu for ${activeEvent.name}:
-                                        Total Items: ${allMenuItems.size}
-                                        
-                                        Menu items:
-                                        ${allMenuItems.joinToString("\n") { "- ${it.name} (${it.dietary}, ${it.cuisine}, ${it.type})" }}
-                                    """.trimIndent()
-                                    showAiChat = true
-                                },
+                                onAddAnItemClick = handleAddAnItemClick,
+                                onAiChatClick = handleAiChatClick,
                                 showAiChat = showAiChat,
                                 isViewer = isViewer,
                                 onBackClick = {
                                     focusManager.clearFocus()
                                     onBackClick()
                                 },
-                                onMenuClick = {
-                                    focusManager.clearFocus()
-                                    if (isSelectionMode) {
-                                        selectedItemIds = emptySet()
-                                        isMultiSelectActive = false
-                                    } else {
-                                        showMenuBottomSheet = true
-                                    }
-                                },
+                                onMenuClick = handleMenuClick,
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
                                 onOfferClick = { vendor ->

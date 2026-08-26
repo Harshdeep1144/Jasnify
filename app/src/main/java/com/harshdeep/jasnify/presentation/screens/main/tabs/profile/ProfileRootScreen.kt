@@ -41,7 +41,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -120,7 +119,7 @@ fun ProfileRootScreen(
     var isReadyToPlay by remember { mutableStateOf(false) }
 
     // Load Lottie composition
-    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg))
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg_pattern))
 
     LaunchedEffect(composition) {
         if (composition != null) {
@@ -316,15 +315,15 @@ fun ProfileRootScreen(
                     PlanCard(
                         planName = "Basic Plan",
                         price = "FREE",
-                        backgroundColor = Color(0xFFF4E3E2),
                         isCurrentPlan = true,
+                        planType = PlanType.BASIC,
                         onViewBenefitsClick = { onPlanClick(PlanType.BASIC) }
                     )
                     PlanCard(
                         planName = "Pro",
                         price = "$5/month",
-                        backgroundColor = Color(0xFFFFDAB9),
                         buttonText = "Upgrade Now",
+                        planType = PlanType.PRO,
                         onButtonClick = { onPlanClick(PlanType.PRO) },
                         onViewBenefitsClick = { onPlanClick(PlanType.PRO) },
                         buttonEnabled = false,
@@ -333,8 +332,8 @@ fun ProfileRootScreen(
                     PlanCard(
                         planName = "Ultimate",
                         price = "$20/month",
-                        backgroundColor = Color(0xFFD3CDE8),
                         buttonText = "Upgrade Now",
+                        planType = PlanType.ULTIMATE,
                         onButtonClick = { onPlanClick(PlanType.ULTIMATE) },
                         onViewBenefitsClick = { onPlanClick(PlanType.ULTIMATE) },
                         buttonEnabled = false,

@@ -269,7 +269,11 @@ fun CateringMenuMainContent(
             }
 
             if (isCateringLoading && categorizedItems.isEmpty()) {
-                items(count = 3, contentType = { "skeleton" }) {
+                items(
+                    count = 3,
+                    key = { "skeleton_$it" },
+                    contentType = { "skeleton" }
+                ) {
                     Spacer(Modifier.height(12.dp))
                     SkeletonMenuCategoryCard(brush = shimmer)
                 }

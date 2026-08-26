@@ -29,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
+import androidx.compose.runtime.Immutable
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerMedium
@@ -43,6 +44,7 @@ enum class ToastType {
 }
 
 // --- Toast State Management ---
+@Immutable
 data class ToastData(
     val message: String? = null,
     val type: ToastType = ToastType.DEFAULT,

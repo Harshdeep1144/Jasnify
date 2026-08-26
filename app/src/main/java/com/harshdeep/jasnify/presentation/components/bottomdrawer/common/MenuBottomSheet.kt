@@ -28,6 +28,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
+import androidx.compose.runtime.Immutable
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -44,6 +45,7 @@ enum class IconPlacement {
     Top
 }
 
+@Immutable
 data class MenuSheetActionItem(
     val text: String,
     val icon: Painter,

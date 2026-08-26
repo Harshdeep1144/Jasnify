@@ -48,9 +48,10 @@ fun HomeTopBar(
     title: String,
     dateString: String,
     onMenuClick: () -> Unit = {},
-    alpha: Float = 1f,
+    alphaProvider: () -> Float = { 1f },
     contentColorOverride: Color? = null
 ) {
+    val alpha = alphaProvider()
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
     
     // Smoothly interpolate between the header's color (White or Custom) and the standard primary content color
