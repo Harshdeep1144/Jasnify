@@ -32,6 +32,7 @@ class CardViewModel @Inject constructor(
     private val processingCardLikes = mutableSetOf<String>()
 
     private val _adminDetails = MutableStateFlow<Map<String, Any>?>(null)
+    val adminDetails: StateFlow<Map<String, Any>?> = _adminDetails.asStateFlow()
     val isCardAdmin: StateFlow<Boolean> = _adminDetails.map { it != null }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
@@ -114,6 +115,12 @@ class CardViewModel @Inject constructor(
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
             repository.deleteMyCard(eventId, cardId)
+        }
+    }
+
+    fun deleteJasnifyCard(cardId: String) {
+        viewModelScope.launch {
+            repository.deleteJasnifyCard(cardId)
         }
     }
 

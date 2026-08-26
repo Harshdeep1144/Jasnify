@@ -20,6 +20,7 @@ interface CardRepository {
     fun getGlobalCardThemes(): Flow<List<CardTheme>>
     suspend fun saveJasnifyCard(data: CardData)
     suspend fun saveJasnifyCards(cards: List<CardData>)
+    suspend fun deleteJasnifyCard(cardId: String)
     suspend fun incrementCardShare(cardId: String, isJasnifyCard: Boolean)
     suspend fun toggleJasnifyCardLike(cardId: String, userId: String, shouldLike: Boolean)
     fun checkIsCardsAdmin(uid: String): Flow<Map<String, Any>?>

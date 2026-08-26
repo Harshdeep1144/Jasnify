@@ -250,6 +250,11 @@ class CardRepositoryImpl @Inject constructor(
         batch.commit().await()
     }
 
+    override suspend fun deleteJasnifyCard(cardId: String) {
+        if (cardId.isEmpty()) return
+        firestore.collection("jasnify_cards").document(cardId).delete().await()
+    }
+
     override suspend fun incrementCardShare(cardId: String, isJasnifyCard: Boolean) {
         if (isJasnifyCard) {
             firestore.collection("jasnify_cards")

@@ -108,6 +108,7 @@ fun CardsScreen(
     val selectedStyle by cardViewModel.selectedStyle.collectAsStateWithLifecycle()
     val globalCardThemes by cardViewModel.globalCardThemes.collectAsStateWithLifecycle()
     val isCardAdmin by cardViewModel.isCardAdmin.collectAsStateWithLifecycle()
+    val adminDetails by cardViewModel.adminDetails.collectAsStateWithLifecycle()
     val cardRoomData by cardViewModel.cardRoomData.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
 
@@ -664,15 +665,55 @@ fun CardsScreen(
                 confirmButtonText = "Delete",
                 onDismiss = { showDeleteConfirmation = false },
                 onConfirm = {
+                    val currentAdminUsername = (adminDetails?.get("username") as? String).orEmpty()
+                    var unauthorizedAttempt = false
+                    var totalDeleted = 0
+                    
                     selectedCardIds.forEach { id ->
-                        cardViewModel.deleteMyCard(id)
+                        val globalCard = jasnifyCards.find { it.id == id }
+                        val isGlobal = globalCard != null
+                        
+                        if (selectedTab == CardsTab.MY_CARDS) {
+                            if (isGlobal) {
+                                // This is a global card being managed from My Edits
+                                if (isCardAdmin && globalCard.adminUsername == currentAdminUsername) {
+                                    cardViewModel.deleteJasnifyCard(id)
+                                    cardViewModel.deleteMyCard(id)
+                                    totalDeleted++
+                                } else {
+                                    unauthorizedAttempt = true
+                                }
+                            } else {
+                                // Just a regular personal card
+                                cardViewModel.deleteMyCard(id)
+                                totalDeleted++
+                            }
+                        } else if (selectedTab == CardsTab.EXPLORE) {
+                            // Specifically trying to delete from the global collection
+                            if (isCardAdmin && globalCard?.adminUsername == currentAdminUsername) {
+                                cardViewModel.deleteJasnifyCard(id)
+                                // Also clean up the local version if it exists
+                                cardViewModel.deleteMyCard(id)
+                                totalDeleted++
+                            } else {
+                                unauthorizedAttempt = true
+                            }
+                        }
                     }
-                    val deletedCount = selectedCardIds.size
+
+                    if (unauthorizedAttempt) {
+                        toastData = ToastData(
+                            message = if (selectedCardIds.size == 1) "You can't delete this card" else "Some cards couldn't be deleted",
+                            type = ToastType.ERROR
+                        )
+                    } else if (totalDeleted > 0) {
+                        toastData = ToastData(
+                            message = if (totalDeleted == 1) "Card deleted" else "$totalDeleted cards deleted",
+                            type = ToastType.DEFAULT
+                        )
+                    }
+
                     selectedCardIds = emptySet()
-                    toastData = ToastData(
-                        message = if (deletedCount == 1) "Card deleted" else "$deletedCount cards deleted",
-                        type = ToastType.ERROR
-                    )
                     showDeleteConfirmation = false
                 },
                 onProgress = { sheetMotionProgress = it }

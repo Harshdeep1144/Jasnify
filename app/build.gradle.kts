@@ -42,6 +42,8 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // This includes native debug symbols in the App Bundle (.aab)
+            // for the Google Play Console to symbolicate crashes.
             ndk {
                 debugSymbolLevel = "FULL"
             }
