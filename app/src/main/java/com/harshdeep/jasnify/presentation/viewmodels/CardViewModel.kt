@@ -50,12 +50,16 @@ class CardViewModel @Inject constructor(
         else repository.getLikedCards(id)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    private val _selectedStyle = MutableStateFlow("All")
-    val selectedStyle: StateFlow<String> = _selectedStyle.asStateFlow()
+    private val _selectedStyle = MutableStateFlow<String?>(null)
+    val selectedStyle: StateFlow<String?> = _selectedStyle.asStateFlow()
 
     val jasnifyCards: StateFlow<List<CardData>> = repository.getJasnifyCards()
         .onEach { _isLoading.value = false }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val availableStyles: StateFlow<List<String>> = jasnifyCards.map { cards ->
+        cards.map { it.cardStyle }.distinct().filter { it.isNotBlank() }.sorted()
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val globalCardThemes: StateFlow<List<CardTheme>> = repository.getGlobalCardThemes()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -71,8 +75,12 @@ class CardViewModel @Inject constructor(
         }
     }
 
-    fun setSelectedStyle(style: String) {
-        _selectedStyle.value = style
+    fun setSelectedStyle(style: String?) {
+        if (_selectedStyle.value == style) {
+            _selectedStyle.value = null
+        } else {
+            _selectedStyle.value = style
+        }
     }
 
     fun addRecentColor(colorHex: String) {

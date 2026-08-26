@@ -90,7 +90,8 @@ private val CardCarouselShape = SquircleShape(CornerMedium, CornerSmoothingDefau
 fun ExploreTabContent(
     jasnifyCards: List<CardData>,
     likedCards: List<CardData>,
-    selectedStyle: String,
+    cardStyles: List<String>,
+    selectedStyle: String?,
     onStyleClick: (String) -> Unit,
     lazyListState: LazyListState,
     pagerState: PagerState,
@@ -104,7 +105,7 @@ fun ExploreTabContent(
     onEditDetailsClick: (CardData) -> Unit,
     onWhatsappShare: (CardData) -> Unit
 ) {
-    val cardStyles = listOf("All", "Classic", "Modern", "Minimalist", "Joyful", "Vintage")
+    // Removed hardcoded cardStyles
     
     val sortedCards = remember(jasnifyCards) {
         jasnifyCards.sortedByDescending { (it.likesCount + it.sharesCount) / 2.0 }
@@ -119,7 +120,7 @@ fun ExploreTabContent(
     }
 
     val restCards = remember(sortedCards, selectedStyle) {
-        if (selectedStyle == "All") sortedCards
+        if (selectedStyle == null) sortedCards
         else sortedCards.filter { it.cardStyle.equals(selectedStyle, ignoreCase = true) }
     }
 
@@ -272,7 +273,7 @@ fun ExploreTabContent(
 
             // --- All Cards Section (Rest of Cards + Filter) ---
             item(key = "all_cards_divider", contentType = "all_cards_divider") {
-                Spacer(Modifier.height(64.dp))
+                Spacer(Modifier.height(76.dp))
                 AllCardsDivider()
             }
 
@@ -281,8 +282,8 @@ fun ExploreTabContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(BackgroundPrimary)
-                        .padding(bottom = 16.dp, top = 8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp),
+                        .padding(bottom = 12.dp, top = 8.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -291,7 +292,7 @@ fun ExploreTabContent(
                             label = style,
                             isSelected = selectedStyle == style,
                             onClick = { onStyleClick(style) },
-                            shapeStyle = ChipShapeStyle.Round,
+                            shapeStyle = ChipShapeStyle.Square,
                             hasStroke = true
                         )
                     }
@@ -568,6 +569,7 @@ fun ExploreTabContentPreview() {
                 ExploreTabContent(
                     jasnifyCards = sampleTemplates,
                     likedCards = emptyList(),
+                    cardStyles = listOf("All", "Classic", "Modern"),
                     selectedStyle = "All",
                     onStyleClick = {},
                     lazyListState = exploreLazyListState,

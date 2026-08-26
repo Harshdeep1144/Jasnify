@@ -18,9 +18,13 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
@@ -28,6 +32,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -55,8 +60,12 @@ import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -71,6 +80,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import java.util.UUID
@@ -94,6 +104,7 @@ fun CardsScreen(
     val myCards by cardViewModel.myCards.collectAsStateWithLifecycle()
     val likedCards by cardViewModel.likedCards.collectAsStateWithLifecycle()
     val jasnifyCards by cardViewModel.jasnifyCards.collectAsStateWithLifecycle()
+    val availableStyles by cardViewModel.availableStyles.collectAsStateWithLifecycle()
     val selectedStyle by cardViewModel.selectedStyle.collectAsStateWithLifecycle()
     val globalCardThemes by cardViewModel.globalCardThemes.collectAsStateWithLifecycle()
     val isCardAdmin by cardViewModel.isCardAdmin.collectAsStateWithLifecycle()
@@ -148,6 +159,8 @@ fun CardsScreen(
     var userToRemove by remember { mutableStateOf<User?>(null) }
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
+    var showMetadataSheet by remember { mutableStateOf(false) }
+    var cardForMetadata by remember { mutableStateOf<CardData?>(null) }
     var toastData by remember { mutableStateOf(ToastData()) }
     var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
@@ -156,7 +169,7 @@ fun CardsScreen(
 
     val isAnySheetVisible by remember {
         derivedStateOf {
-            showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation
+            showMenuSheet || showRoomMenuBottomSheet || userToRemove != null || showLeaveConfirmation || showDeleteConfirmation || showMetadataSheet
         }
     }
 
@@ -248,6 +261,7 @@ fun CardsScreen(
     BackHandler {
         when {
             showAiChat -> showAiChat = false
+            showMetadataSheet -> showMetadataSheet = false
             showDeleteConfirmation -> showDeleteConfirmation = false
             showMenuSheet -> showMenuSheet = false
             showRoomMenuBottomSheet -> showRoomMenuBottomSheet = false
@@ -312,6 +326,7 @@ fun CardsScreen(
                                     myCards = myCards,
                                     likedCards = likedCards,
                                     jasnifyCards = jasnifyCards,
+                                    availableStyles = availableStyles,
                                     selectedStyle = selectedStyle,
                                     onStyleClick = { cardViewModel.setSelectedStyle(it) },
                                     activeEvent = activeEvent,
@@ -402,6 +417,10 @@ fun CardsScreen(
                                                 )
                                             }
                                         }
+                                    },
+                                    onMetadataClick = { card ->
+                                        cardForMetadata = card
+                                        showMetadataSheet = true
                                     }
                                 )
                             }
@@ -707,6 +726,68 @@ fun CardsScreen(
                 shouldStartNewSession = true,
                 onBackClick = { showAiChat = false }
             )
+        }
+
+        if (showMetadataSheet && cardForMetadata != null) {
+            CustomBottomSheet(
+                heading = "Edit Card Metadata",
+                onDismiss = { showMetadataSheet = false },
+                sheetHeight = null,
+                onProgress = { sheetMotionProgress = it }
+            ) {
+                var eventType by remember { mutableStateOf(cardForMetadata!!.eventType) }
+                var cardStyle by remember { mutableStateOf(cardForMetadata!!.cardStyle) }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Event Type",
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentPrimary
+                        )
+                        PrimaryInput(
+                            value = eventType,
+                            onValueChange = { eventType = it },
+                            placeholder = "e.g. Wedding, Birthday"
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = "Card Style",
+                            style = JasnifyTheme.typography.labelXLarge,
+                            color = ContentPrimary
+                        )
+                        PrimaryInput(
+                            value = cardStyle,
+                            onValueChange = { cardStyle = it },
+                            placeholder = "e.g. Classic, Modern"
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    CustomTextButton(
+                        text = "Update Metadata",
+                        onClick = {
+                            val updated = cardForMetadata!!.copy(
+                                eventType = eventType,
+                                cardStyle = cardStyle
+                            )
+                            cardViewModel.saveMyCard(updated)
+                            showMetadataSheet = false
+                            toastData = ToastData("Metadata updated locally", ToastType.SUCCESS)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shapeStyle = ButtonShapeStyle.Square
+                    )
+                }
+            }
         }
     }
 }

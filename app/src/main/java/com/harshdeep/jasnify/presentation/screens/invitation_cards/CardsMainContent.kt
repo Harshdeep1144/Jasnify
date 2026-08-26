@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -63,7 +64,10 @@ import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.BottomGradientBrush
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.SurfacePrimary
+import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.utils.ShareUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -79,7 +83,8 @@ fun CardsMainContent(
     myCards: List<CardData>,
     likedCards: List<CardData>,
     jasnifyCards: List<CardData>,
-    selectedStyle: String,
+    availableStyles: List<String>,
+    selectedStyle: String?,
     onStyleClick: (String) -> Unit,
     activeEvent: Event?,
     selectedCardIds: Set<String>,
@@ -99,7 +104,8 @@ fun CardsMainContent(
     onShareIncrement: (CardData) -> Unit,
     onEditDetailsClick: (CardData) -> Unit,
     onAddNewClick: () -> Unit,
-    onPublishSelectedToJasnify: () -> Unit = {}
+    onPublishSelectedToJasnify: () -> Unit = {},
+    onMetadataClick: (CardData) -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -204,6 +210,7 @@ fun CardsMainContent(
                             ExploreTabContent(
                                 likedCards = likedCards,
                                 jasnifyCards = jasnifyCards,
+                                cardStyles = availableStyles,
                                 selectedStyle = selectedStyle,
                                 onStyleClick = onStyleClick,
                                 lazyListState = exploreLazyListState,
@@ -232,6 +239,7 @@ fun CardsMainContent(
                                 animatedVisibilityScope = animatedVisibilityScope,
                                 sharedTransitionScope = sharedTransitionScope,
                                 canEdit = canEdit,
+                                isCardAdmin = isCardAdmin,
                                 nestedScrollConnection = nestedScrollConnection,
                                 onStartEditing = { onTabSelected(CardsTab.EXPLORE) },
                                 selectedCardIds = selectedCardIds,
@@ -256,9 +264,6 @@ fun CardsMainContent(
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(16.dp)
                 .zIndex(20f)
         ) {
             Box(
@@ -287,7 +292,8 @@ fun CardsMainContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         CustomTextButton(
                             onClick = onPublishSelectedToJasnify,
@@ -297,6 +303,19 @@ fun CardsMainContent(
                             leadingIcon = painterResource(R.drawable.ic_plus),
                             modifier = Modifier.weight(1f)
                         )
+
+                        if (selectedCardIds.size == 1) {
+                            val selectedId = selectedCardIds.first()
+                            val selectedCard = myCards.find { it.id == selectedId }
+                            if (selectedCard != null) {
+                                CustomIconButton(
+                                    icon = painterResource(R.drawable.ic_info),
+                                    onClick = { onMetadataClick(selectedCard) },
+                                    type = ButtonType.Secondary,
+                                    size = ButtonSize.Medium
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -315,8 +334,8 @@ fun CardsMainContent(
             CustomIconButton(
                 icon = painterResource(R.drawable.ic_plus),
                 onClick = onAddNewClick,
-                containerColor = com.harshdeep.jasnify.theme.ContentBrand,
-                contentColor = com.harshdeep.jasnify.theme.SurfacePrimary,
+                containerColor = ContentPrimary,
+                contentColor = SurfacePrimary,
                 size = ButtonSize.Large
             )
         }

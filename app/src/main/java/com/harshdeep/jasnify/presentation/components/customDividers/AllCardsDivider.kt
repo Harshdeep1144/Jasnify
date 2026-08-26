@@ -48,9 +48,9 @@ fun AllCardsDivider(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(102.48.dp)
+            .height(55.26.dp)
             .background(Color.Transparent)
-            .padding(12.dp),
+            .padding(horizontal = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {

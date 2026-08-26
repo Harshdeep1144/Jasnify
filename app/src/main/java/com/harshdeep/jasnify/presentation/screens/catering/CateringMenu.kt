@@ -680,7 +680,14 @@ fun CateringMenuContent(
                                 onMultiSelectActiveChange = { isMultiSelectActive = it },
                                 onDeleteSelectedClick = {
                                     focusManager.clearFocus()
-                                    showDeleteConfirmationSheet = true
+                                    if (selectedItemIds.isEmpty()) {
+                                        toastData = ToastData(
+                                            message = "Please select at least 1 item",
+                                            type = ToastType.ERROR
+                                        )
+                                    } else {
+                                        showDeleteConfirmationSheet = true
+                                    }
                                 },
                                 mainListState = mainListState,
                                 nestedScrollConnection = nestedScrollConnection,
