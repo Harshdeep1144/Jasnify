@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -40,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
@@ -75,7 +77,9 @@ import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 private val CellGroupShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 
@@ -111,26 +115,58 @@ fun ProfileRootScreen(
     val lockIcon = painterResource(R.drawable.ic_lock)
     val placeholderIcon = painterResource(R.drawable.img_profile_placeholder)
 
-    // Ensure non-zero default height based on device configuration
-    var headerHeightDp by remember { mutableStateOf(configuration.screenHeightDp.dp * 0.42f) }
+    var headerHeightDp by remember { mutableStateOf(configuration.screenHeightDp.dp * 0.5f) }
 
-    // Load and play Lottie animation from raw resources
+    var isReadyToPlay by remember { mutableStateOf(false) }
+
+    // Load Lottie composition
     val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg))
+
+    LaunchedEffect(composition) {
+        if (composition != null) {
+            delay(400L.milliseconds)
+            isReadyToPlay = true
+        }
+    }
+
     val lottieAnimState = animateLottieCompositionAsState(
         composition = composition,
-        isPlaying = true,
-        iterations = 1
+        isPlaying = isReadyToPlay,
+        restartOnPlay = false,
+        iterations = 1,
     )
 
-    // Smooth transition to brand gradient when animation finishes
-    val gradientAlpha = remember { Animatable(0f) }
-
-    LaunchedEffect(lottieAnimState.isAtEnd) {
-        if (lottieAnimState.isAtEnd) {
-            gradientAlpha.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+    // Smooth, relaxed scale-down and scale-up transition
+    val avatarScale = remember { Animatable(1f) }
+    LaunchedEffect(isReadyToPlay) {
+        if (isReadyToPlay) {
+            // Gentle ease down
+            avatarScale.animateTo(
+                targetValue = 0.92f,
+                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
             )
+            // Soft expansion back to 1.0f
+            avatarScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 450,
+                    easing = CubicBezierEasing(0.34f, 1.3f, 0.64f, 1f)
+                )
+            )
+        }
+    }
+
+    val gradientAlpha by remember {
+        derivedStateOf {
+            if (!isReadyToPlay || composition == null) {
+                0f
+            } else if (lottieAnimState.isAtEnd && lottieAnimState.progress > 0.5f) {
+                1f
+            } else if (lottieAnimState.progress >= 0.85f) {
+                ((lottieAnimState.progress - 0.85f) / 0.15f).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
         }
     }
 
@@ -157,39 +193,40 @@ fun ProfileRootScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        // 1. Full-bleed Launching Lottie Animation (From top status bar down to Plan Cards)
-        if (gradientAlpha.value < 1f) {
+        // 1. Brand Gradient Backdrop
+        if (gradientAlpha > 0f) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(headerHeightDp)
                     .graphicsLayer {
                         translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
-                        alpha = (1f - gradientAlpha.value) * (1f - overlayAlpha)
+                        alpha = gradientAlpha * (1f - overlayAlpha)
+                    }
+                    .background(TopBrandGradientBrush)
+            )
+        }
+
+        // 2. Full-bleed Lottie Animation Overlay
+        if (isReadyToPlay && gradientAlpha < 1f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeightDp)
+                    .graphicsLayer {
+                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                        alpha = (1f - gradientAlpha) * (1f - overlayAlpha)
                     }
             ) {
                 LottieAnimation(
                     composition = composition,
                     progress = { lottieAnimState.progress },
-                    modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
-                    alignment = Alignment.Center
+                    alignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
                 )
             }
-        }
-
-        // 2. Brand Gradient Backdrop (Fades in over the backdrop once Lottie reaches completion)
-        if (gradientAlpha.value > 0f) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(headerHeightDp)
-                    .graphicsLayer {
-                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
-                        alpha = gradientAlpha.value * (1f - overlayAlpha)
-                    }
-                    .background(TopBrandGradientBrush)
-            )
         }
 
         // 3. Scrollable Foreground Content Layer
@@ -220,9 +257,13 @@ fun ProfileRootScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        // User Avatar
+                        // User Avatar with Smooth Scale
                         Box(
                             modifier = Modifier
+                                .graphicsLayer {
+                                    scaleX = avatarScale.value
+                                    scaleY = avatarScale.value
+                                }
                                 .size(128.dp)
                                 .clip(CircleShape)
                                 .background(SurfaceSecondary)

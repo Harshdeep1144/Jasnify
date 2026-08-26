@@ -1,117 +1,58 @@
 package com.harshdeep.jasnify.presentation.screens.catering
 
-import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.LazyGridState
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccessTime
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.input.pointer.PointerEventPass
-import androidx.compose.ui.input.pointer.PointerEventTimeoutCancellationException
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.zIndex
 import androidx.core.graphics.ColorUtils
@@ -119,8 +60,6 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.eventTypes
@@ -136,75 +75,39 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomS
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
-import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.carousels.HighlightedVendors
-import com.harshdeep.jasnify.presentation.components.chip.CateringItemChip
-import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
-import com.harshdeep.jasnify.presentation.components.chip.ChipSize
 import com.harshdeep.jasnify.presentation.components.chip.Dietary
-import com.harshdeep.jasnify.presentation.components.chip.FilterChip
-import com.harshdeep.jasnify.presentation.components.chip.FoodChip
 import com.harshdeep.jasnify.presentation.components.filter.FilterBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FilterFoodTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.filter.FoodTypeOption
-import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
-import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
-import com.harshdeep.jasnify.presentation.components.others.DashedDivider
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
-import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.components.states.CateringLoadingState
-import com.harshdeep.jasnify.presentation.components.states.SkeletonMenuCategoryCard
-import com.harshdeep.jasnify.presentation.components.states.shimmerBrush
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorCategoryDetailContent
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
-import com.harshdeep.jasnify.presentation.utils.pill360Shadow
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
-import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BottomGradientBrush
-import com.harshdeep.jasnify.theme.ContentInvPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerLarge
-import com.harshdeep.jasnify.theme.CornerLargeIncrease
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
-import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
-import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
-import androidx.core.net.toUri
-import com.harshdeep.jasnify.presentation.components.others.InfoTooltip
-import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
-import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 
 private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
 private val DEFAULT_TYPES = listOf("Starters", "Beverages", "Main Course", "Desserts")
@@ -322,6 +225,7 @@ fun CateringMenuContent(
     vendorViewModel: VendorViewModel,
     profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 ) {
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val haptic = LocalHapticFeedback.current
 
@@ -376,7 +280,7 @@ fun CateringMenuContent(
         }
     }
 
-    var selectedCity by remember { mutableStateOf("City, State") }
+    val selectedCity = SessionState.currentLocation
 
     val timelineEvents by remember(activeEvent) {
         derivedStateOf {
@@ -473,6 +377,12 @@ fun CateringMenuContent(
             selectedTimelineEventId = event.id
             screenStack = screenStack + CateringMenuView.TIMELINE_DETAIL
         }
+    }
+
+    // Initialize SessionState.currentLocation if it's default
+    val initializedLocation = remember(context) {
+        SessionState.initializeLocation(context)
+        true
     }
 
     val currentSelectedTimelineEvent = remember(selectedTimelineEventId, timelineEvents) {
@@ -905,7 +815,7 @@ fun CateringMenuContent(
                                 initialSearches = emptyList(),
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
-                                    selectedCity = it
+                                    SessionState.updateLocation(context, it)
                                     if (screenStack.size > 1) {
                                         screenStack = screenStack.dropLast(1)
                                     } else {

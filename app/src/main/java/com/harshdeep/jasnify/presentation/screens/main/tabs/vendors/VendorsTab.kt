@@ -164,24 +164,20 @@ fun VendorsTab(
         ?.getStateFlow("selected_location", "City, State")
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
-    var localSelectedCity by remember(selectedCityFromNav, recentLocations) {
-        mutableStateOf(
-            if (selectedCityFromNav == "City, State" && recentLocations.isNotEmpty()) {
-                recentLocations.first()
-            } else {
-                selectedCityFromNav
-            }
-        )
+    // Initialize SessionState.currentLocation if it's default
+    val initializedLocation = remember(context) {
+        SessionState.initializeLocation(context)
+        true
     }
 
-    val selectedCity = localSelectedCity
+    val selectedCity = SessionState.currentLocation
 
     val gpsResolutionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                localSelectedCity = city
+                SessionState.updateLocation(context, city)
                 mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
             })
         }
@@ -195,7 +191,7 @@ fun VendorsTab(
         if (fineLocationGranted || coarseLocationGranted) {
             LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
                 LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                    localSelectedCity = city
+                    SessionState.updateLocation(context, city)
                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
                 })
             }
@@ -203,7 +199,15 @@ fun VendorsTab(
     }
 
     LaunchedEffect(Unit) {
-        if (!SessionState.hasShownVendorLocationAccess) {
+        val hasPermission = LocationHelper.hasLocationPermission(context)
+        val isEnabled = LocationHelper.isLocationEnabled(context)
+
+        if (hasPermission && isEnabled) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { 
+                SessionState.updateLocation(context, it)
+            })
+            SessionState.hasShownVendorLocationAccess = true
+        } else if (!SessionState.hasShownVendorLocationAccess) {
             delay(500.milliseconds)
             showLocationAccessSheet = true
         }
@@ -673,7 +677,7 @@ fun VendorsTab(
                                 initialSearches = recentLocations,
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
-                                    localSelectedCity = it
+                                    SessionState.updateLocation(context, it)
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
                                     autoFocusLocationSearch = false
                                     if (screenStack.size > 1) {
@@ -795,7 +799,7 @@ fun VendorsTab(
 
         if (showLocationAccessSheet) {
             LocationAccessBottomSheet(
-                title = "Discover the best \n vendors around you",
+                title = "Discover the best vendors \n around you",
                 subtitle = "Allow location permissions for best \n recommendations around you",
                 onDismiss = {
                     showLocationAccessSheet = false
@@ -808,7 +812,7 @@ fun VendorsTab(
                     if (LocationHelper.hasLocationPermission(context)) {
                         LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
                             LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                                localSelectedCity = city
+                                SessionState.updateLocation(context, city)
                                 mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
                             })
                         }

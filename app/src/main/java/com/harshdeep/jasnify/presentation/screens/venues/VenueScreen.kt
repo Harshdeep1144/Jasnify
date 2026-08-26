@@ -197,15 +197,14 @@ fun VenueScreen(
     val recentLocations = remember { LocationHelper.getRecentLocations(context) }
     var showAiChat by remember { mutableStateOf(false) }
     var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
-    var currentAddress by remember { 
-        mutableStateOf(
-            if (selectedLocation == "City, State" && recentLocations.isNotEmpty()) {
-                recentLocations.first()
-            } else {
-                selectedLocation
-            }
-        )
+    
+    // Initialize SessionState.currentLocation if it's default
+    val initializedLocation = remember(context) {
+        SessionState.initializeLocation(context)
+        true
     }
+
+    val currentAddress = SessionState.currentLocation
     var screenStack by remember { mutableStateOf(listOf(VenueScreenState.MAIN)) }
     val screenState = screenStack.last()
     var selectedTab by remember { mutableStateOf(initialTab) }
@@ -263,7 +262,7 @@ fun VenueScreen(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { SessionState.updateLocation(context, it) })
         }
     }
 
@@ -274,13 +273,21 @@ fun VenueScreen(
         val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
         if (fineLocationGranted || coarseLocationGranted) {
             LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
-                LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+                LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { SessionState.updateLocation(context, it) })
             }
         }
     }
 
     LaunchedEffect(Unit) {
-        if (!SessionState.hasShownVenueLocationAccess) {
+        val hasPermission = LocationHelper.hasLocationPermission(context)
+        val isEnabled = LocationHelper.isLocationEnabled(context)
+
+        if (hasPermission && isEnabled) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { 
+                SessionState.updateLocation(context, it)
+            })
+            SessionState.hasShownVenueLocationAccess = true
+        } else if (!SessionState.hasShownVenueLocationAccess) {
             delay(500.milliseconds)
             showLocationAccessSheet = true
         }
@@ -511,7 +518,7 @@ fun VenueScreen(
                                     initialSearches = recentLocations,
                                     currentAddress = currentAddress,
                                     onAddressSelected = {
-                                        currentAddress = it
+                                        SessionState.updateLocation(context, it)
                                         autoFocusLocationSearch = false
                                         screenStack = screenStack.dropLast(1)
                                     },
@@ -661,7 +668,7 @@ fun VenueScreen(
 
         if (showLocationAccessSheet) {
             LocationAccessBottomSheet(
-                title = "Discover the best \n venues around you",
+                title = "Discover the best venues \n around you",
                 subtitle = "Allow location permissions for best \n recommendations around you",
                 onDismiss = {
                     showLocationAccessSheet = false
@@ -673,7 +680,7 @@ fun VenueScreen(
                     
                     if (LocationHelper.hasLocationPermission(context)) {
                         LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
-                            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { currentAddress = it })
+                            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { SessionState.updateLocation(context, it) })
                         }
                     } else {
                         locationPermissionLauncher.launch(

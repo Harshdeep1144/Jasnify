@@ -70,14 +70,14 @@ internal fun MomentsGrid(
             ) {
                 Spacer(Modifier.height(84.dp))      // Temporary top spacer
                 Icon(
-                    painter = painterResource(R.drawable.ic_receipt),
+                    painter = painterResource(R.drawable.ic_gallery_icon),
                     contentDescription = "No Moments Uploaded",
                     tint = ContentTertiary,
                     modifier = Modifier.size(84.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "No Moments Uploaded Yet",
+                    text = "Upload Your Moments",
                     style = JasnifyTheme.typography.displayMedium.copy(fontWeight = FontWeight.Medium),
                     color = ContentTertiary,
                     textAlign = TextAlign.Center
