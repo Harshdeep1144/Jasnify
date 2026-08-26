@@ -25,6 +25,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.toColorInt
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -63,6 +64,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -297,46 +299,13 @@ fun HomeTabContent(
 
     val lazyListState = rememberLazyListState()
 
-    val scrollOffset by remember {
-        derivedStateOf {
+    // Smooth lambda provider to eliminate scroll offset recompositions at root
+    val getScrollOffset: () -> Float = remember(lazyListState, fadeDistancePx) {
+        {
             if (lazyListState.firstVisibleItemIndex == 0) {
                 lazyListState.firstVisibleItemScrollOffset.toFloat()
             } else {
                 fadeDistancePx
-            }
-        }
-    }
-
-    // Snapping Logic
-    val isScrollInProgress = lazyListState.isScrollInProgress
-    LaunchedEffect(isScrollInProgress) {
-        if (!isScrollInProgress) {
-            val currentScroll = scrollOffset
-            val threshold = fadeDistancePx * 0.4f
-
-            if (currentScroll > 0.5f && currentScroll < fadeDistancePx - 0.5f) {
-                if (currentScroll >= threshold) {
-                    lazyListState.animateScrollToItem(1)
-                } else {
-                    lazyListState.animateScrollToItem(0)
-                }
-            }
-        }
-    }
-
-    BackHandler(enabled = currentScreen != "home") {
-        when (currentScreen) {
-            "venue_detail" -> {
-                selectedVenueForDetail = null
-                currentScreen = "home"
-            }
-            "vendor_detail" -> {
-                selectedVendorForDetail = null
-                currentScreen = "home"
-            }
-            else -> {
-                selectedCategory = null
-                currentScreen = "home"
             }
         }
     }
@@ -353,7 +322,7 @@ fun HomeTabContent(
                 if (currentScreenState != "home" || currentIsAnySheetVisible) return Offset.Zero
 
                 val delta = available.y
-                val currentScroll = scrollOffset
+                val currentScroll = getScrollOffset()
                 val halfSliderPx = fadeDistancePx / 2f
 
                 if (delta > 0) {
@@ -384,6 +353,41 @@ fun HomeTabContent(
 
                 return Offset.Zero
             }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                // Perform snap ONLY at rest if user stopped mid-header without high residual velocity
+                val totalVelocity = abs(consumed.y) + abs(available.y)
+                if (totalVelocity < 500f && lazyListState.firstVisibleItemIndex == 0) {
+                    val currentScroll = getScrollOffset()
+                    val threshold = fadeDistancePx * 0.45f
+
+                    if (currentScroll > 1f && currentScroll < fadeDistancePx - 1f) {
+                        if (currentScroll >= threshold) {
+                            lazyListState.animateScrollToItem(1)
+                        } else {
+                            lazyListState.animateScrollToItem(0)
+                        }
+                    }
+                }
+                return super.onPostFling(consumed, available)
+            }
+        }
+    }
+
+    BackHandler(enabled = currentScreen != "home") {
+        when (currentScreen) {
+            "venue_detail" -> {
+                selectedVenueForDetail = null
+                currentScreen = "home"
+            }
+            "vendor_detail" -> {
+                selectedVendorForDetail = null
+                currentScreen = "home"
+            }
+            else -> {
+                selectedCategory = null
+                currentScreen = "home"
+            }
         }
     }
 
@@ -402,7 +406,7 @@ fun HomeTabContent(
     val topBarAlphaState = remember {
         derivedStateOf {
             if (fadeDistancePx > 0f) {
-                (scrollOffset / fadeDistancePx).coerceIn(0f, 1f)
+                (getScrollOffset() / fadeDistancePx).coerceIn(0f, 1f)
             } else 0f
         }
     }
@@ -446,7 +450,7 @@ fun HomeTabContent(
                 backdropScale = backdropScale,
                 backdropCornerRadius = backdropCornerRadius,
                 isAnySheetVisible = isAnySheetVisible,
-                scrollOffsetProvider = { scrollOffset },
+                scrollOffsetProvider = getScrollOffset,
                 fadeDistancePx = fadeDistancePx,
                 visibleBackgroundOffset = visibleBackgroundOffset,
                 headerHeight = headerHeight,

@@ -87,22 +87,6 @@ fun HomeMainView(
     val coroutineScope = rememberCoroutineScope()
     var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
 
-    // --- Snap Scroll Logic Restored ---
-    LaunchedEffect(lazyListState.isScrollInProgress) {
-        if (!lazyListState.isScrollInProgress) {
-            val currentScroll = scrollOffsetProvider()
-            val halfThreshold = fadeDistancePx / 2f
-
-            if (currentScroll > 1f && currentScroll < fadeDistancePx - 1f) {
-                if (currentScroll >= halfThreshold) {
-                    lazyListState.animateScrollToItem(1)
-                } else {
-                    lazyListState.animateScrollToItem(0)
-                }
-            }
-        }
-    }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -280,8 +264,8 @@ fun HomeMainView(
                             venues = exploreVenues,
                             isLoading = isVenuesLoading,
                             onVenueClick = onVenueClick,
-                            onFavoriteToggle = onVenueFavoriteToggle,
                             cardSize = CompactCardSize.MEDIUM,
+                            onFavoriteToggle = onVenueFavoriteToggle,
                             onSeeAllClick = { onNavigate("venues") },
                             onOfferClick = { venue -> onOfferClick(venue) },
                             modifier = Modifier.background(BackgroundPrimary)

@@ -26,6 +26,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -60,21 +61,23 @@ fun PlanCard(
 ) {
     val cardShape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)
 
-    // Pro dark vertical gradient
-    val proGradient = Brush.verticalGradient(
+    val proGradient = Brush.linearGradient(
         colors = listOf(
-            Color(0xFF1B2020),
-            Color(0xFF324844)
-        )
+            Color(0xFF222C2A), // Soft dark charcoal
+            Color(0xFF2E423E), // Muted sage/teal
+            Color(0xFF43655F)  // Vibrant soft teal glow
+        ),
+        start = Offset.Zero,
+        end = Offset.Infinite
     )
 
-    // Ultimate vertical gradient matching the image color progression from top to bottom
     val ultimateGradient = Brush.verticalGradient(
         colorStops = arrayOf(
-            0.0f to Color(0xFF351B24), // Dark wine/plum at top
-            0.28f to Color(0xFF423522), // Olive/amber undertone
-            0.62f to Color(0xFF1B5554), // Deep teal in the midsection
-            1.0f to Color(0xFF00B57F)  // Vibrant aqua/cyan at the bottom
+            0.00f to Color(0xFF4A232E), // Deep wine / burgundy (top)
+            0.30f to Color(0xFF4D344B), // Muted dark plum transition
+            0.58f to Color(0xFF335850), // Olive-teal mid-tone
+            0.82f to Color(0xFF0C8A7B), // Deep oceanic teal
+            1.00f to Color(0xFF13BA9E)  // Vibrant mint glow (bottom)
         )
     )
 

@@ -53,11 +53,11 @@ fun HomeTopBar(
 ) {
     val alpha = alphaProvider()
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
-    
+
     // Smoothly interpolate between the header's color (White or Custom) and the standard primary content color
     val startColor = contentColorOverride ?: ContentInvPrimary
     val contentColor = lerp(startColor, ContentPrimary, alpha)
-    
+
     val buttonBackground = if (alpha > 0.5f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
 
     // Calculate the status subtitle based on the event date relative to now
