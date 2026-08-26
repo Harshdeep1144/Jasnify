@@ -429,12 +429,11 @@ class GenerativeViewModel @Inject constructor(
                     success = true
 
                 } catch (e: Exception) {
-                    android.util.Log.e("GenerativeViewModel", "Model $modelName failed: ${e.message}")
+                    android.util.Log.e("GenerativeViewModel", "Model $modelName failed: ${e.message}", e)
                     fullRawAccumulator.clear()
                     
-                    if (e is ServerException && e.message?.contains("App Check", ignoreCase = true) == true) {
-                        // If App Check fails, it will likely fail for all models, but we'll try the next anyway
-                        // or we could break here if we're sure.
+                    if (e.message?.contains("App Check", ignoreCase = true) == true) {
+                        android.util.Log.e("GenerativeViewModel", "CRITICAL: App Check verification failed. This usually means the device/token is not registered in Firebase Console.")
                     }
                     continue
                 }

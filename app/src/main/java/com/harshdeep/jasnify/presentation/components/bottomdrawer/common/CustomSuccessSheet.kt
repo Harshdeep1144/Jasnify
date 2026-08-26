@@ -9,18 +9,21 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -33,11 +36,20 @@ fun CustomSuccessBottomSheet(
     message: String,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    coolDownMillis: Long = 2000L,
+    coolDownMillis: Long = 3000L,
     height: Dp = 400.dp,
     onProgress: ((Float) -> Unit)? = null
 ) {
     val haptic = LocalHapticFeedback.current
+
+    val composition by rememberLottieComposition(
+        LottieCompositionSpec.RawRes(R.raw.ani_success_brand)
+    )
+    val progress by animateLottieCompositionAsState(
+        composition = composition,
+        isPlaying = true,
+        iterations = 1
+    )
 
     LaunchedEffect(Unit) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -64,17 +76,15 @@ fun CustomSuccessBottomSheet(
             verticalArrangement = Arrangement.Center
         ) {
             Box(
-                modifier = Modifier.size(80.dp),
+                modifier = Modifier.size(160.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_tick),
-                    contentDescription = "Success checkmark",
-                    modifier = Modifier.size(80.dp),
-                    tint = ContentBrandDark
+                LottieAnimation(
+                    composition = composition,
+                    progress = { progress },
+                    modifier = Modifier.size(160.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = message,

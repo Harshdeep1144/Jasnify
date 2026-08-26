@@ -185,7 +185,7 @@ fun MenuCategoryCard(
                                         foodType = item.dietary,
                                         isMultiSelect = isSelectionMode,
                                         checked = isChecked,
-                                        onCheckedChange = { onItemClick(item) },
+                                        onCheckedChange = null,
                                         onClick = {},
                                         modifier = Modifier.fillMaxWidth()
                                     )

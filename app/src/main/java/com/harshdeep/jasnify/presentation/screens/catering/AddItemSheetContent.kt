@@ -23,9 +23,12 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -65,6 +68,11 @@ fun AddItemSheetContent(
     val isNameEntered = itemName.isNotBlank()
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     val inputSquircleShape = remember { SquircleShape(CornerLarge) }
 
@@ -98,7 +106,8 @@ fun AddItemSheetContent(
                     onValueChange = onItemNameChange,
                     placeholder = "Type or Search a dish",
                     trailingIcon = painterResource(id = R.drawable.ic_ai),
-                    textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary)
+                    textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
+                    modifier = Modifier.focusRequester(focusRequester)
                 )
             }
 

@@ -306,7 +306,7 @@ fun CateringMenuMainContent(
                 }
             } else {
                 item(key = "spacer_top", contentType = "spacer") {
-                    Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(4.dp))
                 }
 
                 val categoryList = categorizedItems.entries.toList()

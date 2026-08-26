@@ -709,7 +709,7 @@ fun MomentsScreen(
                                         canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
                                     }
                                     if (canDeleteSelection) TopIcon.CustomPainter(deleteIconPainter) else TopIcon.Predefined.MENU_HORIZONTAL
-                                } else TopIcon.Predefined.MENU_HORIZONTAL,
+                                } else TopIcon.Predefined.MENU_VERTICAL,
                                 onBackClick = {
                                     if (isSelectionMode) {
                                         selectedMomentIds = emptySet()

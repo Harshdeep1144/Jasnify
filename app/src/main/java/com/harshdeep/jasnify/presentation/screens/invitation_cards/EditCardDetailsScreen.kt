@@ -159,6 +159,10 @@ import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.CardPaddingMode
@@ -1511,15 +1515,23 @@ fun EditCardDetailsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
+                        val composition by rememberLottieComposition(
+                            LottieCompositionSpec.RawRes(R.raw.ani_success_brand)
+                        )
+                        val progress by animateLottieCompositionAsState(
+                            composition = composition,
+                            isPlaying = true,
+                            iterations = 1
+                        )
+
                         Box(
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(160.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_tick),
-                                contentDescription = "Success checkmark",
-                                modifier = Modifier.size(64.dp),
-                                tint = ContentBrandDark
+                            LottieAnimation(
+                                composition = composition,
+                                progress = { progress },
+                                modifier = Modifier.size(160.dp)
                             )
                         }
 
