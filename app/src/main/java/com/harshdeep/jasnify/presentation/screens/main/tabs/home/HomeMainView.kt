@@ -42,6 +42,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
+import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundPrimary
 import kotlinx.coroutines.launch
 
@@ -85,7 +86,6 @@ fun HomeMainView(
     onSaveListChange: (Venue?, Vendor?) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
-    var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = Modifier
@@ -107,11 +107,7 @@ fun HomeMainView(
             HeaderMediaSlider(
                 mediaList = headerMediaItems,
                 pagerState = headerPagerState,
-                onMediaClick = { media ->
-                    if (media.actionType.isNotEmpty()) {
-                        onNavigate(media.targetRoute)
-                    }
-                },
+                onMediaClick = { },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(headerHeight)
@@ -146,7 +142,49 @@ fun HomeMainView(
                     state = lazyListState
                 ) {
                     item(key = "header_spacer") {
-                        Spacer(modifier = Modifier.height(visibleBackgroundOffset))
+                        var totalHeaderDragX by remember { mutableFloatStateOf(0f) }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(visibleBackgroundOffset)
+                                .noRippleClickable {
+                                    if (headerMediaItems.isNotEmpty()) {
+                                        val actualIndex = headerPagerState.currentPage % headerMediaItems.size
+                                        val media = headerMediaItems[actualIndex]
+                                        if (media.actionType.isNotEmpty()) {
+                                            onNavigate(media.targetRoute)
+                                        }
+                                    }
+                                }
+                                .pointerInput(headerPagerState) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { totalHeaderDragX = 0f },
+                                        onDragEnd = {
+                                            coroutineScope.launch {
+                                                if (totalHeaderDragX < -60f) {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
+                                                } else if (totalHeaderDragX > 60f) {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
+                                                } else {
+                                                    headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                                }
+                                            }
+                                        },
+                                        onDragCancel = {
+                                            coroutineScope.launch {
+                                                headerPagerState.animateScrollToPage(headerPagerState.currentPage)
+                                            }
+                                        },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            totalHeaderDragX += dragAmount
+                                            coroutineScope.launch {
+                                                headerPagerState.dispatchRawDelta(-dragAmount)
+                                            }
+                                        }
+                                    )
+                                }
+                        )
                     }
 
                     item(key = "budget_card") {
@@ -291,53 +329,6 @@ fun HomeMainView(
                 }
             }
 
-            val statusBarHeight = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topBarInset = statusBarHeight + 64.dp // Account for status bar + HomeTopBar height for clickable gesture
-            val overlayHeight = (headerHeight - topBarInset).coerceAtLeast(0.dp)
-
-            if (overlayHeight > 0.dp) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = topBarInset)
-                        .height(overlayHeight)
-                        .align(Alignment.TopCenter)
-                        .graphicsLayer {
-                            val currentOffset = scrollOffsetProvider()
-                            alpha = if (fadeDistancePx > 0f) {
-                                (1f - (currentOffset / fadeDistancePx)).coerceIn(0f, 1f)
-                            } else 1f
-                        }
-                        .pointerInput(headerPagerState) {
-                            detectHorizontalDragGestures(
-                                onDragStart = { totalHeaderDragX = 0f },
-                                onDragEnd = {
-                                    coroutineScope.launch {
-                                        if (totalHeaderDragX < -60f) {
-                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage + 1)
-                                        } else if (totalHeaderDragX > 60f) {
-                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage - 1)
-                                        } else {
-                                            headerPagerState.animateScrollToPage(headerPagerState.currentPage)
-                                        }
-                                    }
-                                },
-                                onDragCancel = {
-                                    coroutineScope.launch {
-                                        headerPagerState.animateScrollToPage(headerPagerState.currentPage)
-                                    }
-                                },
-                                onHorizontalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    totalHeaderDragX += dragAmount
-                                    coroutineScope.launch {
-                                        headerPagerState.dispatchRawDelta(-dragAmount)
-                                    }
-                                }
-                            )
-                        }
-                )
-            }
         }
 
         AnimatedVisibility(

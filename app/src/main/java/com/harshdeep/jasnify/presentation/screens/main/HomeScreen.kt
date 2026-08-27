@@ -35,6 +35,7 @@ import com.harshdeep.jasnify.presentation.navigation.navgraphs.homeNavGraph
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -77,7 +78,7 @@ fun HomeScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(BackgroundPrimary)
         ) {
             NavHost(
                 navController = internalNavController,

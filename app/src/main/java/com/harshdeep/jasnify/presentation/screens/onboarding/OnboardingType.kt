@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.screens.onboarding
 
+import android.annotation.SuppressLint
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -112,6 +113,21 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.EaseOutCubic
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.fontscaling.MathUtils.lerp
 
 enum class OnboardingState {
     CAROUSEL,
@@ -723,38 +739,101 @@ fun EventIdDetailsScreen(
 
 // =================================================================  Slides Content =================================================================
 
+@SuppressLint("RestrictedApi")
 @Composable
 fun SlideOneContent() {
+    var isAnimated by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isAnimated = true
+    }
+
+    val progress by animateFloatAsState(
+        targetValue = if (isAnimated) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 1200,
+            easing = EaseOutCubic
+        ),
+        label = "SlowCardDeckScaleProgress"
+    )
+
+    // Base card metrics (Target dimensions of Layer 3)
+    val layer3WidthFraction = 0.82f
+    val layer3OffsetY = 29.6.dp
+
+    // Target metrics for Layer 2 and Front Card
+    val layer2WidthFraction = 0.88f
+    val layer2OffsetY = 15.2.dp
+
+    val frontWidthFraction = 0.95f
+    val frontOffsetY = 0.dp
+
+    // Relative uniform scale starting from Layer 3's proportional size (0.82)
+    // Layer 2 scales: (0.82 / 0.88) ≈ 0.932f -> 1.0f
+    val layer2InitialScale = layer3WidthFraction / layer2WidthFraction
+    val layer2Scale = lerp(layer2InitialScale, 1.0f, progress)
+    val currentLayer2OffsetY = lerp(layer3OffsetY.value, layer2OffsetY.value, progress).dp
+
+    // Front Card scales: (0.82 / 0.95) ≈ 0.863f -> 1.0f
+    val frontInitialScale = layer3WidthFraction / frontWidthFraction
+    val frontScale = lerp(frontInitialScale, 1.0f, progress)
+    val currentFrontOffsetY = lerp(layer3OffsetY.value, frontOffsetY.value, progress).dp
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(top = 12.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Deepest Layer 3 Background Card
+        // Anchored Deepest Layer 3 Card
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.82f)
+                .fillMaxWidth(layer3WidthFraction)
                 .height(82.dp)
-                .offset(y = 29.6.dp)
-                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .offset(y = layer3OffsetY)
+                .shadow(
+                    elevation = 20.dp,
+                    ambientColor = ContentPrimary,
+                    spotColor = ContentPrimary,
+                    shape = SquircleShape(CornerLargeIncrease)
+                )
                 .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
         )
 
-        // Middle Layer 2 Background Card
+        // Middle Layer 2 Card (Scales 2D size & moves up)
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.88f)
+                .fillMaxWidth(layer2WidthFraction)
                 .height(82.dp)
-                .offset(y = 15.2.dp)
-                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .offset(y = currentLayer2OffsetY)
+                .graphicsLayer {
+                    scaleX = layer2Scale
+                    scaleY = layer2Scale
+                }
+                .shadow(
+                    elevation = 20.dp,
+                    ambientColor = ContentPrimary,
+                    spotColor = ContentPrimary,
+                    shape = SquircleShape(CornerLargeIncrease)
+                )
                 .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
         )
 
+        // Front Main Card (Scales 2D size & moves up)
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.95f)
-                .shadow(20.dp, ambientColor = ContentPrimary, spotColor = ContentPrimary, shape = SquircleShape(CornerLargeIncrease))
+                .fillMaxWidth(frontWidthFraction)
+                .offset(y = currentFrontOffsetY)
+                .graphicsLayer {
+                    scaleX = frontScale
+                    scaleY = frontScale
+                }
+                .shadow(
+                    elevation = 20.dp,
+                    ambientColor = ContentPrimary,
+                    spotColor = ContentPrimary,
+                    shape = SquircleShape(CornerLargeIncrease)
+                )
                 .border(2.dp, ContentBrand.copy(alpha = 0.6f), SquircleShape(CornerLargeIncrease))
                 .background(SurfacePrimary, SquircleShape(CornerLargeIncrease))
         ) {
@@ -772,6 +851,30 @@ fun SlideOneContent() {
 
 @Composable
 fun SlideTwoContent() {
+    var isTriggered by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isTriggered = true
+    }
+
+    val scale by animateFloatAsState(
+        targetValue = if (isTriggered) 1f else 0.92f,
+        animationSpec = tween(
+            durationMillis = 750,
+            easing = FastOutSlowInEasing
+        ),
+        label = "SmoothZoomIn"
+    )
+
+    val alpha by animateFloatAsState(
+        targetValue = if (isTriggered) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = 600,
+            easing = LinearEasing
+        ),
+        label = "SmoothFadeIn"
+    )
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -780,6 +883,11 @@ fun SlideTwoContent() {
     ) {
         Column(
             modifier = Modifier
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    this.alpha = alpha
+                }
                 .background(SurfacePrimary.copy(alpha = 0.5f), SquircleShape(CornerExtraLarge))
                 .fillMaxWidth(0.95f)
                 .border(2.dp, Color(0x55737399), SquircleShape(CornerExtraLarge))
@@ -801,6 +909,85 @@ fun SlideTwoContent() {
 
 @Composable
 fun SlideThreeContent() {
+    val infiniteTransition = rememberInfiniteTransition(label = "NaturalFloatingTransition")
+
+    // Out-of-phase dual-axis (X and Y) sinusoids for realistic weightless float
+    val floatY1 by infiniteTransition.animateFloat(
+        initialValue = -5f,
+        targetValue = 5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4200, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatY1"
+    )
+    val floatX1 by infiniteTransition.animateFloat(
+        initialValue = 2.5f,
+        targetValue = -2.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3100, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatX1"
+    )
+
+    val floatY2 by infiniteTransition.animateFloat(
+        initialValue = 6f,
+        targetValue = -6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatY2"
+    )
+    val floatX2 by infiniteTransition.animateFloat(
+        initialValue = -3f,
+        targetValue = 3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3600, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatX2"
+    )
+
+    val floatY3 by infiniteTransition.animateFloat(
+        initialValue = -4.5f,
+        targetValue = 4.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4500, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatY3"
+    )
+    val floatX3 by infiniteTransition.animateFloat(
+        initialValue = 2f,
+        targetValue = -2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3300, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatX3"
+    )
+
+    val floatY4 by infiniteTransition.animateFloat(
+        initialValue = 4f,
+        targetValue = -4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatY4"
+    )
+    val floatX4 by infiniteTransition.animateFloat(
+        initialValue = -2f,
+        targetValue = 2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(2900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "floatX4"
+    )
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -810,7 +997,7 @@ fun SlideThreeContent() {
             painter = painterResource(id = R.drawable.img_onboarding_2),
             rating = "4.6",
             size = 98.dp,
-            modifier = Modifier.offset(x = (-35).dp, y = (-60).dp)
+            modifier = Modifier.offset(x = (-35 + floatX1).dp, y = (-60 + floatY1).dp)
         )
 
         // Vendor Bubble 2: Photographer
@@ -818,7 +1005,7 @@ fun SlideThreeContent() {
             painter = painterResource(id = R.drawable.img_onboarding_3),
             rating = "4.9",
             size = 128.dp,
-            modifier = Modifier.offset(x = 115.dp, y = (-30).dp)
+            modifier = Modifier.offset(x = (115 + floatX2).dp, y = (-30 + floatY2).dp)
         )
 
         // Vendor Bubble 3: DJ
@@ -826,7 +1013,7 @@ fun SlideThreeContent() {
             painter = painterResource(id = R.drawable.img_onboarding_1),
             rating = "4.4",
             size = 108.dp,
-            modifier = Modifier.offset(x = (-120).dp, y = 40.dp)
+            modifier = Modifier.offset(x = (-120 + floatX3).dp, y = (40 + floatY3).dp)
         )
 
         // Vendor Bubble 4: Cars
@@ -834,7 +1021,7 @@ fun SlideThreeContent() {
             painter = painterResource(id = R.drawable.img_onboarding_4),
             rating = "4.8",
             size = 80.dp,
-            modifier = Modifier.offset(x = 20.dp, y = 80.dp)
+            modifier = Modifier.offset(x = (20 + floatX4).dp, y = (80 + floatY4).dp)
         )
     }
 }

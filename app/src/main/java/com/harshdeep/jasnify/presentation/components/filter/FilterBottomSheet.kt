@@ -288,7 +288,7 @@ fun FilterBottomSheetWithoutSearchPreview() {
                 FilterBottomSheetContent(
                     title = "Select Type",
                     options = listOf(
-                        "Starters",
+                        "Appetizers",
                         "Beverages",
                         "Main Course",
                         "Desserts"

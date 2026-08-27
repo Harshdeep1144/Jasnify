@@ -76,6 +76,7 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.CornerExtraSmall
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
@@ -300,7 +301,7 @@ fun LoginOrSignup(
                                             keyboardType = KeyboardType.Email,
                                             trailingIconEnabled = true,
                                             shape = SquircleShape(CornerLarge, CornerLarge,
-                                                CornerExtraSmall, CornerExtraSmall
+                                                CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault
                                             ),
                                             leadingIcon = painterResource(R.drawable.ic_mail)
                                         )
@@ -311,8 +312,8 @@ fun LoginOrSignup(
                                             placeholder = "Create a password",
                                             keyboardType = KeyboardType.Password,
                                             trailingIconEnabled = true,
-                                            shape = RoundedCornerShape( CornerExtraSmall, CornerExtraSmall,
-                                                CornerLarge, CornerLarge
+                                            shape = SquircleShape( CornerExtraSmall, CornerExtraSmall,
+                                                CornerLarge, CornerLarge, CornerSmoothingDefault
                                             ),
                                             leadingIcon = painterResource(R.drawable.ic_key)
                                         )
@@ -324,8 +325,8 @@ fun LoginOrSignup(
                                             placeholder = "Enter email or username",
                                             keyboardType = KeyboardType.Email,
                                             trailingIconEnabled = true,
-                                            shape = RoundedCornerShape(CornerLarge, CornerLarge,
-                                                CornerExtraSmall, CornerExtraSmall
+                                            shape = SquircleShape(CornerLarge, CornerLarge,
+                                                CornerExtraSmall, CornerExtraSmall, CornerSmoothingDefault
                                             ),
                                             leadingIcon = painterResource(R.drawable.ic_user_profile_circle)
                                         )
@@ -337,7 +338,7 @@ fun LoginOrSignup(
                                             keyboardType = KeyboardType.Password,
                                             trailingIconEnabled = true,
                                             shape = SquircleShape( CornerExtraSmall, CornerExtraSmall,
-                                                CornerLarge, CornerLarge
+                                                CornerLarge, CornerLarge, CornerSmoothingDefault
                                             ),
                                             leadingIcon = painterResource(R.drawable.ic_key)
                                         )

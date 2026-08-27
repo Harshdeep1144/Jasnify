@@ -111,7 +111,7 @@ import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
 private val DEFAULT_CUISINES = listOf("Indian", "Japanese", "Mexican", "Italian", "Chinese", "French", "Thai", "Korean")
-private val DEFAULT_TYPES = listOf("Starters", "Beverages", "Main Course", "Desserts")
+private val DEFAULT_TYPES = listOf("Appetizers", "Beverages", "Main Course", "Desserts")
 
 private val CateringDateFormatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
 
@@ -431,7 +431,7 @@ fun CateringMenuContent(
 
     var newItemName by remember { mutableStateOf("") }
     var newItemCuisine by remember { mutableStateOf("Indian") }
-    var newItemType by remember { mutableStateOf("Starters") }
+    var newItemType by remember { mutableStateOf("Appetizers") }
     var newItemDietary by remember { mutableStateOf(Dietary.Veg) }
 
     var showAddCuisineBottomSheet by remember { mutableStateOf(false) }
@@ -490,7 +490,7 @@ fun CateringMenuContent(
             editingItem = null
             newItemName = ""
             newItemCuisine = "Indian"
-            newItemType = "Starters"
+            newItemType = "Appetizers"
             newItemDietary = Dietary.Veg
             showAddItemSheet = true
         }
@@ -1268,7 +1268,7 @@ fun CateringMenuContent(
 
                         newItemName = ""
                         newItemCuisine = "Indian"
-                        newItemType = "Starters"
+                        newItemType = "Appetizers"
                         newItemDietary = Dietary.Veg
                         editingItem = null
                     } else {
@@ -1325,7 +1325,7 @@ fun CateringMenuContent(
             },
             onApply = { selectedOptions ->
                 focusManager.clearFocus()
-                newItemType = selectedOptions.firstOrNull() ?: "Starters"
+                newItemType = selectedOptions.firstOrNull() ?: "Appetizers"
                 showAddTypeBottomSheet = false
             }
         )
