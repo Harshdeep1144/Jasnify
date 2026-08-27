@@ -7,13 +7,15 @@ sealed class HeaderMedia {
     abstract val actionType: String
     abstract val targetRoute: String
     abstract val contentColor: String?
+    abstract val autoSlideDuration: Long?
 
     @Immutable
     data class ImageResource(
         val resId: Int,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -21,7 +23,8 @@ sealed class HeaderMedia {
         val url: String,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -29,7 +32,8 @@ sealed class HeaderMedia {
         val url: String,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -37,7 +41,8 @@ sealed class HeaderMedia {
         val resId: Int,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -45,7 +50,8 @@ sealed class HeaderMedia {
         val url: String,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -53,7 +59,8 @@ sealed class HeaderMedia {
         val url: String,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 
     @Immutable
@@ -61,6 +68,7 @@ sealed class HeaderMedia {
         val resId: Int,
         override val actionType: String = "",
         override val targetRoute: String = "",
-        override val contentColor: String? = null
+        override val contentColor: String? = null,
+        override val autoSlideDuration: Long? = null
     ) : HeaderMedia()
 }

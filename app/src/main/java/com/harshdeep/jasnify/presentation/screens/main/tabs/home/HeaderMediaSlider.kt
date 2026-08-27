@@ -4,21 +4,21 @@ import android.os.Build.VERSION.SDK_INT
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import coil.ImageLoader
 import coil.compose.AsyncImage
 import coil.decode.GifDecoder
@@ -41,7 +41,7 @@ fun HeaderMediaSlider(
     pagerState: PagerState,
     modifier: Modifier = Modifier,
     onMediaClick: (HeaderMedia) -> Unit = {},
-    autoSlideIntervalMs: Long = 8000L
+    defaultAutoSlideIntervalMs: Long = 8000L
 ) {
     if (mediaList.isEmpty()) return
 
@@ -63,7 +63,12 @@ fun HeaderMediaSlider(
     LaunchedEffect(pagerState, mediaList.size) {
         if (mediaList.size > 1) {
             while (true) {
-                delay(autoSlideIntervalMs.milliseconds)
+                val currentActualIndex = pagerState.currentPage % mediaList.size
+                val currentMedia = mediaList[currentActualIndex]
+                val duration = currentMedia.autoSlideDuration ?: defaultAutoSlideIntervalMs
+                
+                delay(duration.milliseconds)
+                
                 if (!pagerState.isScrollInProgress) {
                     val nextPage = pagerState.currentPage + 1
                     pagerState.animateScrollToPage(
@@ -75,108 +80,111 @@ fun HeaderMediaSlider(
         }
     }
 
-    HorizontalPager(
-        state = pagerState,
-        modifier = modifier
-    ) { page ->
-        val actualIndex = page % mediaList.size
-        val media = mediaList[actualIndex]
+    Box(modifier = modifier) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val actualIndex = page % mediaList.size
+            val media = mediaList[actualIndex]
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(enabled = media.actionType.isNotEmpty()) {
-                    onMediaClick(media)
-                }
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.app_hero_display_default),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(enabled = media.actionType.isNotEmpty()) {
+                        onMediaClick(media)
+                    }
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.app_hero_display_default),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
 
-            when (media) {
-                is HeaderMedia.ImageResource -> {
-                    Image(
-                        painter = painterResource(id = media.resId),
-                        contentDescription = "Header Slide Image ${actualIndex + 1}",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-
-                is HeaderMedia.ImageUrl, is HeaderMedia.GifUrl -> {
-                    val url = if (media is HeaderMedia.ImageUrl) media.url else (media as HeaderMedia.GifUrl).url
-                    var hasImageError by remember(url) { mutableStateOf(false) }
-
-                    if (!hasImageError) {
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(url)
-                                .crossfade(true)
-                                .placeholder(R.drawable.app_hero_display_default)
-                                .error(R.drawable.app_hero_display_default)
-                                .build(),
-                            imageLoader = customImageLoader,
-                            contentDescription = "Header Slide Remote Asset ${actualIndex + 1}",
+                when (media) {
+                    is HeaderMedia.ImageResource -> {
+                        Image(
+                            painter = painterResource(id = media.resId),
+                            contentDescription = "Header Slide Image ${actualIndex + 1}",
                             contentScale = ContentScale.Crop,
-                            onError = { hasImageError = true },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-                }
 
-                is HeaderMedia.VideoResource -> {
-                    VideoPlayer(
-                        videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
-                        modifier = Modifier.fillMaxSize(),
-                        isMuted = true,
-                        autoPlay = true,
-                        isLooping = true
-                    )
-                }
+                    is HeaderMedia.ImageUrl, is HeaderMedia.GifUrl -> {
+                        val url = if (media is HeaderMedia.ImageUrl) media.url else (media as HeaderMedia.GifUrl).url
+                        var hasImageError by remember(url) { mutableStateOf(false) }
 
-                is HeaderMedia.VideoUrl -> {
-                    VideoPlayer(
-                        videoUrl = media.url,
-                        modifier = Modifier.fillMaxSize(),
-                        isMuted = true,
-                        autoPlay = true,
-                        isLooping = true
-                    )
-                }
+                        if (!hasImageError) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(url)
+                                    .crossfade(true)
+                                    .placeholder(R.drawable.app_hero_display_default)
+                                    .error(R.drawable.app_hero_display_default)
+                                    .build(),
+                                imageLoader = customImageLoader,
+                                contentDescription = "Header Slide Remote Asset ${actualIndex + 1}",
+                                contentScale = ContentScale.Crop,
+                                onError = { hasImageError = true },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
 
-                is HeaderMedia.LottieUrl -> {
-                    val compositionResult = rememberLottieComposition(
-                        spec = LottieCompositionSpec.Url(media.url)
-                    )
-
-                    if (compositionResult.value != null && !compositionResult.isFailure) {
-                        LottieAnimation(
-                            composition = compositionResult.value,
+                    is HeaderMedia.VideoResource -> {
+                        VideoPlayer(
+                            videoUrl = "android.resource://" + context.packageName + "/" + media.resId,
                             modifier = Modifier.fillMaxSize(),
-                            iterations = LottieConstants.IterateForever,
-                            contentScale = ContentScale.Crop
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
                         )
                     }
-                }
 
-                is HeaderMedia.LottieResource -> {
-                    val compositionResult = rememberLottieComposition(
-                        spec = LottieCompositionSpec.RawRes(media.resId)
-                    )
-
-                    if (compositionResult.value != null && !compositionResult.isFailure) {
-                        LottieAnimation(
-                            composition = compositionResult.value,
+                    is HeaderMedia.VideoUrl -> {
+                        VideoPlayer(
+                            videoUrl = media.url,
                             modifier = Modifier.fillMaxSize(),
-                            iterations = LottieConstants.IterateForever,
-                            contentScale = ContentScale.Crop
+                            isMuted = true,
+                            autoPlay = true,
+                            isLooping = true
                         )
+                    }
+
+                    is HeaderMedia.LottieUrl -> {
+                        val compositionResult = rememberLottieComposition(
+                            spec = LottieCompositionSpec.Url(media.url)
+                        )
+
+                        if (compositionResult.value != null && !compositionResult.isFailure) {
+                            LottieAnimation(
+                                composition = compositionResult.value,
+                                modifier = Modifier.fillMaxSize(),
+                                iterations = LottieConstants.IterateForever,
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+
+                    is HeaderMedia.LottieResource -> {
+                        val compositionResult = rememberLottieComposition(
+                            spec = LottieCompositionSpec.RawRes(media.resId)
+                        )
+
+                        if (compositionResult.value != null && !compositionResult.isFailure) {
+                            LottieAnimation(
+                                composition = compositionResult.value,
+                                modifier = Modifier.fillMaxSize(),
+                                iterations = LottieConstants.IterateForever,
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
                 }
             }
         }
+
     }
 }

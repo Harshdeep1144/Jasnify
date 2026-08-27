@@ -104,10 +104,7 @@ fun HomeMainView(
                 .background(BackgroundPrimary)
                 .nestedScroll(nestedScrollConnection)
         ) {
-            HeaderMediaSlider(
-                mediaList = headerMediaItems,
-                pagerState = headerPagerState,
-                onMediaClick = { },
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(headerHeight)
@@ -119,7 +116,14 @@ fun HomeMainView(
                             (1f - (currentOffset / fadeDistancePx)).coerceIn(0f, 1f)
                         } else 1f
                     }
-            )
+            ) {
+                HeaderMediaSlider(
+                    mediaList = headerMediaItems,
+                    pagerState = headerPagerState,
+                    onMediaClick = { },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             Scaffold(
                 topBar = {
@@ -184,7 +188,31 @@ fun HomeMainView(
                                         }
                                     )
                                 }
-                        )
+                        ) {
+                            // Slider Dot Indicators
+                            if (headerMediaItems.size > 1) {
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 12.dp), // Fixed distance above cards
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val currentActualIndex = headerPagerState.currentPage % headerMediaItems.size
+                                    repeat(headerMediaItems.size) { index ->
+                                        val isSelected = index == currentActualIndex
+                                        Box(
+                                            modifier = Modifier
+                                                .size(if (isSelected) 6.dp else 4.dp)
+                                                .background(
+                                                    color = if (isSelected) Color.White else Color.White.copy(alpha = 0.5f),
+                                                    shape = RoundedCornerShape(50)
+                                                )
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     item(key = "budget_card") {

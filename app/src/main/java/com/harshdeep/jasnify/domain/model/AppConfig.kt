@@ -10,6 +10,7 @@ data class TopSlider(
     var targetRoute: String = "",
     val order: Int = 0,
     var contentColor: String? = null,
+    var autoSlideDuration: Long? = null,
     @get:PropertyName("isActive") @set:PropertyName("isActive") var isActive: Boolean = true
 )
 

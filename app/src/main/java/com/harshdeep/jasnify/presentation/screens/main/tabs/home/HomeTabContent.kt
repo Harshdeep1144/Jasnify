@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -66,9 +67,10 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
+import androidx.core.net.toUri
 
 @OptIn(ExperimentalFoundationApi::class)
-@SuppressLint("FrequentlyChangingValue")
+@SuppressLint("FrequentlyChangingValue", "ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
 fun HomeTabContent(
@@ -110,16 +112,16 @@ fun HomeTabContent(
 
             when {
                 cleanUrl.endsWith(".mp4") || cleanUrl.endsWith(".webm") || cleanUrl.endsWith(".mkv") -> {
-                    HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                    HeaderMedia.VideoUrl(url, it.actionType, it.targetRoute, it.contentColor, it.autoSlideDuration)
                 }
                 cleanUrl.endsWith(".json") -> {
-                    HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                    HeaderMedia.LottieUrl(url, it.actionType, it.targetRoute, it.contentColor, it.autoSlideDuration)
                 }
                 cleanUrl.endsWith(".gif") -> {
-                    HeaderMedia.GifUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                    HeaderMedia.GifUrl(url, it.actionType, it.targetRoute, it.contentColor, it.autoSlideDuration)
                 }
                 else -> {
-                    HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute, it.contentColor)
+                    HeaderMedia.ImageUrl(url, it.actionType, it.targetRoute, it.contentColor, it.autoSlideDuration)
                 }
             }
         } ?: emptyList()
@@ -284,14 +286,32 @@ fun HomeTabContent(
     val visibleBackgroundOffset = remember(screenHeight) { screenHeight * 0.28f }
     val fadeDistancePx = with(density) { visibleBackgroundOffset.toPx() }
 
-    val navigateTo: (String) -> Unit = remember {
+    val context = LocalContext.current
+    val navigateTo: (String) -> Unit = remember(context) {
         { target ->
             coroutineScope.launch {
                 delay(80.milliseconds)
-                currentScreen = if (target.startsWith("vendors_")) {
-                    "vendors"
-                } else {
-                    target
+                
+                when {
+                    target.startsWith("http://") || target.startsWith("https://") -> {
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW,
+                                target.toUri())
+                            context.startActivity(intent)
+                        } catch (_: Exception) { }
+                    }
+                    target.startsWith("vendors_") || target == "vendors" -> {
+                        currentScreen = "vendors"
+                    }
+                    target.startsWith("cards") -> {
+                        currentScreen = "cards"
+                    }
+                    target.startsWith("venues") -> {
+                        currentScreen = "venues"
+                    }
+                    else -> {
+                        currentScreen = target
+                    }
                 }
             }
         }
