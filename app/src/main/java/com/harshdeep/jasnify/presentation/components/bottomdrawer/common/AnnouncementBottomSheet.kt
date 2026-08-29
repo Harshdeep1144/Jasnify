@@ -38,7 +38,7 @@ import sv.lib.squircleshape.SquircleShape
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
-fun UpdateBottomSheet(
+fun AnnouncementBottomSheet(
     config: NotificationConfig,
     onDismiss: () -> Unit
 ) {

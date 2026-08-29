@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.components.bottomdrawer.auth
+package com.harshdeep.jasnify.presentation.components.bottomdrawer.event
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -44,6 +44,7 @@ import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -89,8 +90,9 @@ fun JoinOrCreateBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
-        showDragHandle = true,
-        showCloseButton = false
+        showDragHandle = false,
+        showCloseButton = false,
+        closeButtonBackgroundStyle = ButtonBackground.TRANSLUCENT
     ) {
         Column(
             modifier = Modifier

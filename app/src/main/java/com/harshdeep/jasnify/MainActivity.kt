@@ -21,7 +21,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.notifications.RemoteUIManager
 import com.harshdeep.jasnify.notifications.model.NotificationConfig
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.UpdateBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.AnnouncementBottomSheet
 import com.harshdeep.jasnify.presentation.navigation.AppNavigation
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.theme.JasnifyTheme
@@ -93,6 +93,9 @@ class MainActivity : ComponentActivity() {
                             authViewModel.updateFcmToken(uid, token)
                         }
                     }
+
+                    // Sync App Version to Firestore
+                    authViewModel.updateAppVersion(uid, com.harshdeep.jasnify.BuildConfig.VERSION_CODE)
                 }
             }
 
@@ -100,7 +103,7 @@ class MainActivity : ComponentActivity() {
                 AppNavigation()
 
                 if (showRemoteBottomSheet && activeConfig != null) {
-                    UpdateBottomSheet(
+                    AnnouncementBottomSheet(
                         config = activeConfig!!,
                         onDismiss = { showRemoteBottomSheet = false }
                     )

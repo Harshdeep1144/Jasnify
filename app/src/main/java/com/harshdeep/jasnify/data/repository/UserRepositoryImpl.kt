@@ -53,6 +53,15 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun updateAppVersion(uid: String, versionCode: Int) {
+        if (uid.isBlank()) return
+        try {
+            firestore.collection("users").document(uid).update("versionCode", versionCode).await()
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
     override suspend fun deleteUserProfile(uid: String) {
         firestore.collection("users").document(uid).delete().await()
     }

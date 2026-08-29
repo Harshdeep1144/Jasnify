@@ -11,6 +11,7 @@ interface UserRepository {
     fun getUserProfileFlow(uid: String): Flow<User?>
     suspend fun updateUserProfile(user: User)
     suspend fun updateFcmToken(uid: String, token: String)
+    suspend fun updateAppVersion(uid: String, versionCode: Int)
     suspend fun deleteUserProfile(uid: String)
     suspend fun searchUsers(query: String): List<User>
     suspend fun getUserByEmail(email: String): User?

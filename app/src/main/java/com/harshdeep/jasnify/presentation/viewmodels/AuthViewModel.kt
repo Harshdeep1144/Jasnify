@@ -298,6 +298,12 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun updateAppVersion(uid: String, versionCode: Int) {
+        viewModelScope.launch {
+            userRepository.updateAppVersion(uid, versionCode)
+        }
+    }
+
     fun logout(context: Context) {
         _authState.value = AuthState.Loading
         try {

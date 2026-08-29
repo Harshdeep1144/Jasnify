@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.cards.CardItem
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.noRippleClickable
@@ -112,7 +113,8 @@ fun CardCarousel(
             HorizontalPager(
                 state = pagerState,
                 contentPadding = PaddingValues(horizontal = horizontalPadding),
-                pageSpacing = 8.dp,
+                // Negative spacing brings the side cards closer to the center card
+                pageSpacing = (-20).dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(cardHeight)
@@ -123,10 +125,16 @@ fun CardCarousel(
 
                 val interactionSource = remember { MutableInteractionSource() }
                 val isPressed by interactionSource.collectIsPressedAsState()
-                val scale by animateFloatAsState(
+
+                // Base offset scaling: Center is 1.0f, adjacent cards scale down to 0.82f
+                val offsetScale = lerp(1f, 0.82f, pageOffset.coerceIn(0f, 1f))
+
+                val pressScale by animateFloatAsState(
                     targetValue = if (isPressed) 0.90f else 1f,
-                    label = "scale"
+                    label = "pressScale"
                 )
+
+                val finalScale = offsetScale * pressScale
 
                 // Stop auto-scrolling if a specific card item is pressed
                 LaunchedEffect(isPressed) {
@@ -139,8 +147,10 @@ fun CardCarousel(
                     modifier = Modifier
                         .fillMaxSize()
                         .graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
+                            scaleX = finalScale
+                            scaleY = finalScale
+                            // Slight alpha drop on off-center cards adds more depth
+                            alpha = lerp(1f, 0.65f, pageOffset.coerceIn(0f, 1f))
                         }
                         .noRippleClickable {
                             autoScrollEnabled = false

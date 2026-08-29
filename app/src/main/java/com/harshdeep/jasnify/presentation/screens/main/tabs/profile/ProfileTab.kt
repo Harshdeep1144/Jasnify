@@ -62,9 +62,9 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.auth.ChangePas
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.EditProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.auth.JoinEventBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.auth.JoinEventSheetState
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.auth.JoinOrCreateBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinEventBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinEventSheetState
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinOrCreateBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleBottomSheet

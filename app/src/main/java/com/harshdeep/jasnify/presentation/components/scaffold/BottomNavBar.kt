@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,6 +55,7 @@ import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import coil.compose.AsyncImage
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleOption
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
@@ -80,7 +82,8 @@ private val ZeroInsets = WindowInsets(0, 0, 0, 0)
 fun BottomNavBar(
     navController: NavHostController,
     modifier: Modifier = Modifier,
-    style: NavBarStyleOption = NavBarStyleOption.PILL_SHAPED
+    style: NavBarStyleOption = NavBarStyleOption.PILL_SHAPED,
+    profilePictureUrl: String? = null
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -118,7 +121,8 @@ fun BottomNavBar(
         },
         navItems = DefaultNavItems,
         style = style,
-        modifier = modifier
+        modifier = modifier,
+        profilePictureUrl = profilePictureUrl
     )
 }
 
@@ -129,7 +133,8 @@ fun BottomNavBarContent(
     navItems: List<Screen.HomeTabScreen>,
     style: NavBarStyleOption,
     modifier: Modifier = Modifier,
-    applyPadding: Boolean = true
+    applyPadding: Boolean = true,
+    profilePictureUrl: String? = null
 ) {
     if (style == NavBarStyleOption.BASIC) {
         BasicBottomNavBar(
@@ -137,7 +142,8 @@ fun BottomNavBarContent(
             onItemSelected = onItemSelected,
             navItems = navItems,
             modifier = modifier,
-            applyPadding = applyPadding
+            applyPadding = applyPadding,
+            profilePictureUrl = profilePictureUrl
         )
     } else {
         PillBottomNavBar(
@@ -145,7 +151,8 @@ fun BottomNavBarContent(
             onItemSelected = onItemSelected,
             navItems = navItems,
             modifier = modifier,
-            applyPadding = applyPadding
+            applyPadding = applyPadding,
+            profilePictureUrl = profilePictureUrl
         )
     }
 }
@@ -156,7 +163,8 @@ private fun BasicBottomNavBar(
     onItemSelected: (Screen.HomeTabScreen) -> Unit,
     navItems: List<Screen.HomeTabScreen>,
     modifier: Modifier = Modifier,
-    applyPadding: Boolean = true
+    applyPadding: Boolean = true,
+    profilePictureUrl: String? = null
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -170,14 +178,26 @@ private fun BasicBottomNavBar(
     ) {
         navItems.forEachIndexed { index, screen ->
             val isSelected = index == selectedIndex
+            val isProfileTab = screen == Screen.HomeTabScreen.Profile
 
             NavigationBarItem(
                 icon = {
-                    Icon(
-                        painter = painterResource(id = screen.iconResId),
-                        contentDescription = screen.title,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (isProfileTab && !profilePictureUrl.isNullOrEmpty()) {
+                        AsyncImage(
+                            model = profilePictureUrl,
+                            contentDescription = screen.title,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(id = screen.iconResId),
+                            contentDescription = screen.title,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 },
                 label = {
                     Text(text = screen.title, style = JasnifyTheme.typography.labelSmall)
@@ -208,7 +228,8 @@ fun PillBottomNavBar(
     onItemSelected: (Screen.HomeTabScreen) -> Unit,
     navItems: List<Screen.HomeTabScreen>,
     modifier: Modifier = Modifier,
-    applyPadding: Boolean = true
+    applyPadding: Boolean = true,
+    profilePictureUrl: String? = null
 ) {
     var isInitialComposition by remember { mutableStateOf(true) }
     val haptic = LocalHapticFeedback.current
@@ -310,12 +331,25 @@ fun PillBottomNavBar(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(id = screen.iconResId),
-                                contentDescription = screen.title,
-                                modifier = Modifier.size(24.dp),
-                                tint = animatedContentColor
-                            )
+                            val isProfileTab = screen == Screen.HomeTabScreen.Profile
+
+                            if (isProfileTab && !profilePictureUrl.isNullOrEmpty()) {
+                                AsyncImage(
+                                    model = profilePictureUrl,
+                                    contentDescription = screen.title,
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(id = screen.iconResId),
+                                    contentDescription = screen.title,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = animatedContentColor
+                                )
+                            }
                         }
                     }
                 }
