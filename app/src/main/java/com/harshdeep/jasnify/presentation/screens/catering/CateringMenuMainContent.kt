@@ -116,6 +116,7 @@ fun CateringMenuMainContent(
     isViewer: Boolean,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
+    onChatClick: () -> Unit,
     onVendorClick: (Vendor) -> Unit,
     onFavoriteToggle: (Vendor) -> Unit,
     onOfferClick: (Vendor) -> Unit,
@@ -168,6 +169,8 @@ fun CateringMenuMainContent(
                             title = if (isSelectionMode) "${selectedItemIds.size} Selected" else "Catering Menu",
                             onBackClick = onBackClick,
                             onMenuClick = onMenuClick,
+                            secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
+                            onSecondaryClick = onChatClick,
                             menuIcon = if (isSelectionMode) TopIcon.Predefined.CLOSE else TopIcon.Predefined.MENU_VERTICAL,
                             isLargeTitle = !isSelectionMode,
                             buttonStyle = ButtonBackground.OPAQUE

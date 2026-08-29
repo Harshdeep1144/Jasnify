@@ -326,6 +326,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String) {
+        if (eventId.isBlank()) return
         val collectionName = getUserCollectionName(roomType)
         try {
             // 1. Delete from room sub-collection
@@ -364,6 +365,11 @@ class UserRepositoryImpl @Inject constructor(
 
 
     override fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
         val collectionName = getUserCollectionName(roomType)
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document(roomType)

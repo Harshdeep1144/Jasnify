@@ -99,6 +99,7 @@ fun CardsMainContent(
     onToggleCardSelection: (String) -> Unit,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
+    onChatClick: () -> Unit,
     onCardClick: (CardData, String) -> Unit,
     onLikeToggle: (CardData) -> Unit,
     onShareIncrement: (CardData) -> Unit,
@@ -164,6 +165,8 @@ fun CardsMainContent(
                         isLargeTitle = !isSelectionMode,
                         onBackClick = onBackClick,
                         onMenuClick = onMenuClick,
+                        secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
+                        onSecondaryClick = onChatClick,
                         menuIcon = when {
                             isSelectionMode -> TopIcon.CustomPainter(deletePainter)
                             selectedTab == CardsTab.EXPLORE -> TopIcon.Predefined.MENU_VERTICAL

@@ -82,4 +82,10 @@ abstract class RepositoryModule {
     abstract fun bindConfigRepository(
         configRepositoryImpl: com.harshdeep.jasnify.data.repository.ConfigRepositoryImpl
     ): com.harshdeep.jasnify.domain.repository.ConfigRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindRoomChatRepository(
+        roomChatRepositoryImpl: com.harshdeep.jasnify.data.repository.RoomChatRepositoryImpl
+    ): com.harshdeep.jasnify.domain.repository.RoomChatRepository
 }

@@ -9,8 +9,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.ChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.main.HomeScreen
@@ -221,6 +221,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -294,6 +295,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -309,6 +311,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -320,7 +323,8 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                }
+                },
+                navController = mainNavController
             )
         }
     }

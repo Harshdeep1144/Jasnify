@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -14,12 +13,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -83,7 +78,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.Offe
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -95,6 +90,7 @@ import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.components.states.VendorsLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
@@ -111,6 +107,7 @@ enum class VendorScreenState {
     CATEGORY_DETAIL,
     ALL_SAVED,
     ROOM,
+    GROUP_CHAT,
     VENDOR_DETAIL,
     LOCATION_SELECTOR,
     TIMELINE_DETAIL,
@@ -523,6 +520,9 @@ fun VendorsTab(
                                 isSearchActive = isSearchActive,
                                 onSearchActiveChange = { isSearchActive = it },
                                 onMenuClick = { showMenuSheet = true },
+                                onChatClick = {
+                                    screenStack = screenStack + VendorScreenState.GROUP_CHAT
+                                },
                                 onLocationClick = {
                                     screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                 },
@@ -709,6 +709,20 @@ fun VendorsTab(
                                 onShowAiChat = { showAiChat = true }
                             )
                         }
+                        VendorScreenState.GROUP_CHAT -> {
+                            activeEventId?.let { id ->
+                                GroupChatScreen(
+                                    eventId = id,
+                                    roomType = "Vendors",
+                                    onBackClick = {
+                                        screenStack = screenStack.dropLast(1)
+                                    },
+                                    onMembersClick = {
+                                        screenStack = screenStack + VendorScreenState.ROOM
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -864,17 +878,6 @@ fun VendorsTab(
                         )
                     )
                 },
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Manage Room Access",
-                        icon = painterResource(R.drawable.ic_user_default),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            screenStack = screenStack + VendorScreenState.ROOM
-                        }
-                    )
-                ),
                 listOf(
                     MenuSheetActionItem(
                         text = "Help & Feedback",

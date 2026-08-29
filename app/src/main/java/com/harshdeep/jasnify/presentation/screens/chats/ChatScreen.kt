@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.others
+package com.harshdeep.jasnify.presentation.screens.chats
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
-import com.harshdeep.jasnify.domain.model.CardTheme
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
@@ -74,6 +73,8 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.states.CardsLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -92,6 +93,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun CardsScreen(
     onBackClick: () -> Unit = {},
+    navController: androidx.navigation.NavHostController? = null,
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
     cardViewModel: CardViewModel = hiltViewModel(),
@@ -276,6 +278,7 @@ fun CardsScreen(
                 previousView = null
             }
             currentView == CardsView.EDIT_DETAILS -> currentView = CardsView.MAIN
+            currentView == CardsView.GROUP_CHAT -> currentView = CardsView.MAIN
             currentView != CardsView.MAIN -> currentView = CardsView.MAIN
             else -> onBackClick()
         }
@@ -294,153 +297,106 @@ fun CardsScreen(
                 roomName = "Cards",
                 onBackClick = onBackClick
             ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = backdropScaleState.value
-                        scaleY = backdropScaleState.value
-                        val radius = backdropCornerRadiusState.value
-                        clip = isAnySheetVisible || radius > 0.dp
-                        shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
-                    }
-                    .background(BackgroundPrimary)
-            ) {
-                SharedTransitionLayout {
-                    AnimatedContent(
-                        targetState = currentView,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
-                        },
-                        label = "CardsViewContent"
-                    ) { view ->
-                        when (view) {
-                            CardsView.MAIN -> {
-                                CardsMainContent(
-                                    selectedTab = selectedTab,
-                                    onTabSelected = remember {
-                                        {
-                                            selectedTab = it
-                                            selectedCardIds = emptySet()
-                                        }
-                                    },
-                                    myCards = myCards,
-                                    likedCards = likedCards,
-                                    jasnifyCards = jasnifyCards,
-                                    availableStyles = availableStyles,
-                                    selectedStyle = selectedStyle,
-                                    onStyleClick = { cardViewModel.setSelectedStyle(it) },
-                                    activeEvent = activeEvent,
-                                    selectedCardIds = selectedCardIds,
-                                    exploreLazyListState = exploreLazyListState,
-                                    myCardsGridState = myCardsGridState,
-                                    explorePagerState = explorePagerState,
-                                    animatedVisibilityScope = this@AnimatedContent,
-                                    sharedTransitionScope = this@SharedTransitionLayout,
-                                    canEdit = canEdit,
-                                    isCardAdmin = isCardAdmin,
-                                    nestedScrollConnection = nestedScrollConnection,
-                                    onToggleCardSelection = remember {
-                                        { id ->
-                                            selectedCardIds = if (selectedCardIds.contains(id)) {
-                                                selectedCardIds - id
-                                            } else {
-                                                selectedCardIds + id
-                                            }
-                                        }
-                                    },
-                                    onBackClick = remember {
-                                        {
-                                            if (selectedCardIds.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = backdropScaleState.value
+                            scaleY = backdropScaleState.value
+                            val radius = backdropCornerRadiusState.value
+                            clip = isAnySheetVisible || radius > 0.dp
+                            shape = RoundedCornerShape(radius.coerceAtLeast(0.dp))
+                        }
+                        .background(BackgroundPrimary)
+                ) {
+                    SharedTransitionLayout {
+                        AnimatedContent(
+                            targetState = currentView,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith fadeOut(animationSpec = tween(220))
+                            },
+                            label = "CardsViewContent"
+                        ) { view ->
+                            when (view) {
+                                CardsView.MAIN -> {
+                                    CardsMainContent(
+                                        selectedTab = selectedTab,
+                                        onTabSelected = remember {
+                                            {
+                                                selectedTab = it
                                                 selectedCardIds = emptySet()
-                                            } else {
-                                                onBackClick()
                                             }
-                                        }
-                                    },
-                                    onMenuClick = remember(selectedTab, selectedCardIds) {
-                                        {
-                                            if (selectedCardIds.isNotEmpty()) {
-                                                showDeleteConfirmation = true
-                                            } else if (selectedTab == CardsTab.EXPLORE) {
-                                                showMenuSheet = true
-                                            } else {
-                                                currentView = CardsView.LIKED_CARDS
-                                            }
-                                        }
-                                    },
-                                    onCardClick = remember {
-                                        { card, transitionKey ->
-                                            selectedCardId = card.id
-                                            activeTransitionKey = transitionKey
-                                            previousView = CardsView.MAIN
-                                            currentView = CardsView.FULL_VIEW
-                                        }
-                                    },
-                                    onLikeToggle = remember {
-                                        { card ->
-                                            val isJasnify = jasnifyCards.any { it.id == card.id }
-                                            cardViewModel.toggleLikedCard(card, isJasnify)
-                                        }
-                                    },
-                                    onShareIncrement = remember {
-                                        { card ->
-                                            val isJasnify = jasnifyCards.any { it.id == card.id }
-                                            cardViewModel.incrementCardShare(card, isJasnify)
-                                        }
-                                    },
-                                    onEditDetailsClick = remember(isCardAdmin) {
-                                        { card ->
-                                            val isGlobalCard = jasnifyCards.any { it.id == card.id } || card.id.startsWith("template_")
-                                            editingCard = if (isGlobalCard && !isCardAdmin) {
-                                                card.copy(id = UUID.randomUUID().toString())
-                                            } else {
-                                                card
-                                            }
-                                            currentView = CardsView.EDIT_DETAILS
-                                        }
-                                    },
-                                    onAddNewClick = remember {
-                                        {
-                                            editingCard = CardData(id = UUID.randomUUID().toString())
-                                            currentView = CardsView.EDIT_DETAILS
-                                        }
-                                    },
-                                    onPublishSelectedToJasnify = remember {
-                                        {
-                                            val cardsToPublish = myCards.filter { selectedCardIds.contains(it.id) }
-                                            cardViewModel.publishCardsToJasnify(cardsToPublish) {
-                                                val count = cardsToPublish.size
-                                                selectedCardIds = emptySet()
-                                                toastData = ToastData(
-                                                    message = if (count == 1) "1 card published to Explore" else "$count cards published to Explore",
-                                                    type = ToastType.DEFAULT
-                                                )
-                                            }
-                                        }
-                                    },
-                                    onMetadataClick = { card ->
-                                        cardForMetadata = card
-                                        showMetadataSheet = true
-                                    }
-                                )
-                            }
-                            CardsView.FULL_VIEW -> {
-                                liveSelectedCard?.let { card ->
-                                    CardFullView(
-                                        card = card,
-                                        transitionKey = activeTransitionKey ?: "card_${card.id}",
+                                        },
+                                        myCards = myCards,
+                                        likedCards = likedCards,
+                                        jasnifyCards = jasnifyCards,
+                                        availableStyles = availableStyles,
+                                        selectedStyle = selectedStyle,
+                                        onStyleClick = { cardViewModel.setSelectedStyle(it) },
+                                        activeEvent = activeEvent,
+                                        selectedCardIds = selectedCardIds,
+                                        exploreLazyListState = exploreLazyListState,
+                                        myCardsGridState = myCardsGridState,
+                                        explorePagerState = explorePagerState,
                                         animatedVisibilityScope = this@AnimatedContent,
                                         sharedTransitionScope = this@SharedTransitionLayout,
                                         canEdit = canEdit,
-                                        onBackClick = remember {
-                                            {
-                                                currentView = previousView ?: CardsView.MAIN
-                                                previousView = null
+                                        isCardAdmin = isCardAdmin,
+                                        nestedScrollConnection = nestedScrollConnection,
+                                        onToggleCardSelection = remember {
+                                            { id ->
+                                                selectedCardIds = if (selectedCardIds.contains(id)) {
+                                                    selectedCardIds - id
+                                                } else {
+                                                    selectedCardIds + id
+                                                }
                                             }
                                         },
-                                        onEditDetailsClick = remember(card.id, isCardAdmin) {
+                                        onBackClick = remember {
                                             {
+                                                if (selectedCardIds.isNotEmpty()) {
+                                                    selectedCardIds = emptySet()
+                                                } else {
+                                                    onBackClick()
+                                                }
+                                            }
+                                        },
+                                        onMenuClick = remember(selectedTab, selectedCardIds) {
+                                            {
+                                                if (selectedCardIds.isNotEmpty()) {
+                                                    showDeleteConfirmation = true
+                                                } else if (selectedTab == CardsTab.EXPLORE) {
+                                                    showMenuSheet = true
+                                                } else {
+                                                    currentView = CardsView.LIKED_CARDS
+                                                }
+                                            }
+                                        },
+                                        onChatClick = {
+                                            currentView = CardsView.GROUP_CHAT
+                                        },
+                                        onCardClick = remember {
+                                            { card, transitionKey ->
+                                                selectedCardId = card.id
+                                                activeTransitionKey = transitionKey
+                                                previousView = CardsView.MAIN
+                                                currentView = CardsView.FULL_VIEW
+                                            }
+                                        },
+                                        onLikeToggle = remember {
+                                            { card ->
+                                                val isJasnify = jasnifyCards.any { it.id == card.id }
+                                                cardViewModel.toggleLikedCard(card, isJasnify)
+                                            }
+                                        },
+                                        onShareIncrement = remember {
+                                            { card ->
+                                                val isJasnify = jasnifyCards.any { it.id == card.id }
+                                                cardViewModel.incrementCardShare(card, isJasnify)
+                                            }
+                                        },
+                                        onEditDetailsClick = remember(isCardAdmin) {
+                                            { card ->
                                                 val isGlobalCard = jasnifyCards.any { it.id == card.id } || card.id.startsWith("template_")
                                                 editingCard = if (isGlobalCard && !isCardAdmin) {
                                                     card.copy(id = UUID.randomUUID().toString())
@@ -450,386 +406,441 @@ fun CardsScreen(
                                                 currentView = CardsView.EDIT_DETAILS
                                             }
                                         },
-                                        onLikeToggle = { cardViewModel.toggleLikedCard(it, jasnifyCards.any { c -> c.id == it.id }) },
-                                        onShareIncrement = { cardViewModel.incrementCardShare(it, jasnifyCards.any { c -> c.id == it.id }) }
-                                    )
-                                }
-                            }
-                            CardsView.LIKED_CARDS -> {
-                                LikedCardsContent(
-                                    cards = likedCards,
-                                    animatedVisibilityScope = this@AnimatedContent,
-                                    sharedTransitionScope = this@SharedTransitionLayout,
-                                    onBackClick = { currentView = CardsView.MAIN },
-                                    onCardClick = { card, transitionKey ->
-                                        selectedCardId = card.id
-                                        activeTransitionKey = transitionKey
-                                        previousView = CardsView.LIKED_CARDS
-                                        currentView = CardsView.FULL_VIEW
-                                    },
-                                    onLikeToggle = { card ->
-                                        val isJasnify = jasnifyCards.any { it.id == card.id }
-                                        cardViewModel.toggleLikedCard(card, isJasnify)
-                                    },
-                                    onShareIncrement = { card ->
-                                        val isJasnify = jasnifyCards.any { it.id == card.id }
-                                        cardViewModel.incrementCardShare(card, isJasnify)
-                                    }
-                                )
-                            }
-                            CardsView.EDIT_DETAILS -> {
-                                editingCard?.let { card ->
-                                    EditCardDetailsScreen(
-                                        initialData = card,
-                                        cardRoomData = cardRoomData,
-                                        globalCardThemes = globalCardThemes,
-                                        onDataChange = { updated ->
-                                            // ALWAYS save to user's event collection so it shows in "My Edits"
-                                            cardViewModel.saveMyCard(updated)
-
-                                            selectedCardId = updated.id
-                                            editingCard = updated
+                                        onAddNewClick = remember {
+                                            {
+                                                editingCard = CardData(id = UUID.randomUUID().toString())
+                                                currentView = CardsView.EDIT_DETAILS
+                                            }
                                         },
-                                        onBackClick = { currentView = CardsView.MAIN },
-                                        onUploadImage = { uri, onSuccess, onError ->
-                                            cardViewModel.uploadThemeImage(uri, onSuccess, onError)
+                                        onPublishSelectedToJasnify = remember {
+                                            {
+                                                val cardsToPublish = myCards.filter { selectedCardIds.contains(it.id) }
+                                                cardViewModel.publishCardsToJasnify(cardsToPublish) {
+                                                    val count = cardsToPublish.size
+                                                    selectedCardIds = emptySet()
+                                                    toastData = ToastData(
+                                                        message = if (count == 1) "1 card published to Explore" else "$count cards published to Explore",
+                                                        type = ToastType.DEFAULT
+                                                    )
+                                                }
+                                            }
                                         },
-                                        onUpdateThemeName = { id, name ->
-                                            cardViewModel.updateThemeName(id, name)
+                                        onMetadataClick = { card ->
+                                            cardForMetadata = card
+                                            showMetadataSheet = true
                                         }
                                     )
                                 }
-                            }
-                            CardsView.ROOM -> {
-                                activeEvent?.let { event ->
-                                    CardRoomContent(
-                                        eventId = event.id,
-                                        roomViewModel = roomViewModel,
-                                        currentUserRole = currentUserRole,
+                                CardsView.FULL_VIEW -> {
+                                    liveSelectedCard?.let { card ->
+                                        CardFullView(
+                                            card = card,
+                                            transitionKey = activeTransitionKey ?: "card_${card.id}",
+                                            animatedVisibilityScope = this@AnimatedContent,
+                                            sharedTransitionScope = this@SharedTransitionLayout,
+                                            canEdit = canEdit,
+                                            onBackClick = remember {
+                                                {
+                                                    currentView = previousView ?: CardsView.MAIN
+                                                    previousView = null
+                                                }
+                                            },
+                                            onEditDetailsClick = remember(card.id, isCardAdmin) {
+                                                {
+                                                    val isGlobalCard = jasnifyCards.any { it.id == card.id } || card.id.startsWith("template_")
+                                                    editingCard = if (isGlobalCard && !isCardAdmin) {
+                                                        card.copy(id = UUID.randomUUID().toString())
+                                                    } else {
+                                                        card
+                                                    }
+                                                    currentView = CardsView.EDIT_DETAILS
+                                                }
+                                            },
+                                            onLikeToggle = { cardViewModel.toggleLikedCard(it, jasnifyCards.any { c -> c.id == it.id }) },
+                                            onShareIncrement = { cardViewModel.incrementCardShare(it, jasnifyCards.any { c -> c.id == it.id }) }
+                                        )
+                                    }
+                                }
+                                CardsView.LIKED_CARDS -> {
+                                    LikedCardsContent(
+                                        cards = likedCards,
+                                        animatedVisibilityScope = this@AnimatedContent,
+                                        sharedTransitionScope = this@SharedTransitionLayout,
                                         onBackClick = { currentView = CardsView.MAIN },
-                                        onMenuClick = { showRoomMenuBottomSheet = true },
-                                        onRemove = { userToRemove = it },
-                                        onLeave = { showLeaveConfirmation = true },
-                                        onShowToast = { toastData = it }
+                                        onCardClick = { card, transitionKey ->
+                                            selectedCardId = card.id
+                                            activeTransitionKey = transitionKey
+                                            previousView = CardsView.LIKED_CARDS
+                                            currentView = CardsView.FULL_VIEW
+                                        },
+                                        onLikeToggle = { card ->
+                                            val isJasnify = jasnifyCards.any { it.id == card.id }
+                                            cardViewModel.toggleLikedCard(card, isJasnify)
+                                        },
+                                        onShareIncrement = { card ->
+                                            val isJasnify = jasnifyCards.any { it.id == card.id }
+                                            cardViewModel.incrementCardShare(card, isJasnify)
+                                        }
                                     )
                                 }
+                                CardsView.EDIT_DETAILS -> {
+                                    editingCard?.let { card ->
+                                        EditCardDetailsScreen(
+                                            initialData = card,
+                                            cardRoomData = cardRoomData,
+                                            globalCardThemes = globalCardThemes,
+                                            onDataChange = { updated ->
+                                                // ALWAYS save to user's event collection so it shows in "My Edits"
+                                                cardViewModel.saveMyCard(updated)
+
+                                                selectedCardId = updated.id
+                                                editingCard = updated
+                                            },
+                                            onBackClick = { currentView = CardsView.MAIN },
+                                            onUploadImage = { uri, onSuccess, onError ->
+                                                cardViewModel.uploadThemeImage(uri, onSuccess, onError)
+                                            },
+                                            onUpdateThemeName = { id, name ->
+                                                cardViewModel.updateThemeName(id, name)
+                                            }
+                                        )
+                                    }
+                                }
+                                CardsView.ROOM -> {
+                                    activeEvent?.let { event ->
+                                        CardRoomContent(
+                                            eventId = event.id,
+                                            roomViewModel = roomViewModel,
+                                            currentUserRole = currentUserRole,
+                                            onBackClick = { currentView = CardsView.MAIN },
+                                            onMenuClick = { showRoomMenuBottomSheet = true },
+                                            onRemove = { userToRemove = it },
+                                            onLeave = { showLeaveConfirmation = true },
+                                            onShowToast = { toastData = it }
+                                        )
+                                    }
+                                }
+                                CardsView.HELP_FEEDBACK -> {
+                                    com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                        profileViewModel = profileViewModel,
+                                        onBack = { currentView = CardsView.MAIN },
+                                        onShowAiChat = { showAiChat = true }
+                                    )
+                                }
+                                CardsView.GROUP_CHAT -> {
+                                    activeEventId?.let { id ->
+                                        com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen(
+                                            eventId = id,
+                                            roomType = "Cards",
+                                            onBackClick = { currentView = CardsView.MAIN },
+                                            onMembersClick = { currentView = CardsView.ROOM }
+                                        )
+                                    }
+                                }
                             }
-                            CardsView.HELP_FEEDBACK -> {
-                                com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
-                                    profileViewModel = profileViewModel,
-                                    onBack = { currentView = CardsView.MAIN },
-                                    onShowAiChat = { showAiChat = true }
+                        }
+
+                        val bottomTabItems = listOf(
+                            TabItem(
+                                label = "Explore",
+                                value = CardsTab.EXPLORE,
+                                icon = painterResource(R.drawable.ic_share_card)
+                            ),
+                            TabItem(
+                                label = "My Edits",
+                                value = CardsTab.MY_CARDS,
+                                icon = painterResource(R.drawable.ic_edit)
+                            )
+                        )
+
+                        AnimatedVisibility(
+                            visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
+                            enter = slideInVertically(
+                                initialOffsetY = { fullHeight -> fullHeight * 2 },
+                                animationSpec = spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = 380f
                                 )
-                            }
+                            ) + fadeIn(animationSpec = tween(durationMillis = 200)),
+                            exit = slideOutVertically(
+                                targetOffsetY = { fullHeight -> fullHeight * 2 },
+                                animationSpec = spring(
+                                    dampingRatio = 0.85f,
+                                    stiffness = 380f
+                                )
+                            ) + fadeOut(animationSpec = tween(durationMillis = 180)),
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .zIndex(10f)
+                        ) {
+                            BottomTab(
+                                items = bottomTabItems,
+                                selectedValue = selectedTab,
+                                onItemSelected = { selectedTab = it },
+                                style = BottomTabStyle.FLOATING,
+                                activeColor = ContentPrimary,
+                                activeBg = SurfaceSecondary
+                            )
                         }
                     }
                 }
-
-                val bottomTabItems = listOf(
-                    TabItem(
-                        label = "Explore",
-                        value = CardsTab.EXPLORE,
-                        icon = painterResource(R.drawable.ic_share_card)
-                    ),
-                    TabItem(
-                        label = "My Edits",
-                        value = CardsTab.MY_CARDS,
-                        icon = painterResource(R.drawable.ic_edit)
-                    )
-                )
 
                 AnimatedVisibility(
-                    visible = currentView == CardsView.MAIN && selectedCardIds.isEmpty() && isBottomTabVisible,
-                    enter = slideInVertically(
-                        initialOffsetY = { fullHeight -> fullHeight * 2 },
-                        animationSpec = spring(
-                            dampingRatio = 0.85f,
-                            stiffness = 380f
-                        )
-                    ) + fadeIn(animationSpec = tween(durationMillis = 200)),
-                    exit = slideOutVertically(
-                        targetOffsetY = { fullHeight -> fullHeight * 2 },
-                        animationSpec = spring(
-                            dampingRatio = 0.85f,
-                            stiffness = 380f
-                        )
-                    ) + fadeOut(animationSpec = tween(durationMillis = 180)),
+                    visible = toastData.message != null && !isAnySheetVisible,
+                    enter = slideInVertically(initialOffsetY = { -it - 500 }),
+                    exit = slideOutVertically(targetOffsetY = { -it - 500 }),
                     modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .zIndex(10f)
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .fillMaxWidth()
+                        .zIndex(100f)
+                        .padding(12.dp)
                 ) {
-                    BottomTab(
-                        items = bottomTabItems,
-                        selectedValue = selectedTab,
-                        onItemSelected = { selectedTab = it },
-                        style = BottomTabStyle.FLOATING,
-                        activeColor = ContentPrimary,
-                        activeBg = SurfaceSecondary
+                    CustomToast(message = toastData.message ?: "", type = toastData.type)
+                }
+
+                if (showMenuSheet) {
+                    val menuItems = listOf(
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Saved Cards",
+                                icon = painterResource(R.drawable.ic_top_bar_heart),
+                                onClick = {
+                                    showMenuSheet = false
+                                    currentView = CardsView.LIKED_CARDS
+                                }
+                            )
+                        ),
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Help & Feedback",
+                                icon = painterResource(R.drawable.ic_help_feedback),
+                                onClick = {
+                                    showMenuSheet = false
+                                    currentView = CardsView.HELP_FEEDBACK
+                                }
+                            )
+                        )
+                    )
+
+                    MenuBottomSheet(
+                        items = menuItems,
+                        onCancelClick = { showMenuSheet = false },
+                        onProgress = { sheetMotionProgress = it }
                     )
                 }
-            }
-        }
 
-        AnimatedVisibility(
-            visible = toastData.message != null && !isAnySheetVisible,
-            enter = slideInVertically(initialOffsetY = { -it - 500 }),
-            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .statusBarsPadding()
-                .fillMaxWidth()
-                .zIndex(100f)
-                .padding(12.dp)
-        ) {
-            CustomToast(message = toastData.message ?: "", type = toastData.type)
-        }
-
-        if (showMenuSheet) {
-            val menuItems = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Saved Cards",
-                        icon = painterResource(R.drawable.ic_top_bar_heart),
-                        onClick = {
-                            showMenuSheet = false
-                            currentView = CardsView.LIKED_CARDS
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(R.drawable.ic_user_default),
-                        onClick = {
-                            showMenuSheet = false
-                            currentView = CardsView.ROOM
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Help & Feedback",
-                        icon = painterResource(R.drawable.ic_help_feedback),
-                        onClick = {
-                            showMenuSheet = false
-                            currentView = CardsView.HELP_FEEDBACK
-                        }
-                    )
-                )
-            )
-
-            MenuBottomSheet(
-                items = menuItems,
-                onCancelClick = { showMenuSheet = false },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
-
-        if (showRoomMenuBottomSheet) {
-            val roomMenuItems = listOf(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Leave Room",
-                        icon = painterResource(R.drawable.ic_logout),
-                        contentColor = MaterialTheme.colorScheme.error,
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            showLeaveConfirmation = true
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Help & Feedback",
-                        icon = painterResource(R.drawable.ic_help_feedback),
-                        onClick = {
-                            showRoomMenuBottomSheet = false
-                            currentView = CardsView.HELP_FEEDBACK
-                        }
-                    )
-                )
-            )
-
-            MenuBottomSheet(
-                items = roomMenuItems,
-                onCancelClick = { showRoomMenuBottomSheet = false },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
-
-        if (showDeleteConfirmation) {
-            val count = selectedCardIds.size
-            ConfirmationBottomSheet(
-                heading = if (count == 1) "Delete Card?" else "Delete $count Cards?",
-                subHeading = "This action cannot be undone.",
-                confirmButtonText = "Delete",
-                onDismiss = { showDeleteConfirmation = false },
-                onConfirm = {
-                    val currentAdminUsername = (adminDetails?.get("username") as? String).orEmpty()
-                    var unauthorizedAttempt = false
-                    var totalDeleted = 0
-                    
-                    selectedCardIds.forEach { id ->
-                        val globalCard = jasnifyCards.find { it.id == id }
-                        val isGlobal = globalCard != null
-                        
-                        if (selectedTab == CardsTab.MY_CARDS) {
-                            if (isGlobal) {
-                                // This is a global card being managed from My Edits
-                                if (isCardAdmin && globalCard.adminUsername == currentAdminUsername) {
-                                    cardViewModel.deleteJasnifyCard(id)
-                                    cardViewModel.deleteMyCard(id)
-                                    totalDeleted++
-                                } else {
-                                    unauthorizedAttempt = true
+                if (showRoomMenuBottomSheet) {
+                    val roomMenuItems = listOf(
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Leave Room",
+                                icon = painterResource(R.drawable.ic_logout),
+                                contentColor = MaterialTheme.colorScheme.error,
+                                onClick = {
+                                    showRoomMenuBottomSheet = false
+                                    showLeaveConfirmation = true
                                 }
-                            } else {
-                                // Just a regular personal card
-                                cardViewModel.deleteMyCard(id)
-                                totalDeleted++
+                            )
+                        ),
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Help & Feedback",
+                                icon = painterResource(R.drawable.ic_help_feedback),
+                                onClick = {
+                                    showRoomMenuBottomSheet = false
+                                    currentView = CardsView.HELP_FEEDBACK
+                                }
+                            )
+                        )
+                    )
+
+                    MenuBottomSheet(
+                        items = roomMenuItems,
+                        onCancelClick = { showRoomMenuBottomSheet = false },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                if (showDeleteConfirmation) {
+                    val count = selectedCardIds.size
+                    ConfirmationBottomSheet(
+                        heading = if (count == 1) "Delete Card?" else "Delete $count Cards?",
+                        subHeading = "This action cannot be undone.",
+                        confirmButtonText = "Delete",
+                        onDismiss = { showDeleteConfirmation = false },
+                        onConfirm = {
+                            val currentAdminUsername = (adminDetails?.get("username") as? String).orEmpty()
+                            var unauthorizedAttempt = false
+                            var totalDeleted = 0
+                            
+                            selectedCardIds.forEach { id ->
+                                val globalCard = jasnifyCards.find { it.id == id }
+                                val isGlobal = globalCard != null
+                                
+                                if (selectedTab == CardsTab.MY_CARDS) {
+                                    if (isGlobal) {
+                                        // This is a global card being managed from My Edits
+                                        if (isCardAdmin && globalCard.adminUsername == currentAdminUsername) {
+                                            cardViewModel.deleteJasnifyCard(id)
+                                            cardViewModel.deleteMyCard(id)
+                                            totalDeleted++
+                                        } else {
+                                            unauthorizedAttempt = true
+                                        }
+                                    } else {
+                                        // Just a regular personal card
+                                        cardViewModel.deleteMyCard(id)
+                                        totalDeleted++
+                                    }
+                                } else if (selectedTab == CardsTab.EXPLORE) {
+                                    // Specifically trying to delete from the global collection
+                                    if (isCardAdmin && globalCard?.adminUsername == currentAdminUsername) {
+                                        cardViewModel.deleteJasnifyCard(id)
+                                        // Also clean up the local version if it exists
+                                        cardViewModel.deleteMyCard(id)
+                                        totalDeleted++
+                                    } else {
+                                        unauthorizedAttempt = true
+                                    }
+                                }
                             }
-                        } else if (selectedTab == CardsTab.EXPLORE) {
-                            // Specifically trying to delete from the global collection
-                            if (isCardAdmin && globalCard?.adminUsername == currentAdminUsername) {
-                                cardViewModel.deleteJasnifyCard(id)
-                                // Also clean up the local version if it exists
-                                cardViewModel.deleteMyCard(id)
-                                totalDeleted++
-                            } else {
-                                unauthorizedAttempt = true
+
+                            if (unauthorizedAttempt) {
+                                toastData = ToastData(
+                                    message = if (selectedCardIds.size == 1) "You can't delete this card" else "Some cards couldn't be deleted",
+                                    type = ToastType.ERROR
+                                )
+                            } else if (totalDeleted > 0) {
+                                toastData = ToastData(
+                                    message = if (totalDeleted == 1) "Card deleted" else "$totalDeleted cards deleted",
+                                    type = ToastType.DEFAULT
+                                )
                             }
+
+                            selectedCardIds = emptySet()
+                            showDeleteConfirmation = false
+                        },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                userToRemove?.let { targetUser ->
+                    ConfirmationBottomSheet(
+                        heading = "Remove ${targetUser.name}?",
+                        subHeading = "They will not be able to access this room anymore.",
+                        confirmButtonText = "Remove",
+                        onDismiss = { userToRemove = null },
+                        onConfirm = {
+                            val eventId = activeEventId
+                            if (eventId != null) {
+                                roomViewModel.removeAccess(eventId, "Cards", targetUser.uid)
+                                toastData = ToastData("${targetUser.name} removed", ToastType.ERROR)
+                            }
+                            userToRemove = null
+                        },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                if (showLeaveConfirmation) {
+                    ConfirmationBottomSheet(
+                        heading = "Leave Room?",
+                        subHeading = "You will lose access to this room.",
+                        confirmButtonText = "Leave",
+                        onDismiss = { showLeaveConfirmation = false },
+                        onConfirm = {
+                            activeEventId?.let { eventId ->
+                                roomViewModel.removeAccess(
+                                    eventId,
+                                    "Cards",
+                                    FirebaseAuth.getInstance().currentUser?.uid.orEmpty()
+                                )
+                            }
+                            toastData = ToastData("You left the room", ToastType.DEFAULT)
+                            currentView = CardsView.MAIN
+                            showLeaveConfirmation = false
+                        },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+
+                AnimatedVisibility(
+                    visible = showAiChat,
+                    enter = slideInVertically(initialOffsetY = { it }),
+                    exit = slideOutVertically(targetOffsetY = { it }),
+                    modifier = Modifier.zIndex(200f)
+                ) {
+                    AiChatScreen(
+                        eventId = activeEventId,
+                        shouldStartNewSession = true,
+                        onBackClick = { showAiChat = false }
+                    )
+                }
+
+                if (showMetadataSheet && cardForMetadata != null) {
+                    CustomBottomSheet(
+                        heading = "Edit Card Metadata",
+                        onDismiss = { showMetadataSheet = false },
+                        sheetHeight = null,
+                        onProgress = { sheetMotionProgress = it }
+                    ) {
+                        var eventType by remember { mutableStateOf(cardForMetadata!!.eventType) }
+                        var cardStyle by remember { mutableStateOf(cardForMetadata!!.cardStyle) }
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Event Type",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentPrimary
+                                )
+                                PrimaryInput(
+                                    value = eventType,
+                                    onValueChange = { eventType = it },
+                                    placeholder = "e.g. Wedding, Birthday"
+                                )
+                            }
+
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(
+                                    text = "Card Style",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentPrimary
+                                )
+                                PrimaryInput(
+                                    value = cardStyle,
+                                    onValueChange = { cardStyle = it },
+                                    placeholder = "e.g. Classic, Modern"
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+
+                            CustomTextButton(
+                                text = "Update Metadata",
+                                onClick = {
+                                    val updated = cardForMetadata!!.copy(
+                                        eventType = eventType,
+                                        cardStyle = cardStyle
+                                    )
+                                    cardViewModel.saveMyCard(updated)
+                                    showMetadataSheet = false
+                                    toastData =
+                                        ToastData("Metadata updated locally", ToastType.SUCCESS)
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                shapeStyle = ButtonShapeStyle.Square
+                            )
                         }
                     }
-
-                    if (unauthorizedAttempt) {
-                        toastData = ToastData(
-                            message = if (selectedCardIds.size == 1) "You can't delete this card" else "Some cards couldn't be deleted",
-                            type = ToastType.ERROR
-                        )
-                    } else if (totalDeleted > 0) {
-                        toastData = ToastData(
-                            message = if (totalDeleted == 1) "Card deleted" else "$totalDeleted cards deleted",
-                            type = ToastType.DEFAULT
-                        )
-                    }
-
-                    selectedCardIds = emptySet()
-                    showDeleteConfirmation = false
-                },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
-
-        userToRemove?.let { targetUser ->
-            ConfirmationBottomSheet(
-                heading = "Remove ${targetUser.name}?",
-                subHeading = "They will not be able to access this room anymore.",
-                confirmButtonText = "Remove",
-                onDismiss = { userToRemove = null },
-                onConfirm = {
-                    val eventId = activeEventId
-                    if (eventId != null) {
-                        roomViewModel.removeAccess(eventId, "Cards", targetUser.uid)
-                        toastData = ToastData("${targetUser.name} removed", ToastType.ERROR)
-                    }
-                    userToRemove = null
-                },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
-
-        if (showLeaveConfirmation) {
-            ConfirmationBottomSheet(
-                heading = "Leave Room?",
-                subHeading = "You will lose access to this room.",
-                confirmButtonText = "Leave",
-                onDismiss = { showLeaveConfirmation = false },
-                onConfirm = {
-                    activeEventId?.let { eventId ->
-                        roomViewModel.removeAccess(eventId, "Cards", FirebaseAuth.getInstance().currentUser?.uid.orEmpty())
-                    }
-                    toastData = ToastData("You left the room", ToastType.DEFAULT)
-                    currentView = CardsView.MAIN
-                    showLeaveConfirmation = false
-                },
-                onProgress = { sheetMotionProgress = it }
-            )
-        }
-
-        AnimatedVisibility(
-            visible = showAiChat,
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier.zIndex(200f)
-        ) {
-            com.harshdeep.jasnify.presentation.screens.others.AiChatScreen(
-                eventId = activeEventId,
-                shouldStartNewSession = true,
-                onBackClick = { showAiChat = false }
-            )
-        }
-
-        if (showMetadataSheet && cardForMetadata != null) {
-            CustomBottomSheet(
-                heading = "Edit Card Metadata",
-                onDismiss = { showMetadataSheet = false },
-                sheetHeight = null,
-                onProgress = { sheetMotionProgress = it }
-            ) {
-                var eventType by remember { mutableStateOf(cardForMetadata!!.eventType) }
-                var cardStyle by remember { mutableStateOf(cardForMetadata!!.cardStyle) }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Event Type",
-                            style = JasnifyTheme.typography.labelXLarge,
-                            color = ContentPrimary
-                        )
-                        PrimaryInput(
-                            value = eventType,
-                            onValueChange = { eventType = it },
-                            placeholder = "e.g. Wedding, Birthday"
-                        )
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = "Card Style",
-                            style = JasnifyTheme.typography.labelXLarge,
-                            color = ContentPrimary
-                        )
-                        PrimaryInput(
-                            value = cardStyle,
-                            onValueChange = { cardStyle = it },
-                            placeholder = "e.g. Classic, Modern"
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    CustomTextButton(
-                        text = "Update Metadata",
-                        onClick = {
-                            val updated = cardForMetadata!!.copy(
-                                eventType = eventType,
-                                cardStyle = cardStyle
-                            )
-                            cardViewModel.saveMyCard(updated)
-                            showMetadataSheet = false
-                            toastData = ToastData("Metadata updated locally", ToastType.SUCCESS)
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        shapeStyle = ButtonShapeStyle.Square
-                    )
                 }
             }
         }
     }
-}
 }

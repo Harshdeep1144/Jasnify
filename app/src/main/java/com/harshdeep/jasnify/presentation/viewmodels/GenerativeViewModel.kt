@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.google.firebase.FirebaseApp
 import com.google.firebase.ai.FirebaseAI
 import com.google.firebase.ai.type.GenerationConfig
-import com.google.firebase.ai.type.ServerException
 import com.google.firebase.ai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -24,7 +23,7 @@ import com.harshdeep.jasnify.domain.repository.ChecklistRepository
 import com.harshdeep.jasnify.domain.repository.GuestRepository
 import com.harshdeep.jasnify.domain.repository.VendorRepository
 import com.harshdeep.jasnify.domain.repository.VenueRepository
-import com.harshdeep.jasnify.presentation.screens.others.AiMessage
+import com.harshdeep.jasnify.presentation.screens.chats.AiMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -40,9 +39,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.json.JSONObject
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 

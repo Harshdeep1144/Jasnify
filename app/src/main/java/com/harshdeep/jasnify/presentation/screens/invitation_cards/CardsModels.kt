@@ -9,6 +9,7 @@ enum class CardsView {
     FULL_VIEW,
     LIKED_CARDS,
     ROOM,
+    GROUP_CHAT,
     HELP_FEEDBACK
 }
 

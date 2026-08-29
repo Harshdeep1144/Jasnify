@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.ImageLoader
 import coil.compose.AsyncImage
@@ -111,6 +112,7 @@ import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.states.GenericLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.utils.noRippleCombinedClickable
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
@@ -140,17 +142,22 @@ enum class MomentViewMode {
     AllMoments,
     Folders,
     FolderContent,
-    Saved
+    Saved,
+    ROOM,
+    GROUP_CHAT
 }
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MomentsScreen(
-    eventId: String,
     onBackClick: () -> Unit,
-    onManageRoomClick: () -> Unit,
-    viewModel: MomentsViewModel
+    navController: androidx.navigation.NavHostController? = null,
+    viewModel: MomentsViewModel,
+    eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel(),
+    roomViewModel: com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel = hiltViewModel()
 ) {
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+    val eventId = activeEventId ?: ""
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     var viewMode by remember { mutableStateOf(MomentViewMode.AllMoments) }
@@ -394,14 +401,21 @@ fun MomentsScreen(
     )
 
     LaunchedEffect(eventId, selectedFolderId, viewMode) {
-        if (viewMode == MomentViewMode.Saved) {
-            viewModel.loadSavedMoments(eventId)
-        } else if (viewMode == MomentViewMode.AllMoments) {
-            viewModel.loadFolders(eventId, "")
-            viewModel.loadMoments(eventId, "all_moments_id")
-        } else {
-            viewModel.loadFolders(eventId, selectedFolderId)
-            viewModel.loadMoments(eventId, selectedFolderId)
+        if (eventId.isBlank()) return@LaunchedEffect
+        
+        when (viewMode) {
+            MomentViewMode.Saved -> {
+                viewModel.loadSavedMoments(eventId)
+            }
+            MomentViewMode.AllMoments -> {
+                viewModel.loadFolders(eventId, "")
+                viewModel.loadMoments(eventId, "all_moments_id")
+            }
+            MomentViewMode.FolderContent -> {
+                viewModel.loadFolders(eventId, selectedFolderId)
+                viewModel.loadMoments(eventId, selectedFolderId)
+            }
+            else -> {}
         }
     }
 
@@ -586,6 +600,23 @@ fun MomentsScreen(
 
         list.add(primaryActions)
 
+        // Room Access card (if owner)
+        if (canDeleteAny) {
+            list.add(
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Manage Room Access",
+                        icon = userProfileIconPainter,
+                        iconPlacement = IconPlacement.Left,
+                        onClick = {
+                            showMoreMenu = false
+                            viewMode = MomentViewMode.ROOM
+                        }
+                    )
+                )
+            )
+        }
+
         // Download Preferences card
         list.add(
             listOf(
@@ -600,23 +631,6 @@ fun MomentsScreen(
                 )
             )
         )
-
-        // Room Access card (if owner)
-        if (canDeleteAny) {
-            list.add(
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Manage Room Access",
-                        icon = userProfileIconPainter,
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMoreMenu = false
-                            onManageRoomClick()
-                        }
-                    )
-                )
-            )
-        }
 
         list
     }
@@ -633,6 +647,7 @@ fun MomentsScreen(
                 selectedMomentIds = emptySet()
             }
             selectedMomentIds.isNotEmpty() -> selectedMomentIds = emptySet()
+            viewMode == MomentViewMode.ROOM -> viewMode = MomentViewMode.AllMoments
             folderNavigationStack.isNotEmpty() -> {
                 val newStack = folderNavigationStack.dropLast(1)
                 folderNavigationStack = newStack
@@ -704,6 +719,10 @@ fun MomentsScreen(
                                 subtitle = if (!isSelectionMode && (viewMode == MomentViewMode.FolderContent || viewMode == MomentViewMode.Saved)) "${if(viewMode == MomentViewMode.Saved) savedMoments.size else moments.size} items" else null,
                                 buttonStyle = ButtonBackground.OPAQUE,
                                 buttonColor = SurfaceSecondary,
+                                secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
+                                onSecondaryClick = {
+                                    viewMode = MomentViewMode.GROUP_CHAT
+                                },
                                 menuIcon = if (isSelectionMode) {
                                     val canDeleteSelection = moments.filter { it.id in selectedMomentIds }.all {
                                         canDeleteAny || (canDeleteOwn && it.uploaderId == currentUserId)
@@ -716,7 +735,7 @@ fun MomentsScreen(
                                         isForceMultiSelect = false
                                     } else if (selectedMomentForFullView != null) {
                                         selectedMomentForFullView = null
-                                    } else if (viewMode == MomentViewMode.Saved) {
+                                    } else if (viewMode == MomentViewMode.Saved || viewMode == MomentViewMode.ROOM) {
                                         viewMode = MomentViewMode.AllMoments
                                     } else if (folderNavigationStack.isNotEmpty()) {
                                         val newStack = folderNavigationStack.dropLast(1)
@@ -890,6 +909,21 @@ fun MomentsScreen(
                                             }
                                         )
                                     }
+                                    MomentViewMode.GROUP_CHAT -> {
+                                        GroupChatScreen(
+                                            eventId = eventId,
+                                            roomType = "Moments",
+                                            onBackClick = { viewMode = MomentViewMode.AllMoments },
+                                            onMembersClick = { viewMode = MomentViewMode.ROOM }
+                                        )
+                                    }
+                                    MomentViewMode.ROOM -> {
+                                        MomentsRoomContent(
+                                            eventId = eventId,
+                                            onBackClick = { viewMode = MomentViewMode.AllMoments },
+                                            roomViewModel = roomViewModel
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -897,7 +931,7 @@ fun MomentsScreen(
 
                     // Floating Bottom Tab + Separate CustomIconButton (+)
                     AnimatedVisibility(
-                        visible = isBottomTabVisible && sheetMotionProgress == 1.0f && !isSelectionMode,
+                        visible = isBottomTabVisible && sheetMotionProgress == 1.0f && !isSelectionMode && viewMode != MomentViewMode.ROOM && viewMode != MomentViewMode.GROUP_CHAT,
                         enter = slideInVertically(
                             initialOffsetY = { it },
                             animationSpec = tween(durationMillis = 260)

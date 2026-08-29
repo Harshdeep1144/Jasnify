@@ -19,5 +19,6 @@ enum class CateringMenuView {
     VENDOR_DETAIL,
     LOCATION_SELECTOR,
     TIMELINE_DETAIL,
+    GROUP_CHAT,
     HELP_FEEDBACK
 }

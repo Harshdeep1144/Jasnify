@@ -95,7 +95,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
@@ -103,7 +102,6 @@ import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.model.GuestType
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestInfoBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestTypeBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
@@ -130,7 +128,7 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.GuestsLoadingState
@@ -156,6 +154,7 @@ import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -168,6 +167,7 @@ enum class GuestsView {
     MANAGE_GUEST_TYPES,
     GUEST_TYPE_DETAIL,
     ROOM_ACCESS,
+    GROUP_CHAT,
     HELP_FEEDBACK
 }
 
@@ -183,7 +183,9 @@ fun Context.findActivity(): Activity? {
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
+fun GuestsTab(
+    navController: androidx.navigation.NavHostController? = null,
+    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     guestViewModel: GuestViewModel = hiltViewModel(),
@@ -558,6 +560,7 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
                 GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
                 GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
                 GuestsView.ROOM_ACCESS -> currentView = GuestsView.MAIN
+                GuestsView.GROUP_CHAT -> currentView = GuestsView.MAIN
                 GuestsView.HELP_FEEDBACK -> currentView = GuestsView.MAIN
                 else -> {}
             }
@@ -645,6 +648,10 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
                                                         menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
+                                                        secondaryIcon = TopIcon.Predefined.CHAT,
+                                                        onSecondaryClick = {
+                                                            currentView = GuestsView.GROUP_CHAT
+                                                        },
                                                         onMenuClick = {
                                                             focusManager.clearFocus()
                                                             showMenuSheet = true
@@ -1240,6 +1247,16 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
                                 onShowAiChat = { showAiChat = true }
                             )
                         }
+                        GuestsView.GROUP_CHAT -> {
+                            activeEventId?.let { id ->
+                                GroupChatScreen(
+                                    eventId = id,
+                                    roomType = "Guest",
+                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onMembersClick = { currentView = GuestsView.ROOM_ACCESS }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -1740,17 +1757,6 @@ fun GuestsTab(    onBottomBarVisibilityChange: (Boolean) -> Unit = {},
                         onClick = {
                             showMenuSheet = false
                             currentView = GuestsView.MANAGE_GUEST_TYPES
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(id = R.drawable.ic_user_default),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            currentView = GuestsView.ROOM_ACCESS
                         }
                     )
                 ),

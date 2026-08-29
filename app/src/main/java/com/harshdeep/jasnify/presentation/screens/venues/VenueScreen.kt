@@ -4,7 +4,6 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -30,7 +29,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -81,11 +79,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.core.app.ActivityCompat
 import androidx.core.content.edit
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Offer
@@ -113,14 +109,13 @@ import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.sections.SavedTimelineItemsScreen
 import com.harshdeep.jasnify.presentation.components.states.VenueLoadingState
-import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
@@ -132,7 +127,6 @@ import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfaceSecondary
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -144,6 +138,7 @@ enum class VenueScreenState {
     MAIN,
     LOCATION_PICKER,
     ROOM_ACCESS,
+    GROUP_CHAT,
     VENUE_DETAIL,
     TIMELINE_DETAIL,
     HELP_FEEDBACK
@@ -186,6 +181,7 @@ fun VenueScreen(
     onVenueClick: (Venue) -> Unit,
     onChatClick: (Venue) -> Unit = {},
     onBackClick: () -> Unit,
+    navController: androidx.navigation.NavHostController? = null,
     isScreenActive: Boolean = true,
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -197,7 +193,7 @@ fun VenueScreen(
     val recentLocations = remember { LocationHelper.getRecentLocations(context) }
     var showAiChat by remember { mutableStateOf(false) }
     var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
-    
+
     // Initialize SessionState.currentLocation if it's default
     val initializedLocation = remember(context) {
         SessionState.initializeLocation(context)
@@ -283,7 +279,7 @@ fun VenueScreen(
         val isEnabled = LocationHelper.isLocationEnabled(context)
 
         if (hasPermission && isEnabled) {
-            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { 
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, {
                 SessionState.updateLocation(context, it)
             })
             SessionState.hasShownVenueLocationAccess = true
@@ -522,9 +518,9 @@ fun VenueScreen(
                                         autoFocusLocationSearch = false
                                         screenStack = screenStack.dropLast(1)
                                     },
-                                    onBackClick = { 
+                                    onBackClick = {
                                         autoFocusLocationSearch = false
-                                        screenStack = screenStack.dropLast(1) 
+                                        screenStack = screenStack.dropLast(1)
                                     },
                                     autoFocusSearch = autoFocusLocationSearch
                                 )
@@ -620,6 +616,9 @@ fun VenueScreen(
                                         offersToShow = venue.offers
                                         showOfferSheet = true
                                     },
+                                    onChatClick = {
+                                        screenStack = screenStack + VenueScreenState.GROUP_CHAT
+                                    },
                                     listState = mainListState
                                 )
                             }
@@ -652,6 +651,17 @@ fun VenueScreen(
                                     onShowAiChat = { showAiChat = true }
                                 )
                             }
+
+                            VenueScreenState.GROUP_CHAT -> {
+                                activeEvent?.id?.let { id ->
+                                    com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen(
+                                        eventId = id,
+                                        roomType = "Venue",
+                                        onBackClick = { screenStack = screenStack.dropLast(1) },
+                                        onMembersClick = { screenStack = screenStack + VenueScreenState.ROOM_ACCESS }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -677,7 +687,7 @@ fun VenueScreen(
                 onAllowClick = {
                     showLocationAccessSheet = false
                     SessionState.hasShownVenueLocationAccess = true
-                    
+
                     if (LocationHelper.hasLocationPermission(context)) {
                         LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
                             LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { SessionState.updateLocation(context, it) })
@@ -790,17 +800,6 @@ fun VenueScreen(
                     ),
                     listOf(
                         MenuSheetActionItem(
-                            text = if (isOwner) "Manage Room Access" else "Room Members",
-                            icon = painterResource(R.drawable.ic_user_default),
-                            iconPlacement = IconPlacement.Left,
-                            onClick = {
-                                showMenuSheet = false
-                                screenStack = screenStack + VenueScreenState.ROOM_ACCESS
-                            }
-                        )
-                    ),
-                    listOf(
-                        MenuSheetActionItem(
                             text = "Help & Feedback",
                             icon = painterResource(R.drawable.ic_help_feedback),
                             iconPlacement = IconPlacement.Left,
@@ -890,7 +889,7 @@ fun VenueScreen(
                 eventId = activeEvent?.id,
                 initialContext = aiChatInitialContext,
                 shouldStartNewSession = true,
-                onBackClick = { 
+                onBackClick = {
                     showAiChat = false
                     aiChatInitialContext = null
                 },
@@ -997,7 +996,9 @@ fun VenueMainContent(
     onShowFilterDialogChange: (Boolean) -> Unit,
     isLoading: Boolean = false,
     onTimelineSeeAll: (TimelineEvent) -> Unit = {},
-    onOfferClick: (Venue) -> Unit = {},    listState: LazyListState = rememberLazyListState()
+    onOfferClick: (Venue) -> Unit = {},
+    onChatClick: () -> Unit = {},
+    listState: LazyListState = rememberLazyListState()
 ) {
     val focusManager = LocalFocusManager.current
 
@@ -1142,6 +1143,8 @@ fun VenueMainContent(
                                 },
                                 onMenuClick = if (active) null else { { onShowMenuSheetChange(true) } },
                                 onDropdownClick = if (!active && isScrolled) onLocationSelectorClick else null,
+                                secondaryIcon = if (active) null else TopIcon.Predefined.CHAT,
+                                onSecondaryClick = if (active) null else onChatClick,
                                 backIcon = if (active) TopIcon.Predefined.DOWN else TopIcon.Predefined.BACK,
                                 buttonStyle = ButtonBackground.OPAQUE,
                                 isLargeTitle = true,

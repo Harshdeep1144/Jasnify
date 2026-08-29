@@ -1,4 +1,4 @@
-package com.harshdeep.jasnify.presentation.screens.others
+package com.harshdeep.jasnify.presentation.screens.chats
 
 import android.Manifest
 import android.content.Intent
@@ -127,7 +127,6 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
@@ -174,6 +173,7 @@ import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
@@ -1082,7 +1082,7 @@ fun AiChatScreen(
 
                 "vendors" -> {
                     VendorsTab(
-                        mainNavController = mainNavController ?: androidx.navigation.compose.rememberNavController(),
+                        mainNavController = mainNavController ?: rememberNavController(),
                         onBottomBarVisibilityChange = {},
                         onBackClick = {
                             currentSubScreen = "chat"

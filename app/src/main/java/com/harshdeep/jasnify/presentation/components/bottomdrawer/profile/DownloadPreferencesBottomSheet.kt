@@ -1,23 +1,17 @@
 package com.harshdeep.jasnify.presentation.components.bottomdrawer.profile
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.RadioButtonDefaults
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -28,6 +22,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -36,16 +32,21 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomB
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.theme.ContentBrandDark
-import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.presentation.components.others.OptionSelector
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
 import sv.lib.squircleshape.SquircleShape
+
+private val FooterCardShape = SquircleShape(
+    radius = CornerLarge,
+    cornerSmoothing = CornerSmoothingDefault
+)
 
 @Composable
 fun DownloadPreferencesBottomSheet(
@@ -69,122 +70,86 @@ fun DownloadPreferencesBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(all = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            QualityOption(
-                title = "Low Quality",
-                size = "4 MB",
+            OptionSelector(
+                label = "Low Quality",
+                trailingText = "4 MB",
                 isSelected = selectedQuality == "Low Quality",
                 onClick = { selectedQuality = "Low Quality" }
             )
-            QualityOption(
-                title = "Standard Quality",
-                subtitle = "(Recommended)",
-                size = "12 MB",
+
+            OptionSelector(
+                label = "Standard Quality",
+                bodyText = "(Recommended)",
+                trailingText = "12 MB",
                 isSelected = selectedQuality == "Standard Quality",
                 onClick = { selectedQuality = "Standard Quality" }
             )
-            QualityOption(
-                title = "Original Quality",
-                size = "12 MB",
+
+            OptionSelector(
+                label = "Original Quality",
+                trailingText = "12 MB",
                 isSelected = selectedQuality == "Original Quality",
                 onClick = { selectedQuality = "Original Quality" }
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
+            // Unified Footer Card matching ContactPickerBottomSheet
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(SurfaceSecondary, SquircleShape(CornerLarge))
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(FooterCardShape)
+                    .background(SurfaceSecondary)
             ) {
-                Text(
-                    text = "Remember my settings for 7 days",
-                    style = JasnifyTheme.typography.labelXLarge,
-                    color = ContentSecondary,
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = rememberSettings,
-                    onCheckedChange = { rememberSettings = it },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Color.White,
-                        checkedTrackColor = SurfaceBrandPrimary,
-                        uncheckedThumbColor = ContentTertiary,
-                        uncheckedTrackColor = SurfaceSecondary
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(FooterCardShape)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            rememberSettings = !rememberSettings
+                        }
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Remember my settings for 7 days",
+                        style = JasnifyTheme.typography.headingSmall,
+                        color = ContentSecondary,
+                        modifier = Modifier.weight(1f)
                     )
-                )
-            }
 
-            CustomTextButton(
-                onClick = { onDownload(selectedQuality, rememberSettings) },
-                text = "Download $fileCount ${if (fileCount > 1) "Files" else "File"}",
-                modifier = Modifier.fillMaxWidth(),
-                type = ButtonType.Primary,
-                shapeStyle = ButtonShapeStyle.Round,
-                leadingIcon = painterResource(R.drawable.ic_download)
-            )
-        }
-    }
-}
+                    Switch(
+                        checked = rememberSettings,
+                        onCheckedChange = { rememberSettings = it },
+                        modifier = Modifier
+                            .height(24.dp)
+                            .scale(0.8f),
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = ContentInvPrimary,
+                            checkedTrackColor = ContentBrand,
+                            uncheckedThumbColor = ContentInvPrimary,
+                            uncheckedTrackColor = ContentTertiary,
+                            uncheckedBorderColor = Color.Transparent
+                        )
+                    )
+                }
 
-@Composable
-private fun QualityOption(
-    title: String,
-    size: String,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    subtitle: String? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp)
-            .background(
-                color = if (isSelected) SurfaceBrandSecondary.copy(alpha = 0.3f) else Color.Transparent,
-                shape = SquircleShape(CornerLarge)
-            )
-            .border(
-                width = 1.dp,
-                color = if (isSelected) SurfaceBrandPrimary.copy(alpha = 0.3f) else Color.Transparent,
-                shape = SquircleShape(CornerLarge)
-            )
-            .clickable { onClick() }
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        RadioButton(
-            selected = isSelected,
-            onClick = null,
-            colors = RadioButtonDefaults.colors(
-                selectedColor = ContentBrandDark,
-                unselectedColor = ContentTertiary
-            )
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = JasnifyTheme.typography.headingLarge,
-                color = if (isSelected) ContentBrandDark else ContentPrimary
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = JasnifyTheme.typography.labelMedium,
-                    color = if (isSelected) ContentBrandDark.copy(alpha = 0.7f) else ContentSecondary
+                CustomTextButton(
+                    onClick = { onDownload(selectedQuality, rememberSettings) },
+                    text = "Download $fileCount ${if (fileCount > 1) "Files" else "File"}",
+                    leadingIcon = painterResource(id = R.drawable.ic_download),
+                    modifier = Modifier.fillMaxWidth(),
+                    type = ButtonType.Primary,
+                    shapeStyle = ButtonShapeStyle.Square
                 )
             }
         }
-        Text(
-            text = size,
-            style = JasnifyTheme.typography.headingLarge,
-            color = if (isSelected) ContentBrandDark else ContentPrimary
-        )
     }
 }

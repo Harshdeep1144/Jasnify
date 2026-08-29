@@ -51,6 +51,8 @@ class MomentsViewModel @Inject constructor(
     private var currentParentId: String = ""
 
     fun loadFolders(eventId: String, parentId: String = "") {
+        if (eventId.isBlank()) return
+        
         _currentUserId.value = FirebaseAuth.getInstance().currentUser?.uid ?: ""
         
         // If eventId and parentId haven't changed and job is active, skip
@@ -82,6 +84,8 @@ class MomentsViewModel @Inject constructor(
     }
 
     fun loadMoments(eventId: String, folderId: String = "") {
+        if (eventId.isBlank()) return
+        
         momentCollectionJob?.cancel()
         momentCollectionJob = viewModelScope.launch {
             momentsRepository.getMoments(eventId, folderId).collect {

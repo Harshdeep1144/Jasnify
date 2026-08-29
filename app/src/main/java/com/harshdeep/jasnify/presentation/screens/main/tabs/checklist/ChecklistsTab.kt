@@ -99,10 +99,11 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.states.ChecklistLoadingState
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -112,8 +113,6 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfacePrimary
-import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import kotlinx.coroutines.delay
 import kotlin.time.Duration.Companion.milliseconds
 
@@ -122,6 +121,7 @@ sealed interface ChecklistScreenState {
     data class Detail(val checklist: Checklist?, val isAddingNew: Boolean) : ChecklistScreenState
     data object Archives : ChecklistScreenState
     data object ManageRoomAccess : ChecklistScreenState
+    data object GroupChat : ChecklistScreenState
     data object HelpFeedback : ChecklistScreenState
 }
 
@@ -195,6 +195,7 @@ fun ChecklistsTab(
     var isAddingNew by remember { mutableStateOf(false) }
     var showArchives by remember { mutableStateOf(false) }
     var showRoomAccess by remember { mutableStateOf(false) }
+    var showGroupChat by remember { mutableStateOf(false) }
     var showHelpFeedback by remember { mutableStateOf(false) }
     var navigatedFromArchives by remember { mutableStateOf(false) }
     var showDiscardToast by remember { mutableStateOf(false) }
@@ -256,7 +257,7 @@ fun ChecklistsTab(
 
     val focusManager = LocalFocusManager.current
 
-    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives, showRoomAccess, showHelpFeedback) {
+    val currentScreen = remember(selectedChecklist, isAddingNew, showArchives, showRoomAccess, showGroupChat, showHelpFeedback) {
         when {
             selectedChecklist != null || isAddingNew -> {
                 ChecklistScreenState.Detail(selectedChecklist, isAddingNew)
@@ -266,6 +267,9 @@ fun ChecklistsTab(
             }
             showRoomAccess -> {
                 ChecklistScreenState.ManageRoomAccess
+            }
+            showGroupChat -> {
+                ChecklistScreenState.GroupChat
             }
             showHelpFeedback -> {
                 ChecklistScreenState.HelpFeedback
@@ -303,6 +307,8 @@ fun ChecklistsTab(
             isSearchActive = false
             searchQuery = ""
             wasFocused = false
+        } else if (showGroupChat) {
+            showGroupChat = false
         } else if (showHelpFeedback) {
             showHelpFeedback = false
         } else if (showArchives) {
@@ -530,9 +536,9 @@ fun ChecklistsTab(
                                                                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                                 isLeftAligned = true,
                                                                 isLargeTitle = true,
-                                                                secondaryIcon = TopIcon.Predefined.SEARCH,
+                                                                secondaryIcon = TopIcon.Predefined.CHAT,
                                                                 onSecondaryClick = {
-                                                                    isSearchActive = true
+                                                                    showGroupChat = true
                                                                 },
                                                                 onMenuClick = {
                                                                     focusManager.clearFocus()
@@ -804,6 +810,20 @@ fun ChecklistsTab(
                                     onShowAiChat = { showAiChat = true }
                                 )
                             }
+
+                            ChecklistScreenState.GroupChat -> {
+                                activeEventId?.let { id ->
+                                    GroupChatScreen(
+                                        eventId = id,
+                                        roomType = "Checklist",
+                                        onBackClick = { showGroupChat = false },
+                                        onMembersClick = { 
+                                            showGroupChat = false
+                                            showRoomAccess = true 
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -831,17 +851,6 @@ fun ChecklistsTab(
                                 onClick = {
                                     showArchives = true
                                     showMenuSheet = false
-                                }
-                            )
-                        ),
-                        listOf(
-                            MenuSheetActionItem(
-                                text = if (isOwner) "Manage Room Access" else "Room Members",
-                                icon = painterResource(R.drawable.ic_user_default),
-                                iconPlacement = IconPlacement.Left,
-                                onClick = {
-                                    showMenuSheet = false
-                                    showRoomAccess = true
                                 }
                             )
                         ),

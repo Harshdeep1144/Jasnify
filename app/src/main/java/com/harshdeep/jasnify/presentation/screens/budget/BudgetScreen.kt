@@ -51,14 +51,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CategorySummaryData
 import com.harshdeep.jasnify.domain.model.ExpenseItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddCustomCategoryBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
@@ -75,8 +73,9 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.states.BudgetLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -96,6 +95,7 @@ enum class BudgetScreenView {
     EXPENSE_CATEGORY,
     CATEGORY_DETAIL,
     MANAGE_ROOM_ACCESS,
+    GROUP_CHAT,
     HELP_FEEDBACK
 }
 
@@ -147,6 +147,7 @@ private fun parseExpenseAmount(amountStr: String): Double {
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
+    navController: androidx.navigation.NavHostController? = null,
     viewModel: BudgetViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
@@ -254,7 +255,8 @@ fun BudgetScreen(
                 BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
-                BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.GROUP_CHAT
+                BudgetScreenView.GROUP_CHAT -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.HELP_FEEDBACK -> BudgetScreenView.BUDGET_TRACKER
             }
@@ -497,6 +499,9 @@ fun BudgetScreen(
                                     onExpandedCardIdChange = { expandedCardId = it },
                                     onBackClick = onBackClick,
                                     onMenuClick = { showMenuBottomSheet = true },
+                                    onChatClick = {
+                                        currentView = BudgetScreenView.GROUP_CHAT
+                                    },
                                     onEditBudgetClick = { showEditBudgetSheet = true },
                                     onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
                                     onFilterClick = { showBottomSheet = true },
@@ -623,6 +628,15 @@ fun BudgetScreen(
                                         profileViewModel = profileViewModel,
                                         onBack = { currentView = BudgetScreenView.BUDGET_TRACKER },
                                         onShowAiChat = { showAiChat = true }
+                                    )
+                                }
+
+                                BudgetScreenView.GROUP_CHAT -> {
+                                    GroupChatScreen(
+                                        eventId = activeEventId.orEmpty(),
+                                        roomType = "Budget",
+                                        onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                        onMembersClick = { currentView = BudgetScreenView.MANAGE_ROOM_ACCESS }
                                     )
                                 }
                             }
@@ -833,16 +847,6 @@ fun BudgetScreen(
                             currentView = BudgetScreenView.EXPENSE_CATEGORY
                         },
                         iconPlacement = if(isOwner) IconPlacement.Top else IconPlacement.Left
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = userDefaultIcon,
-                        onClick = {
-                            showMenuBottomSheet = false
-                            currentView = BudgetScreenView.MANAGE_ROOM_ACCESS
-                        }
                     )
                 ),
                 listOf(

@@ -24,7 +24,7 @@ class MomentsRepositoryImpl @Inject constructor(
 
     override fun getFolders(eventId: String, parentId: String): Flow<List<MomentFolder>> = callbackFlow {
         val subscription = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("folders")
             .whereEqualTo("parentId", parentId)
             .addSnapshotListener { snapshot, error ->
@@ -43,11 +43,11 @@ class MomentsRepositoryImpl @Inject constructor(
     override fun getMoments(eventId: String, folderId: String): Flow<List<Moment>> = callbackFlow {
         val query = if (folderId.isEmpty() || folderId == "all_moments_id") {
             firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("all_moments")
         } else {
             firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("folders").document(folderId)
                 .collection("moments")
         }
@@ -74,7 +74,7 @@ class MomentsRepositoryImpl @Inject constructor(
 
         val currentUser = FirebaseAuth.getInstance().currentUser
         val foldersRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("folders")
         
         val docRef = foldersRef.document()
@@ -103,23 +103,23 @@ class MomentsRepositoryImpl @Inject constructor(
     private suspend fun ensureOwnerAccess(eventId: String) {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
         val roomDoc = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments").get().await()
+            .collection("rooms").document("Moments").get().await()
         
         if (!roomDoc.exists()) {
             firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .set(mapOf("updatedAt" to System.currentTimeMillis())).await()
         }
 
         // Check if owner is in the room users
         val membership = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("moments_room_users").document(currentUser.uid).get().await()
         
         if (!membership.exists()) {
             val eventDoc = firestore.collection("events").document(eventId).get().await()
             if (eventDoc.getString("ownerId") == currentUser.uid) {
-                userRepository.grantDirectRoomAccess(eventId, "moments", currentUser.email ?: "", currentUser.uid, UserRole.OWNER)
+                userRepository.grantDirectRoomAccess(eventId, "Moments", currentUser.email ?: "", currentUser.uid, UserRole.OWNER)
             }
         }
     }
@@ -129,7 +129,7 @@ class MomentsRepositoryImpl @Inject constructor(
         val actualFolderId = if (folderId.isEmpty() || folderId == "all_moments_id") {
             // Find/Create "All Moments" folder at root
             val allMomentsSnapshot = firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("folders")
                 .whereEqualTo("name", "All Moments")
                 .whereEqualTo("parentId", "")
@@ -143,7 +143,7 @@ class MomentsRepositoryImpl @Inject constructor(
         } else folderId
 
         val folderRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("folders").document(actualFolderId)
         
         val folderDoc = folderRef.get().await()
@@ -157,7 +157,7 @@ class MomentsRepositoryImpl @Inject constructor(
         // 3. Prepare Moment Data
         val currentUser = FirebaseAuth.getInstance().currentUser
         val momentId = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("all_moments").document().id
 
         val moment = Moment(
@@ -178,7 +178,7 @@ class MomentsRepositoryImpl @Inject constructor(
 
         // Save to global room collection
         val allMomentRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("all_moments").document(momentId)
         batch.set(allMomentRef, moment)
         
@@ -204,7 +204,7 @@ class MomentsRepositoryImpl @Inject constructor(
         }
 
         val subscription = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("moments_room_users").document(currentUser.uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -224,7 +224,7 @@ class MomentsRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMoment(eventId: String, folderId: String, momentId: String) {
         val momentDoc = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("all_moments").document(momentId).get().await()
         
         if (!momentDoc.exists()) return
@@ -245,14 +245,14 @@ class MomentsRepositoryImpl @Inject constructor(
         
         if (targetFolderId.isNotEmpty()) {
             val folderMomentRef = firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("folders").document(targetFolderId)
                 .collection("moments").document(momentId)
             batch.delete(folderMomentRef)
 
             // Update folder count
             val folderRef = firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("folders").document(targetFolderId)
             batch.update(folderRef, "itemCount", com.google.firebase.firestore.FieldValue.increment(-1))
         }
@@ -267,7 +267,7 @@ class MomentsRepositoryImpl @Inject constructor(
         }
         try {
             val rootFolderRef = firestore.collection("events").document(eventId)
-                .collection("rooms").document("moments")
+                .collection("rooms").document("Moments")
                 .collection("folders")
             
             // Collect all folders to delete (recursively)
@@ -302,7 +302,7 @@ class MomentsRepositoryImpl @Inject constructor(
                 val batch = firestore.batch()
                 moments.forEach { moment ->
                     val allMomentRef = firestore.collection("events").document(eventId)
-                        .collection("rooms").document("moments")
+                        .collection("rooms").document("Moments")
                         .collection("all_moments").document(moment.id)
                     batch.delete(allMomentRef)
                     batch.delete(momentsRef.document(moment.id))
@@ -332,7 +332,7 @@ class MomentsRepositoryImpl @Inject constructor(
         }
 
         val subscription = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("user_saved").document(currentUser.uid)
             .collection("moments")
             .orderBy("timestamp", Query.Direction.DESCENDING)
@@ -352,7 +352,7 @@ class MomentsRepositoryImpl @Inject constructor(
     override suspend fun toggleSaveMoment(eventId: String, moment: Moment) {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
         val docRef = firestore.collection("events").document(eventId)
-            .collection("rooms").document("moments")
+            .collection("rooms").document("Moments")
             .collection("user_saved").document(currentUser.uid)
             .collection("moments").document(moment.id)
 

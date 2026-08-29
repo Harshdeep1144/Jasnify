@@ -28,6 +28,7 @@ class RoomViewModel @Inject constructor(
     val hasAccess: StateFlow<Boolean?> = _hasAccess.asStateFlow()
 
     fun loadRoomUsers(eventId: String, roomType: String) {
+        if (eventId.isBlank()) return
         viewModelScope.launch {
             userRepository.getRoomUsers(eventId, roomType).collectLatest { users ->
                 _roomUsers.value = users
@@ -36,6 +37,7 @@ class RoomViewModel @Inject constructor(
     }
 
     fun verifyAccess(eventId: String, roomType: String, uid: String) {
+        if (eventId.isBlank()) return
         viewModelScope.launch {
             // 1. Try to load from cache first for instant UI response
             val cached = userRepository.getCachedRoomAccess(eventId, roomType, uid)
@@ -71,6 +73,7 @@ class RoomViewModel @Inject constructor(
     }
 
     fun grantAccess(eventId: String, roomType: String, email: String, role: UserRole) {
+        if (eventId.isBlank()) return
         viewModelScope.launch {
             try {
                 userRepository.grantRoomAccess(eventId, roomType, email, role)
@@ -81,6 +84,7 @@ class RoomViewModel @Inject constructor(
     }
 
     fun updateRole(eventId: String, roomType: String, user: User, newRole: UserRole) {
+        if (eventId.isBlank()) return
         viewModelScope.launch {
             try {
                 userRepository.updateRoomRole(user.uid, eventId, roomType, newRole)
@@ -91,6 +95,7 @@ class RoomViewModel @Inject constructor(
     }
 
     fun removeAccess(eventId: String, roomType: String, uid: String) {
+        if (eventId.isBlank()) return
         viewModelScope.launch {
             try {
                 userRepository.removeRoomAccess(eventId, roomType, uid)

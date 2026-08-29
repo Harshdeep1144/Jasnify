@@ -21,7 +21,9 @@ fun MomentsRoomContent(
     val currentUser = FirebaseAuth.getInstance().currentUser
 
     LaunchedEffect(eventId) {
-        roomViewModel.loadRoomUsers(eventId, "moments")
+        if (eventId.isNotBlank()) {
+            roomViewModel.loadRoomUsers(eventId, "Moments")
+        }
     }
 
     RoomScreen(
@@ -30,12 +32,12 @@ fun MomentsRoomContent(
         isSelf = { it.uid == currentUser?.uid },
         onBackClick = onBackClick,
         onMenuClick = { },
-        onRoleChange = { user, role -> roomViewModel.updateRole(eventId, "moments", user, role) },
-        onRemove = { user -> roomViewModel.removeAccess(eventId, "moments", user.uid) },
+        onRoleChange = { user, role -> roomViewModel.updateRole(eventId, "Moments", user, role) },
+        onRemove = { user -> roomViewModel.removeAccess(eventId, "Moments", user.uid) },
         onReport = { },
-        onLeave = { roomViewModel.removeAccess(eventId, "moments", currentUser?.uid ?: "") },
+        onLeave = { roomViewModel.removeAccess(eventId, "Moments", currentUser?.uid ?: "") },
         searchResults = searchResults,
         onSearch = { roomViewModel.searchUsers(it) },
-        onGrantAccess = { email, role -> roomViewModel.grantAccess(eventId, "moments", email, role) }
+        onGrantAccess = { email, role -> roomViewModel.grantAccess(eventId, "Moments", email, role) }
     )
 }

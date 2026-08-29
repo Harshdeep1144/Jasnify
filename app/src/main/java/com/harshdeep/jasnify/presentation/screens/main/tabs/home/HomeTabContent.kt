@@ -50,7 +50,6 @@ import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.screens.invitation_cards.CardsScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
-import com.harshdeep.jasnify.presentation.screens.moments.MomentsRoomContent
 import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
@@ -603,6 +602,7 @@ fun HomeTabContent(
                     "budget" -> eventViewModel?.let { vm ->
                         BudgetScreen(
                             onBackClick = { currentScreen = "home" },
+                            navController = mainNavController,
                             eventViewModel = vm
                         )
                     }
@@ -619,37 +619,31 @@ fun HomeTabContent(
                                 mainNavController.navigate("chat_screen/$merchantId/$itemId?itemType=Venue")
                             },
                             onBackClick = { currentScreen = "home" },
+                            navController = mainNavController,
                             eventViewModel = vm
                         )
                     }
                     "catering" -> eventViewModel?.let { vm ->
                         CateringMenuScreen(
                             onBackClick = { currentScreen = "home" },
+                            navController = mainNavController,
                             eventViewModel = vm
                         )
                     }
                     "cards" -> {
                         CardsScreen(
                             onBackClick = { currentScreen = "home" },
+                            navController = mainNavController,
                             eventViewModel = eventViewModel ?: hiltViewModel(),
                             roomViewModel = roomViewModel ?: hiltViewModel(),
                             cardViewModel = cardViewModel ?: hiltViewModel()
                         )
                     }
                     "moments" -> {
-                        val eventId = activeEvent?.id ?: ""
                         MomentsScreen(
-                            eventId = eventId,
                             onBackClick = { currentScreen = "home" },
-                            onManageRoomClick = { currentScreen = "moments_room" },
+                            navController = mainNavController,
                             viewModel = momentsViewModel ?: hiltViewModel()
-                        )
-                    }
-                    "moments_room" -> {
-                        MomentsRoomContent(
-                            eventId = activeEvent?.id ?: "",
-                            onBackClick = { currentScreen = "moments" },
-                            roomViewModel = roomViewModel ?: hiltViewModel()
                         )
                     }
                     "vendors" -> {

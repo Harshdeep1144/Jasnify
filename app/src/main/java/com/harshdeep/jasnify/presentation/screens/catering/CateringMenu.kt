@@ -95,7 +95,8 @@ import com.harshdeep.jasnify.presentation.components.states.CateringLoadingState
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorCategoryDetailContent
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
@@ -207,7 +208,8 @@ fun CateringMenuScreen(
                     eventViewModel = eventViewModel,
                     roomViewModel = roomViewModel,
                     vendorViewModel = vendorViewModel,
-                    profileViewModel = profileViewModel
+                    profileViewModel = profileViewModel,
+                    navController = navController
                 )
             }
         }
@@ -234,7 +236,8 @@ fun CateringMenuContent(
     eventViewModel: EventViewModel,
     roomViewModel: RoomViewModel,
     vendorViewModel: VendorViewModel,
-    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel,
+    navController: NavHostController? = null,
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -768,6 +771,9 @@ fun CateringMenuContent(
                                     onBackClick()
                                 },
                                 onMenuClick = handleMenuClick,
+                                onChatClick = {
+                                    screenStack = screenStack + CateringMenuView.GROUP_CHAT
+                                },
                                 onVendorClick = handleVendorClick,
                                 onFavoriteToggle = handleFavoriteToggle,
                                 onOfferClick = { vendor ->
@@ -911,6 +917,19 @@ fun CateringMenuContent(
                                     if (screenStack.size > 1) screenStack = screenStack.dropLast(1)
                                 },
                                 onShowAiChat = { showAiChat = true }
+                            )
+                        }
+
+                        CateringMenuView.GROUP_CHAT -> {
+                            GroupChatScreen(
+                                eventId = activeEvent.id,
+                                roomType = "Catering",
+                                onBackClick = {
+                                    screenStack = screenStack.dropLast(1)
+                                },
+                                onMembersClick = {
+                                    screenStack = screenStack + CateringMenuView.MANAGE_ROOM_ACCESS
+                                }
                             )
                         }
                     }
@@ -1362,16 +1381,6 @@ fun CateringMenuContent(
                         )
                     )
                 } else null,
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = userDefaultPainter,
-                        onClick = {
-                            showMenuBottomSheet = false
-                            screenStack = screenStack + CateringMenuView.MANAGE_ROOM_ACCESS
-                        }
-                    )
-                ),
                 listOf(
                     MenuSheetActionItem(
                         text = "Help & Feedback",
