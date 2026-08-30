@@ -540,6 +540,10 @@ fun ChecklistsTab(
                                                                 onSecondaryClick = {
                                                                     showGroupChat = true
                                                                 },
+                                                                tertiaryIcon = TopIcon.Predefined.SEARCH,
+                                                                onTertiaryClick = {
+                                                                    isSearchActive = true
+                                                                },
                                                                 onMenuClick = {
                                                                     focusManager.clearFocus()
                                                                     showMenuSheet = true

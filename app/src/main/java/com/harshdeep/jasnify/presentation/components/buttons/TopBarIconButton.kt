@@ -60,7 +60,8 @@ sealed interface TopIcon {
         CHECKLIST,       // Document with Checklist
         HEART,
         HEART_FILLED,
-        CHAT
+        CHAT,
+        DELETE
     }
     data class CustomPainter(val painter: Painter, val isTinted: Boolean = true) : TopIcon
 }
@@ -105,6 +106,7 @@ fun TopBarIconButton(
         TopIcon.Predefined.HEART -> painterResource(R.drawable.ic_top_bar_heart)
         TopIcon.Predefined.HEART_FILLED -> painterResource(R.drawable.ic_heart_filled)
         TopIcon.Predefined.CHAT -> painterResource(R.drawable.ic_message)
+        TopIcon.Predefined.DELETE -> painterResource(R.drawable.ic_delete)
         is TopIcon.CustomPainter -> icon.painter
     }
 

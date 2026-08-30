@@ -58,6 +58,8 @@ fun CustomTopBar(
     titleIcon: Painter? = null,
     secondaryIcon: TopIcon? = null,
     onSecondaryClick: (() -> Unit)? = null,
+    tertiaryIcon: TopIcon? = null,
+    onTertiaryClick: (() -> Unit)? = null,
 ) {
     Surface(
         color = Color.Transparent,
@@ -213,6 +215,21 @@ fun CustomTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    if (tertiaryIcon != null && onTertiaryClick != null) {
+                        TopBarIconButton(
+                            icon = tertiaryIcon,
+                            onClick = onTertiaryClick,
+                            backgroundStyle = buttonStyle,
+                            buttonColor = buttonColor,
+                            borderColor = borderColor,
+                            borderGradientColors = borderGradientColors,
+                            borderWidth = borderWidth,
+                            size = 40.dp,
+                            iconSize = 24.dp,
+                            iconColor = textColor,
+                            translucentAlpha = translucentAlpha
+                        )
+                    }
                     if (secondaryIcon != null && onSecondaryClick != null) {
                         TopBarIconButton(
                             icon = secondaryIcon,
@@ -295,12 +312,34 @@ fun CustomTopBar(
                 }
 
                 // Right Actions Box
-                val actionWidth = if (secondaryIcon != null && onSecondaryClick != null) 88.dp else 40.dp
+                var actionWidth = if (onMenuClick != null) 40.dp else 0.dp
+                if (secondaryIcon != null && onSecondaryClick != null) {
+                    actionWidth += if (actionWidth > 0.dp) 48.dp else 40.dp
+                }
+                if (tertiaryIcon != null && onTertiaryClick != null) {
+                    actionWidth += if (actionWidth > 0.dp) 48.dp else 40.dp
+                }
+
                 Box(modifier = Modifier.width(actionWidth), contentAlignment = Alignment.CenterEnd) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        if (tertiaryIcon != null && onTertiaryClick != null) {
+                            TopBarIconButton(
+                                icon = tertiaryIcon,
+                                onClick = onTertiaryClick,
+                                backgroundStyle = buttonStyle,
+                                buttonColor = buttonColor,
+                                borderColor = borderColor,
+                                borderGradientColors = borderGradientColors,
+                                borderWidth = borderWidth,
+                                size = 40.dp,
+                                iconSize = 24.dp,
+                                iconColor = textColor,
+                                translucentAlpha = translucentAlpha
+                            )
+                        }
                         if (secondaryIcon != null && onSecondaryClick != null) {
                             TopBarIconButton(
                                 icon = secondaryIcon,

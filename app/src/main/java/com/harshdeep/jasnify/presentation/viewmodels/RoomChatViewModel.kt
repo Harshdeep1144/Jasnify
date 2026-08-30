@@ -30,28 +30,45 @@ class RoomChatViewModel @Inject constructor(
     val currentUserUid = auth.currentUser?.uid ?: ""
 
     private var messageCollectionJob: Job? = null
+    private var currentEventId: String = ""
+    private var currentRoomType: String = ""
 
     fun loadMessages(eventId: String, roomType: String) {
         if (eventId.isBlank()) return
+        currentEventId = eventId
+        currentRoomType = roomType
         
-        // Cancel previous collection to prevent data leakage across rooms
         messageCollectionJob?.cancel()
-
-        // Reset messages immediately to prevent state leakage from previous room
         _messages.value = emptyList()
 
         messageCollectionJob = viewModelScope.launch {
             roomChatRepository.getRoomMessages(eventId, roomType).collectLatest { msgs ->
-                _messages.value = msgs
-
-                // Mark received messages from others as SEEN
-                val unseenIds = msgs.filter {
-                    it.senderId != currentUserUid && it.status != MessageStatus.SEEN
+                // Filter out messages deleted for the current user
+                val visibleMessages = msgs.filter { !it.deletedForUids.contains(currentUserUid) }
+                _messages.value = visibleMessages
+                
+                // Mark incoming messages as delivered if not already
+                val undeliveredIds = visibleMessages.filter { 
+                    it.senderId != currentUserUid && !it.deliveredTo.contains(currentUserUid) 
                 }.map { it.id }
-
-                if (unseenIds.isNotEmpty()) {
-                    roomChatRepository.markMessagesAsSeen(eventId, roomType, unseenIds)
+                
+                if (undeliveredIds.isNotEmpty()) {
+                    roomChatRepository.markMessagesAsDelivered(eventId, roomType, undeliveredIds, currentUserUid)
                 }
+            }
+        }
+    }
+
+    fun markRoomAsSeen() {
+        if (currentEventId.isBlank() || currentRoomType.isBlank()) return
+        
+        viewModelScope.launch {
+            val unseenIds = _messages.value.filter {
+                it.senderId != currentUserUid && !it.seenBy.containsKey(currentUserUid)
+            }.map { it.id }
+            
+            if (unseenIds.isNotEmpty()) {
+                roomChatRepository.markMessagesAsSeen(currentEventId, currentRoomType, unseenIds, currentUserUid)
             }
         }
     }
@@ -68,9 +85,28 @@ class RoomChatViewModel @Inject constructor(
                 status = MessageStatus.SENT
             )
             roomChatRepository.sendMessage(eventId, roomType, message)
-            
-            // Update last active
             userRepository.updateLastActive(currentUserUid, false)
+        }
+    }
+
+    fun editMessage(messageId: String, newText: String) {
+        if (currentEventId.isBlank() || currentRoomType.isBlank()) return
+        viewModelScope.launch {
+            roomChatRepository.editMessage(currentEventId, currentRoomType, messageId, newText)
+        }
+    }
+
+    fun deleteMessageForMe(messageId: String) {
+        if (currentEventId.isBlank() || currentRoomType.isBlank()) return
+        viewModelScope.launch {
+            roomChatRepository.deleteMessageForMe(currentEventId, currentRoomType, messageId, currentUserUid)
+        }
+    }
+
+    fun deleteMessageForEveryone(messageId: String) {
+        if (currentEventId.isBlank() || currentRoomType.isBlank()) return
+        viewModelScope.launch {
+            roomChatRepository.deleteMessageForEveryone(currentEventId, currentRoomType, messageId)
         }
     }
 }

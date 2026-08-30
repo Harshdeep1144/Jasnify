@@ -643,7 +643,7 @@ fun BudgetScreen(
                         }
                     }
 
-                    if (!isAnyBottomSheetOpen && !showAiChat && expensesEntities.isNotEmpty()) {
+                    if (!isAnyBottomSheetOpen && !showAiChat && expensesEntities.isNotEmpty() && currentView == BudgetScreenView.BUDGET_TRACKER) {
                         AskAiButton(
                             onClick = {
                                 aiChatContext = """
