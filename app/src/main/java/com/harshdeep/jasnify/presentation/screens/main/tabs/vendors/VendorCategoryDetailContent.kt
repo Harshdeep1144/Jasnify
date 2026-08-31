@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.content.Context
 import android.os.Build
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.annotation.RequiresApi
@@ -258,12 +259,20 @@ fun VendorCategoryDetailContent(
         getCategoryHighlightedTheme(category.name)
     }
 
-    val filteredVendors = remember(allVendors, searchQuery, selectedFilterIndex, vendorSavedDestinations, category.name) {
-        val query = searchQuery.trim()
-        val searched = if (query.isEmpty()) {
+    val locationFilteredVendors = remember(allVendors, selectedCity) {
+        if (selectedCity.isBlank() || selectedCity == "City, State") {
             allVendors
         } else {
-            allVendors.filter {
+            allVendors.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, selectedCity) }
+        }
+    }
+
+    val filteredVendors = remember(locationFilteredVendors, searchQuery, selectedFilterIndex, vendorSavedDestinations, category.name) {
+        val query = searchQuery.trim()
+        val searched = if (query.isEmpty()) {
+            locationFilteredVendors
+        } else {
+            locationFilteredVendors.filter {
                 it.name.contains(query, ignoreCase = true) ||
                         it.locality.contains(query, ignoreCase = true) ||
                         it.city.contains(query, ignoreCase = true)

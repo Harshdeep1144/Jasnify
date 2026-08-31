@@ -32,6 +32,7 @@ import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
 import com.harshdeep.jasnify.presentation.components.cards.HomeCard
+import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
@@ -72,16 +73,20 @@ fun HomeMainView(
     toastData: ToastData?,
     isSavedListToast: Boolean,
     isMultiDay: Boolean,
-    isVenuesLoading: Boolean,
-    trendingVenues: List<Venue>,
-    exploreVenues: List<Venue>,
+    selectedLocation: String = "City, State",
+    isVenuesLoading: Boolean = false,
+    trendingVenues: List<Venue> = emptyList(),
+    isVendorsLoading: Boolean = false,
+    trendingVendors: List<Vendor> = emptyList(),
     onMenuClick: () -> Unit,
     onNavigate: (String) -> Unit,
     onCategoryClick: (VendorCategoryItem) -> Unit,
     onVenueClick: (Venue) -> Unit,
+    onVendorClick: (Vendor) -> Unit = {},
     onVenueFavoriteToggle: (Venue) -> Unit,
     onVendorFavoriteToggle: (Vendor) -> Unit,
     onOfferClick: (Venue) -> Unit,
+    onVendorOfferClick: (Vendor) -> Unit = {},
     onToastChange: (ToastData?) -> Unit,
     onSaveListChange: (Venue?, Vendor?) -> Unit
 ) {
@@ -311,9 +316,10 @@ fun HomeMainView(
                     }
 
                     item(key = "trending_venues") {
+                        val locationSubtitle = if (selectedLocation.isNotBlank() && selectedLocation != "City, State") "In $selectedLocation" else "Top Spaces"
                         VenueCarousel(
                             title = "Trending Venues",
-                            subtitle = "Near Greater Noida",
+                            subtitle = locationSubtitle,
                             venues = trendingVenues,
                             isLoading = isVenuesLoading,
                             onVenueClick = onVenueClick,
@@ -325,17 +331,18 @@ fun HomeMainView(
                         )
                     }
 
-                    item(key = "more_venues") {
-                        VenueCarousel(
-                            title = "More Venues",
-                            subtitle = "To Explore",
-                            venues = exploreVenues,
-                            isLoading = isVenuesLoading,
-                            onVenueClick = onVenueClick,
+                    item(key = "trending_vendors") {
+                        val locationSubtitle = if (selectedLocation.isNotBlank() && selectedLocation != "City, State") "In $selectedLocation" else "Top Services"
+                        VendorCarousel(
+                            title = "Trending Vendors",
+                            subtitle = locationSubtitle,
+                            vendors = trendingVendors,
+                            isLoading = isVendorsLoading,
+                            onVendorClick = onVendorClick,
                             cardSize = CompactCardSize.MEDIUM,
-                            onFavoriteToggle = onVenueFavoriteToggle,
-                            onSeeAllClick = { onNavigate("venues") },
-                            onOfferClick = { venue -> onOfferClick(venue) },
+                            onFavoriteToggle = onVendorFavoriteToggle,
+                            onSeeAllClick = { onNavigate("vendors") },
+                            onOfferClick = { vendor -> onVendorOfferClick(vendor) },
                             modifier = Modifier.background(BackgroundPrimary)
                         )
                     }

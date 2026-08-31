@@ -200,7 +200,13 @@ fun VenueScreen(
         true
     }
 
-    val currentAddress = SessionState.currentLocation
+    val currentAddress = remember(selectedLocation, SessionState.currentLocation) {
+        if (selectedLocation.isNotBlank() && selectedLocation != "City, State") {
+            selectedLocation
+        } else {
+            SessionState.currentLocation
+        }
+    }
     var screenStack by remember { mutableStateOf(listOf(VenueScreenState.MAIN)) }
     val screenState = screenStack.last()
     var selectedTab by remember { mutableStateOf(initialTab) }
@@ -311,7 +317,13 @@ fun VenueScreen(
         }
     }
 
-    val exploreVenues = allVenues
+    val exploreVenues = remember(allVenues, currentAddress) {
+        if (currentAddress.isBlank() || currentAddress == "City, State") {
+            allVenues
+        } else {
+            allVenues.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, currentAddress) }
+        }
+    }
 
     val savedTimelineEvents = remember(venueSavedDestinations, timelineEvents, exploreVenues) {
         val list = mutableListOf<TimelineEvent>()
@@ -376,11 +388,19 @@ fun VenueScreen(
     }
     var appliedSortOption by remember { mutableStateOf(sortOptions[0]) }
 
-    val filterByOptions = remember {
-        listOf(
-            "Venue", "Catering", "Gifts", "Staff & Crew",
-            "Costumes", "Vendors", "Transportation", "Entertainment"
+    val filterByOptions = remember(allVenues) {
+        val defaultVenueTypes = listOf(
+            "Banquet Hall",
+            "Resort",
+            "Hotel",
+            "Lawn / Farmhouse",
+            "Heritage Property",
+            "Palace",
+            "Villa",
+            "Beachfront Venue"
         )
+        val dynamicTypes = allVenues.mapNotNull { it.type }.filter { it.isNotBlank() }
+        (defaultVenueTypes + dynamicTypes).distinct()
     }
     var appliedFilterOptions by remember { mutableStateOf(setOf<String>()) }
 
@@ -1069,7 +1089,10 @@ fun VenueMainContent(
         if (appliedFilterOptions.isNotEmpty()) {
             result = result.filter { venue ->
                 appliedFilterOptions.any { filter ->
-                    venue.type?.equals(filter, ignoreCase = true) == true
+                    val venueType = venue.type ?: ""
+                    venueType.equals(filter, ignoreCase = true) ||
+                    venueType.contains(filter, ignoreCase = true) ||
+                    filter.contains(venueType, ignoreCase = true)
                 }
             }
         }
