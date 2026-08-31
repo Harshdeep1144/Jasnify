@@ -423,7 +423,7 @@ fun ExpenseSummaryContent(
                     onClick = { onAiOverviewClick() },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(bottom = 240.dp)
+                        .padding(bottom = 156.dp)
                         .zIndex(150f)
                 )
             }

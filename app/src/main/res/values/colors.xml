@@ -8,4 +8,6 @@
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
     <color name="background_brand">#557373</color>
+    <color name="content_brand_dark">#006363</color>
+    <color name="notification_default_color">#006363</color>
 </resources>

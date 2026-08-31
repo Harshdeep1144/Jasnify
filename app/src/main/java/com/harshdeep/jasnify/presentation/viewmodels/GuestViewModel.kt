@@ -7,10 +7,7 @@ import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.repository.GuestRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -20,23 +17,24 @@ class GuestViewModel @Inject constructor(
     private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
-    private val _guests = MutableStateFlow<List<Guest>>(emptyList())
-    val guests: StateFlow<List<Guest>> = _guests.asStateFlow()
-
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _eventId = MutableStateFlow<String?>(null)
 
-    fun setEventId(eventId: String) {
-        if (_eventId.value == eventId) return
-        _eventId.value = eventId
-        viewModelScope.launch {
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val guests: StateFlow<List<Guest>> = _eventId
+        .filterNotNull()
+        .flatMapLatest { eventId ->
             _isLoading.value = true
-            repository.getGuests(eventId).collectLatest {
-                _guests.value = it
-                _isLoading.value = false
-            }
+            repository.getGuests(eventId)
+        }
+        .onEach { _isLoading.value = false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    fun setEventId(eventId: String) {
+        if (_eventId.value != eventId) {
+            _eventId.value = eventId
         }
     }
 

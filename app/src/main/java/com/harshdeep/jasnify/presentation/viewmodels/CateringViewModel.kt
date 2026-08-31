@@ -17,7 +17,10 @@ class CateringViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _isLoading = MutableStateFlow(true)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    private val _isSeeding = MutableStateFlow(false)
+    val isLoading: StateFlow<Boolean> = combine(_isLoading, _isSeeding) { loading, seeding ->
+        loading || seeding
+    }.stateIn(viewModelScope, SharingStarted.Lazily, true)
 
     private val _eventId = MutableStateFlow<String?>(null)
 
@@ -31,8 +34,8 @@ class CateringViewModel @Inject constructor(
                 repository.getCateringItems(id).map { it as List<CateringItemEntity>? }
             }
         }
-        .onEach { 
-            if (it != null) {
+        .onEach { items ->
+            if (items != null && items.isNotEmpty()) {
                 _isLoading.value = false 
             }
         }
@@ -85,7 +88,13 @@ class CateringViewModel @Inject constructor(
     fun seedDefaultMenu(eventType: String, eventId: String) {
         setEventId(eventId)
         viewModelScope.launch {
-            repository.seedDefaultItems(eventType, eventId)
+            _isSeeding.value = true
+            try {
+                repository.seedDefaultItems(eventType, eventId)
+            } finally {
+                _isSeeding.value = false
+                _isLoading.value = false 
+            }
         }
     }
 

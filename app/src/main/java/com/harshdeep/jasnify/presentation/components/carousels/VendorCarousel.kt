@@ -39,6 +39,8 @@ fun VendorCarousel(
     title: String,
     vendors: List<Vendor>,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    subtitlePosition: SubtitlePosition = SubtitlePosition.BELOW,
     isLoading: Boolean = false,
     onSeeAllClick: (() -> Unit)? = null,
     onVendorClick: (Vendor) -> Unit = {},
@@ -54,19 +56,14 @@ fun VendorCarousel(
             .padding(vertical = 12.dp)
     ) {
         // Section Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .clickable(
-                    enabled = onSeeAllClick != null && !isLoading,
-                    onClick = { onSeeAllClick?.invoke() }
-                ),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isLoading && shimmerBrush != null) {
-                // Shimmering Heading
+        if (isLoading && shimmerBrush != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Box(
                     modifier = Modifier
                         .width(200.dp)
@@ -74,23 +71,15 @@ fun VendorCarousel(
                         .clip(RoundedCornerShape(4.dp))
                         .background(shimmerBrush)
                 )
-            } else {
-                Text(
-                    text = title,
-                    style = JasnifyTheme.typography.headingLarge,
-                    fontWeight = FontWeight.Medium,
-                    color = ContentPrimary,
-                )
             }
-
-            if (onSeeAllClick != null && !isLoading) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = "See All",
-                    tint = ContentPrimary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+        } else {
+            CarouselHeader(
+                title = title,
+                subtitle = subtitle,
+                subtitlePosition = subtitlePosition,
+                onSeeAllClick = onSeeAllClick,
+                isLoading = isLoading
+            )
         }
 
         Spacer(modifier = Modifier.height(12.dp))

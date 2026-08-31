@@ -44,6 +44,24 @@ class UserRepositoryImpl @Inject constructor(
         firestore.collection("users").document(user.uid).set(user, com.google.firebase.firestore.SetOptions.merge()).await()
     }
 
+    override suspend fun updateFcmToken(uid: String, token: String) {
+        if (uid.isBlank()) return
+        try {
+            firestore.collection("users").document(uid).update("fcmToken", token).await()
+        } catch (e: Exception) {
+            // If document doesn't exist, we might need to create it or ignore
+        }
+    }
+
+    override suspend fun updateAppVersion(uid: String, versionCode: Int) {
+        if (uid.isBlank()) return
+        try {
+            firestore.collection("users").document(uid).update("versionCode", versionCode).await()
+        } catch (e: Exception) {
+            // ignore
+        }
+    }
+
     override suspend fun deleteUserProfile(uid: String) {
         firestore.collection("users").document(uid).delete().await()
     }
@@ -108,6 +126,20 @@ class UserRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun getRoomDocId(roomType: String): String {
+        return when (roomType.lowercase()) {
+            "budget" -> "Budget"
+            "catering" -> "Catering"
+            "checklist" -> "Checklist"
+            "vendors" -> "Vendors"
+            "venue" -> "Venue"
+            "guest" -> "Guest"
+            "cards" -> "Cards"
+            "moments" -> "Moments"
+            else -> roomType.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
+        }
+    }
+
     private fun getUserCollectionName(roomType: String): String {
         val name = when (roomType.lowercase()) {
             "budget" -> "budget_room_users"
@@ -129,6 +161,7 @@ class UserRepositoryImpl @Inject constructor(
             return
         }
         val cleanEmail = email.lowercase().trim()
+        val normalizedRoom = getRoomDocId(roomType)
 
         try {
             // Check if user already exists in the system
@@ -137,15 +170,15 @@ class UserRepositoryImpl @Inject constructor(
 
             if (existingUser != null && isAlreadyMemberOfEvent) {
                 android.util.Log.d("UserRepository", "User $cleanEmail exists and is already a member of event $eventId. Granting DIRECT access.")
-                grantDirectRoomAccess(eventId, roomType, cleanEmail, existingUser.uid, role)
+                grantDirectRoomAccess(eventId, normalizedRoom, cleanEmail, existingUser.uid, role)
                 return
             }
 
             // CRITICAL: Explicitly create/update the room document so it's a "real" parent.
             firestore.collection("events").document(eventId)
-                .collection("rooms").document(roomType)
+                .collection("rooms").document(normalizedRoom)
                 .set(mapOf(
-                    "id" to roomType,
+                    "id" to normalizedRoom,
                     "updatedAt" to System.currentTimeMillis()
                 ), com.google.firebase.firestore.SetOptions.merge())
                 .await()
@@ -153,14 +186,14 @@ class UserRepositoryImpl @Inject constructor(
             // User doesn't exist, store in pending_access for when they sign up
             val pendingData = mapOf(
                 "eventId" to eventId,
-                "roomType" to roomType,
+                "roomType" to normalizedRoom,
                 "role" to role.name,
                 "email" to cleanEmail
             )
 
-            android.util.Log.d("UserRepository", "Storing access request in pending_access for $cleanEmail in $roomType")
+            android.util.Log.d("UserRepository", "Storing access request in pending_access for $cleanEmail in $normalizedRoom")
             firestore.collection("events").document(eventId)
-                .collection("rooms").document(roomType)
+                .collection("rooms").document(normalizedRoom)
                 .collection("pending_access").document(cleanEmail)
                 .set(pendingData).await()
 
@@ -174,12 +207,13 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun grantDirectRoomAccess(eventId: String, roomType: String, email: String, uid: String, role: UserRole) {
         val cleanEmail = email.lowercase().trim()
         val user = getUserProfile(uid) ?: return
-        val collectionName = getUserCollectionName(roomType)
+        val normalizedRoom = getRoomDocId(roomType)
+        val collectionName = getUserCollectionName(normalizedRoom)
 
         try {
             // Ensure parent room doc exists
             firestore.collection("events").document(eventId)
-                .collection("rooms").document(roomType)
+                .collection("rooms").document(normalizedRoom)
                 .set(mapOf("updatedAt" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
                 .await()
 
@@ -192,9 +226,9 @@ class UserRepositoryImpl @Inject constructor(
                 "profilePictureUrl" to user.profilePictureUrl
             )
 
-            android.util.Log.d("UserRepository", "Granting DIRECT access to $uid in $roomType")
+            android.util.Log.d("UserRepository", "Granting DIRECT access to $uid in $normalizedRoom")
             firestore.collection("events").document(eventId)
-                .collection("rooms").document(roomType)
+                .collection("rooms").document(normalizedRoom)
                 .collection(collectionName).document(uid)
                 .set(accessData).await()
 
@@ -308,6 +342,7 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String) {
+        if (eventId.isBlank()) return
         val collectionName = getUserCollectionName(roomType)
         try {
             // 1. Delete from room sub-collection
@@ -346,9 +381,15 @@ class UserRepositoryImpl @Inject constructor(
 
 
     override fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>> = callbackFlow {
-        val collectionName = getUserCollectionName(roomType)
+        if (eventId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+        val normalizedRoom = getRoomDocId(roomType)
+        val collectionName = getUserCollectionName(normalizedRoom)
         val subscription = firestore.collection("events").document(eventId)
-            .collection("rooms").document(roomType)
+            .collection("rooms").document(normalizedRoom)
             .collection(collectionName)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -379,6 +420,38 @@ class UserRepositoryImpl @Inject constructor(
                 }
             }
         awaitClose { subscription.remove() }
+    }
+
+    override fun getRoomPictureUrlFlow(eventId: String, roomType: String): Flow<String?> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(null)
+            close()
+            return@callbackFlow
+        }
+        val normalizedRoom = getRoomDocId(roomType)
+        val subscription = firestore.collection("events").document(eventId)
+            .collection("rooms").document(normalizedRoom)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+                val url = snapshot?.getString("profilePictureUrl")
+                trySend(url)
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun updateRoomPictureUrl(eventId: String, roomType: String, url: String) {
+        if (eventId.isBlank()) return
+        val normalizedRoom = getRoomDocId(roomType)
+        firestore.collection("events").document(eventId)
+            .collection("rooms").document(normalizedRoom)
+            .set(
+                mapOf("profilePictureUrl" to url, "updatedAt" to System.currentTimeMillis()),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            .await()
     }
 
     override suspend fun checkPendingAccess(email: String): List<PendingAccess> {
@@ -695,5 +768,29 @@ class UserRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             false
         }
+    }
+
+    override suspend fun isUsernameTaken(username: String): Boolean {
+        return try {
+            val querySnapshot = firestore.collection("users")
+                .whereEqualTo("username", username.trim())
+                .limit(1)
+                .get()
+                .await()
+            !querySnapshot.isEmpty
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    override suspend fun submitFeedback(userId: String, userName: String, rating: Int, feedback: String) {
+        val feedbackData = mapOf(
+            "userId" to userId,
+            "userName" to userName,
+            "rating" to rating,
+            "feedback" to feedback,
+            "timestamp" to System.currentTimeMillis()
+        )
+        firestore.collection("feedbacks").add(feedbackData).await()
     }
 }

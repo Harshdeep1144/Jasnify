@@ -73,7 +73,7 @@ import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.ChecklistItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType

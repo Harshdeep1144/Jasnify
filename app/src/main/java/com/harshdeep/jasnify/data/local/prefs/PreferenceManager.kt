@@ -2,7 +2,7 @@
 
 import android.content.Context
 import android.content.SharedPreferences
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleOption
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton

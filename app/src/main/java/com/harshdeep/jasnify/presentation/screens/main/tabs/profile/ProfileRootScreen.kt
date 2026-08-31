@@ -3,9 +3,13 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.profile
 import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,10 +22,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -35,7 +39,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,22 +49,33 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.PlanType
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.PlanCard
 import com.harshdeep.jasnify.presentation.components.cards.ProfileMenuCell
+import com.harshdeep.jasnify.presentation.components.others.CustomToast
+import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.ContentBrand
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
@@ -66,23 +83,14 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.theme.TopBrandDarkGradientBrush
 import com.harshdeep.jasnify.theme.TopBrandGradientBrush
 import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import sv.lib.squircleshape.SquircleShape
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.time.Duration.Companion.milliseconds
 
 private val CellGroupShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-
-private data class OneShotParticle(
-    val iconRes: Int,
-    val angleDeg: Double,
-    val targetDistance: Float,
-    val delayMs: Long
-)
 
 @SuppressLint("ConfigurationScreenWidthHeight")
 @RequiresApi(Build.VERSION_CODES.O)
@@ -97,8 +105,13 @@ fun ProfileRootScreen(
     onEditProfile: () -> Unit,
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit,
+    onPlanClick: (PlanType) -> Unit,
     lazyListState: LazyListState = rememberLazyListState()
 ) {
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val haptic = LocalHapticFeedback.current
+
     val editIcon = painterResource(R.drawable.ic_edit)
     val eventsStackIcon = painterResource(R.drawable.ic_events_stack)
     val messageTypingIcon = painterResource(R.drawable.ic_message_typing)
@@ -107,46 +120,71 @@ fun ProfileRootScreen(
     val notificationIcon = painterResource(R.drawable.ic_notification)
     val termsIcon = painterResource(R.drawable.ic_terms_and_conditions)
     val privacyIcon = painterResource(R.drawable.ic_privacy_policy)
+    val helpIcon = painterResource(R.drawable.ic_help_feedback)
     val logoutIcon = painterResource(R.drawable.ic_logout)
-    val placeholderIcon = painterResource(R.drawable.ic_user_profile)
+    val lockIcon = painterResource(R.drawable.ic_lock)
+    val placeholderIcon = painterResource(R.drawable.img_profile_placeholder)
 
-    // 16 icons expanding across a wider dispersion radius (up to 155dp)
-    val particleList = remember {
-        listOf(
-            OneShotParticle(R.drawable.ic_food, 12.0, 142f, 0L),
-            OneShotParticle(R.drawable.ic_gifts, 34.0, 128f, 60L),
-            OneShotParticle(R.drawable.ic_photographers, 58.0, 150f, 30L),
-            OneShotParticle(R.drawable.ic_makeup, 82.0, 132f, 90L),
-            OneShotParticle(R.drawable.ic_entertainment, 105.0, 148f, 20L),
-            OneShotParticle(R.drawable.ic_outfits, 128.0, 135f, 75L),
-            OneShotParticle(R.drawable.ic_jewellery, 150.0, 155f, 40L),
-            OneShotParticle(R.drawable.ic_mehendi, 172.0, 130f, 100L),
-            OneShotParticle(R.drawable.ic_grooming, 195.0, 146f, 15L),
-            OneShotParticle(R.drawable.ic_vendor, 218.0, 134f, 70L),
-            OneShotParticle(R.drawable.ic_paint, 240.0, 152f, 35L),
-            OneShotParticle(R.drawable.ic_book, 262.0, 129f, 95L),
-            OneShotParticle(R.drawable.ic_calendar, 285.0, 149f, 25L),
-            OneShotParticle(R.drawable.ic_pen, 308.0, 136f, 80L),
-            OneShotParticle(R.drawable.ic_category, 330.0, 154f, 45L),
-            OneShotParticle(R.drawable.ic_coin_hand, 352.0, 132f, 110L)
-        )
+    var headerHeightDp by remember { mutableStateOf(configuration.screenHeightDp.dp * 0.5f) }
+    var isReadyToPlay by remember { mutableStateOf(false) }
+
+    var toastData by remember { mutableStateOf(ToastData()) }
+
+    LaunchedEffect(toastData.message) {
+        if (toastData.message != null) {
+            delay(3000L.milliseconds)
+            toastData = toastData.copy(message = null)
+        }
     }
 
-    // Individual animates for each particle
-    val animProgressList = remember { List(particleList.size) { Animatable(0f) } }
+    // Load Lottie composition
+    val composition by rememberLottieComposition(LottieCompositionSpec.RawRes(R.raw.ani_profile_bg_pattern))
 
-    LaunchedEffect(Unit) {
-        delay(180.milliseconds)
-        particleList.forEachIndexed { index, particle ->
-            launch {
-                delay(particle.delayMs.milliseconds)
-                animProgressList[index].animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(
-                        durationMillis = 2000,
-                        easing = FastOutSlowInEasing
-                    )
+    LaunchedEffect(composition) {
+        if (composition != null) {
+            delay(400L.milliseconds)
+            isReadyToPlay = true
+        }
+    }
+
+    val lottieAnimState = animateLottieCompositionAsState(
+        composition = composition,
+        isPlaying = isReadyToPlay,
+        restartOnPlay = false,
+        iterations = 1,
+    )
+
+    // Smooth, relaxed scale-down and scale-up transition
+    val avatarScale = remember { Animatable(1f) }
+    LaunchedEffect(isReadyToPlay) {
+        if (isReadyToPlay) {
+            // Gentle ease down
+            avatarScale.animateTo(
+                targetValue = 0.92f,
+                animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing)
+            )
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            // Soft expansion back to 1.0f
+            avatarScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(
+                    durationMillis = 450,
+                    easing = CubicBezierEasing(0.34f, 1.3f, 0.64f, 1f)
                 )
+            )
+        }
+    }
+
+    val gradientAlpha by remember {
+        derivedStateOf {
+            if (!isReadyToPlay || composition == null) {
+                0f
+            } else if (lottieAnimState.isAtEnd && lottieAnimState.progress > 0.5f) {
+                1f
+            } else if (lottieAnimState.progress >= 0.85f) {
+                ((lottieAnimState.progress - 0.85f) / 0.15f).coerceIn(0f, 1f)
+            } else {
+                0f
             }
         }
     }
@@ -158,14 +196,6 @@ fun ProfileRootScreen(
         if (enquiryCount == 1) "1 Enquiry" else "$enquiryCount Enquiries"
     }
 
-    // Dynamic brand gradient height relative to screen height
-    val configuration = LocalConfiguration.current
-    val dynamicGradientHeight = remember(configuration.screenHeightDp) {
-        (configuration.screenHeightDp.dp * 0.40f).coerceIn(480.dp, 560.dp)
-    }
-
-    // Calculate fade alpha: starts at 0 and reaches 1 over the top scroll range
-    val density = LocalDensity.current
     val scrollThresholdPx = with(density) { 160.dp.toPx() }
     val overlayAlpha by remember {
         derivedStateOf {
@@ -182,75 +212,77 @@ fun ProfileRootScreen(
             .fillMaxSize()
             .background(BackgroundPrimary)
     ) {
-        // Extended Brand Gradient Backdrop scaled dynamically to screen size
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(dynamicGradientHeight)
-                .graphicsLayer {
-                    translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
-                    alpha = (1f - overlayAlpha)
-                }
-                .background(TopBrandGradientBrush)
-        )
+        // Brand Gradient Backdrop
+        if (gradientAlpha > 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeightDp * 1.5f)
+                    .graphicsLayer {
+                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                        alpha = gradientAlpha * (1f - overlayAlpha)
+                    }
+                    .background(TopBrandDarkGradientBrush)
+            )
+        }
 
+        // Full-bleed Lottie Animation Overlay
+        if (isReadyToPlay && gradientAlpha < 1f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(headerHeightDp)
+                    .graphicsLayer {
+                        translationY = -lazyListState.firstVisibleItemScrollOffset.toFloat()
+                        alpha = (1f - gradientAlpha) * (1f - overlayAlpha)
+                    }
+            ) {
+                LottieAnimation(
+                    composition = composition,
+                    progress = { lottieAnimState.progress },
+                    contentScale = ContentScale.Crop,
+                    alignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                )
+            }
+        }
+
+        // Scrollable Foreground Content Layer
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState
         ) {
-            // 1. User Header
+            // User Header
             item(key = "user_header", contentType = "header") {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        contentAlignment = Alignment.Center
-                    ) {
-                        particleList.forEachIndexed { index, particle ->
-                            val progress = animProgressList[index].value
-
-                            if (progress > 0f && progress < 1f) {
-                                val currentDistance = 45f + ((particle.targetDistance - 45f) * progress)
-                                val rad = Math.toRadians(particle.angleDeg)
-
-                                val horizontalMultiplier = 1.6f
-                                val verticalMultiplier = 0.65f
-
-                                val offsetX = (currentDistance * cos(rad) * horizontalMultiplier).dp
-                                val offsetY = (currentDistance * sin(rad) * verticalMultiplier).dp
-
-                                val alpha = when {
-                                    progress < 0.22f -> (progress / 0.22f) * 0.95f
-                                    progress < 0.65f -> 0.95f
-                                    else -> ((1f - progress) / 0.35f) * 0.95f
-                                }.coerceIn(0f, 0.95f)
-
-                                val scale = 0.6f + (0.5f * progress)
-
-                                Icon(
-                                    painter = painterResource(particle.iconRes),
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .offset(x = offsetX, y = offsetY)
-                                        .graphicsLayer {
-                                            this.alpha = alpha
-                                            scaleX = scale
-                                            scaleY = scale
-                                        }
-                                        .size(16.dp),
-                                    tint = ContentBrand
-                                )
+                        .onGloballyPositioned { coordinates ->
+                            val measured = with(density) { coordinates.size.height.toDp() }
+                            if (measured > 0.dp) {
+                                headerHeightDp = measured
                             }
                         }
-
-                        // Profile Picture Container
+                        .statusBarsPadding()
+                        .padding(horizontal = 12.dp, vertical = 20.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        // User Avatar with Smooth Scale
                         Box(
                             modifier = Modifier
+                                .graphicsLayer {
+                                    scaleX = avatarScale.value
+                                    scaleY = avatarScale.value
+                                }
                                 .size(128.dp)
                                 .clip(CircleShape)
                                 .background(SurfaceSecondary)
@@ -263,34 +295,35 @@ fun ProfileRootScreen(
                                 placeholder = placeholderIcon
                             )
                         }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        Text(
+                            text = userName,
+                            style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
+                            color = ContentPrimary
+                        )
+                        Text(
+                            text = userHandle,
+                            style = JasnifyTheme.typography.labelLarge,
+                            color = ContentSecondary
+                        )
+                        Spacer(Modifier.height(16.dp))
+
+                        CustomTextButton(
+                            onClick = onEditProfile,
+                            text = "Edit Profile",
+                            size = ButtonSize.Small,
+                            leadingIcon = editIcon,
+                            containerColor = SurfacePrimary,
+                            contentColor = ContentPrimary,
+                            modifier = Modifier.wrapContentHeight()
+                        )
                     }
-
-                    Spacer(Modifier.height(14.dp))
-
-                    Text(
-                        text = userName,
-                        style = JasnifyTheme.typography.displaySmall.copy(fontWeight = FontWeight.Medium),
-                        color = ContentPrimary
-                    )
-                    Text(
-                        text = userHandle,
-                        style = JasnifyTheme.typography.labelLarge,
-                        color = ContentSecondary
-                    )
-                    Spacer(Modifier.height(16.dp))
-
-                    CustomTextButton(
-                        onClick = onEditProfile,
-                        text = "Edit Profile",
-                        size = ButtonSize.Small,
-                        leadingIcon = editIcon,
-                        containerColor = SurfacePrimary,
-                        contentColor = ContentPrimary
-                    )
                 }
             }
 
-            // 2. Plan Cards
+            // Plan Cards
             item(key = "plan_cards", contentType = "plan_carousel") {
                 Row(
                     modifier = Modifier
@@ -302,30 +335,36 @@ fun ProfileRootScreen(
                     PlanCard(
                         planName = "Basic Plan",
                         price = "FREE",
-                        backgroundColor = Color(0xFFF4E3E2),
                         isCurrentPlan = true,
-                        onViewBenefitsClick = {}
+                        planType = PlanType.BASIC,
+                        onViewBenefitsClick = { onPlanClick(PlanType.BASIC) }
                     )
                     PlanCard(
                         planName = "Pro",
                         price = "$5/month",
-                        backgroundColor = Color(0xFFFFDAB9),
                         buttonText = "Upgrade Now",
-                        onButtonClick = {},
-                        onViewBenefitsClick = {}
+                        planType = PlanType.PRO,
+                        onUpgradeNowClick = {
+                            toastData = ToastData("Coming Soon!", ToastType.DEFAULT)
+                        },
+                        onViewBenefitsClick = { onPlanClick(PlanType.PRO) },
+                        buttonLeadingIcon = lockIcon
                     )
                     PlanCard(
                         planName = "Ultimate",
                         price = "$20/month",
-                        backgroundColor = Color(0xFFD3CDE8),
                         buttonText = "Upgrade Now",
-                        onButtonClick = {},
-                        onViewBenefitsClick = {}
+                        planType = PlanType.ULTIMATE,
+                        onUpgradeNowClick = {
+                            toastData = ToastData("Coming Soon!", ToastType.DEFAULT)
+                        },
+                        onViewBenefitsClick = { onPlanClick(PlanType.ULTIMATE) },
+                        buttonLeadingIcon = lockIcon
                     )
                 }
             }
 
-            // 3. Grid Actions
+            // Grid Actions
             item(key = "grid_actions", contentType = "grid_actions") {
                 Row(
                     modifier = Modifier
@@ -350,7 +389,7 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 4. Menu Items
+            // Menu Items
             item(key = "menu_items", contentType = "menu_items") {
                 Column(
                     modifier = Modifier
@@ -409,13 +448,13 @@ fun ProfileRootScreen(
                             .background(SurfacePrimary)
                     ) {
                         ProfileMenuCell(
-                            title = "Terms of Use",
+                            title = "Help & Feedback",
                             subtitle = null,
-                            icon = termsIcon,
+                            icon = helpIcon,
                             hasBorder = false,
                             shape = RectangleShape,
                             containerColor = Color.Transparent,
-                            onClick = { onNavigateTo(ProfileScreen.TermsOfUse) }
+                            onClick = { onNavigateTo(ProfileScreen.HelpFeedback) }
                         )
                         ProfileMenuCell(
                             title = "Privacy Policy",
@@ -425,6 +464,15 @@ fun ProfileRootScreen(
                             shape = RectangleShape,
                             containerColor = Color.Transparent,
                             onClick = { onNavigateTo(ProfileScreen.PrivacyPolicy) }
+                        )
+                        ProfileMenuCell(
+                            title = "Terms of Use",
+                            subtitle = null,
+                            icon = termsIcon,
+                            hasBorder = false,
+                            shape = RectangleShape,
+                            containerColor = Color.Transparent,
+                            onClick = { onNavigateTo(ProfileScreen.TermsOfUse) }
                         )
                     }
 
@@ -439,13 +487,13 @@ fun ProfileRootScreen(
                 }
             }
 
-            // 5. Footer
+            // Footer
             item(key = "footer", contentType = "footer") {
                 FooterJansify()
             }
         }
 
-        // Pinned Top Status Bar Gradient Overlay (fades in as user scrolls)
+        // Pinned Status Bar Gradient Overlay
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -456,6 +504,21 @@ fun ProfileRootScreen(
                 }
                 .background(TopGradientBrushLightTheme)
         )
+
+        // Pinned Toast Notification (Animated from Top)
+        AnimatedVisibility(
+            visible = toastData.message != null,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .statusBarsPadding()
+                .fillMaxWidth()
+                .zIndex(99f)
+                .padding(horizontal = 12.dp, vertical = 16.dp)
+        ) {
+            CustomToast(message = toastData.message.orEmpty(), type = toastData.type)
+        }
     }
 }
 
@@ -513,15 +576,16 @@ fun ProfileGridCell(
 fun ProfileTabPreview() {
     JasnifyTheme {
         ProfileRootScreen(
-            userName = "Anand K.",
-            userHandle = "@viratanand",
-            profilePic = R.drawable.ic_user_profile,
+            userName = "Harsh Deep",
+            userHandle = "@harshdeep",
+            profilePic = R.drawable.img_profile_placeholder,
             eventCount = 2,
             enquiryCount = 5,
             notificationEnabled = true,
             onEditProfile = {},
             onNavigateTo = {},
-            onLogout = {}
+            onLogout = {},
+            onPlanClick = {}
         )
     }
 }

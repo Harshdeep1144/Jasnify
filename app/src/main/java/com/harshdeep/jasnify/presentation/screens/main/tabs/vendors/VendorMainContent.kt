@@ -28,7 +28,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.graphics.graphicsLayer
@@ -38,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.core.content.edit
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
@@ -70,6 +68,7 @@ fun VendorMainContent(
     isSearchActive: Boolean,
     onSearchActiveChange: (Boolean) -> Unit,
     onMenuClick: () -> Unit,
+    onChatClick: () -> Unit,
     onLocationClick: () -> Unit,
     onCategoryClick: (VendorCategoryItem) -> Unit,
     onVendorClick: (Vendor) -> Unit,
@@ -188,6 +187,8 @@ fun VendorMainContent(
                                 onMenuClick = if (active) null else onMenuClick,
                                 onDropdownClick = if (active) null else onLocationClick,
                                 titleIcon = if (active) null else vendorTitlePainter,
+                                secondaryIcon = if (active) null else TopIcon.Predefined.CHAT,
+                                onSecondaryClick = if (active) null else onChatClick,
                                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                 backIcon = TopIcon.Predefined.DOWN,
                                 isLargeTitle = true,
@@ -270,7 +271,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_makeup", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Top Makeup Artists in $selectedCity",
+                            title = "Top Makeup Artists",
+                            subtitle = "In $selectedCity",
                             vendors = makeupVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
@@ -286,7 +288,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_photography", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Best Photographers in $selectedCity",
+                            title = "Best Photographers",
+                            subtitle = "In $selectedCity",
                             vendors = photographyVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->
@@ -302,7 +305,8 @@ fun VendorMainContent(
                     }
                     item(key = "carousel_mehendi", contentType = "vendor_carousel") {
                         VendorCarousel(
-                            title = "Expert Mehendi Artists in $selectedCity",
+                            title = "Expert Mehendi Artists",
+                            subtitle = "In $selectedCity",
                             vendors = mehendiVendors,
                             isLoading = isLoading,
                             onVendorClick = { vendor ->

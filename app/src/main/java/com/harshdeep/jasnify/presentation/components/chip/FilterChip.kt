@@ -79,7 +79,7 @@ fun getChipStyles(
     isTransparent: Boolean = false
 ): ChipStyles {
     val shape = when (shapeStyle) {
-        ChipShapeStyle.Square -> RoundedCornerShape(CornerLarge)
+        ChipShapeStyle.Square -> RoundedCornerShape(CornerMedium)
         ChipShapeStyle.Round -> CircleShape
     }
 

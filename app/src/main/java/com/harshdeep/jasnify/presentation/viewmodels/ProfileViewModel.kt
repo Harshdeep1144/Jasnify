@@ -13,6 +13,7 @@ import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.repository.UserRepository
+import com.harshdeep.jasnify.notifications.NotificationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.*
@@ -93,6 +94,44 @@ class ProfileViewModel @Inject constructor(
 
     fun updateProfile(name: String, username: String, profileImageUri: Uri? = null, shouldRemovePhoto: Boolean = false) {
         val uid = auth.currentUser?.uid ?: return
+        
+        // 1. Validation logic
+        if (username.isEmpty()) {
+            _updateState.value = ProfileUpdateState.Error("Username cannot be empty")
+            return
+        }
+        
+        // Rule 4: Can't start with number
+        if (username[0].isDigit()) {
+            _updateState.value = ProfileUpdateState.Error("Username cannot start with a number")
+            return
+        }
+        
+        // Rule 1: Only small letters allowed (no uppercase)
+        if (username.any { it.isUpperCase() }) {
+            _updateState.value = ProfileUpdateState.Error("Only small letters allowed")
+            return
+        }
+
+        // Rule 5: No spaces allowed
+        if (username.contains(" ")) {
+            _updateState.value = ProfileUpdateState.Error("Username cannot contain spaces")
+            return
+        }
+        
+        // Rule 2 & 3: Underscore and symbols not sequentially
+        for (i in 0 until username.length - 1) {
+            val curr = username[i]
+            val next = username[i+1]
+            val isCurrSymbol = !curr.isLetter() && !curr.isDigit() || curr == '_'
+            val isNextSymbol = !next.isLetter() && !next.isDigit() || next == '_'
+            
+            if (isCurrSymbol && isNextSymbol) {
+                _updateState.value = ProfileUpdateState.Error("Symbols/underscores cannot be sequential")
+                return
+            }
+        }
+
         _updateState.value = ProfileUpdateState.Loading
 
         viewModelScope.launch {
@@ -110,9 +149,16 @@ class ProfileViewModel @Inject constructor(
 
                 val isUsernameChanging = currentProfile.username != username
                 
-                if (isUsernameChanging && currentProfile.lastUsernameChangeTimestamp != null && currentProfile.lastUsernameChangeTimestamp > oneMonthAgo) {
-                    _updateState.value = ProfileUpdateState.Error("Username can be changed only once a month.")
-                    return@launch
+                if (isUsernameChanging) {
+                    if (currentProfile.lastUsernameChangeTimestamp != null && currentProfile.lastUsernameChangeTimestamp > oneMonthAgo) {
+                        _updateState.value = ProfileUpdateState.Error("Username can be changed only once a month.")
+                        return@launch
+                    }
+                    
+                    if (userRepository.isUsernameTaken(username)) {
+                        _updateState.value = ProfileUpdateState.Error("Username already exists!!")
+                        return@launch
+                    }
                 }
 
                 var profileImageUrl = currentProfile.profilePictureUrl
@@ -133,7 +179,7 @@ class ProfileViewModel @Inject constructor(
 
                 userRepository.updateUserProfile(updatedProfile)
                 _userProfile.value = updatedProfile
-                _updateState.value = ProfileUpdateState.Success("Profile updated successfully!")
+                _updateState.value = ProfileUpdateState.Success("Profile updated!")
             } catch (e: Exception) {
                 _updateState.value = ProfileUpdateState.Error(e.message ?: "Update failed")
             }
@@ -142,5 +188,29 @@ class ProfileViewModel @Inject constructor(
 
     fun resetUpdateState() {
         _updateState.value = ProfileUpdateState.Idle
+    }
+
+    /**
+     * Sends a personalized greeting notification to the user's device.
+     */
+    fun sendGreetingNotification() {
+        val user = _userProfile.value ?: return
+        if (user.name.isNotBlank()) {
+            NotificationHelper(context).sendUserGreeting(user.name)
+        }
+    }
+
+    fun submitFeedback(rating: Int, feedback: String) {
+        val uid = auth.currentUser?.uid ?: return
+        val userName = _userProfile.value?.name ?: "Anonymous"
+        
+        viewModelScope.launch {
+            try {
+                userRepository.submitFeedback(uid, userName, rating, feedback)
+                _updateState.value = ProfileUpdateState.Success("Feedback submitted. Thank you!")
+            } catch (e: Exception) {
+                _updateState.value = ProfileUpdateState.Error("Failed to submit feedback")
+            }
+        }
     }
 }

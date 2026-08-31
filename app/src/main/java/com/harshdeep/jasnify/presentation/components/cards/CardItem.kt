@@ -55,6 +55,7 @@ fun CardItem(
     showControls: Boolean = false,
     forCapture: Boolean = false,
     isLiked: Boolean = false,
+    shape: androidx.compose.ui.graphics.Shape? = null,
     onLikeClick: (() -> Unit)? = null,
     onShareClick: (() -> Unit)? = null,
     onUpdate: (CardData) -> Unit = {}
@@ -81,7 +82,7 @@ fun CardItem(
         cardWidthDp in 1f..180f -> CornerMedium
         else -> CornerLargeIncrease // Covers <= 280dp as well as fallback between 180dp and 390dp
     }
-    val cardShape = SquircleShape(cornerRadius)
+    val cardShape = shape ?: SquircleShape(cornerRadius)
 
     Box(
         modifier = modifier
@@ -105,21 +106,12 @@ fun CardItem(
             .background(Color(data.backgroundColorHex.toInt()))
     ) {
         // Background Image
-        if (data.backgroundUrl != null) {
-            AsyncImage(
-                model = data.backgroundUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Image(
-                painter = painterResource(id = data.backgroundRes),
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        }
+        AsyncImage(
+            model = data.backgroundUrl ?: data.backgroundRes,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
 
         if (canvasSize.width > 0 && canvasSize.height > 0) {
             val canvasWidthPx = canvasSize.width.toFloat()

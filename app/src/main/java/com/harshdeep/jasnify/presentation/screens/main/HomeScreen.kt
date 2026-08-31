@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,7 +34,9 @@ import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.navgraphs.homeNavGraph
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.UIViewModel
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 
 @SuppressLint("UnrememberedGetBackStackEntry")
 @OptIn(ExperimentalSharedTransitionApi::class)
@@ -46,9 +49,13 @@ fun HomeScreen(
     val mainGraphEntry = remember(mainNavController) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
     val uiViewModel: UIViewModel = hiltViewModel(mainGraphEntry)
     val eventViewModel: EventViewModel = hiltViewModel(mainGraphEntry)
+    val profileViewModel: ProfileViewModel = hiltViewModel(mainGraphEntry)
+    
     SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
     val context = LocalContext.current
     val navBarStyle by uiViewModel.navBarStyle.collectAsState()
+    val userProfile by profileViewModel.userProfile.collectAsState()
+    val profilePictureUrl = userProfile?.profilePictureUrl
 
     // Handle joined event ID if provided
     LaunchedEffect(joinedEventId) {
@@ -73,7 +80,11 @@ fun HomeScreen(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp),
     ) { paddingValues ->
-        Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(BackgroundPrimary)
+        ) {
             NavHost(
                 navController = internalNavController,
                 startDestination = Screen.HomeTabScreen.Home.route,
@@ -104,7 +115,11 @@ fun HomeScreen(
                 ) + fadeOut(animationSpec = tween(200)),
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
-                BottomNavBar(navController = internalNavController, style = navBarStyle)
+                BottomNavBar(
+                    navController = internalNavController, 
+                    style = navBarStyle,
+                    profilePictureUrl = profilePictureUrl
+                )
             }
         }
     }

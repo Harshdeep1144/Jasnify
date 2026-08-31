@@ -17,8 +17,8 @@ android {
         applicationId = "com.harshdeep.jasnify"
         minSdk = 25
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0.4"
+        versionCode = 7
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -42,6 +42,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // This includes native debug symbols in the App Bundle (.aab)
+            // for the Google Play Console to symbolicate crashes.
+            ndk {
+                debugSymbolLevel = "FULL"
+            }
         }
     }
     compileOptions {
@@ -136,6 +141,8 @@ dependencies {
     // Coil image loading
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("io.coil-kt:coil-video:2.6.0")
+    implementation("io.coil-kt:coil-svg:2.6.0")
+    implementation("io.coil-kt:coil-gif:2.6.0") // GIF support
 
     // Media3
     implementation(libs.androidx.media3.exoplayer)
@@ -153,4 +160,7 @@ dependencies {
 
     // Optional: OkHttp Logging Interceptor (helpful for debugging network calls)
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+
+    // Lottie Animations
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
 }

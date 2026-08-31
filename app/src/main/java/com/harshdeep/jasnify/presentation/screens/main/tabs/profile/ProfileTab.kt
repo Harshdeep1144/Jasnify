@@ -56,24 +56,29 @@ import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Event
 import com.harshdeep.jasnify.domain.model.UserEvent
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AppThemeOption
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ChangePasswordBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditProfileBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinEventSheetState
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.JoinOrCreateBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.AppThemeBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.AppThemeOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.auth.ChangePasswordBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.EditProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinEventBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinEventSheetState
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.JoinOrCreateBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.BasicPlanSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.PlanType
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.ProPlanSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.plansheet.UltimatePlanSheet
 import com.harshdeep.jasnify.presentation.components.dialogs.AccountDeletionDialog
 import com.harshdeep.jasnify.presentation.components.dialogs.ConfirmationDialog
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.navigation.Screen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.AuthState
 import com.harshdeep.jasnify.presentation.components.states.ProfileLoadingState
@@ -98,11 +103,12 @@ enum class ProfileScreen {
     MyEnquiries,
     Notifications,
     TermsOfUse,
-    PrivacyPolicy
+    PrivacyPolicy,
+    HelpFeedback
 }
 
 @SuppressLint("UnrememberedGetBackStackEntry")
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileTab(
@@ -162,7 +168,20 @@ fun ProfileTab(
     }
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
+
+    val navEntry = internalNavController.currentBackStackEntry
+    val targetScreenName by navEntry?.savedStateHandle?.getStateFlow<String?>("target_screen", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(targetScreenName) {
+        if (targetScreenName == "help_feedback") {
+            currentScreen = ProfileScreen.HelpFeedback
+            navEntry?.savedStateHandle?.remove<String>("target_screen")
+        }
+    }
+
     val profileLazyListState = rememberLazyListState()
+
+    var showAiChatByHelp by remember { mutableStateOf(false) }
 
     var showEditProfile by remember { mutableStateOf(false) }
     var showChangePassword by remember { mutableStateOf(false) }
@@ -170,6 +189,8 @@ fun ProfileTab(
     var showNavBarStyle by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showPlanSheet by remember { mutableStateOf(false) }
+    var selectedPlanForSheet by remember { mutableStateOf(PlanType.BASIC) }
 
     var showJoinOrCreateSheet by remember { mutableStateOf(false) }
     var showJoinEventSheet by remember { mutableStateOf(false) }
@@ -192,7 +213,8 @@ fun ProfileTab(
                     showJoinOrCreateSheet ||
                     showJoinEventSheet ||
                     showEventMenu ||
-                    showLeaveConfirmation
+                    showLeaveConfirmation ||
+                    showPlanSheet
         }
     }
 
@@ -257,11 +279,11 @@ fun ProfileTab(
     LaunchedEffect(authState) {
         when (val state = authState) {
             is AuthState.Success -> {
-                if (state.message == "Password updated successfully") {
+                if (state.message == "Password Updated") {
                     delay(2000.milliseconds)
                     showChangePassword = false
                     authViewModel.resetAuthState()
-                } else if (state.message == "Account deleted successfully" ||
+                } else if (state.message == "Account deleted" ||
                     state.message == "Account deletion requested"
                 ) {
                     eventViewModel.clearActiveEvent()
@@ -317,13 +339,13 @@ fun ProfileTab(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(BackgroundPrimary)
                 .graphicsLayer {
                     scaleX = backdropScale
                     scaleY = backdropScale
                     clip = isAnyBottomSheetOpen || backdropCornerRadius > 0.dp
                     shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                 }
+                .background(BackgroundPrimary)
         ) {
             AnimatedContent(
                 targetState = currentScreen,
@@ -377,6 +399,10 @@ fun ProfileTab(
                             onEditProfile = { showEditProfile = true },
                             onNavigateTo = { currentScreen = it },
                             onLogout = { showLogoutDialog = true },
+                            onPlanClick = { plan ->
+                                selectedPlanForSheet = plan
+                                showPlanSheet = true
+                            },
                             lazyListState = profileLazyListState
                         )
                     }
@@ -458,7 +484,29 @@ fun ProfileTab(
                             onBack = { currentScreen = ProfileScreen.Root }
                         )
                     }
+
+                    ProfileScreen.HelpFeedback -> {
+                        HelpFeedbackScreen(
+                            profileViewModel = profileViewModel,
+                            onBack = { currentScreen = ProfileScreen.Root },
+                            onShowAiChat = { showAiChatByHelp = true }
+                        )
+                    }
                 }
+            }
+
+            AnimatedVisibility(
+                visible = showAiChatByHelp,
+                enter = slideInVertically(initialOffsetY = { it }),
+                exit = slideOutVertically(targetOffsetY = { it }),
+                modifier = Modifier.zIndex(200f)
+            ) {
+                AiChatScreen(
+                    eventId = userProfile?.currentEventId,
+                    shouldStartNewSession = true,
+                    onBackClick = { showAiChatByHelp = false },
+                    mainNavController = mainNavController
+                )
             }
         }
 
@@ -481,11 +529,15 @@ fun ProfileTab(
         }
 
         if (showEditProfile) {
+            val editProfilePic: Any = userProfile?.profilePictureUrl?.takeIf { it.isNotBlank() }
+                ?: firebaseUser?.photoUrl
+                ?: R.drawable.ic_user_profile
+
             EditProfileBottomSheet(
                 onDismiss = { showEditProfile = false },
                 userName = userName,
                 userHandle = userHandle,
-                profilePic = profilePic,
+                profilePic = editProfilePic,
                 updateState = profileUpdateState,
                 resetUpdateState = { profileViewModel.resetUpdateState() },
                 onUpdateProfile = { name, handle, uri, shouldRemove ->
@@ -673,6 +725,29 @@ fun ProfileTab(
                 },
                 onProgress = { sheetMotionProgress = it }
             )
+        }
+
+        if (showPlanSheet) {
+            when (selectedPlanForSheet) {
+                PlanType.BASIC -> {
+                    BasicPlanSheet(
+                        onDismiss = { showPlanSheet = false },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+                PlanType.PRO -> {
+                    ProPlanSheet(
+                        onDismiss = { showPlanSheet = false },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+                PlanType.ULTIMATE -> {
+                    UltimatePlanSheet(
+                        onDismiss = { showPlanSheet = false },
+                        onProgress = { sheetMotionProgress = it }
+                    )
+                }
+            }
         }
     }
 }

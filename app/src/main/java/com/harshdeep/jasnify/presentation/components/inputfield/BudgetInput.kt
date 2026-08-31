@@ -25,9 +25,9 @@ import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CurrencyBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SelectableItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.getCurrencyCodes
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.CurrencyBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.SelectableItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.getCurrencyCodes
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.SurfaceSecondary

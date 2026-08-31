@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.domain.model
 
+import com.google.firebase.firestore.PropertyName
 import java.util.UUID
 
 enum class MessageStatus {
@@ -28,5 +29,10 @@ data class ChatMessage(
     val text: String = "",
     val senderId: String = "",
     val timestamp: Long = System.currentTimeMillis(),
-    val status: MessageStatus = MessageStatus.SENT
+    val status: MessageStatus = MessageStatus.SENT,
+    @get:PropertyName("isEdited") @set:PropertyName("isEdited") var isEdited: Boolean = false,
+    val deletedForEveryone: Boolean = false,
+    val deletedForUids: List<String> = emptyList(),
+    val deliveredTo: List<String> = emptyList(), // UIDs who have received it
+    val seenBy: Map<String, Long> = emptyMap() // UID to seen timestamp
 )

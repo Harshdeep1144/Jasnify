@@ -9,8 +9,8 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
-import com.harshdeep.jasnify.presentation.screens.others.ChatScreen
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.ChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.screens.catering.CateringMenuScreen
 import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.screens.main.HomeScreen
@@ -30,8 +30,9 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.navigation.navDeepLink
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import androidx.hilt.navigation.compose.hiltViewModel
 
 object NavAnimations {
@@ -137,13 +138,13 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             popExitTransition = { NavAnimations.slideOutToRight }
         ) { entry ->
             val venueId = entry.arguments?.getString("venueId") ?: ""
-            val venue = MockData.sampleVenues1.find { it.id == venueId } 
-                ?: MockData.sampleVenues2.find { it.id == venueId }
-                ?: MockData.venueDetailsMap.values.find { it.id == venueId }
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val venueViewModel: VenueViewModel = hiltViewModel(graphEntry)
+            val venue by venueViewModel.getVenueById(venueId).collectAsState(initial = null)
 
             if (venue != null) {
                 VenueDetailScreen(
-                    venueDetail = venue,
+                    venueDetail = venue!!,
                     onBackClick = { mainNavController.popBackStack() },
                     onFavoriteToggle = { /* Optional: Sync with ViewModel if needed */ },
                     onChatClick = { venueChat ->
@@ -170,11 +171,13 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
             popExitTransition = { NavAnimations.slideOutToRight }
         ) { entry ->
             val vendorId = entry.arguments?.getString("vendorId") ?: ""
-            val vendor = MockData.sampleVendors.find { it.id == vendorId }
+            val graphEntry = remember(entry) { mainNavController.getBackStackEntry(Screen.MainAppGraph.route) }
+            val vendorViewModel: VendorViewModel = hiltViewModel(graphEntry)
+            val vendor by vendorViewModel.getVendorById(vendorId).collectAsState(initial = null)
 
             if (vendor != null) {
                 VendorDetailScreen(
-                    vendorDetail = vendor,
+                    vendorDetail = vendor!!,
                     onBackClick = { mainNavController.popBackStack() },
                     onChatClick = { vendorChat ->
                         val merchantId = vendorChat.merchantId.ifBlank { "unknown_merchant" }
@@ -218,6 +221,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -291,6 +295,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -306,6 +311,7 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                         mainNavController.popBackStack()
                     }
                 },
+                navController = mainNavController,
                 eventViewModel = eventViewModel
             )
         }
@@ -317,7 +323,8 @@ fun NavGraphBuilder.mainAppNavGraph(mainNavController: NavHostController) {
                     if (mainNavController.previousBackStackEntry != null) {
                         mainNavController.popBackStack()
                     }
-                }
+                },
+                navController = mainNavController
             )
         }
     }

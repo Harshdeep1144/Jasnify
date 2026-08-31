@@ -106,7 +106,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.mock.MockData
 import com.harshdeep.jasnify.domain.model.Offer
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.VendorGalleryCategory
@@ -115,9 +114,9 @@ import com.harshdeep.jasnify.domain.model.VendorMediaItem
 import com.harshdeep.jasnify.domain.model.VendorPricingItem
 import com.harshdeep.jasnify.domain.model.VendorReview
 import com.harshdeep.jasnify.domain.model.VendorReviewsData
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ReviewBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ReviewBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -232,6 +231,7 @@ fun VendorDetailScreen(
     onChatClick: (Vendor) -> Unit = {},
     onMenuClick: () -> Unit = {},
     onFavoriteToggle: (Vendor) -> Unit = {},
+    onAiSearchClick: (String) -> Unit = {},
     vendorViewModel: VendorViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
@@ -389,6 +389,7 @@ fun VendorDetailScreen(
                             },
                             onAddressClick = { showAddressSheet = true },
                             onAboutClick = { showAboutSheet = true },
+                            onAiSearchClick = onAiSearchClick,
                             onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
@@ -574,6 +575,7 @@ private fun VendorDetailContent(
     onOfferClick: (Offer) -> Unit,
     onAddressClick: () -> Unit,
     onAboutClick: () -> Unit,
+    onAiSearchClick: (String) -> Unit,
     onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
@@ -838,7 +840,7 @@ private fun VendorDetailContent(
                 }
 
                 item(key = "ask_ai", contentType = "ask_ai_section") {
-                    VendorAskAISection()
+                    VendorAskAISection(onAiSearchClick = onAiSearchClick)
                 }
 
                 item(key = "div_ask_ai", contentType = "divider") {
@@ -885,12 +887,9 @@ private fun VendorDetailContent(
                 }
 
                 item(key = "explore_more", contentType = "explore_more_section") {
-                    val similarVendors = remember(vendorDetail.id) {
-                        MockData.sampleVendors.filter { it.id != vendorDetail.id }.take(6)
-                    }
                     VendorExploreMoreSection(
                         vendor = vendorDetail,
-                        similarVendors = similarVendors
+                        similarVendors = emptyList()
                     )
                 }
 
@@ -1443,7 +1442,8 @@ fun VendorAboutSection(vendor: Vendor, aboutText: String, onReadMoreClick: () ->
 }
 
 @Composable
-fun VendorAskAISection() {
+fun VendorAskAISection(onAiSearchClick: (String) -> Unit) {
+    var aiQuery by remember { mutableStateOf("") }
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1473,10 +1473,21 @@ fun VendorAskAISection() {
             }
         }
         CustomSearchBar(
-            value = "",
-            onValueChange = {},
+            value = aiQuery,
+            onValueChange = { aiQuery = it },
             placeholder = "What would you like to know?",
             isAiSearch = true,
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search
+            ),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onSearch = {
+                    if (aiQuery.isNotBlank()) {
+                        onAiSearchClick(aiQuery)
+                        aiQuery = ""
+                    }
+                }
+            ),
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp)
         )
         val suggestions = listOf(
@@ -1498,7 +1509,7 @@ fun VendorAskAISection() {
                     label = suggestion,
                     trailingIcon = Icons.Rounded.ArrowOutward,
                     hasStroke = true,
-                    onClick = { }
+                    onClick = { onAiSearchClick(suggestion) }
                 )
             }
         }

@@ -133,7 +133,9 @@ data class CardTheme(
     var name: String = "",
     var resId: Int = 0,
     var url: String? = null,
-    var isDefault: Boolean = false
+    var isDefault: Boolean = false,
+    var adminName: String? = null,
+    var adminUsername: String? = null
 )
 
 data class CardRoomData(
@@ -147,10 +149,22 @@ data class CardData(
     var backgroundUrl: String? = null,
     var backgroundColorHex: Long = 0xFFFFFDF9L,
     var elements: List<TextElement> = defaultElements(),
-    var lastEdited: Long = System.currentTimeMillis()
+    var theme: CardTheme? = null,
+    var eventType: String = "all events",
+    var cardStyle: String = "Classic",
+    var likesCount: Int = 0,
+    var sharesCount: Int = 0,
+    var lastEdited: Long = System.currentTimeMillis(),
+    var adminName: String? = null,
+    var adminUsername: String? = null,
+    var likedBy: List<String> = emptyList()
 )
 
-fun defaultElements(): List<TextElement> = listOf(
+fun defaultElements(
+    userName: String = "Taylor & Travis",
+    eventDate: String = "SEPTEMBER 14TH, 2026",
+    venue: String = "TAJ HOTEL, MUMBAI"
+): List<TextElement> = listOf(
     TextElement(
         text = "THE WEDDING CELEBRATION OF",
         xRatio = 0.5f,
@@ -163,7 +177,7 @@ fun defaultElements(): List<TextElement> = listOf(
         zIndex = 0
     ),
     TextElement(
-        text = "Taylor & Travis",
+        text = userName,
         xRatio = 0.5f,
         yRatio = 0.25f,
         fontSizeSp = 38f,
@@ -185,7 +199,7 @@ fun defaultElements(): List<TextElement> = listOf(
         zIndex = 2
     ),
     TextElement(
-        text = "SEPTEMBER",
+        text = eventDate.split(",").firstOrNull()?.split(" ")?.firstOrNull() ?: "SEPTEMBER",
         xRatio = 0.5f,
         yRatio = 0.40f,
         fontSizeSp = 13f,
@@ -197,7 +211,7 @@ fun defaultElements(): List<TextElement> = listOf(
         zIndex = 3
     ),
     TextElement(
-        text = "14TH",
+        text = eventDate.split(",").firstOrNull()?.split(" ")?.lastOrNull() ?: "14TH",
         xRatio = 0.5f,
         yRatio = 0.47f,
         fontSizeSp = 32f,
@@ -209,7 +223,7 @@ fun defaultElements(): List<TextElement> = listOf(
         zIndex = 4
     ),
     TextElement(
-        text = "2026",
+        text = eventDate.split(",").lastOrNull()?.trim() ?: "2026",
         xRatio = 0.5f,
         yRatio = 0.52f,
         fontSizeSp = 12f,
@@ -244,7 +258,7 @@ fun defaultElements(): List<TextElement> = listOf(
         zIndex = 7
     ),
     TextElement(
-        text = "05:00 PM  •  TAJ HOTEL, MUMBAI",
+        text = venue,
         xRatio = 0.5f,
         yRatio = 0.70f,
         fontSizeSp = 11f,
@@ -277,5 +291,111 @@ fun defaultElements(): List<TextElement> = listOf(
         verticalPaddingSp = 0f,
         zIndex = 10,
         isEditable = false
+    )
+)
+
+fun getTemplateElements(
+    index: Int,
+    userName: String = "Taylor & Travis",
+    eventDate: String = "SEPTEMBER 14TH, 2026",
+    venue: String = "TAJ HOTEL, MUMBAI"
+): List<TextElement> {
+    return when (index % 8) {
+        0 -> defaultElements(userName, eventDate, venue) // Wedding
+        1 -> listOf( // Reception
+            TextElement(text = "JOIN US FOR THE RECEPTION OF", yRatio = 0.18f, fontSizeSp = 10f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = userName, yRatio = 0.28f, fontSizeSp = 36f, fontStyle = FontStyleType.PATTAYA, colorHex = 0xFF8E44ADL, isBold = true),
+            TextElement(text = "A NIGHT OF DINNER & DANCE", yRatio = 0.38f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = eventDate, yRatio = 0.48f, fontSizeSp = 14f, fontStyle = FontStyleType.SERIF, isBold = true),
+            TextElement(text = "AT $venue", yRatio = 0.58f, fontSizeSp = 12f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "DRESS CODE: BLACK TIE", yRatio = 0.68f, fontSizeSp = 10f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        2 -> listOf( // Engagement
+            TextElement(text = "THE ENGAGEMENT OF", yRatio = 0.20f, fontSizeSp = 12f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = userName, yRatio = 0.30f, fontSizeSp = 34f, fontStyle = FontStyleType.PACIFICO, colorHex = 0xFFE67E22L),
+            TextElement(text = "WE'RE GETTING HITCHED!", yRatio = 0.40f, fontSizeSp = 14f, fontStyle = FontStyleType.MONTSERRAT, isBold = true),
+            TextElement(text = eventDate, yRatio = 0.50f, fontSizeSp = 13f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "AT $venue", yRatio = 0.60f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        3 -> listOf( // Birthday
+            TextElement(text = "IT'S A BIRTHDAY PARTY!", yRatio = 0.22f, fontSizeSp = 14f, fontStyle = FontStyleType.BANGERS, colorHex = 0xFFE74C3CL),
+            TextElement(text = userName, yRatio = 0.35f, fontSizeSp = 30f, fontStyle = FontStyleType.QUICKSAND, isBold = true),
+            TextElement(text = "JOIN US FOR FUN, GAMES & CAKE", yRatio = 0.45f, fontSizeSp = 12f, fontStyle = FontStyleType.ROBOTO),
+            TextElement(text = eventDate, yRatio = 0.55f, fontSizeSp = 14f, fontStyle = FontStyleType.ROBOTO, isBold = true),
+            TextElement(text = venue, yRatio = 0.65f, fontSizeSp = 11f, fontStyle = FontStyleType.ROBOTO),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        4 -> listOf( // Mehendi
+            TextElement(text = "MEHENDI CELEBRATION", yRatio = 0.18f, fontSizeSp = 13f, fontStyle = FontStyleType.SERIF, colorHex = 0xFF27AE60L, isBold = true),
+            TextElement(text = userName, yRatio = 0.30f, fontSizeSp = 40f, fontStyle = FontStyleType.PATTAYA, colorHex = 0xFF27AE60L),
+            TextElement(text = "HENNA, MUSIC & CELEBRATION", yRatio = 0.42f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = eventDate, yRatio = 0.52f, fontSizeSp = 14f, fontStyle = FontStyleType.SERIF, isBold = true),
+            TextElement(text = venue, yRatio = 0.62f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        5 -> listOf( // Anniversary
+            TextElement(text = "TO CELEBRATE 25 YEARS OF LOVE", yRatio = 0.20f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = userName, yRatio = 0.32f, fontSizeSp = 32f, fontStyle = FontStyleType.PLAYFAIR_DISPLAY, colorHex = 0xFFD4AF37L, isBold = true),
+            TextElement(text = "SILVER JUBILEE ANNIVERSARY", yRatio = 0.45f, fontSizeSp = 13f, fontStyle = FontStyleType.SERIF, isBold = true),
+            TextElement(text = eventDate, yRatio = 0.55f, fontSizeSp = 14f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = venue, yRatio = 0.65f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        6 -> listOf( // Haldi
+            TextElement(text = "SHOWER THE GROOM WITH YELLOW", yRatio = 0.20f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF, colorHex = 0xFFF1C40FL),
+            TextElement(text = userName, yRatio = 0.32f, fontSizeSp = 35f, fontStyle = FontStyleType.PATTAYA, colorHex = 0xFFF39C12L, isBold = true),
+            TextElement(text = "A SPLASH OF COLOR & JOY", yRatio = 0.45f, fontSizeSp = 12f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = eventDate, yRatio = 0.55f, fontSizeSp = 14f, fontStyle = FontStyleType.SERIF, isBold = true),
+            TextElement(text = "9:00 AM ONWARDS", yRatio = 0.65f, fontSizeSp = 11f, fontStyle = FontStyleType.SERIF),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+        else -> listOf( // General Party
+            TextElement(text = "YOU'RE INVITED TO A", yRatio = 0.20f, fontSizeSp = 12f, fontStyle = FontStyleType.MONTSERRAT),
+            TextElement(text = userName, yRatio = 0.32f, fontSizeSp = 38f, fontStyle = FontStyleType.DANCING_SCRIPT, colorHex = 0xFF2C3E50L, isBold = true),
+            TextElement(text = "DRINKS, DINNER & GOOD TIMES", yRatio = 0.45f, fontSizeSp = 12f, fontStyle = FontStyleType.MONTSERRAT),
+            TextElement(text = eventDate, yRatio = 0.55f, fontSizeSp = 15f, fontStyle = FontStyleType.MONTSERRAT, isBold = true),
+            TextElement(text = venue, yRatio = 0.65f, fontSizeSp = 11f, fontStyle = FontStyleType.MONTSERRAT),
+            TextElement(text = "Jasnify", xRatio = 0.5f, yRatio = 0.85f, fontSizeSp = 18f, colorHex = 0x559E9E9EL, fontStyle = FontStyleType.PATTAYA, isEditable = false)
+        )
+    }
+}
+
+
+
+fun getJasnifyCardsMock(): List<CardData> = listOf(
+    CardData(
+        id = "jasnify_01",
+        bgName = "Royal Gold",
+        backgroundRes = R.drawable.bg_invitation_card_01,
+        theme = CardTheme(name = "Royal", resId = R.drawable.bg_invitation_card_01),
+        eventType = "Wedding",
+        cardStyle = "Classic",
+        elements = getTemplateElements(0, "Aarav & Ishani", "AUGUST 15, 2026", "THE UMAID BHAWAN, JODHPUR"),
+        likesCount = 1240,
+        sharesCount = 450
+    ),
+    CardData(
+        id = "jasnify_02",
+        bgName = "Floral Bliss",
+        backgroundRes = R.drawable.bg_invitation_card_02,
+        theme = CardTheme(name = "Floral", resId = R.drawable.bg_invitation_card_02),
+        eventType = "Reception",
+        cardStyle = "Modern",
+        elements = getTemplateElements(1, "Kabir & Zoya", "OCTOBER 10, 2026", "JW MARRIOTT, MUMBAI"),
+        likesCount = 890,
+        sharesCount = 210
+    ),
+    CardData(
+        id = "jasnify_03",
+        bgName = "Modern Slate",
+        backgroundRes = R.drawable.bg_invitation_card_03,
+        theme = CardTheme(name = "Modern", resId = R.drawable.bg_invitation_card_03),
+        eventType = "Party",
+        cardStyle = "Minimalist",
+        elements = getTemplateElements(7, "Rohan's Bash", "NOV 14, 2026", "SKY LOUNGE, AER"),
+        likesCount = 2300,
+        sharesCount = 670
     )
 )

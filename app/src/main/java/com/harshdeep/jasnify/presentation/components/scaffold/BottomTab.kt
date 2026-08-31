@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -29,7 +28,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -39,11 +37,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
@@ -113,6 +112,8 @@ private fun <T> StandardBottomTab(
     modifier: Modifier = Modifier,
     activeColor: Color = ContentBrandDark,
 ) {
+    val haptic = LocalHapticFeedback.current
+
     Box(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
@@ -189,6 +190,7 @@ private fun <T> StandardBottomTab(
                                 modifier = Modifier
                                     .weight(1f)
                                     .noRippleClickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                         onItemSelected(item.value)
                                     },
                                 horizontalAlignment = Alignment.CenterHorizontally
@@ -226,6 +228,7 @@ private fun <T> FloatingBottomTab(
     activeBg: Color = SurfaceBrandSecondary
 ) {
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
     var tabBoundsMap by remember { mutableStateOf(mapOf<Int, TabBounds>()) }
     val isAllIconOnly = remember(items) { items.all { it.label.isEmpty() } }
 
@@ -322,6 +325,7 @@ private fun <T> FloatingBottomTab(
                                     }
                                 }
                                 .noRippleClickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     onItemSelected(item.value)
                                 }
                                 .padding(horizontal = if (isIconOnly) 0.dp else 20.dp),

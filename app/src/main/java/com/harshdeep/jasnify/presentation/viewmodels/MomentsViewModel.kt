@@ -25,11 +25,21 @@ class MomentsViewModel @Inject constructor(
     private val preferenceManager: PreferenceManager
 ) : ViewModel() {
 
-    private val _folders = MutableStateFlow<List<MomentFolder>>(emptyList())
-    val folders: StateFlow<List<MomentFolder>> = _folders.asStateFlow()
+    private val _rootFolders = MutableStateFlow<List<MomentFolder>>(emptyList())
+    val rootFolders: StateFlow<List<MomentFolder>> = _rootFolders.asStateFlow()
 
-    private val _moments = MutableStateFlow<List<Moment>>(emptyList())
-    val moments: StateFlow<List<Moment>> = _moments.asStateFlow()
+    private val _allMoments = MutableStateFlow<List<Moment>>(emptyList())
+    val allMoments: StateFlow<List<Moment>> = _allMoments.asStateFlow()
+
+    private val _subFolders = MutableStateFlow<List<MomentFolder>>(emptyList())
+    val subFolders: StateFlow<List<MomentFolder>> = _subFolders.asStateFlow()
+
+    private val _folderMoments = MutableStateFlow<List<Moment>>(emptyList())
+    val folderMoments: StateFlow<List<Moment>> = _folderMoments.asStateFlow()
+
+    // Aliases for compatibility
+    val folders: StateFlow<List<MomentFolder>> = _subFolders.asStateFlow()
+    val moments: StateFlow<List<Moment>> = _allMoments.asStateFlow()
 
     private val _savedMoments = MutableStateFlow<List<Moment>>(emptyList())
     val savedMoments: StateFlow<List<Moment>> = _savedMoments.asStateFlow()
@@ -43,31 +53,49 @@ class MomentsViewModel @Inject constructor(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private var folderCollectionJob: Job? = null
-    private var momentCollectionJob: Job? = null
+    private val _uploadProgress = MutableStateFlow<Pair<Int, Int>?>(null)
+    val uploadProgress: StateFlow<Pair<Int, Int>?> = _uploadProgress.asStateFlow()
+
+    private var rootFolderJob: Job? = null
+    private var rootMomentsJob: Job? = null
+    private var subFolderJob: Job? = null
+    private var folderMomentsJob: Job? = null
     private var roleCollectionJob: Job? = null
-    private var currentEventId: String? = null
+    private var savedMomentsJob: Job? = null
 
-    private var currentParentId: String = ""
-
-    fun loadFolders(eventId: String, parentId: String = "") {
+    fun loadRootContent(eventId: String) {
+        if (eventId.isBlank()) return
         _currentUserId.value = FirebaseAuth.getInstance().currentUser?.uid ?: ""
-        
-        // If eventId and parentId haven't changed and job is active, skip
-        if (currentEventId == eventId && currentParentId == parentId && folderCollectionJob?.isActive == true) return
-        
-        currentEventId = eventId
-        currentParentId = parentId
-        
-        folderCollectionJob?.cancel()
-        folderCollectionJob = viewModelScope.launch {
-            try {
-                momentsRepository.initializeRoom(eventId)
-            } catch (e: Exception) {
-                android.util.Log.e("MomentsVM", "Error initializing room: ${e.message}")
+
+        if (rootFolderJob?.isActive != true) {
+            rootFolderJob?.cancel()
+            rootFolderJob = viewModelScope.launch {
+                try {
+                    momentsRepository.initializeRoom(eventId)
+                } catch (e: Exception) {
+                    android.util.Log.e("MomentsVM", "Error initializing room: ${e.message}")
+                }
+                momentsRepository.getFolders(eventId, "").collect {
+                    _rootFolders.value = it
+                }
             }
-            momentsRepository.getFolders(eventId, parentId).collect {
-                _folders.value = it
+        }
+
+        if (rootMomentsJob?.isActive != true) {
+            rootMomentsJob?.cancel()
+            rootMomentsJob = viewModelScope.launch {
+                momentsRepository.getMoments(eventId, "all_moments_id").collect {
+                    _allMoments.value = it
+                }
+            }
+        }
+
+        if (savedMomentsJob?.isActive != true) {
+            savedMomentsJob?.cancel()
+            savedMomentsJob = viewModelScope.launch {
+                momentsRepository.getSavedMoments(eventId).collect {
+                    _savedMoments.value = it
+                }
             }
         }
 
@@ -81,32 +109,85 @@ class MomentsViewModel @Inject constructor(
         }
     }
 
-    fun loadMoments(eventId: String, folderId: String = "") {
-        momentCollectionJob?.cancel()
-        momentCollectionJob = viewModelScope.launch {
-            momentsRepository.getMoments(eventId, folderId).collect {
-                _moments.value = it
+    fun loadFolderContent(eventId: String, folderId: String) {
+        if (eventId.isBlank()) return
+        
+        _folderMoments.value = emptyList()
+        _subFolders.value = emptyList()
+
+        if (folderId.isEmpty() || folderId == "all_moments_id") {
+            _folderMoments.value = _allMoments.value
+            return
+        }
+
+        subFolderJob?.cancel()
+        subFolderJob = viewModelScope.launch {
+            momentsRepository.getFolders(eventId, folderId).collect {
+                _subFolders.value = it
             }
         }
+
+        folderMomentsJob?.cancel()
+        folderMomentsJob = viewModelScope.launch {
+            momentsRepository.getMoments(eventId, folderId).collect {
+                _folderMoments.value = it
+            }
+        }
+    }
+
+    fun loadFolders(eventId: String, parentId: String = "") {
+        if (parentId.isEmpty()) {
+            loadRootContent(eventId)
+        } else {
+            loadFolderContent(eventId, parentId)
+        }
+    }
+
+    fun loadMoments(eventId: String, folderId: String = "") {
+        if (folderId.isEmpty() || folderId == "all_moments_id") {
+            loadRootContent(eventId)
+        } else {
+            loadFolderContent(eventId, folderId)
+        }
+    }
+
+    fun clearMoments() {
+        _folderMoments.value = emptyList()
     }
 
     fun createFolder(eventId: String, name: String, parentId: String = "") {
         viewModelScope.launch {
             momentsRepository.createFolder(eventId, name, parentId)
+            if (parentId.isEmpty()) {
+                loadRootContent(eventId)
+            } else {
+                loadFolderContent(eventId, parentId)
+            }
+        }
+    }
+
+    fun uploadMultipleMoments(eventId: String, folderId: String, urisWithMediaTypes: List<Pair<Uri, Boolean>>) {
+        if (eventId.isBlank() || urisWithMediaTypes.isEmpty()) return
+
+        viewModelScope.launch {
+            _isLoading.value = true
+            val total = urisWithMediaTypes.size
+            try {
+                urisWithMediaTypes.forEachIndexed { index, (uri, isVideo) ->
+                    _uploadProgress.value = (index + 1) to total
+                    momentsRepository.uploadMoment(eventId, folderId, uri, isVideo)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MomentsVM", "Error uploading moments: ${e.message}")
+            } finally {
+                _uploadProgress.value = null
+                _isLoading.value = false
+            }
         }
     }
 
     fun uploadMoment(eventId: String, folderId: String, uri: Uri, isVideo: Boolean) {
-        viewModelScope.launch {
-            _isLoading.value = true
-            try {
-                momentsRepository.uploadMoment(eventId, folderId, uri, isVideo)
-            } catch (e: Exception) {
-                android.util.Log.e("MomentsVM", "Error uploading moment: ${e.message}")
-            } finally {
-                _isLoading.value = false
-            }
-        }
+        uploadMultipleMoments(eventId, folderId, listOf(uri to isVideo))
     }
 
     fun deleteMoment(eventId: String, folderId: String, momentId: String) {
@@ -118,13 +199,18 @@ class MomentsViewModel @Inject constructor(
     fun deleteFolder(eventId: String, folderId: String) {
         viewModelScope.launch {
             momentsRepository.deleteFolder(eventId, folderId)
+            loadRootContent(eventId)
         }
     }
 
     fun loadSavedMoments(eventId: String) {
-        viewModelScope.launch {
-            momentsRepository.getSavedMoments(eventId).collect {
-                _savedMoments.value = it
+        if (eventId.isBlank()) return
+        if (savedMomentsJob?.isActive != true) {
+            savedMomentsJob?.cancel()
+            savedMomentsJob = viewModelScope.launch {
+                momentsRepository.getSavedMoments(eventId).collect {
+                    _savedMoments.value = it
+                }
             }
         }
     }

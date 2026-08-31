@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.location.LocationManager
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.IntentSenderRequest
 import androidx.core.app.ActivityCompat
@@ -23,11 +24,22 @@ object LocationHelper {
 
     const val LOCATION_PREFS = "jasnify_location_prefs"
     const val RECENT_SEARCHES_KEY = "recent_searches_key"
+    const val LAST_KNOWN_LOCATION_KEY = "last_known_location_key"
 
     fun getRecentLocations(context: Context): List<String> {
         val prefs = context.getSharedPreferences(LOCATION_PREFS, Context.MODE_PRIVATE)
         val saved = prefs.getString(RECENT_SEARCHES_KEY, null) ?: return emptyList()
         return saved.split("|||").filter { it.isNotBlank() }
+    }
+
+    fun saveLastLocation(context: Context, address: String) {
+        val prefs = context.getSharedPreferences(LOCATION_PREFS, Context.MODE_PRIVATE)
+        prefs.edit().putString(LAST_KNOWN_LOCATION_KEY, address).apply()
+    }
+
+    fun getLastLocation(context: Context): String {
+        val prefs = context.getSharedPreferences(LOCATION_PREFS, Context.MODE_PRIVATE)
+        return prefs.getString(LAST_KNOWN_LOCATION_KEY, "City, State") ?: "City, State"
     }
 
     fun hasLocationPermission(context: Context): Boolean {
@@ -36,6 +48,12 @@ object LocationHelper {
         ) == PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
             context, Manifest.permission.ACCESS_COARSE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
+    }
+
+    fun isLocationEnabled(context: Context): Boolean {
+        val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER) ||
+                locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
     }
 
     fun simplifyAddress(address: Address): String {

@@ -3,6 +3,7 @@ package com.harshdeep.jasnify.presentation.screens.budget
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,6 +44,12 @@ fun BudgetRoomContent(
         }
     }
 
+    androidx.compose.runtime.LaunchedEffect(eventId) {
+        if (eventId.isNotBlank()) {
+            roomViewModel.loadRoomPicture(eventId, "Budget")
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -67,6 +74,24 @@ fun BudgetRoomContent(
             onGrantAccess = { email, role ->
                 roomViewModel.grantAccess(eventId, "Budget", email, role)
                 onToastShow(ToastData("Access granted to $email", ToastType.SUCCESS))
+            },
+            roomPictureUrl = roomViewModel.roomPictureUrl.collectAsState().value,
+            onUploadRoomPicture = { uri ->
+                roomViewModel.uploadRoomPicture(
+                    eventId = eventId,
+                    roomType = "Budget",
+                    uri = uri,
+                    onSuccess = { onToastShow(ToastData("Room profile picture updated", ToastType.SUCCESS)) },
+                    onError = { err -> onToastShow(ToastData(err, ToastType.ERROR)) }
+                )
+            },
+            onDeleteRoomPicture = {
+                roomViewModel.deleteRoomPicture(
+                    eventId = eventId,
+                    roomType = "Budget",
+                    onSuccess = { onToastShow(ToastData("Room profile picture deleted", ToastType.SUCCESS)) },
+                    onError = { err -> onToastShow(ToastData(err, ToastType.ERROR)) }
+                )
             },
             modifier = Modifier.fillMaxSize()
         )

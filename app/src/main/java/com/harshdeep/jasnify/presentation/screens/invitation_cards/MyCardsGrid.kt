@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -24,12 +25,17 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,8 +44,10 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
@@ -51,7 +59,9 @@ import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.utils.TimeUtils
+import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
+import kotlin.time.Duration.Companion.milliseconds
 
 private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 
@@ -59,11 +69,11 @@ private val CardShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
 @Composable
 fun MyCardsGrid(
     cards: List<CardData>,
-    templates: List<CardData>,
     gridState: LazyGridState,
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     canEdit: Boolean,
+    isCardAdmin: Boolean,
     nestedScrollConnection: NestedScrollConnection,
     onStartEditing: () -> Unit,
     selectedCardIds: Set<String>,
@@ -187,7 +197,7 @@ fun MyCardsGrid(
                         )
                         Text(
                             text = "Edited ${TimeUtils.getTimeAgo(card.lastEdited)}",
-                            style = JasnifyTheme.typography.labelLarge,
+                            style = JasnifyTheme.typography.labelMedium,
                             color = if (isSelected) ContentBrand else ContentSecondary,
                             maxLines = 1,
                             textAlign = TextAlign.Start
@@ -197,4 +207,49 @@ fun MyCardsGrid(
             }
         }
     }
+}
+
+@Composable
+fun MetadataField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var text by remember(value) { mutableStateOf(value) }
+
+    LaunchedEffect(text) {
+        if (text != value) {
+            delay(800.milliseconds) // Debounce Firestore writes
+            onValueChange(text)
+        }
+    }
+
+    BasicTextField(
+        value = text,
+        onValueChange = { text = it },
+        textStyle = JasnifyTheme.typography.labelSmall.copy(
+            color = ContentSecondary,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Normal
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .border(0.5.dp, ContentSecondary.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+        decorationBox = { innerTextField ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = "$label: ",
+                    style = JasnifyTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    color = ContentSecondary.copy(alpha = 0.6f),
+                    fontWeight = FontWeight.Medium
+                )
+                innerTextField()
+            }
+        }
+    )
 }

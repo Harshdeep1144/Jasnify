@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.components.cards
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
+import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.collectIsDraggedAsState
@@ -225,7 +226,15 @@ fun VenueCardFull(
                 Spacer(Modifier.height(4.dp))
 
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .
+                        fillMaxWidth()
+                        .basicMarquee(
+                            iterations = Int.MAX_VALUE,
+                            repeatDelayMillis = 1200,
+                            initialDelayMillis = 500,
+                            velocity = 30.dp
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -240,7 +249,8 @@ fun VenueCardFull(
                         Text(
                             text = "${venue.locality}, ${venue.city}",
                             style = JasnifyTheme.typography.labelMedium,
-                            color = locationColor
+                            color = locationColor,
+                            maxLines = 1
                         )
                     }
 
@@ -256,7 +266,8 @@ fun VenueCardFull(
                             Text(
                                 text = type,
                                 style = JasnifyTheme.typography.labelMedium,
-                                color = ContentSecondary
+                                color = ContentSecondary,
+                                maxLines = 1
                             )
                         }
                     }

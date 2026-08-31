@@ -59,6 +59,7 @@ class JasnifyApplication: Application(), ImageLoaderFactory {
         return ImageLoader.Builder(this)
             .components {
                 add(VideoFrameDecoder.Factory())
+                add(coil.decode.SvgDecoder.Factory())
             }
             .build()
     }

@@ -34,7 +34,30 @@ class EnquiryViewModel @Inject constructor(
 
     fun getChatMessages(userId: String, merchantId: String, itemId: String): Flow<List<ChatMessage>> {
         val enquiryId = "${userId}_${merchantId}_${itemId}"
-        return enquiryRepository.getEnquiryById(enquiryId).map { it?.messages ?: emptyList() }
+        return enquiryRepository.getEnquiryById(enquiryId).map { enquiry ->
+            enquiry?.messages?.filter { !it.deletedForUids.contains(userId) } ?: emptyList()
+        }
+    }
+
+    fun editMessage(userId: String, merchantId: String, itemId: String, messageId: String, newText: String) {
+        val enquiryId = "${userId}_${merchantId}_${itemId}"
+        viewModelScope.launch {
+            enquiryRepository.editMessage(enquiryId, messageId, newText)
+        }
+    }
+
+    fun deleteMessageForMe(userId: String, merchantId: String, itemId: String, messageId: String) {
+        val enquiryId = "${userId}_${merchantId}_${itemId}"
+        viewModelScope.launch {
+            enquiryRepository.deleteMessageForMe(enquiryId, messageId, userId)
+        }
+    }
+
+    fun deleteMessageForEveryone(userId: String, merchantId: String, itemId: String, messageId: String) {
+        val enquiryId = "${userId}_${merchantId}_${itemId}"
+        viewModelScope.launch {
+            enquiryRepository.deleteMessageForEveryone(enquiryId, messageId)
+        }
     }
 
     fun sendMessage(

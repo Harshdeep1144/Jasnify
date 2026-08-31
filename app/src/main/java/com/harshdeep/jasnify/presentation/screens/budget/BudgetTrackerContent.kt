@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.ExpenseItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
+import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.BudgetSummaryCard
 import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
@@ -88,6 +89,7 @@ fun BudgetTrackerContent(
     onExpandedCardIdChange: (String?) -> Unit,
     onBackClick: () -> Unit,
     onMenuClick: () -> Unit,
+    onChatClick: () -> Unit,
     onEditBudgetClick: () -> Unit,
     onViewSummaryClick: () -> Unit,
     onFilterClick: () -> Unit,
@@ -130,6 +132,8 @@ fun BudgetTrackerContent(
                     title = "Budget Tracker",
                     onBackClick = onBackClick,
                     onMenuClick = onMenuClick,
+                    secondaryIcon = TopIcon.Predefined.CHAT,
+                    onSecondaryClick = onChatClick,
                     isLargeTitle = true,
                     buttonStyle = ButtonBackground.TRANSLUCENT
                 )

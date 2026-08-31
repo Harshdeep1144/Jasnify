@@ -213,7 +213,7 @@ fun MainSkeletonContent(
                             shape = RoundedCornerShape(topStart = CornerExtraLarge, topEnd = CornerExtraLarge)
                         )
                         .padding(horizontal = 12.dp, vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // Budget Tracker Card Skeleton
                     Box(
@@ -263,7 +263,7 @@ fun MainSkeletonContent(
                     // Row 1: Catering Menu & Venue
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SmallCardSkeleton(Modifier.weight(1f), brush)
                         SmallCardSkeleton(Modifier.weight(1f), brush)
@@ -272,7 +272,7 @@ fun MainSkeletonContent(
                     // Row 2: Moments & Cards
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         SmallCardSkeleton(Modifier.weight(1f), brush)
                         SmallCardSkeleton(Modifier.weight(1f), brush)

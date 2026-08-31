@@ -1,18 +1,30 @@
 package com.harshdeep.jasnify.notifications
 
 import android.util.Log
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.harshdeep.jasnify.notifications.model.NotificationConfig
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class FCMService : FirebaseMessagingService() {
 
-    private val db = FirebaseFirestore.getInstance()
+    @Inject
+    lateinit var firestore: FirebaseFirestore
+
+    @Inject
+    lateinit var auth: FirebaseAuth
+
+    @Inject
+    lateinit var remoteUIManager: RemoteUIManager
+
     private lateinit var notificationHelper: NotificationHelper
 
     override fun onCreate() {
@@ -23,44 +35,51 @@ class FCMService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        // Check if message contains a data payload.
         if (remoteMessage.data.isNotEmpty()) {
             val notificationId = remoteMessage.data["notification_id"]
-            if (notificationId != null) {
+            if (!notificationId.isNullOrEmpty()) {
                 fetchAndShowNotification(notificationId)
             } else {
-                // Fallback: If no notification_id, use payload data directly
                 val config = NotificationConfig(
                     title = remoteMessage.data["title"] ?: "",
                     body = remoteMessage.data["body"] ?: "",
                     imageUrl = remoteMessage.data["imageUrl"],
-                    uiType = remoteMessage.data["uiType"] ?: "standard"
+                    uiType = remoteMessage.data["uiType"] ?: "bigPicture",
+                    deepLink = remoteMessage.data["deepLink"],
+                    buttonText = remoteMessage.data["buttonText"],
+                    backgroundColor = remoteMessage.data["backgroundColor"],
+                    textColor = remoteMessage.data["textColor"],
+                    buttonColor = remoteMessage.data["buttonColor"],
+                    headerBackgroundImage = remoteMessage.data["headerBackgroundImage"],
+                    headerHeight = remoteMessage.data["headerHeight"]?.toIntOrNull() ?: 80,
+                    imageHeight = remoteMessage.data["imageHeight"]?.toIntOrNull() ?: 180,
+                    showCloseButton = remoteMessage.data["showCloseButton"]?.toBoolean() ?: true
                 )
-                notificationHelper.showNotification(config)
-            }
-        }
 
-        // Also handle standard notification messages (though data messages are preferred for customization)
-        remoteMessage.notification?.let {
-            val config = NotificationConfig(
-                title = it.title ?: "",
-                body = it.body ?: ""
-            )
-            notificationHelper.showNotification(config)
+                if (config.uiType == "bottomSheet") {
+                    remoteUIManager.triggerBottomSheet(config)
+                } else {
+                    notificationHelper.showNotification(config)
+                }
+            }
         }
     }
 
     private fun fetchAndShowNotification(notificationId: String) {
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                val document = db.collection("notifications")
+                val document = firestore.collection("notifications")
                     .document(notificationId)
                     .get()
                     .await()
 
                 val config = document.toObject(NotificationConfig::class.java)
                 if (config != null) {
-                    notificationHelper.showNotification(config)
+                    if (config.uiType == "bottomSheet") {
+                        remoteUIManager.triggerBottomSheet(config)
+                    } else {
+                        notificationHelper.showNotification(config)
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("FCMService", "Error fetching notification config", e)
@@ -71,6 +90,16 @@ class FCMService : FirebaseMessagingService() {
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Log.d("FCMService", "Refreshed token: $token")
-        // You might want to upload this token to Firestore to target this specific device
+
+        val uid = auth.currentUser?.uid
+        if (!uid.isNullOrEmpty()) {
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    firestore.collection("users").document(uid).update("fcmToken", token).await()
+                } catch (e: Exception) {
+                    Log.e("FCMService", "Error updating token in Firestore", e)
+                }
+            }
+        }
     }
 }

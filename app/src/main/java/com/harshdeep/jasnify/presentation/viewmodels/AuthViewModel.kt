@@ -292,6 +292,18 @@ class AuthViewModel @Inject constructor(
         }
     }
 
+    fun updateFcmToken(uid: String, token: String) {
+        viewModelScope.launch {
+            userRepository.updateFcmToken(uid, token)
+        }
+    }
+
+    fun updateAppVersion(uid: String, versionCode: Int) {
+        viewModelScope.launch {
+            userRepository.updateAppVersion(uid, versionCode)
+        }
+    }
+
     fun logout(context: Context) {
         _authState.value = AuthState.Loading
         try {
@@ -430,7 +442,7 @@ class AuthViewModel @Inject constructor(
                 val profile = userRepository.getUserProfile(user.uid)
                 if (profile?.explicitLogoutTimestamp != null) {
                     val lastSignIn = user.metadata?.lastSignInTimestamp ?: 0L
-                    if (lastSignIn < profile.explicitLogoutTimestamp!!) {
+                    if (lastSignIn < profile.explicitLogoutTimestamp) {
                         logout(context)
                         onInvalid()
                     }

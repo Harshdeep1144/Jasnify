@@ -1,9 +1,13 @@
 package com.harshdeep.jasnify.presentation.screens.room
-
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -18,13 +22,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -39,15 +47,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
+import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomAccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RoomProfileBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.room.RoomProfileBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
@@ -57,9 +71,10 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.theme.BackgroundSecondary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfacePrimary
-import com.harshdeep.jasnify.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,22 +91,34 @@ fun RoomScreen(
     searchResults: List<User> = emptyList(),
     onSearch: (String) -> Unit = {},
     onGrantAccess: (String, UserRole) -> Unit = { _, _ -> },
+    roomPictureUrl: String? = null,
+    onUploadRoomPicture: (Uri) -> Unit = {},
+    onDeleteRoomPicture: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            onUploadRoomPicture(uri)
+        }
+    }
 
     SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
 
     var searchQuery by remember { mutableStateOf("") }
     var showProfileBottomSheet by remember { mutableStateOf(false) }
     var showAccessBottomSheet by remember { mutableStateOf(false) }
+    var showRoomPictureBottomSheet by remember { mutableStateOf(false) }
     var selectedUser by remember { mutableStateOf<User?>(null) }
 
     var sheetMotionProgress by remember { mutableFloatStateOf(0.0f) }
 
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
-            showProfileBottomSheet || showAccessBottomSheet
+            showProfileBottomSheet || showAccessBottomSheet || showRoomPictureBottomSheet
         }
     }
 
@@ -169,11 +196,61 @@ fun RoomScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(12.dp)
+                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { focusManager.clearFocus() })
                     }
             ) {
+                Box(
+                    modifier = Modifier
+                        .height(180.dp)
+                        .padding(bottom = 12.dp)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier.size(128.dp),
+                        contentAlignment = Alignment.BottomEnd
+                    ) {
+                        Surface(
+                            modifier = Modifier
+                                .size(128.dp)
+                                .clip(CircleShape),
+                            color = SurfacePrimary,
+                            tonalElevation = 2.dp
+                        ) {
+                            if (!roomPictureUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = roomPictureUrl,
+                                    contentDescription = "Room Profile Picture",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            } else {
+                                Image(
+                                    painter = painterResource(R.drawable.img_profile_placeholder),
+                                    contentDescription = "Default Room Picture",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                        val canEditRoomPicture = currentUserRole == UserRole.OWNER || currentUserRole == UserRole.EDITOR
+
+                        if (canEditRoomPicture) {
+                            CustomIconButton(
+                                onClick = {
+                                    showRoomPictureBottomSheet = true
+                                },
+                                icon = painterResource(R.drawable.ic_edit_pen),
+                                size = ButtonSize.Small,
+                                contentColor = ContentInvPrimary,
+                                containerColor = Color.Black.copy(alpha = 0.4f)
+                            )
+                        }
+                    }
+                }
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -249,43 +326,174 @@ fun RoomScreen(
         if (showAccessBottomSheet) {
             focusManager.clearFocus()
             RoomAccessBottomSheet(
-                onDismissRequest = { showAccessBottomSheet = false },
-                onGrantAccess = { email, role ->
-                    onGrantAccess(email, role)
-                    showAccessBottomSheet = false
-                },
                 searchResults = searchResults,
                 onSearch = onSearch,
+                onGrantAccess = { email, role ->
+                    onGrantAccess(email, role)
+                },
+                onDismissRequest = {
+                    showAccessBottomSheet = false
+                },
                 onProgress = { sheetMotionProgress = it }
             )
         }
 
         if (showProfileBottomSheet && selectedUser != null) {
-            val targetUser = selectedUser!!
             focusManager.clearFocus()
+            val activeUser = remember(selectedUser, allUsers) {
+                allUsers.find { it.uid == selectedUser?.uid } ?: selectedUser!!
+            }
             RoomProfileBottomSheet(
-                user = targetUser,
+                user = activeUser,
+                isSelf = isSelf(activeUser),
                 currentUserRole = currentUserRole,
-                isSelf = isSelf(targetUser),
-                onDismissRequest = { showProfileBottomSheet = false },
-                onRoleChange = { newRole ->
-                    onRoleChange(targetUser, newRole)
+                onDismissRequest = {
                     showProfileBottomSheet = false
+                    selectedUser = null
+                },
+                onRoleChange = { newRole ->
+                    onRoleChange(activeUser, newRole)
                 },
                 onRemove = {
-                    onRemove(targetUser)
                     showProfileBottomSheet = false
+                    onRemove(activeUser)
+                    selectedUser = null
                 },
                 onReport = {
-                    onReport(targetUser)
                     showProfileBottomSheet = false
+                    onReport(activeUser)
+                    selectedUser = null
                 },
                 onLeave = {
-                    onLeave()
                     showProfileBottomSheet = false
+                    onLeave()
+                    selectedUser = null
                 },
                 onProgress = { sheetMotionProgress = it }
             )
         }
+
+        if (showRoomPictureBottomSheet) {
+            focusManager.clearFocus()
+
+            val uploadIcon = painterResource(R.drawable.ic_upload)
+            val deleteIcon = painterResource(R.drawable.ic_delete)
+            val deleteColor = MaterialTheme.colorScheme.error
+
+            val roomPictureMenuItems = remember(roomPictureUrl, uploadIcon, deleteIcon, deleteColor) {
+                val list = mutableListOf<List<MenuSheetActionItem>>()
+
+                list.add(
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Choose from Gallery",
+                            icon = uploadIcon,
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showRoomPictureBottomSheet = false
+                                photoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            }
+                        )
+                    )
+                )
+
+                if (!roomPictureUrl.isNullOrBlank()) {
+                    list.add(
+                        listOf(
+                            MenuSheetActionItem(
+                                text = "Delete Picture",
+                                icon = deleteIcon,
+                                contentColor = deleteColor,
+                                iconPlacement = IconPlacement.Left,
+                                onClick = {
+                                    showRoomPictureBottomSheet = false
+                                    onDeleteRoomPicture()
+                                }
+                            )
+                        )
+                    )
+                }
+
+                list
+            }
+
+            MenuBottomSheet(
+                items = roomPictureMenuItems,
+                onCancelClick = { showRoomPictureBottomSheet = false },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+    }
+}
+
+// ============================================= Preview ======================================
+
+
+private val previewUsers = listOf(
+    User(
+        uid = "1",
+        name = "Harsh Deep",
+        username = "harshdeep",
+        email = "harsh@example.com",
+        role = UserRole.OWNER,
+        profilePictureUrl = null
+    ),
+    User(
+        uid = "2",
+        name = "Jane Doe",
+        username = "janedoe",
+        email = "jane@example.com",
+        role = UserRole.EDITOR,
+        profilePictureUrl = null
+    ),
+    User(
+        uid = "3",
+        name = "Alex Smith",
+        username = "alexsmith",
+        email = "alex@example.com",
+        role = UserRole.VIEWER,
+        profilePictureUrl = null
+    )
+)
+
+@Preview(name = "Room Screen - Owner View", showBackground = true, showSystemUi = true)
+@Composable
+fun RoomScreenOwnerPreview() {
+    JasnifyTheme {
+        RoomScreen(
+            allUsers = previewUsers,
+            currentUserRole = UserRole.OWNER,
+            isSelf = { it.uid == "1" },
+            onBackClick = {},
+            onMenuClick = {},
+            onRoleChange = { _, _ -> },
+            onRemove = {},
+            onReport = {},
+            onLeave = {},
+            roomPictureUrl = null,
+            searchResults = emptyList()
+        )
+    }
+}
+
+@Preview(name = "Room Screen - Member View", showBackground = true, showSystemUi = true)
+@Composable
+fun RoomScreenMemberPreview() {
+    JasnifyTheme {
+        RoomScreen(
+            allUsers = previewUsers,
+            currentUserRole = UserRole.VIEWER,
+            isSelf = { it.uid == "3" },
+            onBackClick = {},
+            onMenuClick = {},
+            onRoleChange = { _, _ -> },
+            onRemove = {},
+            onReport = {},
+            onLeave = {},
+            roomPictureUrl = "https://example.com/avatar.jpg",
+            searchResults = emptyList()
+        )
     }
 }

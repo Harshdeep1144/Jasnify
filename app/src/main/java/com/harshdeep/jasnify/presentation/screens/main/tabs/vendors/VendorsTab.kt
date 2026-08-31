@@ -2,7 +2,6 @@ package com.harshdeep.jasnify.presentation.screens.main.tabs.vendors
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -14,12 +13,8 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
@@ -72,18 +67,18 @@ import com.harshdeep.jasnify.domain.model.TimelineEvent
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.model.Vendor
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.LocationAccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.location.LocationAccessBottomSheet
 import com.harshdeep.jasnify.presentation.utils.LocationHelper
 import com.harshdeep.jasnify.presentation.utils.SessionState
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.OfferBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -95,6 +90,7 @@ import com.harshdeep.jasnify.presentation.navigation.Screen
 import com.harshdeep.jasnify.presentation.navigation.ScreenTransitions
 import com.harshdeep.jasnify.presentation.screens.others.LocationScreen
 import com.harshdeep.jasnify.presentation.components.states.VendorsLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
@@ -111,9 +107,11 @@ enum class VendorScreenState {
     CATEGORY_DETAIL,
     ALL_SAVED,
     ROOM,
+    GROUP_CHAT,
     VENDOR_DETAIL,
     LOCATION_SELECTOR,
-    TIMELINE_DETAIL
+    TIMELINE_DETAIL,
+    HELP_FEEDBACK
 }
 
 @SuppressLint("ConstantLocale")
@@ -131,7 +129,8 @@ fun VendorsTab(
     roomViewModel: RoomViewModel = hiltViewModel(),
     vendorViewModel: VendorViewModel = hiltViewModel(),
     initialCategory: VendorCategoryItem? = null,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
 
@@ -144,6 +143,7 @@ fun VendorsTab(
     val coroutineScope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     var showAiChat by remember { mutableStateOf(false) }
+    var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -161,24 +161,20 @@ fun VendorsTab(
         ?.getStateFlow("selected_location", "City, State")
         ?.collectAsState() ?: remember { mutableStateOf("City, State") }
 
-    var localSelectedCity by remember(selectedCityFromNav, recentLocations) {
-        mutableStateOf(
-            if (selectedCityFromNav == "City, State" && recentLocations.isNotEmpty()) {
-                recentLocations.first()
-            } else {
-                selectedCityFromNav
-            }
-        )
+    // Initialize SessionState.currentLocation if it's default
+    val initializedLocation = remember(context) {
+        SessionState.initializeLocation(context)
+        true
     }
 
-    val selectedCity = localSelectedCity
+    val selectedCity = SessionState.currentLocation
 
     val gpsResolutionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                localSelectedCity = city
+                SessionState.updateLocation(context, city)
                 mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
             })
         }
@@ -192,7 +188,7 @@ fun VendorsTab(
         if (fineLocationGranted || coarseLocationGranted) {
             LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
                 LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                    localSelectedCity = city
+                    SessionState.updateLocation(context, city)
                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
                 })
             }
@@ -200,7 +196,15 @@ fun VendorsTab(
     }
 
     LaunchedEffect(Unit) {
-        if (!SessionState.hasShownVendorLocationAccess) {
+        val hasPermission = LocationHelper.hasLocationPermission(context)
+        val isEnabled = LocationHelper.isLocationEnabled(context)
+
+        if (hasPermission && isEnabled) {
+            LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { 
+                SessionState.updateLocation(context, it)
+            })
+            SessionState.hasShownVendorLocationAccess = true
+        } else if (!SessionState.hasShownVendorLocationAccess) {
             delay(500.milliseconds)
             showLocationAccessSheet = true
         }
@@ -491,12 +495,14 @@ fun VendorsTab(
 
                             targetState == VendorScreenState.VENDOR_DETAIL ||
                                     targetState == VendorScreenState.LOCATION_SELECTOR ||
-                                    targetState == VendorScreenState.TIMELINE_DETAIL ->
+                                    targetState == VendorScreenState.TIMELINE_DETAIL ||
+                                    targetState == VendorScreenState.HELP_FEEDBACK ->
                                 ScreenTransitions.SlideBottomToTopFastTransition
 
                             initialState == VendorScreenState.VENDOR_DETAIL ||
                                     initialState == VendorScreenState.LOCATION_SELECTOR ||
-                                    initialState == VendorScreenState.TIMELINE_DETAIL ->
+                                    initialState == VendorScreenState.TIMELINE_DETAIL ||
+                                    initialState == VendorScreenState.HELP_FEEDBACK ->
                                 ScreenTransitions.SlideTopToBottomFastTransition
 
                             else -> ScreenTransitions.FadeInOutDefaultTransition
@@ -514,6 +520,9 @@ fun VendorsTab(
                                 isSearchActive = isSearchActive,
                                 onSearchActiveChange = { isSearchActive = it },
                                 onMenuClick = { showMenuSheet = true },
+                                onChatClick = {
+                                    screenStack = screenStack + VendorScreenState.GROUP_CHAT
+                                },
                                 onLocationClick = {
                                     screenStack = screenStack + VendorScreenState.LOCATION_SELECTOR
                                 },
@@ -596,7 +605,11 @@ fun VendorsTab(
                                         }
                                     },
                                     onFavoriteToggle = { handleFavoriteToggle(it) },
-                                    onChatClick = { onChatClick(it) }
+                                    onChatClick = { onChatClick(it) },
+                                    onAiSearchClick = { query ->
+                                        aiChatInitialContext = query
+                                        showAiChat = true
+                                    }
                                 )
                             }
                         }
@@ -664,7 +677,7 @@ fun VendorsTab(
                                 initialSearches = recentLocations,
                                 currentAddress = selectedCity,
                                 onAddressSelected = {
-                                    localSelectedCity = it
+                                    SessionState.updateLocation(context, it)
                                     mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", it)
                                     autoFocusLocationSearch = false
                                     if (screenStack.size > 1) {
@@ -685,6 +698,31 @@ fun VendorsTab(
                                 autoFocusSearch = autoFocusLocationSearch
                             )
                         }
+                        VendorScreenState.HELP_FEEDBACK -> {
+                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                profileViewModel = profileViewModel,
+                                onBack = {
+                                    if (screenStack.size > 1) {
+                                        screenStack = screenStack.dropLast(1)
+                                    }
+                                },
+                                onShowAiChat = { showAiChat = true }
+                            )
+                        }
+                        VendorScreenState.GROUP_CHAT -> {
+                            activeEventId?.let { id ->
+                                GroupChatScreen(
+                                    eventId = id,
+                                    roomType = "Vendors",
+                                    onBackClick = {
+                                        screenStack = screenStack.dropLast(1)
+                                    },
+                                    onMembersClick = {
+                                        screenStack = screenStack + VendorScreenState.ROOM
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -693,7 +731,7 @@ fun VendorsTab(
                         onClick = { showAiChat = true },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(bottom = 180.dp)
+                            .padding(bottom = 176.dp)
                             .zIndex(150f)
                     )
                 }
@@ -706,8 +744,12 @@ fun VendorsTab(
                 ) {
                     AiChatScreen(
                         eventId = activeEventId,
+                        initialContext = aiChatInitialContext,
                         shouldStartNewSession = true,
-                        onBackClick = { showAiChat = false },
+                        onBackClick = { 
+                            showAiChat = false
+                            aiChatInitialContext = null
+                        },
                         mainNavController = mainNavController
                     )
                 }
@@ -771,7 +813,7 @@ fun VendorsTab(
 
         if (showLocationAccessSheet) {
             LocationAccessBottomSheet(
-                title = "Discover the best \n vendors around you",
+                title = "Discover the best vendors \n around you",
                 subtitle = "Allow location permissions for best \n recommendations around you",
                 onDismiss = {
                     showLocationAccessSheet = false
@@ -784,7 +826,7 @@ fun VendorsTab(
                     if (LocationHelper.hasLocationPermission(context)) {
                         LocationHelper.checkSettingsAndFetchLocation(context, gpsResolutionLauncher) {
                             LocationHelper.fetchLocationAndResolveAddress(context, coroutineScope, { city ->
-                                localSelectedCity = city
+                                SessionState.updateLocation(context, city)
                                 mainNavController.currentBackStackEntry?.savedStateHandle?.set("selected_location", city)
                             })
                         }
@@ -838,22 +880,12 @@ fun VendorsTab(
                 },
                 listOf(
                     MenuSheetActionItem(
-                        text = "Manage Room Access",
-                        icon = painterResource(R.drawable.ic_user_default),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            screenStack = screenStack + VendorScreenState.ROOM
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
                         text = "Help & Feedback",
                         icon = painterResource(R.drawable.ic_help_feedback),
                         iconPlacement = IconPlacement.Left,
                         onClick = {
                             showMenuSheet = false
+                            screenStack = screenStack + VendorScreenState.HELP_FEEDBACK
                         }
                     )
                 )
@@ -882,6 +914,17 @@ fun VendorsTab(
                             onClick = {
                                 showRoomMenuBottomSheet = false
                                 showLeaveConfirmation = true
+                            }
+                        )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Help & Feedback",
+                            icon = painterResource(R.drawable.ic_help_feedback),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                screenStack = screenStack + VendorScreenState.HELP_FEEDBACK
                             }
                         )
                     )

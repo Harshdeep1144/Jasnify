@@ -1,7 +1,11 @@
 package com.harshdeep.jasnify.presentation.components.others
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -19,8 +23,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
@@ -43,6 +51,7 @@ enum class ToastType {
 }
 
 // --- Toast State Management ---
+@Immutable
 data class ToastData(
     val message: String? = null,
     val type: ToastType = ToastType.DEFAULT,
@@ -57,7 +66,8 @@ fun CustomToast(
     leadingIcon: Painter? = null,
     iconColor: Color = ContentInvPrimary,
     buttonText: String? = null,
-    onButtonClick: (() -> Unit)? = null
+    onButtonClick: (() -> Unit)? = null,
+    durationMillis: Int = 2000
 ) {
     val backgroundColor = when (type) {
         ToastType.DEFAULT -> Color(0xFF555555)
@@ -67,75 +77,104 @@ fun CustomToast(
 
     val contentColor = ContentInvPrimary
     val buttonColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f)
+    val progressBarColor = ContentInvPrimary.copy(alpha = 0.35f)
     val showButton = buttonText != null && onButtonClick != null
+    val toastShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 
-    Row(
+    val progress = remember { Animatable(1f) }
+
+    LaunchedEffect(message) {
+        progress.snapTo(1f)
+        progress.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(
+                durationMillis = durationMillis,
+                easing = LinearEasing
+            )
+        )
+    }
+
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .clip(toastShape)
             .background(
                 color = backgroundColor,
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                shape = toastShape
             )
-            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
-        val iconModifier = Modifier
-            .size(24.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 56.dp)
+                .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            val iconModifier = Modifier.size(24.dp)
 
-        if (leadingIcon != null) {
-            Icon(
-                painter = leadingIcon,
-                contentDescription = type.name,
-                modifier = iconModifier,
-                tint = iconColor
-            )
-        } else {
-            val defaultIcon = when (type) {
-                ToastType.DEFAULT -> painterResource(R.drawable.ic_tick2)
-                ToastType.SUCCESS -> painterResource(R.drawable.ic_tick2)
-                ToastType.ERROR -> painterResource(R.drawable.ic_info)
-            }
-            Icon(
-                painter = defaultIcon,
-                contentDescription = type.name,
-                tint = iconColor,
-                modifier = iconModifier
-            )
-        }
-
-        Spacer(Modifier.width(8.dp))
-
-        Text(
-            text = message,
-            color = contentColor,
-            modifier = Modifier.weight(1f),
-            style = JasnifyTheme.typography.labelXLarge
-        )
-
-        Spacer(modifier = Modifier.width(8.dp))
-
-        if (showButton) {
-            Button(
-                onClick = onButtonClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = buttonColor,
-                    contentColor = contentColor
-                ),
-                shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                modifier = Modifier
-                    .height(40.dp)
-                    .align(alignment = Alignment.CenterVertically)
-            ) {
-                Text(
-                    text = buttonText,
-                    style = JasnifyTheme.typography.labelLarge,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
+            if (leadingIcon != null) {
+                Icon(
+                    painter = leadingIcon,
+                    contentDescription = type.name,
+                    modifier = iconModifier,
+                    tint = iconColor
+                )
+            } else {
+                val defaultIcon = when (type) {
+                    ToastType.DEFAULT -> painterResource(R.drawable.ic_tick2)
+                    ToastType.SUCCESS -> painterResource(R.drawable.ic_tick2)
+                    ToastType.ERROR -> painterResource(R.drawable.ic_info)
+                }
+                Icon(
+                    painter = defaultIcon,
+                    contentDescription = type.name,
+                    tint = iconColor,
+                    modifier = iconModifier
                 )
             }
+
+            Spacer(Modifier.width(8.dp))
+
+            Text(
+                text = message,
+                color = contentColor,
+                modifier = Modifier.weight(1f),
+                style = JasnifyTheme.typography.labelXLarge
+            )
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            if (showButton) {
+                Button(
+                    onClick = onButtonClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = buttonColor,
+                        contentColor = contentColor
+                    ),
+                    shape = SquircleShape(CornerMedium, CornerSmoothingDefault),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .height(40.dp)
+                        .align(alignment = Alignment.CenterVertically)
+                ) {
+                    Text(
+                        text = buttonText,
+                        style = JasnifyTheme.typography.labelLarge,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
         }
+
+        // Progress bar shrinking towards the left
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth(progress.value)
+                .height(3.dp)
+                .background(progressBarColor)
+        )
     }
 }
 
@@ -148,7 +187,6 @@ fun ToastComponentPreview() {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
         CustomToast(
             message = "Toast Message (Default Icon)",
             type = ToastType.DEFAULT,

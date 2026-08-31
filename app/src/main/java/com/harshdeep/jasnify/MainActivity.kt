@@ -19,16 +19,27 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.messaging.FirebaseMessaging
 import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.notifications.RemoteUIManager
+import com.harshdeep.jasnify.notifications.model.NotificationConfig
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.AnnouncementBottomSheet
 import com.harshdeep.jasnify.presentation.navigation.AppNavigation
 import com.harshdeep.jasnify.presentation.viewmodels.AuthViewModel
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import dagger.hilt.android.AndroidEntryPoint
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     @Inject
     lateinit var preferenceManager: PreferenceManager
+
+    @Inject
+    lateinit var remoteUIManager: RemoteUIManager
 
     private val requestPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -58,16 +69,45 @@ class MainActivity : ComponentActivity() {
         setContent {
             val authViewModel: AuthViewModel = hiltViewModel()
             val auth = FirebaseAuth.getInstance()
+
+            val remoteUIConfig by remoteUIManager.uiEvents.collectAsState(initial = null)
+            var showRemoteBottomSheet by remember { mutableStateOf(false) }
+            var activeConfig by remember { mutableStateOf<NotificationConfig?>(null) }
+
+            LaunchedEffect(remoteUIConfig) {
+                remoteUIConfig?.let {
+                    activeConfig = it
+                    showRemoteBottomSheet = true
+                }
+            }
             
-            // Keep user's lastActive status updated
+            // Keep user's lastActive status updated and sync FCM Token
             LaunchedEffect(auth.currentUser?.uid) {
                 auth.currentUser?.uid?.let { uid ->
                     authViewModel.updateLastActive(uid, isMerchant = false)
+                    
+                    // Sync FCM token to Firestore
+                    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                        if (task.isSuccessful) {
+                            val token = task.result
+                            authViewModel.updateFcmToken(uid, token)
+                        }
+                    }
+
+                    // Sync App Version to Firestore
+                    authViewModel.updateAppVersion(uid, com.harshdeep.jasnify.BuildConfig.VERSION_CODE)
                 }
             }
 
             JasnifyTheme {
                 AppNavigation()
+
+                if (showRemoteBottomSheet && activeConfig != null) {
+                    AnnouncementBottomSheet(
+                        config = activeConfig!!,
+                        onDismiss = { showRemoteBottomSheet = false }
+                    )
+                }
             }
         }
     }

@@ -23,11 +23,35 @@ class VenueViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
+    
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
     private val _isReviewSubmitting = MutableStateFlow(false)
     val isReviewSubmitting: StateFlow<Boolean> = _isReviewSubmitting.asStateFlow()
+
+    private val _selectedVenueId = MutableStateFlow<String?>(null)
+    private val _eventId = MutableStateFlow<String?>(null)
+
+    val allVenues: StateFlow<List<Venue>> = repository.getAllVenues()
+        .onEach { _isLoading.value = false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val venueReviews: StateFlow<List<VenueReview>> = _selectedVenueId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList())
+            else repository.getVenueReviews(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val savedVenues: StateFlow<List<SavedVenue>> = _eventId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList())
+            else repository.getSavedVenues(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun submitReview(
         venueId: String,
@@ -40,12 +64,9 @@ class VenueViewModel @Inject constructor(
         viewModelScope.launch {
             _isReviewSubmitting.value = true
             try {
-                // 0. Delete removed images from Cloudinary
                 removedImageUrls.forEach { url ->
                     cloudinaryManager.deleteImageByUrl(url)
                 }
-
-                // 1. Upload images to Cloudinary (only those that are not already uploaded)
                 val uploadedUrls = imageUris.map { uri ->
                     async {
                         if (uri.toString().contains("cloudinary.com")) {
@@ -56,7 +77,6 @@ class VenueViewModel @Inject constructor(
                     }
                 }.awaitAll()
 
-                // 2. Create and Submit review
                 val user = auth.currentUser
                 val review = VenueReview(
                     userId = user?.uid ?: "",
@@ -70,7 +90,6 @@ class VenueViewModel @Inject constructor(
                     relativeTime = "Just now"
                 )
                 repository.addVenueReview(venueId, review)
-                
             } catch (e: Exception) {
                 // Handle error
             } finally {
@@ -93,39 +112,13 @@ class VenueViewModel @Inject constructor(
         }
     }
 
-    init {
-        viewModelScope.launch {
-            // Simulate check or real check
-            _isLoading.value = false
-        }
-    }
-
-    val allVenues: StateFlow<List<Venue>> = repository.getAllVenues()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private val _selectedVenueId = MutableStateFlow<String?>(null)
-    
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val venueReviews: StateFlow<List<VenueReview>> = _selectedVenueId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getVenueReviews(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     fun setSelectedVenueId(id: String?) {
         _selectedVenueId.value = id
     }
 
-    private val _eventId = MutableStateFlow<String?>(null)
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val savedVenues: StateFlow<List<SavedVenue>> = _eventId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getSavedVenues(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun getVenueById(venueId: String): Flow<Venue?> {
+        return repository.getVenueById(venueId)
+    }
 
     fun setEventId(id: String) {
         if (_eventId.value != id) {
@@ -157,12 +150,6 @@ class VenueViewModel @Inject constructor(
         val eventId = _eventId.value ?: return
         viewModelScope.launch {
             repository.removeSavedVenue(eventId, venueName, !isViewer)
-        }
-    }
-
-    fun seedMockData(venues: List<Venue>) {
-        viewModelScope.launch {
-            repository.seedMockVenues(venues)
         }
     }
 }

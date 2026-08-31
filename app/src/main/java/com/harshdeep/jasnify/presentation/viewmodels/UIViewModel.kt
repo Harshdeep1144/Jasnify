@@ -2,7 +2,7 @@ package com.harshdeep.jasnify.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.NavBarStyleOption
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.profile.NavBarStyleOption
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

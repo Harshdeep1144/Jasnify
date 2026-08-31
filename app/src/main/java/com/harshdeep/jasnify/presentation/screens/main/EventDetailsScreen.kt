@@ -60,7 +60,9 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -73,11 +75,11 @@ import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.data.models.eventTypes
 import com.harshdeep.jasnify.domain.model.SubEvent
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DatePickerSlider
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.DeleteTimelineWarningSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EventTimeLineInfoSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.DatePickerSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.DatePickerSlider
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.DeleteTimelineWarningSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.event.EventTimeLineInfoSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
@@ -133,7 +135,9 @@ import java.util.UUID
 import kotlin.time.Duration.Companion.milliseconds
 import java.time.format.TextStyle as JavaTextStyle
 
+@RequiresApi(Build.VERSION_CODES.O)
 private val DateParserFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
+@RequiresApi(Build.VERSION_CODES.O)
 private val DateStandardFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy", Locale.ENGLISH)
 private val PickDateOptions = listOf(true, false)
 
@@ -149,6 +153,7 @@ fun EventDetailsScreen(
     vendorViewModel: VendorViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val coroutineScope = rememberCoroutineScope()
 
     val activeEvent by eventViewModel.activeEvent.collectAsState()
@@ -239,6 +244,18 @@ fun EventDetailsScreen(
 
     val timelineItems = remember {
         mutableStateListOf<SubEventItem>()
+    }
+
+    val validSavedTimelines by remember {
+        derivedStateOf {
+            timelineItems.filter {
+                it.name.isNotBlank() &&
+                        it.date != null &&
+                        it.dateString.isNotBlank() &&
+                        it.dateString != "Not yet decided" &&
+                        it.dateString != "Select a date"
+            }
+        }
     }
 
     var isSyncing by remember { mutableStateOf(false) }
@@ -431,6 +448,7 @@ fun EventDetailsScreen(
                                         icon = copyPainter,
                                         modifier = Modifier.weight(1f),
                                         onClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                             val clip = ClipData.newPlainText("Event ID", eventId)
                                             clipboard.setPrimaryClip(clip)
@@ -561,7 +579,7 @@ fun EventDetailsScreen(
                                                 if (isDateAdded) {
                                                     CustomIconButton(
                                                         onClick = {
-                                                            if (timelineItems.isEmpty()) {
+                                                            if (validSavedTimelines.isEmpty()) {
                                                                 datePickerInitialDate = parseFormattedDate(singleDaySelectedDate)
                                                                 onDateSelectedCallback = { localDate ->
                                                                     singleDaySelectedDate = formatToOrdinalDate(localDate)
@@ -585,7 +603,7 @@ fun EventDetailsScreen(
                                                 } else {
                                                     CustomTextButton(
                                                         onClick = {
-                                                            if (timelineItems.isEmpty()) {
+                                                            if (validSavedTimelines.isEmpty()) {
                                                                 datePickerInitialDate = LocalDate.now()
                                                                 onDateSelectedCallback = { localDate ->
                                                                     singleDaySelectedDate = formatToOrdinalDate(localDate)
@@ -1009,21 +1027,12 @@ fun EventDetailsScreen(
                                     Spacer(Modifier.height(12.dp))
 
                                     if (pickDateSegmentSelected) {
-                                        val validSavedTimelines = remember(timelineItems) {
-                                            timelineItems.filter {
-                                                it.dateString.isNotBlank() &&
-                                                        it.dateString != "Not yet decided" &&
-                                                        it.dateString != "Select a date" &&
-                                                        it.name.isNotBlank()
-                                            }
-                                        }
-
                                         Box(
                                             modifier = Modifier
                                                 .matchParentSize()
                                                 .clip(SquircleShape(CornerLarge))
                                                 .clickable {
-                                                    if (timelineItems.isEmpty() || validSavedTimelines.isEmpty()) {
+                                                    if (validSavedTimelines.isEmpty()) {
                                                         datePickerInitialDate = parseFormattedDate(tempSelectedDateString)
                                                         onDateSelectedCallback = { localDate ->
                                                             tempSelectedDateString = formatToOrdinalDate(localDate)
@@ -1185,15 +1194,6 @@ fun EventDetailsScreen(
                                         .height(260.dp)
                                 ) {
                                     if (pickerActiveTab == 0) {
-                                        val validSavedTimelines = remember(timelineItems) {
-                                            timelineItems.filter {
-                                                it.dateString.isNotBlank() &&
-                                                        it.dateString != "Not yet decided" &&
-                                                        it.dateString != "Select a date" &&
-                                                        it.name.isNotBlank()
-                                            }
-                                        }
-
                                         if (validSavedTimelines.isEmpty()) {
                                             Box(
                                                 modifier = Modifier

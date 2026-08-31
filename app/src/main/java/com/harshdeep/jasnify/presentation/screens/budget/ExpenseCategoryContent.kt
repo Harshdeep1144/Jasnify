@@ -53,7 +53,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.cards.CategoryCard
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.utils.pill360Shadow
 import com.harshdeep.jasnify.theme.BottomGradientBrush
 import com.harshdeep.jasnify.theme.SurfacePrimary
@@ -270,7 +270,7 @@ fun ExpenseCategoryContent(
                 onClick = { showAiChat = true },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 240.dp)
+                    .padding(bottom = 156.dp)
                     .zIndex(150f)
             )
         }

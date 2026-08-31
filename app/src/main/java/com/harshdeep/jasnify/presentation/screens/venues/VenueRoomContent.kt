@@ -53,6 +53,12 @@ fun VenueRoomContent(
         }
     }
 
+    androidx.compose.runtime.LaunchedEffect(eventId) {
+        if (eventId.isNotBlank()) {
+            roomViewModel.loadRoomPicture(eventId, "Venue")
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -77,6 +83,24 @@ fun VenueRoomContent(
             onGrantAccess = { email, role ->
                 roomViewModel.grantAccess(eventId, "Venue", email, role)
                 onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
+            },
+            roomPictureUrl = roomViewModel.roomPictureUrl.collectAsStateWithLifecycle().value,
+            onUploadRoomPicture = { uri ->
+                roomViewModel.uploadRoomPicture(
+                    eventId = eventId,
+                    roomType = "Venue",
+                    uri = uri,
+                    onSuccess = { onShowToast(ToastData("Room profile picture updated", ToastType.SUCCESS)) },
+                    onError = { err -> onShowToast(ToastData(err, ToastType.ERROR)) }
+                )
+            },
+            onDeleteRoomPicture = {
+                roomViewModel.deleteRoomPicture(
+                    eventId = eventId,
+                    roomType = "Venue",
+                    onSuccess = { onShowToast(ToastData("Room profile picture deleted", ToastType.SUCCESS)) },
+                    onError = { err -> onShowToast(ToastData(err, ToastType.ERROR)) }
+                )
             },
             modifier = Modifier.fillMaxSize()
         )

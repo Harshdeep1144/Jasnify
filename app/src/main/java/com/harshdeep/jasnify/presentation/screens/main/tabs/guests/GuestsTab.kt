@@ -102,16 +102,16 @@ import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.model.GuestType
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestInfoBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddGuestTypeBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ContactPickerBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.GuestDetailsBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.RecentActivityBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestInfoBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.AddGuestTypeBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.ContactPickerBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.GuestDetailsBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.RecentActivityBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
@@ -128,7 +128,7 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.states.GuestsLoadingState
@@ -154,6 +154,7 @@ import com.harshdeep.jasnify.utils.ContactHelper
 import com.harshdeep.jasnify.utils.SearchHistoryManager
 import android.os.Build
 import androidx.annotation.RequiresApi
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import kotlinx.coroutines.delay
 import sv.lib.squircleshape.SquircleShape
 import java.text.SimpleDateFormat
@@ -165,7 +166,9 @@ enum class GuestsView {
     MAIN,
     MANAGE_GUEST_TYPES,
     GUEST_TYPE_DETAIL,
-    ROOM_ACCESS
+    ROOM_ACCESS,
+    GROUP_CHAT,
+    HELP_FEEDBACK
 }
 
 fun Context.findActivity(): Activity? {
@@ -181,11 +184,13 @@ fun Context.findActivity(): Activity? {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun GuestsTab(
+    navController: androidx.navigation.NavHostController? = null,
     onBottomBarVisibilityChange: (Boolean) -> Unit = {},
     roomViewModel: RoomViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
     guestViewModel: GuestViewModel = hiltViewModel(),
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -193,15 +198,11 @@ fun GuestsTab(
 
     val auth = FirebaseAuth.getInstance()
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
     val guestsFromCloud by guestViewModel.guests.collectAsStateWithLifecycle()
     val isLoading by guestViewModel.isLoading.collectAsStateWithLifecycle()
-
-    if (activeEvent == null) {
-        GuestsLoadingState()
-        return
-    }
 
     val currentUserUid = auth.currentUser?.uid ?: ""
 
@@ -219,6 +220,11 @@ fun GuestsTab(
         } else {
             roomViewModel.setAccessState(true)
         }
+    }
+
+    if (activeEvent == null || isLoading) {
+        GuestsLoadingState()
+        return
     }
 
     val searchHistoryManager = remember { SearchHistoryManager(context) }
@@ -553,7 +559,9 @@ fun GuestsTab(
             when (currentView) {
                 GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
                 GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
-                GuestsView.ROOM_ACCESS -> currentView = GuestsView.MAIN
+                GuestsView.ROOM_ACCESS -> currentView = GuestsView.GROUP_CHAT
+                GuestsView.GROUP_CHAT -> currentView = GuestsView.MAIN
+                GuestsView.HELP_FEEDBACK -> currentView = GuestsView.MAIN
                 else -> {}
             }
         }
@@ -640,6 +648,10 @@ fun GuestsTab(
                                                         menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                                         isLeftAligned = true,
                                                         isLargeTitle = true,
+                                                        secondaryIcon = TopIcon.Predefined.CHAT,
+                                                        onSecondaryClick = {
+                                                            currentView = GuestsView.GROUP_CHAT
+                                                        },
                                                         onMenuClick = {
                                                             focusManager.clearFocus()
                                                             showMenuSheet = true
@@ -1132,7 +1144,7 @@ fun GuestsTab(
                                     }
                                 }
 
-                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat) {
+                                if (currentView == GuestsView.MAIN && !isMultiSelectMode && !isSearchActive && !isAnyBottomSheetOpen && !showAiChat && guests.isNotEmpty()) {
                                     AskAiButton(
                                         onClick = {
                                             focusManager.clearFocus()
@@ -1149,7 +1161,7 @@ fun GuestsTab(
                                         },
                                         modifier = Modifier
                                             .align(Alignment.BottomEnd)
-                                            .padding(bottom = 240.dp)
+                                            .padding(bottom = 176.dp)
                                             .zIndex(150f)
                                     )
                                 }
@@ -1212,7 +1224,7 @@ fun GuestsTab(
                                 GuestRoomContent(
                                     eventId = id,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onBackClick = { currentView = GuestsView.GROUP_CHAT },
                                     onMenuClick = {
                                         focusManager.clearFocus()
                                         showRoomMenuBottomSheet = true
@@ -1224,6 +1236,24 @@ fun GuestsTab(
                                         showLeaveConfirmation = true
                                     },
                                     onShowToast = { toastData = it }
+                                )
+                            }
+                        }
+
+                        GuestsView.HELP_FEEDBACK -> {
+                            com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                profileViewModel = profileViewModel,
+                                onBack = { currentView = GuestsView.MAIN },
+                                onShowAiChat = { showAiChat = true }
+                            )
+                        }
+                        GuestsView.GROUP_CHAT -> {
+                            activeEventId?.let { id ->
+                                GroupChatScreen(
+                                    eventId = id,
+                                    roomType = "Guest",
+                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onMembersClick = { currentView = GuestsView.ROOM_ACCESS }
                                 )
                             }
                         }
@@ -1631,6 +1661,17 @@ fun GuestsTab(
                                 showLeaveConfirmation = true
                             }
                         )
+                    ),
+                    listOf(
+                        MenuSheetActionItem(
+                            text = "Help & Feedback",
+                            icon = painterResource(id = R.drawable.ic_help_feedback),
+                            iconPlacement = IconPlacement.Left,
+                            onClick = {
+                                showRoomMenuBottomSheet = false
+                                currentView = GuestsView.HELP_FEEDBACK
+                            }
+                        )
                     )
                 ),
                 onCancelClick = {
@@ -1721,21 +1762,13 @@ fun GuestsTab(
                 ),
                 listOf(
                     MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = painterResource(id = R.drawable.ic_user_default),
-                        iconPlacement = IconPlacement.Left,
-                        onClick = {
-                            showMenuSheet = false
-                            currentView = GuestsView.ROOM_ACCESS
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
                         text = "Help & Feedback",
                         icon = painterResource(id = R.drawable.ic_help_feedback),
                         iconPlacement = IconPlacement.Left,
-                        onClick = { showMenuSheet = false }
+                        onClick = {
+                            showMenuSheet = false
+                            currentView = GuestsView.HELP_FEEDBACK
+                        }
                     )
                 )
             )

@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.utils
 
+import android.content.Context
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -43,4 +44,21 @@ object SessionState {
      * Tracks if the import contacts banner has been shown in the current session.
      */
     var hasShownImportContactsBanner by mutableStateOf(false)
+
+    /**
+     * The current resolved location address for the session.
+     */
+    var currentLocation by mutableStateOf("City, State")
+        private set
+
+    fun updateLocation(context: Context, address: String) {
+        currentLocation = address
+        LocationHelper.saveLastLocation(context, address)
+    }
+
+    fun initializeLocation(context: Context) {
+        if (currentLocation == "City, State") {
+            currentLocation = LocationHelper.getLastLocation(context)
+        }
+    }
 }

@@ -22,6 +22,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -30,6 +34,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import java.time.Duration
@@ -45,10 +50,17 @@ fun HomeTopBar(
     title: String,
     dateString: String,
     onMenuClick: () -> Unit = {},
-    alpha: Float = 1f
+    alphaProvider: () -> Float = { 1f },
+    contentColorOverride: Color? = null
 ) {
+    val alpha = alphaProvider()
+    val haptic = LocalHapticFeedback.current
     val containerColor = BackgroundPrimary.copy(alpha = alpha)
-    val contentColor =  ContentPrimary
+
+    // Smoothly interpolate between the header's color (White or Custom) and the standard primary content color
+    val startColor = contentColorOverride ?: ContentInvPrimary
+    val contentColor = lerp(startColor, ContentPrimary, alpha)
+
     val buttonBackground = if (alpha > 0.5f) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT
 
     // Calculate the status subtitle based on the event date relative to now
@@ -140,8 +152,12 @@ fun HomeTopBar(
 
         TopBarIconButton(
             icon = TopIcon.Predefined.MENU_MODERN,
-            onClick = onMenuClick,
+            onClick = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                onMenuClick()
+            },
             backgroundStyle = buttonBackground,
+            iconColor = contentColor,
             iconSize = 24.dp,
         )
     }

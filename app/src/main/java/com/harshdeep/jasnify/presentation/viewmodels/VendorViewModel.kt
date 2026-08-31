@@ -23,6 +23,7 @@ class VendorViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
+    
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -30,6 +31,36 @@ class VendorViewModel @Inject constructor(
     val isReviewSubmitting: StateFlow<Boolean> = _isReviewSubmitting.asStateFlow()
 
     private val _eventId = MutableStateFlow<String?>(null)
+    private val _selectedVendorId = MutableStateFlow<String?>(null)
+
+    val allVendors: StateFlow<List<Vendor>> = repository.getAllVendors()
+        .onEach { _isLoading.value = false }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, _eventId) { all, eventId ->
+        val saved = if (eventId != null) repository.getSavedVendors(eventId).first() else emptyList()
+        val savedKeys = saved.map { "${it.vendorName}-${it.category}" }.toSet()
+        all.map { vendor ->
+            vendor.copy(favorite = savedKeys.contains("${vendor.name}-${vendor.category}"))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val vendorReviews: StateFlow<List<VendorReview>> = _selectedVendorId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList())
+            else repository.getVendorReviews(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val savedVendors: StateFlow<List<SavedVendor>> = _eventId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(emptyList())
+            else repository.getSavedVendors(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun submitReview(
         vendorId: String,
@@ -42,12 +73,9 @@ class VendorViewModel @Inject constructor(
         viewModelScope.launch {
             _isReviewSubmitting.value = true
             try {
-                // 0. Delete removed images from Cloudinary
                 removedImageUrls.forEach { url ->
                     cloudinaryManager.deleteImageByUrl(url)
                 }
-
-                // 1. Upload images to Cloudinary (only those that are not already uploaded)
                 val uploadedUrls = imageUris.map { uri ->
                     async {
                         if (uri.toString().contains("cloudinary.com")) {
@@ -58,7 +86,6 @@ class VendorViewModel @Inject constructor(
                     }
                 }.awaitAll()
 
-                // 2. Create and Submit review
                 val user = auth.currentUser
                 val review = VendorReview(
                     userId = user?.uid ?: "",
@@ -72,7 +99,6 @@ class VendorViewModel @Inject constructor(
                     relativeTime = "Just now"
                 )
                 repository.addVendorReview(vendorId, review)
-                
             } catch (e: Exception) {
                 // Handle error
             } finally {
@@ -95,51 +121,15 @@ class VendorViewModel @Inject constructor(
         }
     }
 
-    init {
-        viewModelScope.launch {
-            if (repository.isCatalogEmpty()) {
-                seedMockData(com.harshdeep.jasnify.data.mock.MockData.sampleVendors)
-            }
-            _isLoading.value = false
-        }
-    }
-
-    val allVendors: StateFlow<List<Vendor>> = repository.getAllVendors()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, _eventId) { all, eventId ->
-        val saved = if (eventId != null) repository.getSavedVendors(eventId).first() else emptyList()
-        val savedKeys = saved.map { "${it.vendorName}-${it.category}" }.toSet()
-        val base = all.ifEmpty { com.harshdeep.jasnify.data.mock.MockData.sampleVendors }
-        base.map { vendor ->
-            vendor.copy(favorite = savedKeys.contains("${vendor.name}-${vendor.category}"))
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    private val _selectedVendorId = MutableStateFlow<String?>(null)
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val vendorReviews: StateFlow<List<VendorReview>> = _selectedVendorId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getVendorReviews(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
     fun setSelectedVendorId(id: String?) {
         if (_selectedVendorId.value != id) {
             _selectedVendorId.value = id
         }
     }
 
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val savedVendors: StateFlow<List<SavedVendor>> = _eventId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getSavedVendors(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    fun getVendorById(vendorId: String): Flow<Vendor?> {
+        return repository.getVendorById(vendorId)
+    }
 
     fun setEventId(id: String) {
         if (_eventId.value != id) {
@@ -175,11 +165,5 @@ class VendorViewModel @Inject constructor(
     fun getSavedVendorsByCategory(category: String): Flow<List<SavedVendor>> {
         val eventId = _eventId.value ?: return flowOf(emptyList())
         return repository.getSavedVendorsByCategory(eventId, category)
-    }
-
-    fun seedMockData(vendors: List<Vendor>) {
-        viewModelScope.launch {
-            repository.seedMockVendors(vendors)
-        }
     }
 }

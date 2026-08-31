@@ -98,6 +98,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import com.harshdeep.jasnify.domain.model.CardTheme
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -155,8 +156,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
+import com.airbnb.lottie.compose.LottieAnimation
+import com.airbnb.lottie.compose.LottieCompositionSpec
+import com.airbnb.lottie.compose.animateLottieCompositionAsState
+import com.airbnb.lottie.compose.rememberLottieComposition
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.CardData
 import com.harshdeep.jasnify.domain.model.CardPaddingMode
@@ -164,8 +170,8 @@ import com.harshdeep.jasnify.domain.model.CardRoomData
 import com.harshdeep.jasnify.domain.model.CardTextAlign
 import com.harshdeep.jasnify.domain.model.FontStyleType
 import com.harshdeep.jasnify.domain.model.TextElement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.CustomSuccessBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomSuccessBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
@@ -184,6 +190,7 @@ import com.harshdeep.jasnify.presentation.components.sliders.CustomSliderCard
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.utils.dashedBorder
 import com.harshdeep.jasnify.presentation.utils.drawScrollbar
+import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.ContentPrimary
@@ -268,9 +275,9 @@ fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier = this.clickable(
 @Composable
 fun EditCardDetailsScreen(
     initialData: CardData = CardData(),
-    allCards: List<CardData> = emptyList(),
     cardRoomData: CardRoomData? = null,
-    viewModel: com.harshdeep.jasnify.presentation.viewmodels.CardViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+    globalCardThemes: List<CardTheme> = emptyList(),
+    viewModel: CardViewModel = hiltViewModel(),
     onDataChange: (CardData) -> Unit = {},
     onBackClick: () -> Unit = {},
     onUploadImage: (Uri, (String) -> Unit, (String) -> Unit) -> Unit = { _, _, _ -> },
@@ -623,16 +630,15 @@ fun EditCardDetailsScreen(
                                 if (isUploading) return@CustomTextButton
 
                                 val uriToUpload = pendingImageUri
-                                val isUsingCustomImage = currentCard.backgroundRes == 0 &&
-                                        currentCard.backgroundUrl != null &&
-                                        currentCard.backgroundUrl == uriToUpload?.toString()
+                                // Check if the current card is using the local preview image that needs uploading
+                                val needsUpload = uriToUpload != null && currentCard.backgroundUrl == uriToUpload.toString()
 
-                                if (uriToUpload != null && isUsingCustomImage) {
+                                if (needsUpload) {
                                     isUploading = true
-                                    onUploadImage(uriToUpload, { url ->
+                                    onUploadImage(uriToUpload!!, { url ->
                                         isUploading = false
                                         pendingImageUri = null
-                                        val finalCard = currentCard.copy(backgroundUrl = url)
+                                        val finalCard = currentCard.copy(backgroundUrl = url, backgroundRes = 0)
                                         onDataChange(finalCard)
                                         savedCardState = finalCard
                                         showSuccessSheet = true
@@ -641,8 +647,17 @@ fun EditCardDetailsScreen(
                                         toastData = ToastData(error, ToastType.ERROR)
                                     })
                                 } else {
-                                    onDataChange(currentCard)
-                                    savedCardState = currentCard
+                                    // If no new image to upload, just save the current state
+                                    // Ensure we don't accidentally save local content:// URI strings to Firestore
+                                    val dataToSave = if (pendingImageUri != null && currentCard.backgroundUrl == pendingImageUri?.toString()) {
+                                        // This shouldn't happen if needsUpload was checked, but to be safe:
+                                        currentCard.copy(backgroundUrl = savedCardState.backgroundUrl)
+                                    } else {
+                                        currentCard
+                                    }
+                                    
+                                    onDataChange(dataToSave)
+                                    savedCardState = dataToSave
                                     showSuccessSheet = true
                                 }
                             },
@@ -671,38 +686,38 @@ fun EditCardDetailsScreen(
                                 ) {
                                     Surface(
                                         modifier = Modifier
-                                            .height(64.dp)
                                             .shadow(8.dp, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                             .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
                                             .background(Color(0xFF2C2C2C)),
                                         color = Color(0xFF2C2C2C)
                                     ) {
-                                        Row(
-                                            modifier = Modifier
-                                                .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
-                                                .clickable {
-                                                    isMenuExpanded = false
-                                                    updateCardState(normalizedInitialData)
-                                                    selectedElementId = null
-                                                    zoomScale = 1f
-                                                    panOffset = Offset.Zero
-                                                }
-                                                .padding(16.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Sync,
-                                                contentDescription = null,
-                                                tint = ContentInvPrimary,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                            Spacer(Modifier.width(8.dp))
-                                            Text(
-                                                text = "Reset to Defaults",
-                                                style = JasnifyTheme.typography.labelXLarge,
-                                                color = ContentInvPrimary
-                                            )
+                                        Column {
+                                            Row(
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        isMenuExpanded = false
+                                                        updateCardState(normalizedInitialData)
+                                                        selectedElementId = null
+                                                        zoomScale = 1f
+                                                        panOffset = Offset.Zero
+                                                    }
+                                                    .padding(16.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Sync,
+                                                    contentDescription = null,
+                                                    tint = ContentInvPrimary,
+                                                    modifier = Modifier.size(24.dp)
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = "Reset to Defaults",
+                                                    style = JasnifyTheme.typography.labelXLarge,
+                                                    color = ContentInvPrimary
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -734,6 +749,7 @@ fun EditCardDetailsScreen(
 
                     InteractiveCardCanvas(
                         card = currentCard,
+                        previewUri = pendingImageUri,
                         selectedElementId = selectedElementId,
                         onSelectElement = { id ->
                             selectedElementId = id
@@ -789,7 +805,7 @@ fun EditCardDetailsScreen(
                                                 }
                                             }
                                         }
-                                    } while (currentEvent.changes.any { it.pressed })
+                                    } while (event.changes.any { it.pressed })
                                 }
                             }
                             .graphicsLayer {
@@ -1033,6 +1049,7 @@ fun EditCardDetailsScreen(
                                         ThemeSelectorSection(
                                             currentCard = currentCard,
                                             cardRoomData = cardRoomData,
+                                            globalCardThemes = globalCardThemes,
                                             isUploading = isUploading,
                                             onSelectTheme = { resId, url, _ ->
                                                 val updated = currentCard.copy(
@@ -1445,11 +1462,13 @@ fun EditCardDetailsScreen(
             ) {
                 EyeDropperOverlay(
                     onColorPicked = { pickedColor ->
-                        updateElement(selectedElement.id) { target ->
-                            val alpha = (target.colorHex shr 24) and 0xFFL
-                            val alphaToUse = if (alpha == 0L) 0xFFL else alpha
-                            val newRgb = pickedColor.toArgb().toLong() and 0x00FFFFFFL
-                            target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                        if (pickedColor != Color.Transparent) {
+                            updateElement(selectedElement.id) { target ->
+                                val alpha = (target.colorHex shr 24) and 0xFFL
+                                val alphaToUse = if (alpha == 0L) 0xFFL else alpha
+                                val newRgb = pickedColor.toArgb().toLong() and 0x00FFFFFFL
+                                target.copy(colorHex = (alphaToUse shl 24) or newRgb)
+                            }
                         }
                         showEyeDropper = false
                     },
@@ -1496,15 +1515,23 @@ fun EditCardDetailsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
+                        val composition by rememberLottieComposition(
+                            LottieCompositionSpec.RawRes(R.raw.ani_success_brand)
+                        )
+                        val progress by animateLottieCompositionAsState(
+                            composition = composition,
+                            isPlaying = true,
+                            iterations = 1
+                        )
+
                         Box(
-                            modifier = Modifier.size(64.dp),
+                            modifier = Modifier.size(160.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_tick),
-                                contentDescription = "Success checkmark",
-                                modifier = Modifier.size(64.dp),
-                                tint = ContentBrandDark
+                            LottieAnimation(
+                                composition = composition,
+                                progress = { progress },
+                                modifier = Modifier.size(160.dp)
                             )
                         }
 
@@ -1991,6 +2018,7 @@ fun FormatToggleButton(
 @Composable
 fun InteractiveCardCanvas(
     card: CardData,
+    previewUri: Uri? = null,
     selectedElementId: String?,
     onSelectElement: (String) -> Unit,
     onDoubleTapElement: (String) -> Unit,
@@ -2026,7 +2054,14 @@ fun InteractiveCardCanvas(
                     }
                 }
         ) {
-            if (card.backgroundUrl != null) {
+            if (previewUri != null) {
+                AsyncImage(
+                    model = previewUri,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else if (card.backgroundUrl != null) {
                 AsyncImage(
                     model = card.backgroundUrl,
                     contentDescription = null,
@@ -2403,13 +2438,14 @@ fun InteractiveTextElementItem(
 fun ThemeSelectorSection(
     currentCard: CardData,
     cardRoomData: CardRoomData?,
+    globalCardThemes: List<CardTheme> = emptyList(),
     isUploading: Boolean,
     onSelectTheme: (Int, String?, String) -> Unit,
     onUpdateThemeName: (String, String) -> Unit,
     onUpdateCardBgName: (String) -> Unit,
     onUploadClick: () -> Unit
 ) {
-    val themes = remember(cardRoomData) {
+    val themes = remember(cardRoomData, globalCardThemes) {
         val uploaded = cardRoomData?.themes?.filter { !it.isDefault }?.map {
             CardThemeItem(
                 id = it.id,
@@ -2420,7 +2456,17 @@ fun ThemeSelectorSection(
             )
         } ?: emptyList()
 
-        uploaded + DefaultThemeItems
+        val global = globalCardThemes.map {
+            CardThemeItem(
+                id = it.id,
+                name = it.name,
+                resId = it.resId,
+                url = it.url,
+                isDefault = it.isDefault
+            )
+        }
+
+        global + uploaded + DefaultThemeItems
     }
 
     LazyRow(

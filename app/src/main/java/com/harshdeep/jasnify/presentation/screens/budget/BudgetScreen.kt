@@ -57,13 +57,13 @@ import com.harshdeep.jasnify.domain.model.CategorySummaryData
 import com.harshdeep.jasnify.domain.model.ExpenseItem
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddCustomCategoryBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.AddExpenseBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.ConfirmationBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.EditBudgetBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.IconPlacement
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuBottomSheet
-import com.harshdeep.jasnify.presentation.components.bottomdrawer.MenuSheetActionItem
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddCustomCategoryBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddExpenseBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.ConfirmationBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.EditBudgetBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.IconPlacement
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBottomSheet
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
 import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.filter.SortFilterBottomSheet
@@ -73,8 +73,9 @@ import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
-import com.harshdeep.jasnify.presentation.screens.others.AiChatScreen
+import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
 import com.harshdeep.jasnify.presentation.components.states.BudgetLoadingState
+import com.harshdeep.jasnify.presentation.screens.chats.GroupChatScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
@@ -93,7 +94,9 @@ enum class BudgetScreenView {
     EXPENSE_SUMMARY,
     EXPENSE_CATEGORY,
     CATEGORY_DETAIL,
-    MANAGE_ROOM_ACCESS
+    MANAGE_ROOM_ACCESS,
+    GROUP_CHAT,
+    HELP_FEEDBACK
 }
 
 private val DefaultCategoryList = listOf(
@@ -144,9 +147,11 @@ private fun parseExpenseAmount(amountStr: String): Double {
 @Composable
 fun BudgetScreen(
     onBackClick: () -> Unit,
+    navController: androidx.navigation.NavHostController? = null,
     viewModel: BudgetViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
-    roomViewModel: RoomViewModel = hiltViewModel()
+    roomViewModel: RoomViewModel = hiltViewModel(),
+    profileViewModel: com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel = hiltViewModel()
 ) {
     val focusManager = LocalFocusManager.current
     var showAiChat by remember { mutableStateOf(false) }
@@ -160,11 +165,6 @@ fun BudgetScreen(
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val searchResults by roomViewModel.searchResults.collectAsStateWithLifecycle()
     val hasAccess by roomViewModel.hasAccess.collectAsStateWithLifecycle()
-
-    if (activeEvent == null) {
-        BudgetLoadingState()
-        return
-    }
 
     val auth = remember { FirebaseAuth.getInstance() }
     val currentUserUid = remember(auth.currentUser) { auth.currentUser?.uid.orEmpty() }
@@ -200,6 +200,11 @@ fun BudgetScreen(
             roomViewModel.verifyAccess(id, "Budget", currentUserUid)
             roomViewModel.loadRoomUsers(id, "Budget")
         }
+    }
+
+    if (activeEvent == null) {
+        BudgetLoadingState()
+        return
     }
 
     val indianLocale = remember { Locale("en", "IN") }
@@ -250,8 +255,10 @@ fun BudgetScreen(
                 BudgetScreenView.EXPENSE_SUMMARY -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.EXPENSE_CATEGORY -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.CATEGORY_DETAIL -> BudgetScreenView.EXPENSE_CATEGORY
-                BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.MANAGE_ROOM_ACCESS -> BudgetScreenView.GROUP_CHAT
+                BudgetScreenView.GROUP_CHAT -> BudgetScreenView.BUDGET_TRACKER
                 BudgetScreenView.BUDGET_TRACKER -> BudgetScreenView.BUDGET_TRACKER
+                BudgetScreenView.HELP_FEEDBACK -> BudgetScreenView.BUDGET_TRACKER
             }
         }
     }
@@ -492,6 +499,9 @@ fun BudgetScreen(
                                     onExpandedCardIdChange = { expandedCardId = it },
                                     onBackClick = onBackClick,
                                     onMenuClick = { showMenuBottomSheet = true },
+                                    onChatClick = {
+                                        currentView = BudgetScreenView.GROUP_CHAT
+                                    },
                                     onEditBudgetClick = { showEditBudgetSheet = true },
                                     onViewSummaryClick = { currentView = BudgetScreenView.EXPENSE_SUMMARY },
                                     onFilterClick = { showBottomSheet = true },
@@ -603,7 +613,7 @@ fun BudgetScreen(
                                     currentUserRole = currentUserRole,
                                     searchResults = searchResults,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                    onBackClick = { currentView = BudgetScreenView.GROUP_CHAT },
                                     onMenuClick = {
                                         focusManager.clearFocus()
                                         showRoomMenuBottomSheet = true
@@ -612,11 +622,28 @@ fun BudgetScreen(
                                     onLeaveClick = { showLeaveConfirmation = true },
                                     onToastShow = { toastData = it }
                                 )
+
+                                BudgetScreenView.HELP_FEEDBACK -> {
+                                    com.harshdeep.jasnify.presentation.screens.main.tabs.profile.HelpFeedbackScreen(
+                                        profileViewModel = profileViewModel,
+                                        onBack = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                        onShowAiChat = { showAiChat = true }
+                                    )
+                                }
+
+                                BudgetScreenView.GROUP_CHAT -> {
+                                    GroupChatScreen(
+                                        eventId = activeEventId.orEmpty(),
+                                        roomType = "Budget",
+                                        onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                        onMembersClick = { currentView = BudgetScreenView.MANAGE_ROOM_ACCESS }
+                                    )
+                                }
                             }
                         }
                     }
 
-                    if (!isAnyBottomSheetOpen && !showAiChat && expensesEntities.isNotEmpty()) {
+                    if (!isAnyBottomSheetOpen && !showAiChat && expensesEntities.isNotEmpty() && currentView == BudgetScreenView.BUDGET_TRACKER) {
                         AskAiButton(
                             onClick = {
                                 aiChatContext = """
@@ -632,7 +659,7 @@ fun BudgetScreen(
                             },
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .padding(bottom = 240.dp)
+                                .padding(bottom = 156.dp)
                                 .zIndex(150f)
                         )
                     }
@@ -799,34 +826,36 @@ fun BudgetScreen(
         }
 
         if (showMenuBottomSheet) {
-            val menuItems = listOfNotNull(
-                if (isOwner) listOf(
+            val menuItems = listOf(
+                listOfNotNull(
+                    if (isOwner) {
+                        MenuSheetActionItem(
+                            text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
+                            icon = if (isBudgetNotSet) addExpenseIcon else editIcon,
+                            onClick = {
+                                showMenuBottomSheet = false
+                                showEditBudgetSheet = true
+                            },
+                            iconPlacement = IconPlacement.Top
+                        )
+                    } else null,
                     MenuSheetActionItem(
-                        text = if (isBudgetNotSet) "Add Budget" else "Edit Budget",
-                        icon = if (isBudgetNotSet) addExpenseIcon else editIcon,
-                        onClick = {
-                            showMenuBottomSheet = false
-                            showEditBudgetSheet = true
-                        }
-                    )
-                ) else null,
-                listOf(
-                    MenuSheetActionItem(
-                        text = if (isOwner) "Manage Room Access" else "Room Members",
-                        icon = userDefaultIcon,
-                        onClick = {
-                            showMenuBottomSheet = false
-                            currentView = BudgetScreenView.MANAGE_ROOM_ACCESS
-                        }
-                    )
-                ),
-                listOf(
-                    MenuSheetActionItem(
-                        text = "Expense Categories",
+                        text = "Categories",
                         icon = categoryIcon,
                         onClick = {
                             showMenuBottomSheet = false
                             currentView = BudgetScreenView.EXPENSE_CATEGORY
+                        },
+                        iconPlacement = if(isOwner) IconPlacement.Top else IconPlacement.Left
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        onClick = {
+                            showMenuBottomSheet = false
+                            currentView = BudgetScreenView.HELP_FEEDBACK
                         }
                     )
                 )
@@ -919,6 +948,16 @@ fun BudgetScreen(
                         onClick = {
                             showRoomMenuBottomSheet = false
                             showLeaveConfirmation = true
+                        }
+                    )
+                ),
+                listOf(
+                    MenuSheetActionItem(
+                        text = "Help & Feedback",
+                        icon = painterResource(R.drawable.ic_help_feedback),
+                        onClick = {
+                            showMenuBottomSheet = false
+                            currentView = BudgetScreenView.HELP_FEEDBACK
                         }
                     )
                 )

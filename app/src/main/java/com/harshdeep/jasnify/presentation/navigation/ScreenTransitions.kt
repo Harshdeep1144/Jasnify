@@ -34,26 +34,24 @@ object ScreenTransitions {
         (scaleIn(
             initialScale = 0.9f,
             animationSpec = tween(
-                durationMillis = 300,
-                delayMillis = 100,
+                durationMillis = 400,
                 easing = smoothDepthEasing
             )
         ) + fadeIn(
             animationSpec = tween(
-                durationMillis = 300,
-                delayMillis = 100,
+                durationMillis = 400,
                 easing = smoothDepthEasing
             )
         )).togetherWith(
             scaleOut(
                 targetScale = 1.1f,
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = 400,
                     easing = smoothDepthEasing
                 )
             ) + fadeOut(
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = 400,
                     easing = smoothDepthEasing
                 )
             )
@@ -64,26 +62,24 @@ object ScreenTransitions {
         (scaleIn(
             initialScale = 1.1f,
             animationSpec = tween(
-                durationMillis = 300,
-                delayMillis = 80,
+                durationMillis = 400,
                 easing = smoothDepthEasing
             )
         ) + fadeIn(
             animationSpec = tween(
-                durationMillis = 300,
-                delayMillis = 80,
+                durationMillis = 400,
                 easing = smoothDepthEasing
             )
         )).togetherWith(
             scaleOut(
                 targetScale = 0.9f,
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = 400,
                     easing = smoothDepthEasing
                 )
             ) + fadeOut(
                 animationSpec = tween(
-                    durationMillis = 300,
+                    durationMillis = 400,
                     easing = smoothDepthEasing
                 )
             )

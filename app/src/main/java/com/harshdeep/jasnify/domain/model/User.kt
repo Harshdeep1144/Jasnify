@@ -18,7 +18,9 @@ data class User(
     val lastPasswordChangeTimestamp: Long? = null,
     val explicitLogoutTimestamp: Long? = null,
     val joinedEvents: List<UserEvent> = emptyList(),
-    val currentEventId: String? = null
+    val currentEventId: String? = null,
+    val fcmToken: String? = null,
+    val versionCode: Int? = null
 )
 
 @Immutable
