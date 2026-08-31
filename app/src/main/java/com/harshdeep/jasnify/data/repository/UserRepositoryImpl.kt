@@ -422,6 +422,38 @@ class UserRepositoryImpl @Inject constructor(
         awaitClose { subscription.remove() }
     }
 
+    override fun getRoomPictureUrlFlow(eventId: String, roomType: String): Flow<String?> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(null)
+            close()
+            return@callbackFlow
+        }
+        val normalizedRoom = getRoomDocId(roomType)
+        val subscription = firestore.collection("events").document(eventId)
+            .collection("rooms").document(normalizedRoom)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(null)
+                    return@addSnapshotListener
+                }
+                val url = snapshot?.getString("profilePictureUrl")
+                trySend(url)
+            }
+        awaitClose { subscription.remove() }
+    }
+
+    override suspend fun updateRoomPictureUrl(eventId: String, roomType: String, url: String) {
+        if (eventId.isBlank()) return
+        val normalizedRoom = getRoomDocId(roomType)
+        firestore.collection("events").document(eventId)
+            .collection("rooms").document(normalizedRoom)
+            .set(
+                mapOf("profilePictureUrl" to url, "updatedAt" to System.currentTimeMillis()),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+            .await()
+    }
+
     override suspend fun checkPendingAccess(email: String): List<PendingAccess> {
         val cleanEmail = email.lowercase().trim()
         return try {

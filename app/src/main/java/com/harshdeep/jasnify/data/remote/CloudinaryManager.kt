@@ -22,6 +22,11 @@ class CloudinaryManager @Inject constructor() {
         return uploadFromSource(url, "jasnify/users/$userId", "profile_pic", "image")
     }
 
+    suspend fun uploadRoomProfilePicture(uri: Uri, eventId: String, roomType: String): String {
+        val roomFolderName = "${roomType.lowercase().trim()}_room"
+        return uploadFromSource(uri, "jasnify/rooms/$eventId/$roomFolderName", "profile_pic", "image")
+    }
+
     suspend fun uploadVenueReviewImage(uri: Uri, venueId: String): String {
         return uploadFromSource(uri, "jasnify/venues/$venueId/reviews", null, "image")
     }

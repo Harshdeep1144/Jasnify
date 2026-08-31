@@ -613,7 +613,7 @@ fun BudgetScreen(
                                     currentUserRole = currentUserRole,
                                     searchResults = searchResults,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
+                                    onBackClick = { currentView = BudgetScreenView.GROUP_CHAT },
                                     onMenuClick = {
                                         focusManager.clearFocus()
                                         showRoomMenuBottomSheet = true

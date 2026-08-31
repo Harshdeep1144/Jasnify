@@ -203,19 +203,36 @@ class MomentsRepositoryImpl @Inject constructor(
             return@callbackFlow
         }
 
+        var isOwner = false
+        try {
+            val eventDoc = firestore.collection("events").document(eventId).get().await()
+            if (eventDoc.getString("ownerId") == currentUser.uid) {
+                isOwner = true
+                trySend(UserRole.OWNER)
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document("Moments")
             .collection("moments_room_users").document(currentUser.uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    trySend(UserRole.VIEWER)
+                    trySend(if (isOwner) UserRole.OWNER else UserRole.VIEWER)
                     return@addSnapshotListener
                 }
                 val roleStr = snapshot?.getString("role")
-                val role = try {
-                    UserRole.valueOf(roleStr ?: "VIEWER")
-                } catch (e: Exception) {
-                    UserRole.VIEWER
+                val role = when {
+                    roleStr != null -> {
+                        try {
+                            UserRole.valueOf(roleStr)
+                        } catch (e: Exception) {
+                            if (isOwner) UserRole.OWNER else UserRole.VIEWER
+                        }
+                    }
+                    isOwner -> UserRole.OWNER
+                    else -> UserRole.VIEWER
                 }
                 trySend(role)
             }

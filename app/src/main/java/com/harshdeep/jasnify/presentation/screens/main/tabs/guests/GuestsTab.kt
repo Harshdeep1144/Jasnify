@@ -559,7 +559,7 @@ fun GuestsTab(
             when (currentView) {
                 GuestsView.GUEST_TYPE_DETAIL -> currentView = GuestsView.MANAGE_GUEST_TYPES
                 GuestsView.MANAGE_GUEST_TYPES -> currentView = GuestsView.MAIN
-                GuestsView.ROOM_ACCESS -> currentView = GuestsView.MAIN
+                GuestsView.ROOM_ACCESS -> currentView = GuestsView.GROUP_CHAT
                 GuestsView.GROUP_CHAT -> currentView = GuestsView.MAIN
                 GuestsView.HELP_FEEDBACK -> currentView = GuestsView.MAIN
                 else -> {}
@@ -1224,7 +1224,7 @@ fun GuestsTab(
                                 GuestRoomContent(
                                     eventId = id,
                                     roomViewModel = roomViewModel,
-                                    onBackClick = { currentView = GuestsView.MAIN },
+                                    onBackClick = { currentView = GuestsView.GROUP_CHAT },
                                     onMenuClick = {
                                         focusManager.clearFocus()
                                         showRoomMenuBottomSheet = true

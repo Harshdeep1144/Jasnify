@@ -91,8 +91,12 @@ class RoomChatViewModel @Inject constructor(
 
     fun editMessage(messageId: String, newText: String) {
         if (currentEventId.isBlank() || currentRoomType.isBlank()) return
-        viewModelScope.launch {
-            roomChatRepository.editMessage(currentEventId, currentRoomType, messageId, newText)
+        val msg = _messages.value.find { it.id == messageId }
+        val editWindowMs = 15 * 60 * 1000L // 15 minutes
+        if (msg == null || (System.currentTimeMillis() - msg.timestamp) <= editWindowMs) {
+            viewModelScope.launch {
+                roomChatRepository.editMessage(currentEventId, currentRoomType, messageId, newText)
+            }
         }
     }
 

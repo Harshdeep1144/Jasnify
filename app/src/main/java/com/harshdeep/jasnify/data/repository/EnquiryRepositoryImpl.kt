@@ -140,4 +140,73 @@ class EnquiryRepositoryImpl @Inject constructor(
     override suspend fun markAsDelivered(enquiryId: String, userId: String) {
         updateMessageStatus(enquiryId, userId, MessageStatus.DELIVERED)
     }
+
+    override suspend fun editMessage(enquiryId: String, messageId: String, newText: String) {
+        try {
+            val docRef = firestore.collection("enquiries").document(enquiryId)
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val enquiry = snapshot.toObject(Enquiry::class.java)
+                if (enquiry != null) {
+                    val updatedMessages = enquiry.messages.map { msg ->
+                        if (msg.id == messageId) {
+                            msg.copy(text = newText, isEdited = true)
+                        } else {
+                            msg
+                        }
+                    }
+                    transaction.update(docRef, "messages", updatedMessages)
+                }
+                null
+            }.await()
+        } catch (e: Exception) {
+            android.util.Log.e("EnquiryRepo", "Error editing message: ${e.message}")
+        }
+    }
+
+    override suspend fun deleteMessageForMe(enquiryId: String, messageId: String, userId: String) {
+        try {
+            val docRef = firestore.collection("enquiries").document(enquiryId)
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val enquiry = snapshot.toObject(Enquiry::class.java)
+                if (enquiry != null) {
+                    val updatedMessages = enquiry.messages.map { msg ->
+                        if (msg.id == messageId) {
+                            msg.copy(deletedForUids = msg.deletedForUids + userId)
+                        } else {
+                            msg
+                        }
+                    }
+                    transaction.update(docRef, "messages", updatedMessages)
+                }
+                null
+            }.await()
+        } catch (e: Exception) {
+            android.util.Log.e("EnquiryRepo", "Error deleting message for me: ${e.message}")
+        }
+    }
+
+    override suspend fun deleteMessageForEveryone(enquiryId: String, messageId: String) {
+        try {
+            val docRef = firestore.collection("enquiries").document(enquiryId)
+            firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(docRef)
+                val enquiry = snapshot.toObject(Enquiry::class.java)
+                if (enquiry != null) {
+                    val updatedMessages = enquiry.messages.map { msg ->
+                        if (msg.id == messageId) {
+                            msg.copy(deletedForEveryone = true, text = "This message was deleted")
+                        } else {
+                            msg
+                        }
+                    }
+                    transaction.update(docRef, "messages", updatedMessages)
+                }
+                null
+            }.await()
+        } catch (e: Exception) {
+            android.util.Log.e("EnquiryRepo", "Error deleting message for everyone: ${e.message}")
+        }
+    }
 }

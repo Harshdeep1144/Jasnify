@@ -22,7 +22,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -238,6 +241,7 @@ fun AccessLevelSection(
     onRoleChange: (UserRole) -> Unit
 ) {
     val canManageRoles = currentUserRole == UserRole.OWNER && !isSelf
+    var selectedRole by remember(user.uid, user.role) { mutableStateOf(user.role) }
 
     if (canManageRoles) {
         Column(
@@ -252,15 +256,25 @@ fun AccessLevelSection(
             OptionSelector(
                 label = "Editor",
                 bodyText = "can edit details of the room",
-                isSelected = user.role == UserRole.EDITOR,
-                onClick = { onRoleChange(UserRole.EDITOR) },
+                isSelected = selectedRole == UserRole.EDITOR,
+                onClick = {
+                    if (selectedRole != UserRole.EDITOR) {
+                        selectedRole = UserRole.EDITOR
+                        onRoleChange(UserRole.EDITOR)
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
             OptionSelector(
                 label = "Viewer",
                 bodyText = "can only view the latest details",
-                isSelected = user.role == UserRole.VIEWER,
-                onClick = { onRoleChange(UserRole.VIEWER) },
+                isSelected = selectedRole == UserRole.VIEWER,
+                onClick = {
+                    if (selectedRole != UserRole.VIEWER) {
+                        selectedRole = UserRole.VIEWER
+                        onRoleChange(UserRole.VIEWER)
+                    }
+                },
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }

@@ -50,6 +50,12 @@ fun VendorRoomContent(
         baseList.distinctBy { it.uid }
     }
 
+    androidx.compose.runtime.LaunchedEffect(eventId) {
+        if (eventId.isNotBlank()) {
+            roomViewModel.loadRoomPicture(eventId, "Vendors")
+        }
+    }
+
     RoomScreen(
         allUsers = displayUsers,
         currentUserRole = currentUserRole,
@@ -67,6 +73,24 @@ fun VendorRoomContent(
         onGrantAccess = { email, role ->
             roomViewModel.grantAccess(eventId, "Vendors", email, role)
             onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
+        },
+        roomPictureUrl = roomViewModel.roomPictureUrl.collectAsStateWithLifecycle().value,
+        onUploadRoomPicture = { uri ->
+            roomViewModel.uploadRoomPicture(
+                eventId = eventId,
+                roomType = "Vendors",
+                uri = uri,
+                onSuccess = { onShowToast(ToastData("Room profile picture updated", ToastType.SUCCESS)) },
+                onError = { err -> onShowToast(ToastData(err, ToastType.ERROR)) }
+            )
+        },
+        onDeleteRoomPicture = {
+            roomViewModel.deleteRoomPicture(
+                eventId = eventId,
+                roomType = "Vendors",
+                onSuccess = { onShowToast(ToastData("Room profile picture deleted", ToastType.SUCCESS)) },
+                onError = { err -> onShowToast(ToastData(err, ToastType.ERROR)) }
+            )
         }
     )
 }

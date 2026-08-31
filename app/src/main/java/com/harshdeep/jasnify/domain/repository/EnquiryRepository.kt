@@ -14,4 +14,7 @@ interface EnquiryRepository {
     suspend fun sendMessage(enquiryId: String, message: ChatMessage)
     suspend fun updateMessageStatus(enquiryId: String, userId: String, status: MessageStatus)
     suspend fun markAsDelivered(enquiryId: String, userId: String)
+    suspend fun editMessage(enquiryId: String, messageId: String, newText: String)
+    suspend fun deleteMessageForMe(enquiryId: String, messageId: String, userId: String)
+    suspend fun deleteMessageForEveryone(enquiryId: String, messageId: String)
 }

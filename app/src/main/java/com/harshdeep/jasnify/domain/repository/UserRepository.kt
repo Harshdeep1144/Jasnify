@@ -27,6 +27,8 @@ interface UserRepository {
     suspend fun grantAccessFromPending(eventId: String, email: String, uid: String, userProfile: User? = null)
     suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String)
     fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>>
+    fun getRoomPictureUrlFlow(eventId: String, roomType: String): Flow<String?>
+    suspend fun updateRoomPictureUrl(eventId: String, roomType: String, url: String)
     suspend fun checkPendingAccess(email: String): List<PendingAccess>
     suspend fun deletePendingAccess(email: String)
     suspend fun checkUserHasAccessToEvent(eventId: String, email: String, uid: String): Boolean

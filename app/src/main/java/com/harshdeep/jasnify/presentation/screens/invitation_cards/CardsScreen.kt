@@ -278,6 +278,7 @@ fun CardsScreen(
                 previousView = null
             }
             currentView == CardsView.EDIT_DETAILS -> currentView = CardsView.MAIN
+            currentView == CardsView.ROOM -> currentView = CardsView.GROUP_CHAT
             currentView == CardsView.GROUP_CHAT -> currentView = CardsView.MAIN
             currentView != CardsView.MAIN -> currentView = CardsView.MAIN
             else -> onBackClick()
@@ -512,7 +513,7 @@ fun CardsScreen(
                                             eventId = event.id,
                                             roomViewModel = roomViewModel,
                                             currentUserRole = currentUserRole,
-                                            onBackClick = { currentView = CardsView.MAIN },
+                                            onBackClick = { currentView = CardsView.GROUP_CHAT },
                                             onMenuClick = { showRoomMenuBottomSheet = true },
                                             onRemove = { userToRemove = it },
                                             onLeave = { showLeaveConfirmation = true },

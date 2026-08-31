@@ -2,6 +2,7 @@ package com.harshdeep.jasnify.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.harshdeep.jasnify.data.remote.CloudinaryManager
 import com.harshdeep.jasnify.domain.model.User
 import com.harshdeep.jasnify.domain.model.UserRole
 import com.harshdeep.jasnify.domain.repository.UserRepository
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RoomViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val cloudinaryManager: CloudinaryManager
 ) : ViewModel() {
 
     private val _roomUsers = MutableStateFlow<List<User>>(emptyList())
@@ -27,11 +29,71 @@ class RoomViewModel @Inject constructor(
     private val _hasAccess = MutableStateFlow<Boolean?>(null)
     val hasAccess: StateFlow<Boolean?> = _hasAccess.asStateFlow()
 
+    private val _roomPictureUrl = MutableStateFlow<String?>(null)
+    val roomPictureUrl: StateFlow<String?> = _roomPictureUrl.asStateFlow()
+
     fun loadRoomUsers(eventId: String, roomType: String) {
         if (eventId.isBlank()) return
         viewModelScope.launch {
             userRepository.getRoomUsers(eventId, roomType).collectLatest { users ->
                 _roomUsers.value = users
+            }
+        }
+    }
+
+    fun loadRoomPicture(eventId: String, roomType: String) {
+        if (eventId.isBlank()) return
+        viewModelScope.launch {
+            userRepository.getRoomPictureUrlFlow(eventId, roomType).collectLatest { url ->
+                _roomPictureUrl.value = url
+            }
+        }
+    }
+
+    fun uploadRoomPicture(
+        eventId: String,
+        roomType: String,
+        uri: android.net.Uri,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (eventId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val url = cloudinaryManager.uploadRoomProfilePicture(uri, eventId, roomType)
+                if (url.isNotBlank()) {
+                    userRepository.updateRoomPictureUrl(eventId, roomType, url)
+                    _roomPictureUrl.value = url
+                    onSuccess()
+                } else {
+                    onError("Failed to upload room profile picture")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("RoomViewModel", "Error uploading room profile picture", e)
+                onError(e.message ?: "Upload failed")
+            }
+        }
+    }
+
+    fun deleteRoomPicture(
+        eventId: String,
+        roomType: String,
+        onSuccess: () -> Unit = {},
+        onError: (String) -> Unit = {}
+    ) {
+        if (eventId.isBlank()) return
+        viewModelScope.launch {
+            try {
+                val currentUrl = _roomPictureUrl.value
+                if (!currentUrl.isNullOrBlank()) {
+                    cloudinaryManager.deleteImageByUrl(currentUrl)
+                }
+                userRepository.updateRoomPictureUrl(eventId, roomType, "")
+                _roomPictureUrl.value = null
+                onSuccess()
+            } catch (e: Exception) {
+                android.util.Log.e("RoomViewModel", "Error deleting room profile picture", e)
+                onError(e.message ?: "Deletion failed")
             }
         }
     }

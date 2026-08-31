@@ -1,33 +1,21 @@
 package com.harshdeep.jasnify.presentation.screens.chats
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Done
-import androidx.compose.material.icons.rounded.DoneAll
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.harshdeep.jasnify.R
@@ -36,6 +24,10 @@ import com.harshdeep.jasnify.domain.model.MessageStatus
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.chats.ChatInputBar
+import com.harshdeep.jasnify.presentation.components.chats.DeleteMessageConfirmationDialog
+import com.harshdeep.jasnify.presentation.components.chats.MessageBubble
+import com.harshdeep.jasnify.presentation.components.chats.MessageInfoBottomSheet
 import com.harshdeep.jasnify.presentation.utils.TimeUtils
 import com.harshdeep.jasnify.presentation.viewmodels.EnquiryViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
@@ -43,7 +35,6 @@ import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.flowOf
-import sv.lib.squircleshape.SquircleShape
 
 @Composable
 fun ChatScreen(
@@ -87,6 +78,7 @@ fun ChatScreen(
     }
 
     var messageText by remember { mutableStateOf("") }
+    var messageToEdit by remember { mutableStateOf<ChatMessage?>(null) }
 
     val messages by remember(currentUserUid, merchantId, itemId) {
         if (merchantId != null && itemId != null) {
@@ -110,12 +102,6 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(messages.size) {
-        if (messages.isNotEmpty()) {
-            scrollState.animateScrollToItem(messages.size - 1)
-        }
-    }
-
     ChatContent(
         itemName = itemName,
         activeStatus = activeStatus,
@@ -125,17 +111,45 @@ fun ChatScreen(
         onMessageChange = { messageText = it },
         onSendClick = {
             if (messageText.isNotBlank() && merchantId != null && itemId != null) {
-                enquiryViewModel.sendMessage(
-                    userId = currentUserUid,
-                    merchantId = merchantId,
-                    itemId = itemId,
-                    itemName = itemName,
-                    itemType = itemType,
-                    text = messageText,
-                    merchantProfileUrl = merchantProfile?.profilePictureUrl,
-                    merchantPhoneNumber = itemPhoneNumber
-                )
+                if (messageToEdit != null) {
+                    enquiryViewModel.editMessage(currentUserUid, merchantId, itemId, messageToEdit!!.id, messageText)
+                    messageToEdit = null
+                } else {
+                    enquiryViewModel.sendMessage(
+                        userId = currentUserUid,
+                        merchantId = merchantId,
+                        itemId = itemId,
+                        itemName = itemName,
+                        itemType = itemType,
+                        text = messageText,
+                        merchantProfileUrl = merchantProfile?.profilePictureUrl,
+                        merchantPhoneNumber = itemPhoneNumber
+                    )
+                }
                 messageText = ""
+            }
+        },
+        messageToEdit = messageToEdit,
+        onStartEdit = { msg ->
+            messageToEdit = msg
+            messageText = msg.text
+        },
+        onCancelEdit = {
+            messageToEdit = null
+            messageText = ""
+        },
+        onDeleteForMe = { msgIds ->
+            if (merchantId != null && itemId != null) {
+                msgIds.forEach { id ->
+                    enquiryViewModel.deleteMessageForMe(currentUserUid, merchantId, itemId, id)
+                }
+            }
+        },
+        onDeleteForEveryone = { msgIds ->
+            if (merchantId != null && itemId != null) {
+                msgIds.forEach { id ->
+                    enquiryViewModel.deleteMessageForEveryone(currentUserUid, merchantId, itemId, id)
+                }
             }
         },
         onBackClick = onBackClick,
@@ -154,14 +168,67 @@ fun ChatContent(
     onMessageChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onBackClick: () -> Unit,
+    messageToEdit: ChatMessage? = null,
+    onStartEdit: (ChatMessage) -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onDeleteForMe: (Set<String>) -> Unit = {},
+    onDeleteForEveryone: (Set<String>) -> Unit = {},
     modifier: Modifier = Modifier,
     scrollState: LazyListState = rememberLazyListState()
 ) {
+    val haptic = LocalHapticFeedback.current
     val focusRequester = remember { FocusRequester() }
 
+    var selectedMessageIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val selectedMessages = remember(selectedMessageIds, messages) {
+        messages.filter { it.id in selectedMessageIds }
+    }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showMessageInfoSheet by remember { mutableStateOf(false) }
+
+    var initialLoadDone by remember { mutableStateOf(false) }
+    var knownMessageIds by remember { mutableStateOf(setOf<String>()) }
+
+    val reversedMessages = remember(messages) {
+        messages.asReversed()
+    }
+
+    // Handle system back button / back gesture when messages are selected or dialogs are shown
+    BackHandler(enabled = selectedMessageIds.isNotEmpty() || showDeleteDialog || showMessageInfoSheet) {
+        if (showDeleteDialog) {
+            showDeleteDialog = false
+        } else if (showMessageInfoSheet) {
+            showMessageInfoSheet = false
+        } else if (selectedMessageIds.isNotEmpty()) {
+            selectedMessageIds = emptySet()
+        }
+    }
+
+    LaunchedEffect(messages) {
+        if (messages.isNotEmpty()) {
+            if (!initialLoadDone) {
+                knownMessageIds = messages.map { it.id }.toSet()
+                initialLoadDone = true
+            } else {
+                val newIds = messages.map { it.id }.toSet() - knownMessageIds
+                if (newIds.isNotEmpty()) {
+                    knownMessageIds = knownMessageIds + newIds
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(messages.size) {
+        if (messages.isNotEmpty()) {
+            scrollState.animateScrollToItem(0)
+        }
+    }
+
     LaunchedEffect(Unit) {
-        delay(150) // Small delay to allow enter transition/layout to complete smoothly
-        focusRequester.requestFocus()
+        delay(150)
+        if (messageToEdit == null) {
+            focusRequester.requestFocus()
+        }
     }
 
     Scaffold(
@@ -171,19 +238,51 @@ fun ChatContent(
                 tonalElevation = 2.dp,
                 modifier = Modifier.statusBarsPadding()
             ) {
-                CustomTopBar(
-                    title = itemName,
-                    subtitle = activeStatus,
-                    image = painterResource(R.drawable.ic_user_profile),
-                    onBackClick = onBackClick,
-                    buttonStyle = ButtonBackground.OPAQUE,
-                    backIcon = TopIcon.Predefined.BACK
-                )
+                if (selectedMessageIds.isNotEmpty()) {
+                    val singleSelectedMessage = if (selectedMessages.size == 1) selectedMessages.first() else null
+                    val editWindowMs = 15 * 60 * 1000L // 15 minutes
+                    val canEdit = singleSelectedMessage != null && 
+                            singleSelectedMessage.senderId == currentUserUid && 
+                            !singleSelectedMessage.deletedForEveryone &&
+                            (System.currentTimeMillis() - singleSelectedMessage.timestamp) <= editWindowMs
+
+                    CustomTopBar(
+                        title = "${selectedMessageIds.size} selected",
+                        onBackClick = { selectedMessageIds = emptySet() },
+                        backIcon = TopIcon.Predefined.CLOSE,
+                        buttonStyle = ButtonBackground.OPAQUE,
+                        secondaryIcon = if (canEdit) TopIcon.CustomPainter(painterResource(R.drawable.ic_edit_pen)) else null,
+                        onSecondaryClick = if (canEdit) {
+                            {
+                                onStartEdit(singleSelectedMessage)
+                                selectedMessageIds = emptySet()
+                            }
+                        } else null,
+                        tertiaryIcon = TopIcon.Predefined.DELETE,
+                        onTertiaryClick = {
+                            showDeleteDialog = true
+                        },
+                        menuIcon = if (singleSelectedMessage != null) TopIcon.CustomPainter(painterResource(R.drawable.ic_info)) else TopIcon.Predefined.MENU_VERTICAL,
+                        onMenuClick = if (singleSelectedMessage != null) {
+                            { showMessageInfoSheet = true }
+                        } else null
+                    )
+                } else {
+                    CustomTopBar(
+                        title = itemName,
+                        subtitle = activeStatus,
+                        image = painterResource(R.drawable.ic_user_profile),
+                        onBackClick = onBackClick,
+                        buttonStyle = ButtonBackground.OPAQUE,
+                        backIcon = TopIcon.Predefined.BACK
+                    )
+                }
             }
         },
         bottomBar = {
             Box(
                 modifier = Modifier
+                    .background(BackgroundPrimary)
                     .navigationBarsPadding()
                     .imePadding()
             ) {
@@ -191,7 +290,9 @@ fun ChatContent(
                     value = messageText,
                     onValueChange = onMessageChange,
                     onSendClick = onSendClick,
-                    focusRequester = focusRequester
+                    focusRequester = focusRequester,
+                    isEditing = messageToEdit != null,
+                    onCancelEdit = onCancelEdit
                 )
             }
         },
@@ -200,210 +301,71 @@ fun ChatContent(
     ) { paddingValues ->
         LazyColumn(
             state = scrollState,
+            reverseLayout = true,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(paddingValues),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            items(messages) { message ->
+            items(reversedMessages, key = { it.id }) { message ->
+                val isSentByMe = message.senderId == currentUserUid
+                val shouldAnimate = initialLoadDone && message.id !in knownMessageIds
+
                 MessageBubble(
                     message = message,
-                    isSentByMe = message.senderId == currentUserUid
+                    isSentByMe = isSentByMe,
+                    isSelected = message.id in selectedMessageIds,
+                    shouldAnimate = shouldAnimate,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        selectedMessageIds = if (message.id in selectedMessageIds) {
+                            selectedMessageIds - message.id
+                        } else {
+                            selectedMessageIds + message.id
+                        }
+                    },
+                    onClick = {
+                        if (selectedMessageIds.isNotEmpty()) {
+                            selectedMessageIds = if (message.id in selectedMessageIds) {
+                                selectedMessageIds - message.id
+                            } else {
+                                selectedMessageIds + message.id
+                            }
+                        }
+                    }
                 )
             }
         }
     }
-}
 
-@Composable
-fun MessageBubble(
-    message: ChatMessage,
-    isSentByMe: Boolean
-) {
-    val horizontalAlignment = if (isSentByMe) Alignment.End else Alignment.Start
-    val bubbleColor = if (isSentByMe) SurfaceBrandSecondary else SurfaceSecondary
-    val contentColor = if (isSentByMe) ContentPrimary else ContentPrimary
+    if (showDeleteDialog && selectedMessages.isNotEmpty()) {
+        val allSentByMe = selectedMessages.all { it.senderId == currentUserUid && !it.deletedForEveryone }
 
-    val shape = if (isSentByMe) {
-        SquircleShape(16.dp, 16.dp, 16.dp, 4.dp)
-    } else {
-        SquircleShape(16.dp, 16.dp, 4.dp, 16.dp)
+        DeleteMessageConfirmationDialog(
+            messageCount = selectedMessages.size,
+            canDeleteForEveryone = allSentByMe,
+            onDismissRequest = { showDeleteDialog = false },
+            onDeleteForMe = {
+                onDeleteForMe(selectedMessageIds)
+                selectedMessageIds = emptySet()
+            },
+            onDeleteForEveryone = {
+                onDeleteForEveryone(selectedMessageIds)
+                selectedMessageIds = emptySet()
+            }
+        )
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = horizontalAlignment
-    ) {
-        Surface(
-            color = bubbleColor,
-            shape = shape,
-            modifier = Modifier.widthIn(max = 280.dp)
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = message.text,
-                    style = JasnifyTheme.typography.labelLarge,
-                    color = contentColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.align(Alignment.End)
-                ) {
-                    Text(
-                        text = TimeUtils.formatChatTime(message.timestamp),
-                        style = JasnifyTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                        color = contentColor.copy(alpha = 0.7f),
-                    )
-                    if (isSentByMe) {
-                        Spacer(modifier = Modifier.width(4.dp))
-                        MessageStatusTicks(status = message.status)
-                    }
-                }
+    if (showMessageInfoSheet && selectedMessages.size == 1) {
+        MessageInfoBottomSheet(
+            message = selectedMessages.first(),
+            roomUsers = emptyList(),
+            onDismiss = {
+                showMessageInfoSheet = false
+                selectedMessageIds = emptySet()
             }
-        }
-    }
-}
-
-@Composable
-fun MessageStatusTicks(status: MessageStatus) {
-    val tickColor = if (status == MessageStatus.SEEN) Color(0xFF34B7F1) else ContentSecondary
-    when (status) {
-        MessageStatus.SENT -> {
-            Icon(
-                imageVector = Icons.Rounded.Done,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = tickColor
-            )
-        }
-        MessageStatus.DELIVERED, MessageStatus.SEEN -> {
-            Icon(
-                imageVector = Icons.Rounded.DoneAll,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-                tint = tickColor
-            )
-        }
-    }
-}
-
-@Composable
-fun ChatInputBar(
-    value: String,
-    onValueChange: (String) -> Unit,
-    onSendClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    focusRequester: FocusRequester = remember { FocusRequester() },
-    isEditing: Boolean = false,
-    onCancelEdit: () -> Unit = {}
-) {
-    Surface(
-        color = Color.Transparent,
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(12.dp)
-    ) {
-        Column {
-            if (isEditing) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 8.dp, start = 12.dp, end = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Edit,
-                            contentDescription = null,
-                            tint = SurfaceBrandPrimary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Editing message",
-                            style = JasnifyTheme.typography.labelSmall,
-                            color = SurfaceBrandPrimary
-                        )
-                    }
-                    Icon(
-                        painter = painterResource(R.drawable.ic_check),
-                        contentDescription = "Cancel",
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clickable { onCancelEdit() },
-                        tint = ContentSecondary
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .background(SurfaceSecondary, RoundedCornerShape(28.dp))
-                    .border(
-                        width = 1.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.16f),
-                        shape = RoundedCornerShape(28.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Text Input Field
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = "Type a message...",
-                            style = JasnifyTheme.typography.labelLarge,
-                            color = ContentSecondary
-                        )
-                    }
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        textStyle = JasnifyTheme.typography.labelLarge.copy(color = ContentPrimary),
-                        cursorBrush = SolidColor(ContentPrimary),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(focusRequester)
-                    )
-                }
-
-                // Send Button
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .background(
-                            if (value.isNotBlank()) SurfacePrimary else SurfacePrimary.copy(alpha = 0.5f),
-                            CircleShape
-                        )
-                        .clickable(
-                            enabled = value.isNotBlank(),
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            onSendClick()
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = if (isEditing) painterResource(R.drawable.ic_check) else painterResource(R.drawable.ic_send),
-                        contentDescription = if (isEditing) "Save" else "Send",
-                        tint = if (value.isNotBlank()) ContentPrimary else ContentSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
+        )
     }
 }
 

@@ -184,9 +184,28 @@ fun MomentsScreen(
     val userRole by viewModel.userRole.collectAsStateWithLifecycle()
     val currentUserId by viewModel.currentUserId.collectAsStateWithLifecycle()
 
-    val canAddContent = remember(userRole) { userRole == UserRole.OWNER || userRole == UserRole.EDITOR }
-    val canDeleteAny = remember(userRole) { userRole == UserRole.OWNER }
-    val canDeleteOwn = remember(userRole) { userRole == UserRole.EDITOR }
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
+    val firebaseUser = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser }
+
+    val isOwner = remember(activeEvent, firebaseUser) {
+        val uid = firebaseUser?.uid
+        !uid.isNullOrEmpty() && (activeEvent?.ownerId == uid || activeEvent == null)
+    }
+    val currentUserInRoom = remember(roomUsers, firebaseUser) {
+        roomUsers.find { it.uid == firebaseUser?.uid }
+    }
+    val effectiveUserRole = remember(isOwner, currentUserInRoom, userRole) {
+        when {
+            isOwner -> UserRole.OWNER
+            currentUserInRoom != null -> currentUserInRoom.role
+            else -> userRole
+        }
+    }
+
+    val canAddContent = remember(effectiveUserRole) { effectiveUserRole == UserRole.OWNER || effectiveUserRole == UserRole.EDITOR }
+    val canDeleteAny = remember(effectiveUserRole) { effectiveUserRole == UserRole.OWNER }
+    val canDeleteOwn = remember(effectiveUserRole) { effectiveUserRole == UserRole.EDITOR }
 
     val isAnySheetVisible by remember {
         derivedStateOf {
@@ -399,6 +418,13 @@ fun MomentsScreen(
             }
         }
     )
+
+    LaunchedEffect(eventId) {
+        if (eventId.isNotBlank()) {
+            eventViewModel.fetchAndSetActiveEvent(eventId)
+            roomViewModel.loadRoomUsers(eventId, "Moments")
+        }
+    }
 
     LaunchedEffect(eventId, selectedFolderId, viewMode) {
         if (eventId.isBlank()) return@LaunchedEffect
@@ -647,7 +673,7 @@ fun MomentsScreen(
                 selectedMomentIds = emptySet()
             }
             selectedMomentIds.isNotEmpty() -> selectedMomentIds = emptySet()
-            viewMode == MomentViewMode.ROOM -> viewMode = MomentViewMode.AllMoments
+            viewMode == MomentViewMode.ROOM -> viewMode = MomentViewMode.GROUP_CHAT
             folderNavigationStack.isNotEmpty() -> {
                 val newStack = folderNavigationStack.dropLast(1)
                 folderNavigationStack = newStack
@@ -920,7 +946,7 @@ fun MomentsScreen(
                                     MomentViewMode.ROOM -> {
                                         MomentsRoomContent(
                                             eventId = eventId,
-                                            onBackClick = { viewMode = MomentViewMode.AllMoments },
+                                            onBackClick = { viewMode = MomentViewMode.GROUP_CHAT },
                                             roomViewModel = roomViewModel
                                         )
                                     }

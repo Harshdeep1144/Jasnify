@@ -448,13 +448,13 @@ fun ProfileRootScreen(
                             .background(SurfacePrimary)
                     ) {
                         ProfileMenuCell(
-                            title = "Terms of Use",
+                            title = "Help & Feedback",
                             subtitle = null,
-                            icon = termsIcon,
+                            icon = helpIcon,
                             hasBorder = false,
                             shape = RectangleShape,
                             containerColor = Color.Transparent,
-                            onClick = { onNavigateTo(ProfileScreen.TermsOfUse) }
+                            onClick = { onNavigateTo(ProfileScreen.HelpFeedback) }
                         )
                         ProfileMenuCell(
                             title = "Privacy Policy",
@@ -466,13 +466,13 @@ fun ProfileRootScreen(
                             onClick = { onNavigateTo(ProfileScreen.PrivacyPolicy) }
                         )
                         ProfileMenuCell(
-                            title = "Help & Feedback",
+                            title = "Terms of Use",
                             subtitle = null,
-                            icon = helpIcon,
+                            icon = termsIcon,
                             hasBorder = false,
                             shape = RectangleShape,
                             containerColor = Color.Transparent,
-                            onClick = { onNavigateTo(ProfileScreen.HelpFeedback) }
+                            onClick = { onNavigateTo(ProfileScreen.TermsOfUse) }
                         )
                     }
 
