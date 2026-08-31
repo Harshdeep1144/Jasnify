@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -59,8 +62,6 @@ import java.util.Date
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
-private val FullMomentShape = SquircleShape(CornerMedium, CornerSmoothingDefault)
-
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 fun MomentItemFullView(
@@ -69,9 +70,10 @@ fun MomentItemFullView(
     animatedVisibilityScope: AnimatedVisibilityScope,
     sharedTransitionScope: SharedTransitionScope,
     onBackClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
     onDownloadClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onFavoriteClick: (() -> Unit)? = null,
+    isFavorite: Boolean = false
 ) {
     SetStatusBarTheme(useDarkIcons = false)
 
@@ -153,40 +155,17 @@ fun MomentItemFullView(
             }
         }
 
-        // Top Bar
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-        ) {
-            CustomTopBar(
-                title = formattedDate,
-                onBackClick = onBackClick,
-                onMenuClick = { /* More menu */ },
-                backIcon = TopIcon.Predefined.BACK_2,
-                menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                textColor = Color.White,
-                buttonStyle = ButtonBackground.TRANSPARENT
-            )
-        }
-
-        // Media Container with sharedBounds
+        // 1. Media Container with sharedBounds (Extends behind top bar)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = 80.dp,
-                    bottom = 120.dp,
-                    start = 0.dp,
-                    end = 0.dp
-                ),
+                .padding(bottom = 100.dp),
             contentAlignment = Alignment.Center
         ) {
             with(sharedTransitionScope) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f) // Adjust based on image or use wrap content
                         .sharedBounds(
                             sharedContentState = rememberSharedContentState(key = transitionKey),
                             animatedVisibilityScope = animatedVisibilityScope,
@@ -199,7 +178,7 @@ fun MomentItemFullView(
                             autoPlay = true,
                             isLooping = true,
                             isMuted = false,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier.fillMaxWidth()
                         )
                     } else {
                         AsyncImage(
@@ -208,26 +187,52 @@ fun MomentItemFullView(
                                 .crossfade(true)
                                 .build(),
                             contentDescription = null,
-                            contentScale = ContentScale.Fit,
-                            modifier = Modifier.fillMaxSize()
+                            contentScale = ContentScale.FillWidth,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
             }
         }
 
-        // Bottom Action Pill
+        // 2. Top Bar (Overlaid on top of media)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.6f),
+                            Color.Transparent
+                        )
+                    )
+                )
+                .statusBarsPadding()
+        ) {
+            CustomTopBar(
+                title = formattedDate,
+                onBackClick = onBackClick,
+                backIcon = TopIcon.Predefined.BACK_2,
+                textColor = Color.White,
+                buttonStyle = ButtonBackground.TRANSPARENT
+            )
+        }
+
+        // 3. Bottom Action Pill
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .width(260.dp)
                 .padding(bottom = 40.dp)
-                .padding(horizontal = 48.dp)
         ) {
             MomentsActionBar(
                 onShareClick = { onShareTrigger(moment) },
                 onFavoriteClick = onFavoriteClick,
+                isFavorite = isFavorite,
                 onDownloadClick = onDownloadClick,
-                containerColor = Color(0xFF1E1E1E).copy(alpha = 0.9f)
+                containerColor = Color(0xFF1E1E1E).copy(alpha = 0.9f),
+                contentColor = Color.White
             )
         }
     }

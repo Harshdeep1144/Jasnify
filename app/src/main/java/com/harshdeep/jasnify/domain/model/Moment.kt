@@ -21,5 +21,6 @@ data class MomentFolder(
     var isNew: Boolean = false,
     val uploaderId: String = "",
     val parentId: String = "",
-    val fullPath: String = "" // Used for Cloudinary and Breadcrumbs
+    val fullPath: String = "", // Used for Cloudinary and Breadcrumbs
+    val createdAt: Long = System.currentTimeMillis()
 )

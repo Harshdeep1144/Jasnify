@@ -642,7 +642,6 @@ fun HomeTabContent(
                     "moments" -> {
                         MomentsScreen(
                             onBackClick = { currentScreen = "home" },
-                            navController = mainNavController,
                             viewModel = momentsViewModel ?: hiltViewModel()
                         )
                     }

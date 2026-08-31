@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -38,10 +39,10 @@ import androidx.compose.ui.unit.dp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Moment
 import com.harshdeep.jasnify.domain.model.MomentFolder
+import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
 import com.harshdeep.jasnify.utils.TimeUtils
 import java.util.Calendar
 
@@ -60,15 +61,13 @@ internal fun MomentsGrid(
 ) {
     if (moments.isEmpty() && subfolders.isEmpty()) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Spacer(Modifier.height(84.dp))      // Temporary top spacer
                 Icon(
                     painter = painterResource(R.drawable.ic_gallery_icon),
                     contentDescription = "No Moments Uploaded",
@@ -155,13 +154,11 @@ internal fun MomentsGrid(
                         Box(
                             modifier = Modifier
                                 .size(24.dp)
-                                .background(
-                                    color = if (allSelected) SurfaceBrandPrimary else Color.Transparent,
-                                    shape = CircleShape
-                                )
+                                .clip(CircleShape)
+                                .background(if (allSelected) Color.White else Color.Black.copy(alpha = 0.25f))
                                 .border(
-                                    width = 1.dp,
-                                    color = if (allSelected) Color.Transparent else ContentSecondary,
+                                    width = if (allSelected) 0.dp else 1.5.dp,
+                                    color = if (allSelected) Color.Transparent else Color.White.copy(alpha = 0.7f),
                                     shape = CircleShape
                                 )
                                 .clickable {
@@ -181,10 +178,10 @@ internal fun MomentsGrid(
                         ) {
                             if (allSelected) {
                                 Icon(
-                                    painter = painterResource(R.drawable.ic_check),
+                                    painter = painterResource(R.drawable.ic_tick),
                                     contentDescription = "Select All",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = SurfaceBrandPrimary,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }

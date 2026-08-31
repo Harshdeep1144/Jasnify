@@ -23,6 +23,11 @@ class MomentsRepositoryImpl @Inject constructor(
 ) : MomentsRepository {
 
     override fun getFolders(eventId: String, parentId: String): Flow<List<MomentFolder>> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
         val subscription = firestore.collection("events").document(eventId)
             .collection("rooms").document("Moments")
             .collection("folders")
@@ -41,6 +46,11 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override fun getMoments(eventId: String, folderId: String): Flow<List<Moment>> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
         val query = if (folderId.isEmpty() || folderId == "all_moments_id") {
             firestore.collection("events").document(eventId)
                 .collection("rooms").document("Moments")
@@ -69,6 +79,7 @@ class MomentsRepositoryImpl @Inject constructor(
     override fun getAllMoments(eventId: String): Flow<List<Moment>> = getMoments(eventId, "")
 
     override suspend fun createFolder(eventId: String, name: String, parentId: String): String {
+        if (eventId.isBlank() || name.isBlank()) return ""
         // Ensure the owner has access to this room (for older events)
         ensureOwnerAccess(eventId)
 
@@ -101,6 +112,7 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     private suspend fun ensureOwnerAccess(eventId: String) {
+        if (eventId.isBlank()) return
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
         val roomDoc = firestore.collection("events").document(eventId)
             .collection("rooms").document("Moments").get().await()
@@ -125,6 +137,7 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun uploadMoment(eventId: String, folderId: String, uri: Uri, isVideo: Boolean) {
+        if (eventId.isBlank()) return
         // 1. Resolve folder info for path and metadata
         val actualFolderId = if (folderId.isEmpty() || folderId == "all_moments_id") {
             // Find/Create "All Moments" folder at root
@@ -240,6 +253,7 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteMoment(eventId: String, folderId: String, momentId: String) {
+        if (eventId.isBlank() || momentId.isBlank()) return
         val momentDoc = firestore.collection("events").document(eventId)
             .collection("rooms").document("Moments")
             .collection("all_moments").document(momentId).get().await()
@@ -278,7 +292,7 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteFolder(eventId: String, folderId: String) {
-        if (folderId.isEmpty() || folderId == "all_moments_id") {
+        if (eventId.isBlank() || folderId.isEmpty() || folderId == "all_moments_id") {
             android.util.Log.e("MomentsRepo", "Attempted to delete protected or root folder: $folderId")
             return
         }
@@ -342,6 +356,11 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override fun getSavedMoments(eventId: String): Flow<List<Moment>> = callbackFlow {
+        if (eventId.isBlank()) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
         val currentUser = FirebaseAuth.getInstance().currentUser ?: run {
             trySend(emptyList())
             close()
@@ -367,6 +386,7 @@ class MomentsRepositoryImpl @Inject constructor(
     }
 
     override suspend fun toggleSaveMoment(eventId: String, moment: Moment) {
+        if (eventId.isBlank() || moment.id.isBlank()) return
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
         val docRef = firestore.collection("events").document(eventId)
             .collection("rooms").document("Moments")

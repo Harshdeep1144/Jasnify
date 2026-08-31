@@ -376,18 +376,18 @@ fun RoomScreen(
         if (showRoomPictureBottomSheet) {
             focusManager.clearFocus()
 
-            val galleryIcon = painterResource(R.drawable.ic_gallery)
+            val uploadIcon = painterResource(R.drawable.ic_upload)
             val deleteIcon = painterResource(R.drawable.ic_delete)
             val deleteColor = MaterialTheme.colorScheme.error
 
-            val roomPictureMenuItems = remember(roomPictureUrl, galleryIcon, deleteIcon, deleteColor) {
+            val roomPictureMenuItems = remember(roomPictureUrl, uploadIcon, deleteIcon, deleteColor) {
                 val list = mutableListOf<List<MenuSheetActionItem>>()
 
                 list.add(
                     listOf(
                         MenuSheetActionItem(
                             text = "Choose from Gallery",
-                            icon = galleryIcon,
+                            icon = uploadIcon,
                             iconPlacement = IconPlacement.Left,
                             onClick = {
                                 showRoomPictureBottomSheet = false
