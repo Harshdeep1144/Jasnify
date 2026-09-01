@@ -120,6 +120,22 @@ class PreferenceManager @Inject constructor(
         return sharedPreferences.getInt(KEY_LAST_PERMISSION_REQUEST_SESSION, -1)
     }
 
+    fun hasCompletedScreenOnboarding(screenKey: String): Boolean {
+        return sharedPreferences.getBoolean("onboarding_completed_$screenKey", false)
+    }
+
+    fun setCompletedScreenOnboarding(screenKey: String, completed: Boolean = true) {
+        sharedPreferences.edit { putBoolean("onboarding_completed_$screenKey", completed) }
+    }
+
+    fun hasSeenGroupChatOnboarding(): Boolean {
+        return sharedPreferences.getBoolean("has_seen_group_chat_onboarding", false)
+    }
+
+    fun setHasSeenGroupChatOnboarding(seen: Boolean = true) {
+        sharedPreferences.edit { putBoolean("has_seen_group_chat_onboarding", seen) }
+    }
+
     companion object {
         private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
         private const val KEY_DOWNLOAD_QUALITY = "download_quality"

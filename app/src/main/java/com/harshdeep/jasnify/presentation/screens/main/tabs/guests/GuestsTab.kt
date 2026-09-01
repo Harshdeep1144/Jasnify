@@ -122,7 +122,14 @@ import com.harshdeep.jasnify.presentation.components.cards.ImportContactsBanner
 import com.harshdeep.jasnify.presentation.components.chip.ChipShapeStyle
 import com.harshdeep.jasnify.presentation.components.chip.FilterChip
 import com.harshdeep.jasnify.presentation.components.filter.FilterGuestTypeBottomSheet
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.geometry.Rect
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.RoomAccessGuardian
 import com.harshdeep.jasnify.presentation.components.others.ToastData
@@ -236,6 +243,46 @@ fun GuestsTab(
 
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
+
+    val prefManager = remember { PreferenceManager(context) }
+    var isGuestsOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("guests")) }
+    var guestsStepIndex by remember { mutableIntStateOf(0) }
+    val guestsTargetRects = remember { mutableStateMapOf<String, Rect>() }
+
+    val shouldShowGuestsOverlay = isGuestsOnboardingActive && guestsFromCloud.isNotEmpty()
+    LaunchedEffect(shouldShowGuestsOverlay) {
+        onBottomBarVisibilityChange(!shouldShowGuestsOverlay)
+    }
+
+    val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
+    val guestsOnboardingSteps = remember(hasSeenGroupChat) {
+        val steps = mutableListOf<OnboardingStep>()
+        if (!hasSeenGroupChat) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "room_group_chat",
+                    title = "Room Group Chat",
+                    description = "Tap here to open group chat with your room members and stay connected!",
+                    iconRes = R.drawable.ic_message,
+                    isCircleHighlight = true
+                )
+            )
+        }
+        steps.add(
+            OnboardingStep(
+                stepKey = "guests_add_button",
+                title = "Add More Guests",
+                description = "Tap the + button next to search to quickly add new guests or import contacts!",
+                iconRes = R.drawable.ill_guests,
+                isCircleHighlight = true
+            )
+        )
+        steps
+    }
+
+    val currentGuestsStepKey = if (isGuestsOnboardingActive && guestsStepIndex in guestsOnboardingSteps.indices) {
+        guestsOnboardingSteps[guestsStepIndex].stepKey
+    } else null
 
     LaunchedEffect(isSearchActive) {
         if (isSearchActive) {
@@ -397,7 +444,7 @@ fun GuestsTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            (hasAccess == true || hasAccess == null) && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && isHeaderVisible && !isSearchActive && !showAiChat
+            (hasAccess == true || hasAccess == null) && !isAnyBottomSheetOpen && currentView == GuestsView.MAIN && !isMultiSelectMode && isHeaderVisible && !isSearchActive && !showAiChat && !shouldShowGuestsOverlay
         }
     }
 
@@ -652,6 +699,9 @@ fun GuestsTab(
                                                         onSecondaryClick = {
                                                             currentView = GuestsView.GROUP_CHAT
                                                         },
+                                                        secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentGuestsStepKey) {
+                                                            guestsTargetRects["room_group_chat"] = it
+                                                        },
                                                         onMenuClick = {
                                                             focusManager.clearFocus()
                                                             showMenuSheet = true
@@ -739,7 +789,10 @@ fun GuestsTab(
                                                                 onClick = onAddGuestClick,
                                                                 text = "Add",
                                                                 leadingIcon = painterResource(id = R.drawable.ic_plus),
-                                                                shapeStyle = ButtonShapeStyle.Round
+                                                                shapeStyle = ButtonShapeStyle.Round,
+                                                                modifier = Modifier.onboardingTarget("guests_add_button", currentGuestsStepKey) {
+                                                                    guestsTargetRects["guests_add_button"] = it
+                                                                }
                                                             )
                                                         }
                                                     }
@@ -1777,6 +1830,28 @@ fun GuestsTab(
                 items = menuItems,
                 onCancelClick = { showMenuSheet = false },
                 onProgress = { sheetMotionProgress = it }
+            )
+        }
+
+        if (isGuestsOnboardingActive && guests.isNotEmpty() && guestsOnboardingSteps.isNotEmpty() && currentView == GuestsView.MAIN) {
+            FeatureOnboardingOverlay(
+                steps = guestsOnboardingSteps,
+                currentStepIndex = guestsStepIndex,
+                targetRectMap = guestsTargetRects,
+                onNextStep = {
+                    if (guestsStepIndex < guestsOnboardingSteps.lastIndex) {
+                        guestsStepIndex++
+                    } else {
+                        isGuestsOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("guests", true)
+                        prefManager.setHasSeenGroupChatOnboarding(true)
+                    }
+                },
+                onSkip = {
+                    isGuestsOnboardingActive = false
+                    prefManager.setCompletedScreenOnboarding("guests", true)
+                    prefManager.setHasSeenGroupChatOnboarding(true)
+                }
             )
         }
     }

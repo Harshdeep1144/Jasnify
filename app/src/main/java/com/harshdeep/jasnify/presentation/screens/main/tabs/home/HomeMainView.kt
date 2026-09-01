@@ -26,7 +26,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
 import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
@@ -36,8 +39,11 @@ import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
 import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.DashedDivider
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
 import com.harshdeep.jasnify.presentation.components.others.OrDivider
 import com.harshdeep.jasnify.presentation.components.others.ToastData
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import com.harshdeep.jasnify.presentation.components.scaffold.FooterJansify
 import com.harshdeep.jasnify.presentation.components.scaffold.HomeTopBar
 import com.harshdeep.jasnify.presentation.components.sections.ExploreCategoriesHorizontal
@@ -88,9 +94,74 @@ fun HomeMainView(
     onOfferClick: (Venue) -> Unit,
     onVendorOfferClick: (Vendor) -> Unit = {},
     onToastChange: (ToastData?) -> Unit,
-    onSaveListChange: (Venue?, Vendor?) -> Unit
+    onSaveListChange: (Venue?, Vendor?) -> Unit,
+    onBottomBarVisibilityChange: ((Boolean) -> Unit)? = null
 ) {
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val prefManager = remember { PreferenceManager(context) }
+    var isHomeOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("home")) }
+    var homeStepIndex by remember { mutableIntStateOf(0) }
+    val homeTargetRects = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+
+    LaunchedEffect(isHomeOnboardingActive) {
+        onBottomBarVisibilityChange?.invoke(!isHomeOnboardingActive)
+    }
+
+    val homeOnboardingSteps = remember {
+        listOf(
+            OnboardingStep(
+                stepKey = "home_menu_button",
+                title = "Event Details & Settings",
+                description = "Tap the menu button to manage event details, invite members, or switch rooms!",
+                iconRes = R.drawable.ill_vendor_grooming,
+                isCircleHighlight = true
+            ),
+            OnboardingStep(
+                stepKey = "home_budget_card",
+                title = "Track Your Budget",
+                description = "Monitor your spending, manage funds, and keep track of remaining budget at a glance!",
+                iconRes = R.drawable.ill_budget_tracker_card
+            ),
+            OnboardingStep(
+                stepKey = "home_catering_card",
+                title = "Catering Menu",
+                description = "Explore custom dishes, food choices, and drinks for your event!",
+                iconRes = R.drawable.ill_catering_menu_card
+            ),
+            OnboardingStep(
+                stepKey = "home_venue_card",
+                title = "Venue Selection",
+                description = "Discover and manage perfect event spaces and locations!",
+                iconRes = R.drawable.ill_venue_card
+            ),
+            OnboardingStep(
+                stepKey = "home_moments_card",
+                title = "Capture Moments",
+                description = "Upload photos, videos, and create event memory albums!",
+                iconRes = R.drawable.ill_moments_card
+            ),
+            OnboardingStep(
+                stepKey = "home_cards_card",
+                title = "Invitation Cards",
+                description = "Design and send digital invitation cards to your guests!",
+                iconRes = R.drawable.ill_cards_and_guests_card
+            )
+        )
+    }
+
+    val currentHomeStepKey = if (isHomeOnboardingActive && homeStepIndex in homeOnboardingSteps.indices) {
+        homeOnboardingSteps[homeStepIndex].stepKey
+    } else null
+
+    LaunchedEffect(currentHomeStepKey) {
+        when (currentHomeStepKey) {
+            "home_menu_button" -> lazyListState.animateScrollToItem(0)
+            "home_budget_card" -> lazyListState.animateScrollToItem(1)
+            "home_catering_card", "home_venue_card" -> lazyListState.animateScrollToItem(2)
+            "home_moments_card", "home_cards_card" -> lazyListState.animateScrollToItem(3)
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -137,7 +208,10 @@ fun HomeMainView(
                         dateString = eventDateString,
                         alphaProvider = topBarAlphaProvider,
                         contentColorOverride = currentHeaderColor,
-                        onMenuClick = onMenuClick
+                        onMenuClick = onMenuClick,
+                        menuButtonModifier = Modifier.onboardingTarget("home_menu_button", currentHomeStepKey) {
+                            homeTargetRects["home_menu_button"] = it
+                        }
                     )
                 },
                 containerColor = Color.Transparent,
@@ -229,6 +303,9 @@ fun HomeMainView(
                                     shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
                                 )
                                 .padding(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 4.dp)
+                                .onboardingTarget("home_budget_card", currentHomeStepKey) {
+                                    homeTargetRects["home_budget_card"] = it
+                                }
                         ) {
                             BudgetTrackerCard(
                                 insight = "See your budget",
@@ -254,7 +331,11 @@ fun HomeMainView(
                                 insight = "Delicious and Elegant",
                                 heading = "Catering Menu",
                                 illustration = painterResource(R.drawable.ill_catering_menu_card),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onboardingTarget("home_catering_card", currentHomeStepKey) {
+                                        homeTargetRects["home_catering_card"] = it
+                                    },
                                 cardBgColor = Color(0xFFC4D4C2),
                                 waveColor = Color(0x1A14570C).copy(alpha = 0.9f),
                                 insightColor = Color(0xFF47671A),
@@ -264,7 +345,11 @@ fun HomeMainView(
                                 insight = "Perfect Event Spaces",
                                 heading = "Venue",
                                 illustration = painterResource(R.drawable.ill_venue_card),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onboardingTarget("home_venue_card", currentHomeStepKey) {
+                                        homeTargetRects["home_venue_card"] = it
+                                    },
                                 cardBgColor = Color(0xFFD3CDE8),
                                 waveColor = Color(0x1A2C186C).copy(alpha = 0.9f),
                                 insightColor = Color(0xFF6448D6),
@@ -285,7 +370,11 @@ fun HomeMainView(
                                 insight = "Capture and Smile",
                                 heading = "Moments",
                                 illustration = painterResource(R.drawable.ill_moments_card),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onboardingTarget("home_moments_card", currentHomeStepKey) {
+                                        homeTargetRects["home_moments_card"] = it
+                                    },
                                 cardBgColor = Color(0xFFC3D4E8),
                                 waveColor = Color(0x1A014594).copy(alpha = 0.9f),
                                 insightColor = Color(0xFF3D58B4),
@@ -296,7 +385,11 @@ fun HomeMainView(
                                 insight = "Invite and Celebrate",
                                 heading = "Cards",
                                 illustration = painterResource(R.drawable.ill_cards_and_guests_card),
-                                modifier = Modifier.weight(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onboardingTarget("home_cards_card", currentHomeStepKey) {
+                                        homeTargetRects["home_cards_card"] = it
+                                    },
                                 cardBgColor = Color(0xFFE8D0CE),
                                 waveColor = Color(0x1A5D0501).copy(alpha = 0.9f),
                                 insightColor = Color(0xFF5D1D1B),
@@ -364,6 +457,26 @@ fun HomeMainView(
                 }
             }
 
+        }
+
+        if (isHomeOnboardingActive && homeOnboardingSteps.isNotEmpty()) {
+            FeatureOnboardingOverlay(
+                steps = homeOnboardingSteps,
+                currentStepIndex = homeStepIndex,
+                targetRectMap = homeTargetRects,
+                onNextStep = {
+                    if (homeStepIndex < homeOnboardingSteps.lastIndex) {
+                        homeStepIndex++
+                    } else {
+                        isHomeOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("home", true)
+                    }
+                },
+                onSkip = {
+                    isHomeOnboardingActive = false
+                    prefManager.setCompletedScreenOnboarding("home", true)
+                }
+            )
         }
 
         AnimatedVisibility(

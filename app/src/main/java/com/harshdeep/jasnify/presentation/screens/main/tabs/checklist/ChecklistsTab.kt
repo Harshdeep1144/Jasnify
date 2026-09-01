@@ -16,6 +16,14 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -212,6 +220,46 @@ fun ChecklistsTab(
     var showLeaveConfirmation by remember { mutableStateOf(false) }
     var userToRemove by remember { mutableStateOf<User?>(null) }
 
+    val context = LocalContext.current
+    val prefManager = remember { PreferenceManager(context) }
+    var isChecklistOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("checklist")) }
+    var checklistStepIndex by remember { mutableIntStateOf(0) }
+    val checklistTargetRects = remember { mutableStateMapOf<String, Rect>() }
+
+    LaunchedEffect(isChecklistOnboardingActive) {
+        onBottomBarVisibilityChange(!isChecklistOnboardingActive)
+    }
+
+    val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
+    val checklistOnboardingSteps = remember(hasSeenGroupChat) {
+        val steps = mutableListOf<OnboardingStep>()
+        if (!hasSeenGroupChat) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "room_group_chat",
+                    title = "Room Group Chat",
+                    description = "Tap here to open group chat with your room members and stay connected!",
+                    iconRes = R.drawable.ic_message,
+                    isCircleHighlight = true
+                )
+            )
+        }
+        steps.add(
+            OnboardingStep(
+                stepKey = "checklist_add_button",
+                title = "Add New Checklist",
+                description = "Tap the + button to create new checklists and organize your event to-dos!",
+                iconRes = R.drawable.ill_checklists,
+                isCircleHighlight = true
+            )
+        )
+        steps
+    }
+
+    val currentChecklistStepKey = if (isChecklistOnboardingActive && checklistStepIndex in checklistOnboardingSteps.indices) {
+        checklistOnboardingSteps[checklistStepIndex].stepKey
+    } else null
+
     var showDetailColorPicker by remember { mutableStateOf(false) }
     var showDetailMenu by remember { mutableStateOf(false) }
     var showDetailDeleteConfirmation by remember { mutableStateOf(false) }
@@ -280,8 +328,8 @@ fun ChecklistsTab(
         }
     }
 
-    LaunchedEffect(currentScreen, hasAccess, isAnyBottomSheetOpen, showAiChat) {
-        onBottomBarVisibilityChange(hasAccess == true && currentScreen is ChecklistScreenState.List && !isAnyBottomSheetOpen && !showAiChat)
+    LaunchedEffect(currentScreen, hasAccess, isAnyBottomSheetOpen, showAiChat, isChecklistOnboardingActive) {
+        onBottomBarVisibilityChange(hasAccess == true && currentScreen is ChecklistScreenState.List && !isAnyBottomSheetOpen && !showAiChat && !isChecklistOnboardingActive)
     }
 
     LaunchedEffect(showDiscardToast) {
@@ -540,6 +588,9 @@ fun ChecklistsTab(
                                                                 onSecondaryClick = {
                                                                     showGroupChat = true
                                                                 },
+                                                                secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentChecklistStepKey) {
+                                                                    checklistTargetRects["room_group_chat"] = it
+                                                                },
                                                                 tertiaryIcon = TopIcon.Predefined.SEARCH,
                                                                 onTertiaryClick = {
                                                                     isSearchActive = true
@@ -569,6 +620,9 @@ fun ChecklistsTab(
                                                     modifier = Modifier
                                                         .offset(x = (-24).dp, y = fabOffset)
                                                         .shadow(16.dp, CircleShape)
+                                                        .onboardingTarget("checklist_add_button", currentChecklistStepKey) {
+                                                            checklistTargetRects["checklist_add_button"] = it
+                                                        }
                                                 )
                                             }
                                         },
@@ -831,6 +885,28 @@ fun ChecklistsTab(
                         }
                     }
                 }
+            }
+
+            if (isChecklistOnboardingActive && checklistOnboardingSteps.isNotEmpty() && currentScreen is ChecklistScreenState.List) {
+                FeatureOnboardingOverlay(
+                    steps = checklistOnboardingSteps,
+                    currentStepIndex = checklistStepIndex,
+                    targetRectMap = checklistTargetRects,
+                    onNextStep = {
+                        if (checklistStepIndex < checklistOnboardingSteps.lastIndex) {
+                            checklistStepIndex++
+                        } else {
+                            isChecklistOnboardingActive = false
+                            prefManager.setCompletedScreenOnboarding("checklist", true)
+                            prefManager.setHasSeenGroupChatOnboarding(true)
+                        }
+                    },
+                    onSkip = {
+                        isChecklistOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("checklist", true)
+                        prefManager.setHasSeenGroupChatOnboarding(true)
+                    }
+                )
             }
 
             if (showMenuSheet) {

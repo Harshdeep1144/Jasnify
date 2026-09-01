@@ -51,7 +51,8 @@ fun HomeTopBar(
     dateString: String,
     onMenuClick: () -> Unit = {},
     alphaProvider: () -> Float = { 1f },
-    contentColorOverride: Color? = null
+    contentColorOverride: Color? = null,
+    menuButtonModifier: Modifier = Modifier
 ) {
     val alpha = alphaProvider()
     val haptic = LocalHapticFeedback.current
@@ -159,6 +160,7 @@ fun HomeTopBar(
             backgroundStyle = buttonBackground,
             iconColor = contentColor,
             iconSize = 24.dp,
+            modifier = menuButtonModifier
         )
     }
 }

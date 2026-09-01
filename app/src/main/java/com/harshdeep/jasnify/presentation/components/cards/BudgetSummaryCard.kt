@@ -72,7 +72,8 @@ fun BudgetSummaryCard(
     onViewSummaryClick: () -> Unit,
     modifier: Modifier = Modifier,
     showEditButton: Boolean = true,
-    tooltipText: String = "This is the unspent portion of your total budget. It does not reflect actual bank balance or real cash."
+    tooltipText: String = "This is the unspent portion of your total budget. It does not reflect actual bank balance or real cash.",
+    viewSummaryButtonModifier: Modifier = Modifier
 ) {
     var isTooltipVisible by remember { mutableStateOf(false) }
 
@@ -266,7 +267,9 @@ fun BudgetSummaryCard(
                     size = ButtonSize.Medium,
                     type = ButtonType.Primary,
                     shapeStyle = ButtonShapeStyle.Square,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(viewSummaryButtonModifier)
                 )
             }
         }

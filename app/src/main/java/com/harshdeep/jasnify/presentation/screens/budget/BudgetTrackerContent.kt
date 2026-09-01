@@ -97,7 +97,9 @@ fun BudgetTrackerContent(
     onModifyExpenseClick: (ExpenseItem) -> Unit,
     listState: LazyListState,
     isSearchBarFocused: Boolean,
-    onSearchBarFocusChange: (Boolean) -> Unit
+    onSearchBarFocusChange: (Boolean) -> Unit,
+    viewSummaryButtonModifier: Modifier = Modifier,
+    groupChatIconModifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
@@ -134,6 +136,7 @@ fun BudgetTrackerContent(
                     onMenuClick = onMenuClick,
                     secondaryIcon = TopIcon.Predefined.CHAT,
                     onSecondaryClick = onChatClick,
+                    secondaryIconModifier = groupChatIconModifier,
                     isLargeTitle = true,
                     buttonStyle = ButtonBackground.TRANSLUCENT
                 )
@@ -163,6 +166,7 @@ fun BudgetTrackerContent(
                             onEditBudgetClick = onEditBudgetClick,
                             onViewSummaryClick = onViewSummaryClick,
                             showEditButton = isOwner,
+                            viewSummaryButtonModifier = viewSummaryButtonModifier
                         )
                     }
                 }

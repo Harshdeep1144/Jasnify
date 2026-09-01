@@ -38,8 +38,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -128,6 +133,41 @@ fun CateringMenuMainContent(
     val isSelectionMode = isMultiSelectActive || selectedItemIds.isNotEmpty()
     val topBarMaxScrollPx = 56.dp // Simplified, assumed constant for the content
 
+    val context = LocalContext.current
+    val prefManager = remember { PreferenceManager(context) }
+    var isCateringOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("catering")) }
+    var cateringStepIndex by remember { mutableIntStateOf(0) }
+    val cateringTargetRects = remember { mutableStateMapOf<String, Rect>() }
+
+    val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
+    val cateringOnboardingSteps = remember(hasSeenGroupChat) {
+        val steps = mutableListOf<OnboardingStep>()
+        if (!hasSeenGroupChat) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "room_group_chat",
+                    title = "Room Group Chat",
+                    description = "Tap here to open group chat with your room members and stay connected!",
+                    iconRes = R.drawable.ic_message,
+                    isCircleHighlight = true
+                )
+            )
+        }
+        steps.add(
+            OnboardingStep(
+                stepKey = "catering_add_item",
+                title = "Add Custom Item",
+                description = "Tap here to add custom dishes, food choices, or drinks to your catering menu!",
+                iconRes = R.drawable.ill_vendor_food
+            )
+        )
+        steps
+    }
+
+    val currentCateringStepKey = if (isCateringOnboardingActive && cateringStepIndex in cateringOnboardingSteps.indices) {
+        cateringOnboardingSteps[cateringStepIndex].stepKey
+    } else null
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -171,6 +211,9 @@ fun CateringMenuMainContent(
                             onMenuClick = onMenuClick,
                             secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
                             onSecondaryClick = onChatClick,
+                            secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentCateringStepKey) {
+                                cateringTargetRects["room_group_chat"] = it
+                            },
                             menuIcon = if (isSelectionMode) TopIcon.Predefined.CLOSE else TopIcon.Predefined.MENU_VERTICAL,
                             isLargeTitle = !isSelectionMode,
                             buttonStyle = ButtonBackground.OPAQUE
@@ -403,7 +446,11 @@ fun CateringMenuMainContent(
                                 type = ButtonType.Primary,
                                 shapeStyle = ButtonShapeStyle.Round,
                                 leadingIcon = painterResource(R.drawable.ic_plus),
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .onboardingTarget("catering_add_item", currentCateringStepKey) {
+                                        cateringTargetRects["catering_add_item"] = it
+                                    }
                             )
                         }
                     }
@@ -418,6 +465,28 @@ fun CateringMenuMainContent(
                     .align(Alignment.BottomEnd)
                     .padding(bottom = 120.dp)
                     .zIndex(150f)
+            )
+        }
+
+        if (isCateringOnboardingActive && cateringOnboardingSteps.isNotEmpty()) {
+            FeatureOnboardingOverlay(
+                steps = cateringOnboardingSteps,
+                currentStepIndex = cateringStepIndex,
+                targetRectMap = cateringTargetRects,
+                onNextStep = {
+                    if (cateringStepIndex < cateringOnboardingSteps.lastIndex) {
+                        cateringStepIndex++
+                    } else {
+                        isCateringOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("catering", true)
+                        prefManager.setHasSeenGroupChatOnboarding(true)
+                    }
+                },
+                onSkip = {
+                    isCateringOnboardingActive = false
+                    prefManager.setCompletedScreenOnboarding("catering", true)
+                    prefManager.setHasSeenGroupChatOnboarding(true)
+                }
             )
         }
     }

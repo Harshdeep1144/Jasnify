@@ -538,7 +538,8 @@ fun HomeTabContent(
                 onSaveListChange = { venue, vendor ->
                     if (venue != null) lastSavedVenue = venue
                     if (vendor != null) lastSavedVendor = vendor
-                }
+                },
+                onBottomBarVisibilityChange = onBottomBarVisibilityChange
             )
 
             if (showOfferSheet) {

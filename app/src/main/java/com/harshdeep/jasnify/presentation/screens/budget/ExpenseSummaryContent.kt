@@ -93,7 +93,9 @@ fun ExpenseSummaryContent(
     onBackClick: () -> Unit,
     onManageCategoriesClick: () -> Unit,
     onAiOverviewClick: () -> Unit,
-    formatAmount: (Double) -> String
+    formatAmount: (Double) -> String,
+    manageCategoriesButtonModifier: Modifier = Modifier,
+    topExpenseCategoryCardModifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     val scrollState = rememberScrollState()
@@ -243,7 +245,8 @@ fun ExpenseSummaryContent(
                         )
                         .clip(CardContainerShape)
                         .background(SurfacePrimary)
-                        .padding(16.dp),
+                        .padding(16.dp)
+                        .then(topExpenseCategoryCardModifier),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -404,7 +407,9 @@ fun ExpenseSummaryContent(
                                     text = "Manage Categories",
                                     shapeStyle = ButtonShapeStyle.Round,
                                     type = ButtonType.Primary,
-                                    modifier = Modifier.weight(1f)
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .then(manageCategoriesButtonModifier)
                                 )
                             }
                         }
