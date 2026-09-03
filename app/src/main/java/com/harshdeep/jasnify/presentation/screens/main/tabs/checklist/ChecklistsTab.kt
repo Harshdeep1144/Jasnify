@@ -901,10 +901,8 @@ fun ChecklistsTab(
                             prefManager.setHasSeenGroupChatOnboarding(true)
                         }
                     },
-                    onSkip = {
-                        isChecklistOnboardingActive = false
-                        prefManager.setCompletedScreenOnboarding("checklist", true)
-                        prefManager.setHasSeenGroupChatOnboarding(true)
+                    onPreviousStep = {
+                        if (checklistStepIndex > 0) checklistStepIndex--
                     }
                 )
             }

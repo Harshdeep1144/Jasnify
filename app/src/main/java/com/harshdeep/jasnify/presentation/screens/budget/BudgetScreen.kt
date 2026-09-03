@@ -54,8 +54,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import sv.lib.squircleshape.SquircleShape
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -89,6 +93,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerLarge
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -345,15 +350,19 @@ fun BudgetScreen(
                 stepKey = "budget_view_summary",
                 title = "View Summary",
                 description = "Check detailed expense breakdowns, category analytics, and charts!",
-                iconRes = R.drawable.ill_cards_and_guests_card
-            )
+                iconRes = R.drawable.ill_cards_and_guests_card,
+                highlightPadding = 4.dp,
+                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        )
         )
         steps.add(
             OnboardingStep(
                 stepKey = "budget_manage_categories",
                 title = "Manage Categories",
                 description = "Tap here to customize, edit, or add custom budget categories!",
-                iconRes = R.drawable.ill_vendor_grooming
+                iconRes = R.drawable.ill_vendor_grooming,
+                highlightPadding = 4.dp,
+                shape = CircleShape
             )
         )
         steps.add(
@@ -361,7 +370,9 @@ fun BudgetScreen(
                 stepKey = "budget_categories_card",
                 title = "Budget Categories",
                 description = "Explore your category spending details and manage expenses!",
-                iconRes = R.drawable.ill_budget_tracker_card
+                iconRes = R.drawable.ill_budget_tracker_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
             )
         )
         steps
@@ -916,10 +927,8 @@ fun BudgetScreen(
                             prefManager.setHasSeenGroupChatOnboarding(true)
                         }
                     },
-                    onSkip = {
-                        isBudgetOnboardingActive = false
-                        prefManager.setCompletedScreenOnboarding("budget", true)
-                        prefManager.setHasSeenGroupChatOnboarding(true)
+                    onPreviousStep = {
+                        if (budgetStepIndex > 0) budgetStepIndex--
                     }
                 )
             }

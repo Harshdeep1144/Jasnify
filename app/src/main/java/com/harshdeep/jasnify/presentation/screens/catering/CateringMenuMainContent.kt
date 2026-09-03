@@ -482,10 +482,8 @@ fun CateringMenuMainContent(
                         prefManager.setHasSeenGroupChatOnboarding(true)
                     }
                 },
-                onSkip = {
-                    isCateringOnboardingActive = false
-                    prefManager.setCompletedScreenOnboarding("catering", true)
-                    prefManager.setHasSeenGroupChatOnboarding(true)
+                onPreviousStep = {
+                    if (cateringStepIndex > 0) cateringStepIndex--
                 }
             )
         }

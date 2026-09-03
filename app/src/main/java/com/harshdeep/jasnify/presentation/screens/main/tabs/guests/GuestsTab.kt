@@ -1847,10 +1847,8 @@ fun GuestsTab(
                         prefManager.setHasSeenGroupChatOnboarding(true)
                     }
                 },
-                onSkip = {
-                    isGuestsOnboardingActive = false
-                    prefManager.setCompletedScreenOnboarding("guests", true)
-                    prefManager.setHasSeenGroupChatOnboarding(true)
+                onPreviousStep = {
+                    if (guestsStepIndex > 0) guestsStepIndex--
                 }
             )
         }

@@ -59,6 +59,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
+import com.harshdeep.jasnify.presentation.components.others.ThreeDotsWaveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -1163,10 +1164,10 @@ fun MomentsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = SurfaceBrandPrimary,
-                                    strokeWidth = 2.5.dp
+                                ThreeDotsWaveLoadingIndicator(
+                                    dotSize = 6.dp,
+                                    dotColor = SurfaceBrandPrimary,
+                                    travelDistance = 4.dp
                                 )
                                 val progressText = if (uploadProgress != null) {
                                     "Uploading... (${uploadProgress!!.first}/${uploadProgress!!.second})"
@@ -1302,10 +1303,8 @@ fun MomentsScreen(
                                     prefManager.setHasSeenGroupChatOnboarding(true)
                                 }
                             },
-                            onSkip = {
-                                isMomentsOnboardingActive = false
-                                prefManager.setCompletedScreenOnboarding("moments", true)
-                                prefManager.setHasSeenGroupChatOnboarding(true)
+                            onPreviousStep = {
+                                if (momentsStepIndex > 0) momentsStepIndex--
                             }
                         )
                     }

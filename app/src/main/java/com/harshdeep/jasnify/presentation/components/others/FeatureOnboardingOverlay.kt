@@ -4,6 +4,9 @@ import android.annotation.SuppressLint
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateRectAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
@@ -33,6 +37,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
@@ -48,8 +53,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import sv.lib.squircleshape.SquircleShape
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import kotlinx.coroutines.delay
 
 data class OnboardingStep(
     val stepKey: String,
@@ -58,7 +69,9 @@ data class OnboardingStep(
     val iconRes: Int = R.drawable.ill_vendor_grooming,
     val highlightPadding: Dp = 8.dp,
     val isCircleHighlight: Boolean = false,
-    val cornerRadius: Dp = 16.dp
+    val shape: Shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+    val cardShape: Shape = RoundedCornerShape(24.dp),
+    val forceCardAbove: Boolean? = null
 )
 
 fun Modifier.onboardingTarget(
@@ -74,7 +87,6 @@ fun Modifier.onboardingTarget(
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.HONEYCOMB_MR2)
 @SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun FeatureOnboardingOverlay(
@@ -82,13 +94,38 @@ fun FeatureOnboardingOverlay(
     currentStepIndex: Int,
     targetRectMap: Map<String, Rect>,
     onNextStep: () -> Unit,
-    onSkip: () -> Unit,
+    onPreviousStep: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (steps.isEmpty() || currentStepIndex !in steps.indices) return
 
     val currentStep = steps[currentStepIndex]
-    val targetRect = targetRectMap[currentStep.stepKey]
+    var isStepSettled by remember(currentStepIndex) { mutableStateOf(false) }
+
+    LaunchedEffect(currentStepIndex) {
+        isStepSettled = false
+        delay(360)
+        while (targetRectMap[steps[currentStepIndex].stepKey] == null) {
+            delay(40)
+        }
+        delay(40)
+        isStepSettled = true
+    }
+
+    val cutoutScale by animateFloatAsState(
+        targetValue = if (isStepSettled && targetRectMap[currentStep.stepKey] != null) 1f else 0.85f,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "cutoutScaleAnim"
+    )
+
+    val cardAlpha by animateFloatAsState(
+        targetValue = if (isStepSettled && targetRectMap[currentStep.stepKey] != null) 1f else 0f,
+        animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
+        label = "cardAlphaAnim"
+    )
+
+    val rawTargetRect = if (isStepSettled) targetRectMap[currentStep.stepKey] else null
+    val targetRect = rawTargetRect
 
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -122,15 +159,23 @@ fun FeatureOnboardingOverlay(
 
                 targetRect?.let { rect ->
                     val pad = currentStep.highlightPadding.toPx()
-                    val inflated = Rect(
+                    val rawInflated = Rect(
                         rect.left - pad,
                         rect.top - pad,
                         rect.right + pad,
                         rect.bottom + pad
                     )
+                    val center = rawInflated.center
+                    val scaledW = rawInflated.width * cutoutScale
+                    val scaledH = rawInflated.height * cutoutScale
+                    val inflated = Rect(
+                        center.x - scaledW / 2f,
+                        center.y - scaledH / 2f,
+                        center.x + scaledW / 2f,
+                        center.y + scaledH / 2f
+                    )
 
                     if (currentStep.isCircleHighlight) {
-                        val center = inflated.center
                         val radius = maxOf(inflated.width, inflated.height) / 2f
                         drawCircle(
                             color = Color.Transparent,
@@ -139,17 +184,16 @@ fun FeatureOnboardingOverlay(
                             blendMode = BlendMode.Clear
                         )
                     } else {
-                        val squircleShape = SquircleShape(currentStep.cornerRadius)
-                        val outline = squircleShape.createOutline(
+                        val outline = currentStep.shape.createOutline(
                             size = inflated.size,
                             layoutDirection = LayoutDirection.Ltr,
                             density = this
                         )
                         val path = Path().apply {
                             when (outline) {
-                                is androidx.compose.ui.graphics.Outline.Generic -> addPath(outline.path)
-                                is androidx.compose.ui.graphics.Outline.Rounded -> addRoundRect(outline.roundRect)
-                                is androidx.compose.ui.graphics.Outline.Rectangle -> addRect(outline.rect)
+                                is Outline.Generic -> addPath(outline.path)
+                                is Outline.Rounded -> addRoundRect(outline.roundRect)
+                                is Outline.Rectangle -> addRect(outline.rect)
                             }
                             translate(androidx.compose.ui.geometry.Offset(inflated.left, inflated.top))
                         }
@@ -163,9 +207,12 @@ fun FeatureOnboardingOverlay(
             }
 
             // Tooltip Callout Box
-            val isAboveTarget = remember(targetRect, screenHeightPx) {
-                if (targetRect == null) false
-                else targetRect.top > screenHeightPx * 0.45f
+            val isAboveTarget = remember(targetRect, screenHeightPx, currentStep.forceCardAbove) {
+                when (currentStep.forceCardAbove) {
+                    true -> true
+                    false -> false
+                    null -> if (targetRect == null) false else targetRect.top > screenHeightPx * 0.45f
+                }
             }
 
             val cardYOffsetPx = remember(targetRect, isAboveTarget) {
@@ -181,12 +228,11 @@ fun FeatureOnboardingOverlay(
 
             val cardYDp = with(density) { cardYOffsetPx.toDp() }
 
-            val cornerRadiusPx = with(density) { currentStep.cornerRadius.toPx() }
             val padPx = with(density) { currentStep.highlightPadding.toPx() }
             val insetTargetX = if (targetRect != null) {
                 val rawX = targetRect.center.x
-                val leftEdge = (targetRect.left - padPx) + cornerRadiusPx + 4.dp.value * density.density
-                val rightEdge = (targetRect.right + padPx) - cornerRadiusPx - 4.dp.value * density.density
+                val leftEdge = (targetRect.left - padPx) + 12.dp.value * density.density
+                val rightEdge = (targetRect.right + padPx) - 12.dp.value * density.density
                 if (leftEdge < rightEdge) rawX.coerceIn(leftEdge, rightEdge) else rawX
             } else 0f
             val arrowX = with(density) { insetTargetX.toDp() }
@@ -195,7 +241,8 @@ fun FeatureOnboardingOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
-                    .offset(y = cardYDp),
+                    .offset(y = cardYDp)
+                    .graphicsLayer { alpha = cardAlpha },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Pointer arrow pointing up if card is below target
@@ -218,7 +265,7 @@ fun FeatureOnboardingOverlay(
 
                 // Duolingo-styled Callout Card
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = currentStep.cardShape,
                     color = Color(0xFF29B6F6),
                     tonalElevation = 8.dp,
                     shadowElevation = 12.dp,
@@ -287,16 +334,33 @@ fun FeatureOnboardingOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                if (steps.size > 1) {
-                                    Text(
-                                        text = "Skip",
-                                        color = Color.White.copy(alpha = 0.8f),
-                                        style = JasnifyTheme.typography.labelMedium,
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable { onSkip() }
-                                            .padding(horizontal = 8.dp, vertical = 4.dp)
-                                    )
+                                if (currentStepIndex > 0 && onPreviousStep != null) {
+                                    Surface(
+                                        onClick = onPreviousStep,
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = Color.White.copy(alpha = 0.25f)
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Text(
+                                                text = "Previous",
+                                                style = JasnifyTheme.typography.headingMedium.copy(
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontSize = 14.sp
+                                                ),
+                                                color = Color.White
+                                            )
+                                        }
+                                    }
                                 }
 
                                 Surface(
@@ -451,8 +515,10 @@ fun FeatureOnboardingOverlayPreview() {
                         currentStepIndex = 0
                     }
                 },
-                onSkip = {
-                    currentStepIndex = 0
+                onPreviousStep = {
+                    if (currentStepIndex > 0) {
+                        currentStepIndex--
+                    }
                 }
             )
         }

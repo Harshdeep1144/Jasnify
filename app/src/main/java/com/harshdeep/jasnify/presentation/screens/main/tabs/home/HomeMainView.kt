@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.pager.PagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
@@ -51,7 +52,12 @@ import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
 import com.harshdeep.jasnify.presentation.components.sections.vendorCategories
 import com.harshdeep.jasnify.presentation.utils.noRippleClickable
 import com.harshdeep.jasnify.theme.BackgroundPrimary
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerExtraSmall
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import kotlinx.coroutines.launch
+import sv.lib.squircleshape.SquircleShape
 
 private const val PARALLAX_RATE = 0.5f
 
@@ -115,37 +121,54 @@ fun HomeMainView(
                 title = "Event Details & Settings",
                 description = "Tap the menu button to manage event details, invite members, or switch rooms!",
                 iconRes = R.drawable.ill_vendor_grooming,
-                isCircleHighlight = true
+                isCircleHighlight = true,
+                shape = CircleShape,
+                cardShape = SquircleShape(CornerExtraLarge, 0.dp, CornerExtraLarge, CornerExtraLarge, CornerSmoothingDefault)
             ),
             OnboardingStep(
                 stepKey = "home_budget_card",
                 title = "Track Your Budget",
                 description = "Monitor your spending, manage funds, and keep track of remaining budget at a glance!",
-                iconRes = R.drawable.ill_budget_tracker_card
+                iconRes = R.drawable.ill_budget_tracker_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+                forceCardAbove = false
             ),
             OnboardingStep(
                 stepKey = "home_catering_card",
                 title = "Catering Menu",
                 description = "Explore custom dishes, food choices, and drinks for your event!",
-                iconRes = R.drawable.ill_catering_menu_card
+                iconRes = R.drawable.ill_catering_menu_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+                forceCardAbove = false
             ),
             OnboardingStep(
                 stepKey = "home_venue_card",
                 title = "Venue Selection",
                 description = "Discover and manage perfect event spaces and locations!",
-                iconRes = R.drawable.ill_venue_card
+                iconRes = R.drawable.ill_venue_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+                forceCardAbove = false
             ),
             OnboardingStep(
                 stepKey = "home_moments_card",
                 title = "Capture Moments",
                 description = "Upload photos, videos, and create event memory albums!",
-                iconRes = R.drawable.ill_moments_card
+                iconRes = R.drawable.ill_moments_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+                forceCardAbove = true
             ),
             OnboardingStep(
                 stepKey = "home_cards_card",
                 title = "Invitation Cards",
                 description = "Design and send digital invitation cards to your guests!",
-                iconRes = R.drawable.ill_cards_and_guests_card
+                iconRes = R.drawable.ill_cards_and_guests_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+                forceCardAbove = true
             )
         )
     }
@@ -158,8 +181,7 @@ fun HomeMainView(
         when (currentHomeStepKey) {
             "home_menu_button" -> lazyListState.animateScrollToItem(0)
             "home_budget_card" -> lazyListState.animateScrollToItem(1)
-            "home_catering_card", "home_venue_card" -> lazyListState.animateScrollToItem(2)
-            "home_moments_card", "home_cards_card" -> lazyListState.animateScrollToItem(3)
+            "home_catering_card" -> lazyListState.animateScrollToItem(2, scrollOffset = -20)
         }
     }
 
@@ -472,9 +494,8 @@ fun HomeMainView(
                         prefManager.setCompletedScreenOnboarding("home", true)
                     }
                 },
-                onSkip = {
-                    isHomeOnboardingActive = false
-                    prefManager.setCompletedScreenOnboarding("home", true)
+                onPreviousStep = {
+                    if (homeStepIndex > 0) homeStepIndex--
                 }
             )
         }
