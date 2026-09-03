@@ -1,11 +1,8 @@
 package com.harshdeep.jasnify.presentation.components.others
 
 import android.annotation.SuppressLint
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.animateRectAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -31,7 +28,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -61,6 +57,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import kotlinx.coroutines.delay
+import kotlin.time.Duration.Companion.milliseconds
 
 data class OnboardingStep(
     val stepKey: String,
@@ -104,11 +101,11 @@ fun FeatureOnboardingOverlay(
 
     LaunchedEffect(currentStepIndex) {
         isStepSettled = false
-        delay(360)
+        delay(360.milliseconds)
         while (targetRectMap[steps[currentStepIndex].stepKey] == null) {
-            delay(40)
+            delay(40.milliseconds)
         }
-        delay(40)
+        delay(40.milliseconds)
         isStepSettled = true
     }
 
@@ -125,7 +122,6 @@ fun FeatureOnboardingOverlay(
     )
 
     val rawTargetRect = if (isStepSettled) targetRectMap[currentStep.stepKey] else null
-    val targetRect = rawTargetRect
 
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
@@ -157,7 +153,7 @@ fun FeatureOnboardingOverlay(
             ) {
                 drawRect(color = Color.Black.copy(alpha = 0.75f))
 
-                targetRect?.let { rect ->
+                rawTargetRect?.let { rect ->
                     val pad = currentStep.highlightPadding.toPx()
                     val rawInflated = Rect(
                         rect.left - pad,
@@ -195,7 +191,12 @@ fun FeatureOnboardingOverlay(
                                 is Outline.Rounded -> addRoundRect(outline.roundRect)
                                 is Outline.Rectangle -> addRect(outline.rect)
                             }
-                            translate(androidx.compose.ui.geometry.Offset(inflated.left, inflated.top))
+                            translate(
+                                androidx.compose.ui.geometry.Offset(
+                                    inflated.left,
+                                    inflated.top
+                                )
+                            )
                         }
                         drawPath(
                             path = path,
@@ -207,21 +208,21 @@ fun FeatureOnboardingOverlay(
             }
 
             // Tooltip Callout Box
-            val isAboveTarget = remember(targetRect, screenHeightPx, currentStep.forceCardAbove) {
+            val isAboveTarget = remember(rawTargetRect, screenHeightPx, currentStep.forceCardAbove) {
                 when (currentStep.forceCardAbove) {
                     true -> true
                     false -> false
-                    null -> if (targetRect == null) false else targetRect.top > screenHeightPx * 0.45f
+                    null -> if (rawTargetRect == null) false else rawTargetRect.top > screenHeightPx * 0.45f
                 }
             }
 
-            val cardYOffsetPx = remember(targetRect, isAboveTarget) {
-                if (targetRect == null) screenHeightPx * 0.3f
+            val cardYOffsetPx = remember(rawTargetRect, isAboveTarget) {
+                if (rawTargetRect == null) screenHeightPx * 0.3f
                 else {
                     if (isAboveTarget) {
-                        (targetRect.top - 240.dp.value * density.density).coerceAtLeast(40.dp.value * density.density)
+                        (rawTargetRect.top - 240.dp.value * density.density).coerceAtLeast(40.dp.value * density.density)
                     } else {
-                        (targetRect.bottom + 20.dp.value * density.density).coerceAtMost(screenHeightPx - 260.dp.value * density.density)
+                        (rawTargetRect.bottom + 20.dp.value * density.density).coerceAtMost(screenHeightPx - 260.dp.value * density.density)
                     }
                 }
             }
@@ -229,10 +230,10 @@ fun FeatureOnboardingOverlay(
             val cardYDp = with(density) { cardYOffsetPx.toDp() }
 
             val padPx = with(density) { currentStep.highlightPadding.toPx() }
-            val insetTargetX = if (targetRect != null) {
-                val rawX = targetRect.center.x
-                val leftEdge = (targetRect.left - padPx) + 12.dp.value * density.density
-                val rightEdge = (targetRect.right + padPx) - 12.dp.value * density.density
+            val insetTargetX = if (rawTargetRect != null) {
+                val rawX = rawTargetRect.center.x
+                val leftEdge = (rawTargetRect.left - padPx) + 12.dp.value * density.density
+                val rightEdge = (rawTargetRect.right + padPx) - 12.dp.value * density.density
                 if (leftEdge < rightEdge) rawX.coerceIn(leftEdge, rightEdge) else rawX
             } else 0f
             val arrowX = with(density) { insetTargetX.toDp() }
@@ -246,7 +247,7 @@ fun FeatureOnboardingOverlay(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Pointer arrow pointing up if card is below target
-                if (!isAboveTarget && targetRect != null) {
+                if (!isAboveTarget && rawTargetRect != null) {
                     val maxArrowOffset = (configuration.screenWidthDp.dp / 2 - 32.dp).coerceAtLeast(0.dp)
                     Canvas(
                         modifier = Modifier
@@ -263,7 +264,7 @@ fun FeatureOnboardingOverlay(
                     }
                 }
 
-                // Duolingo-styled Callout Card
+                // Callout Card
                 Surface(
                     shape = currentStep.cardShape,
                     color = Color(0xFF29B6F6),
@@ -396,7 +397,7 @@ fun FeatureOnboardingOverlay(
                 }
 
                 // Pointer arrow pointing down if card is above target
-                if (isAboveTarget && targetRect != null) {
+                if (isAboveTarget && rawTargetRect != null) {
                     val maxArrowOffset = (configuration.screenWidthDp.dp / 2 - 32.dp).coerceAtLeast(0.dp)
                     Canvas(
                         modifier = Modifier

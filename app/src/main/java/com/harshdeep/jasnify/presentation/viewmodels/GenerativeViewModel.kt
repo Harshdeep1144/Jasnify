@@ -144,7 +144,9 @@ class GenerativeViewModel @Inject constructor(
             .addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
                 val sessions = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
+                    val session = doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
+                    val hasMessages = doc.getBoolean("hasMessages") ?: false
+                    if (hasMessages) session else null
                 }
                 _chatSessions.value = sessions
             }
@@ -189,21 +191,14 @@ class GenerativeViewModel @Inject constructor(
     }
 
     fun createNewChatSession(initialTitle: String = "New Chat", customChatId: String? = null) {
-        val eventId = _eventId.value ?: return
+        messagesListener?.remove()
+        messagesListener = null
         val newChatId = customChatId ?: UUID.randomUUID().toString()
-        val sessionMap = hashMapOf(
-            "title" to initialTitle,
-            "timestamp" to System.currentTimeMillis()
-        )
-
-        firestore.collection("events")
-            .document(eventId)
-            .collection("aiChatHistory")
-            .document(newChatId)
-            .set(sessionMap)
-            .addOnSuccessListener {
-                selectChatSession(newChatId)
-            }
+        _currentChatId.value = newChatId
+        _messages.value = emptyList()
+        activeStreamingMessage = null
+        activeStreamingMessageId = null
+        chat = getModel(candidateModels.first()).startChat()
     }
 
     fun deleteChatSession(chatId: String) {
@@ -344,22 +339,28 @@ class GenerativeViewModel @Inject constructor(
             return
         }
 
+        val isFirstMessageInSession = _messages.value.isEmpty()
+        val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
+
         if (chatId == null) {
-            val newChatId = UUID.randomUUID().toString()
-            _currentChatId.value = newChatId
-            chatId = newChatId
-            val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
-            createNewChatSession(autoTitle, customChatId = newChatId)
-        } else {
-            val currentSession = _chatSessions.value.find { it.id == chatId }
-            if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title == "Welcome Chat")) {
-                val newTitle = if (userText.length > 25) userText.take(25) + "..." else userText
-                firestore.collection("events")
-                    .document(eventId)
-                    .collection("aiChatHistory")
-                    .document(chatId)
-                    .update("title", newTitle)
-            }
+            chatId = UUID.randomUUID().toString()
+            _currentChatId.value = chatId
+        }
+
+        val sessionMap = hashMapOf(
+            "title" to autoTitle,
+            "timestamp" to System.currentTimeMillis(),
+            "hasMessages" to true
+        )
+
+        firestore.collection("events")
+            .document(eventId)
+            .collection("aiChatHistory")
+            .document(chatId)
+            .set(sessionMap, com.google.firebase.firestore.SetOptions.merge())
+
+        if (isFirstMessageInSession && messagesListener == null) {
+            selectChatSession(chatId)
         }
 
         val userMessage = AiMessage(

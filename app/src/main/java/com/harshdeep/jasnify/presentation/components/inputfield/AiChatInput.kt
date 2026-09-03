@@ -17,12 +17,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.unit.sp
@@ -121,14 +124,15 @@ fun AiChatInput(
                     CustomIconButton(
                         onClick = onToggleMicMute,
                         icon = if (isMicMuted) painterResource(R.drawable.ic_microphone_off) else painterResource(R.drawable.ic_microphone_on),
-                        contentColor = if (isMicMuted) MaterialTheme.colorScheme.error else ContentBrandDark,
-                        containerColor = if (isMicMuted) MaterialTheme.colorScheme.errorContainer else SurfaceBrandSecondary
+                        contentColor = Color.White,
+                        containerColor = if (isMicMuted) Color(0xFFD32F2F) else Color(0xFF8B10F0)
                     )
 
                     CustomIconButton(
                         onClick = onCancelVoice,
                         icon = rememberVectorPainter(Icons.Rounded.Close),
-                        type = ButtonType.Secondary
+                        contentColor = Color.White,
+                        containerColor = Color(0xFF7000FF)
                     )
                 }
             }
@@ -136,27 +140,18 @@ fun AiChatInput(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .wrapContentHeight()
-                    .clip(RoundedCornerShape(100))
-                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), RoundedCornerShape(100))
-                    .background(SurfaceSecondary)
-                    .padding(12.dp),
+                    .height(80.dp)
+                    .shadow(12.dp, CircleShape, ambientColor = Color(0x30A033FF), spotColor = Color(0x407000FF))
+                    .clip(CircleShape)
+                    .border(1.5.dp, Color.White, CircleShape)
+                    .background(Color.White.copy(alpha = 0.88f))
+                    .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    painter = painterResource(R.drawable.ic_ai),
-                    contentDescription = "AI Sparkle",
-                    tint = Color.Unspecified,
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Spacer(modifier = Modifier.width(16.dp))
-
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 4.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (value.isEmpty()) {
@@ -164,28 +159,38 @@ fun AiChatInput(
                             fixedPrefix = placeholderPrefix,
                             dynamicPhrases = dynamicPlaceholders,
                             cycleIntervalMs = 3000L,
-                            style = JasnifyTheme.typography.labelXLarge.copy(lineHeight = 24.sp),
-                            color = ContentSecondary
+                            style = JasnifyTheme.typography.labelXLarge.copy(
+                                lineHeight = 26.sp,
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = Color(0xFF8E75B2)
                         )
                     }
 
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
-                        textStyle = JasnifyTheme.typography.labelXLarge,
-                        cursorBrush = SolidColor(ContentPrimary),
+                        textStyle = JasnifyTheme.typography.labelXLarge.copy(
+                            color = Color(0xFF3C225C)
+                        ),
+                        cursorBrush = SolidColor(Color(0xFF8B10F0)),
                         maxLines = 5,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
 
-                Spacer(modifier = Modifier.width(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
                 Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(SurfaceBrandPrimary)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFFA033FF), Color(0xFF7000FF))
+                            )
+                        )
                         .noRippleClickable {
                             when {
                                 isGenerating -> onStopClick()
@@ -201,14 +206,14 @@ fun AiChatInput(
                                 modifier = Modifier
                                     .size(20.dp)
                                     .clip(RoundedCornerShape(3.dp))
-                                    .background(ContentInvPrimary)
+                                    .background(Color.White)
                             )
                         }
                         value.isNotBlank() -> {
                             Icon(
                                 imageVector = Icons.Rounded.ArrowUpward,
                                 contentDescription = "Send",
-                                tint = ContentInvPrimary,
+                                tint = Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
@@ -216,7 +221,7 @@ fun AiChatInput(
                             Icon(
                                 painter = painterResource(R.drawable.ic_voice_input),
                                 contentDescription = "Voice Input",
-                                tint = ContentInvPrimary,
+                                tint = Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
                         }
