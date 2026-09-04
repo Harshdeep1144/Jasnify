@@ -188,7 +188,11 @@ fun AiChatInput(
                         .clip(CircleShape)
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFFA033FF), Color(0xFF7000FF))
+                                colors = listOf(
+                                    Color(0xFFE512FF),
+                                    Color(0xFF8A15E8),
+                                    Color(0xFF4A159B)
+                                )
                             )
                         )
                         .noRippleClickable {

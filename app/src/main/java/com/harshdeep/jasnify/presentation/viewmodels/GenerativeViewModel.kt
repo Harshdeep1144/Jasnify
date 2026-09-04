@@ -8,7 +8,7 @@ import com.google.firebase.ai.type.GenerationConfig
 import com.google.firebase.ai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.IgnoreExtraProperties
+
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
@@ -23,7 +23,8 @@ import com.harshdeep.jasnify.domain.repository.ChecklistRepository
 import com.harshdeep.jasnify.domain.repository.GuestRepository
 import com.harshdeep.jasnify.domain.repository.VendorRepository
 import com.harshdeep.jasnify.domain.repository.VenueRepository
-import com.harshdeep.jasnify.presentation.screens.chats.AiMessage
+import com.harshdeep.jasnify.domain.model.AiMessage
+import com.harshdeep.jasnify.domain.model.ChatSession
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -42,12 +43,7 @@ import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
 
-@IgnoreExtraProperties
-data class ChatSession(
-    var id: String = "",
-    var title: String = "New Chat",
-    var timestamp: Long = System.currentTimeMillis()
-)
+
 
 @HiltViewModel
 class GenerativeViewModel @Inject constructor(

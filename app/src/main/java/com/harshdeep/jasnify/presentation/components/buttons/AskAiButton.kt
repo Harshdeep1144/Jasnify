@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -143,7 +145,15 @@ fun AskAiButton(
                 onClick()
             }
             .clip(RoundedCornerShape(topStart = 100.dp, bottomStart = 100.dp))
-            .background(SurfaceInvPrimary)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color(0xFFE512FF),
+                        Color(0xFF8A15E8),
+                        Color(0xFF4A159B)
+                    )
+                )
+            )
             .padding(14.dp),
         contentAlignment = Alignment.Center
     ) {

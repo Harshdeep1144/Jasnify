@@ -34,8 +34,8 @@
 -keep class com.harshdeep.jasnify.data.local.** { *; }
 
 # Specifically keep classes used with Firestore in other packages
--keep class com.harshdeep.jasnify.presentation.viewmodels.ChatSession { *; }
--keep class com.harshdeep.jasnify.presentation.screens.chats.AiMessage { *; }
+-keep class com.harshdeep.jasnify.domain.model.ChatSession { *; }
+-keep class com.harshdeep.jasnify.domain.model.AiMessage { *; }
 
 # Keep Firestore PropertyName and DocumentId annotations
 -keep @interface com.google.firebase.firestore.PropertyName
