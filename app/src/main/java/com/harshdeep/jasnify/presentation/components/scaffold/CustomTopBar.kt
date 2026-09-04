@@ -58,6 +58,7 @@ fun CustomTopBar(
     titleIcon: Painter? = null,
     secondaryIcon: TopIcon? = null,
     onSecondaryClick: (() -> Unit)? = null,
+    secondaryIconModifier: Modifier = Modifier,
     tertiaryIcon: TopIcon? = null,
     onTertiaryClick: (() -> Unit)? = null,
 ) {
@@ -234,6 +235,7 @@ fun CustomTopBar(
                         TopBarIconButton(
                             icon = secondaryIcon,
                             onClick = onSecondaryClick,
+                            modifier = secondaryIconModifier,
                             backgroundStyle = buttonStyle,
                             buttonColor = buttonColor,
                             borderColor = borderColor,
@@ -344,6 +346,7 @@ fun CustomTopBar(
                             TopBarIconButton(
                                 icon = secondaryIcon,
                                 onClick = onSecondaryClick,
+                                modifier = secondaryIconModifier,
                                 backgroundStyle = buttonStyle,
                                 buttonColor = buttonColor,
                                 borderColor = borderColor,

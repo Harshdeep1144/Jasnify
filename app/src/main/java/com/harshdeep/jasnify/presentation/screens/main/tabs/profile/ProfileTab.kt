@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -41,8 +42,19 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
+import sv.lib.squircleshape.SquircleShape
+import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -181,6 +193,51 @@ fun ProfileTab(
 
     val profileLazyListState = rememberLazyListState()
 
+    val prefManager = remember { PreferenceManager(context) }
+    var isProfileOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("profile")) }
+    var profileStepIndex by remember { mutableIntStateOf(0) }
+    val profileTargetRects = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
+
+    val profileOnboardingSteps = remember {
+        listOf(
+            OnboardingStep(
+                stepKey = "profile_manage_events",
+                title = "Manage Events",
+                description = "Tap here to view, manage, or switch between all your created and joined events!",
+                iconRes = R.drawable.ill_vendor_grooming,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+            ),
+            OnboardingStep(
+                stepKey = "profile_create_join_event",
+                title = "Join or Create Event",
+                description = "Tap here to quickly create a new event or join an existing event using a code!",
+                iconRes = R.drawable.ill_cards_and_guests_card,
+                highlightPadding = 4.dp,
+                shape = CircleShape
+            )
+        )
+    }
+
+    val currentProfileStepKey = if (isProfileOnboardingActive && profileStepIndex in profileOnboardingSteps.indices) {
+        profileOnboardingSteps[profileStepIndex].stepKey
+    } else null
+
+    LaunchedEffect(currentProfileStepKey) {
+        when (currentProfileStepKey) {
+            "profile_manage_events" -> {
+                if (currentScreen != ProfileScreen.Root) {
+                    currentScreen = ProfileScreen.Root
+                }
+            }
+            "profile_create_join_event" -> {
+                if (currentScreen != ProfileScreen.ManageEvents) {
+                    currentScreen = ProfileScreen.ManageEvents
+                }
+            }
+        }
+    }
+
     var showAiChatByHelp by remember { mutableStateOf(false) }
 
     var showEditProfile by remember { mutableStateOf(false) }
@@ -218,8 +275,14 @@ fun ProfileTab(
         }
     }
 
-    LaunchedEffect(currentScreen, isAnyBottomSheetOpen) {
-        onBottomBarVisibilityChange((currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen))
+    val isBottomBarVisible by remember {
+        derivedStateOf {
+            currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen && !isProfileOnboardingActive
+        }
+    }
+
+    LaunchedEffect(isBottomBarVisible) {
+        onBottomBarVisibilityChange(isBottomBarVisible)
     }
 
     val targetScale = if (isAnyBottomSheetOpen) {
@@ -403,7 +466,10 @@ fun ProfileTab(
                                 selectedPlanForSheet = plan
                                 showPlanSheet = true
                             },
-                            lazyListState = profileLazyListState
+                            lazyListState = profileLazyListState,
+                            manageEventsCellModifier = Modifier.onboardingTarget("profile_manage_events", currentProfileStepKey) {
+                                profileTargetRects["profile_manage_events"] = it
+                            }
                         )
                     }
 
@@ -449,6 +515,9 @@ fun ProfileTab(
                             onShowMenu = { event ->
                                 selectedEventForMenu = event
                                 showEventMenu = true
+                            },
+                            createOrJoinButtonModifier = Modifier.onboardingTarget("profile_create_join_event", currentProfileStepKey) {
+                                profileTargetRects["profile_create_join_event"] = it
                             }
                         )
                     }
@@ -748,6 +817,25 @@ fun ProfileTab(
                     )
                 }
             }
+        }
+
+        if (isProfileOnboardingActive && profileOnboardingSteps.isNotEmpty()) {
+            FeatureOnboardingOverlay(
+                steps = profileOnboardingSteps,
+                currentStepIndex = profileStepIndex,
+                targetRectMap = profileTargetRects,
+                onNextStep = {
+                    if (profileStepIndex < profileOnboardingSteps.lastIndex) {
+                        profileStepIndex++
+                    } else {
+                        isProfileOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("profile", true)
+                    }
+                },
+                onPreviousStep = {
+                    if (profileStepIndex > 0) profileStepIndex--
+                }
+            )
         }
     }
 }

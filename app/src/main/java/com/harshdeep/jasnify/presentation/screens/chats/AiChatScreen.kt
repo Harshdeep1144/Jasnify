@@ -7,7 +7,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import androidx.annotation.RequiresApi
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -17,27 +16,24 @@ import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -46,11 +42,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -62,21 +56,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -92,125 +80,76 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.google.firebase.firestore.PropertyName
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.R
-import com.harshdeep.jasnify.data.local.BudgetEntity
 import com.harshdeep.jasnify.data.local.ExpenseEntity
+import com.harshdeep.jasnify.domain.model.AiMessage
+import com.harshdeep.jasnify.domain.model.ChatSession
 import com.harshdeep.jasnify.domain.model.Checklist
 import com.harshdeep.jasnify.domain.model.Guest
 import com.harshdeep.jasnify.domain.model.Vendor
 import com.harshdeep.jasnify.domain.model.Venue
+import com.harshdeep.jasnify.presentation.components.ai.AiMessageContent
+import com.harshdeep.jasnify.presentation.components.ai.AutoScrollingChipRow
+import com.harshdeep.jasnify.presentation.components.ai.ChatSidebarDrawer
+import com.harshdeep.jasnify.presentation.components.ai.UserMessageBubble
+import com.harshdeep.jasnify.presentation.components.ai.getContextualChips
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.budget.AddExpenseBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.guests.GuestDetailsBottomSheet
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
-import com.harshdeep.jasnify.presentation.components.cards.BudgetTrackerCard
-import com.harshdeep.jasnify.presentation.components.cards.ChecklistCard
-import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
-import com.harshdeep.jasnify.presentation.components.cards.ExpenseCard
-import com.harshdeep.jasnify.presentation.components.cards.GuestCard
-import com.harshdeep.jasnify.presentation.components.carousels.VendorCarousel
-import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.presentation.components.inputfield.AiChatInput
-import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.CustomToast
 import com.harshdeep.jasnify.presentation.components.others.ToastData
 import com.harshdeep.jasnify.presentation.components.others.ToastType
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
+import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
+import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
 import com.harshdeep.jasnify.presentation.screens.main.tabs.checklist.ChecklistDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.guests.GuestsTab
 import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorDetailScreen
+import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
+import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
 import com.harshdeep.jasnify.presentation.viewmodels.BudgetViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.CateringViewModel
-import com.harshdeep.jasnify.presentation.viewmodels.ChatSession
 import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GenerativeViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
 import com.harshdeep.jasnify.theme.BackgroundPrimary
-import com.harshdeep.jasnify.theme.BottomGradientBrush
-import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentInvPrimary
-import com.harshdeep.jasnify.theme.ContentPrimary
-import com.harshdeep.jasnify.theme.ContentSecondary
-import com.harshdeep.jasnify.theme.CornerExtraLarge
-import com.harshdeep.jasnify.theme.CornerMedium
-import com.harshdeep.jasnify.theme.CornerSmall
-import com.harshdeep.jasnify.theme.CornerSmoothingDefault
-import com.harshdeep.jasnify.presentation.screens.budget.BudgetScreen
-import com.harshdeep.jasnify.presentation.screens.main.tabs.guests.GuestsTab
-import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
-import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
-import com.harshdeep.jasnify.presentation.components.sections.VendorCategoryItem
-import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfacePrimary
-import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import sv.lib.squircleshape.SquircleShape
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
-
-@IgnoreExtraProperties
-data class AiMessage(
-    var id: String = "",
-    var text: String = "",
-    @get:PropertyName("isUser")
-    @set:PropertyName("isUser")
-    var isUser: Boolean = false,
-    var timestamp: Long = 0,
-    var venueIds: List<String> = emptyList(),
-    var vendorIds: List<String> = emptyList(),
-    var guestIds: List<String> = emptyList(),
-    var expenseIds: List<String> = emptyList(),
-    var checklistIds: List<String> = emptyList(),
-    @get:PropertyName("showBudgetSummary")
-    @set:PropertyName("showBudgetSummary")
-    var showBudgetSummary: Boolean = false,
-    @get:PropertyName("feedback")
-    @set:PropertyName("feedback")
-    var feedback: Int = 0
-)
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Composable
@@ -247,6 +186,11 @@ fun AiChatScreen(
     var audioRms by remember { mutableFloatStateOf(0f) }
     var hasQueuedFinalForId by remember { mutableStateOf<String?>(null) }
 
+    val firebaseUser = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser }
+    val userFirstName = remember(firebaseUser) {
+        firebaseUser?.displayName?.trim()?.split("\\s+".toRegex())?.firstOrNull() ?: "there"
+    }
+
     var activeSpeakingMessageId by remember { mutableStateOf<String?>(null) }
     var wasInterrupted by remember { mutableStateOf(false) }
     var streamedDisplayMessage by remember { mutableStateOf<AiMessage?>(null) }
@@ -262,9 +206,6 @@ fun AiChatScreen(
     LaunchedEffect(Unit) {
         if (shouldStartNewSession) {
             viewModel.createNewChatSession()
-        }
-        if (!initialContext.isNullOrBlank()) {
-            viewModel.sendMessage(initialContext)
         }
     }
 
@@ -472,8 +413,8 @@ fun AiChatScreen(
         speechRecognizer = sr
 
         onDispose {
-            tts?.stop()
-            tts?.shutdown()
+            tts.stop()
+            tts.shutdown()
             sr.destroy()
         }
     }
@@ -589,6 +530,24 @@ fun AiChatScreen(
             messages
         }
     }
+
+    val isDockedAtBottom = displayedMessages.isNotEmpty() || isVoiceMode
+    val dockProgress by animateFloatAsState(
+        targetValue = if (isDockedAtBottom) 1f else 0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "dockProgress"
+    )
+
+    val aiBackgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFFF3E8FA),
+            Color(0xFFF8F0FC),
+            Color(0xFFFAF4FE)
+        )
+    )
 
     val targetEventId = eventId ?: activeEvent?.id
     LaunchedEffect(targetEventId) {
@@ -715,41 +674,18 @@ fun AiChatScreen(
         ) { screen ->
             when (screen) {
                 "chat" -> {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        if (displayedMessages.isEmpty() && !isVoiceMode) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_ai),
-                                    contentDescription = null,
-                                    tint = ContentSecondary,
-                                    modifier = Modifier.size(64.dp)
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "How can I help you today?",
-                                    style = JasnifyTheme.typography.headingMedium,
-                                    color = ContentSecondary
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Ask anything about your expenses, guest lists, vendors, or event planning.",
-                                    style = JasnifyTheme.typography.bodyMedium,
-                                    color = ContentSecondary.copy(alpha = 0.7f),
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(aiBackgroundGradient)
+                    ) {
+                        if (dockProgress > 0f) {
                             LazyColumn(
                                 state = listState,
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .padding(horizontal = 12.dp),
+                                    .padding(horizontal = 12.dp)
+                                    .graphicsLayer { alpha = dockProgress },
                                 verticalArrangement = Arrangement.spacedBy(12.dp),
                                 contentPadding = PaddingValues(
                                     top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 68.dp,
@@ -802,11 +738,134 @@ fun AiChatScreen(
                             }
                         }
 
+                        if (dockProgress < 1f) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.Center)
+                                    .offset(y = ((-40).dp * (1f - dockProgress)))
+                                    .graphicsLayer { alpha = (1f - dockProgress) },
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.ic_ai),
+                                    contentDescription = "AI Sparkles",
+                                    modifier = Modifier
+                                        .padding(horizontal = 16.dp)
+                                        .size(68.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                Text(
+                                    text = "Hi $userFirstName,",
+                                    style = JasnifyTheme.typography.displayMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 32.sp
+                                    ),
+                                    color = Color(0xFF3C225C),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "What can I do for you?",
+                                    style = JasnifyTheme.typography.displayMedium.copy(
+                                        fontWeight = FontWeight.Medium,
+                                        fontSize = 26.sp
+                                    ),
+                                    color = Color(0xFF3C225C),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(28.dp))
+
+                                if (dockProgress < 0.1f) {
+                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        AiChatInput(
+                                            value = inputText,
+                                            onValueChange = { inputText = it },
+                                            isVoiceMode = isVoiceMode,
+                                            hasSpokenFirstMessage = hasSpokenFirstMessage,
+                                            isMicMuted = isMicMuted,
+                                            isAiSpeaking = isAiSpeaking,
+                                            isGenerating = isGenerating,
+                                            audioRms = audioRms,
+                                            placeholderPrefix = "Ask more about ",
+                                            dynamicPlaceholders = listOf(
+                                                "expenses",
+                                                "caterers",
+                                                "venues",
+                                                "guest RSVPs",
+                                                "checklists"
+                                            ),
+                                            onSendClick = {
+                                                if (inputText.isNotBlank()) {
+                                                    val query = inputText
+                                                    inputText = ""
+                                                    viewModel.sendMessage(query)
+                                                }
+                                            },
+                                            onStopClick = {
+                                                viewModel.stopGeneration()
+                                                ttsEngine?.stop()
+                                            },
+                                            onVoiceClick = {
+                                                val hasPermission = ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.RECORD_AUDIO
+                                                ) == PackageManager.PERMISSION_GRANTED
+
+                                                if (hasPermission) {
+                                                    enableVoiceMode()
+                                                } else {
+                                                    audioPermissionLauncher.launch(
+                                                        Manifest.permission.RECORD_AUDIO
+                                                    )
+                                                }
+                                            },
+                                            onToggleMicMute = {
+                                                isMicMuted = !isMicMuted
+                                            },
+                                            onCancelVoice = {
+                                                isVoiceMode = false
+                                                hasSpokenFirstMessage = false
+                                                interruptAndSaveSpokenPortion()
+                                            }
+                                        )
+                                    }
+                                } else {
+                                    Spacer(modifier = Modifier.height(68.dp))
+                                }
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                val (contextualRow1, contextualRow2) = remember(initialContext) { getContextualChips(initialContext) }
+
+                                AutoScrollingChipRow(
+                                    chips = contextualRow1,
+                                    onChipClick = { chipText ->
+                                        viewModel.sendMessage(chipText)
+                                    }
+                                )
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                AutoScrollingChipRow(
+                                    chips = contextualRow2,
+                                    onChipClick = { chipText ->
+                                        viewModel.sendMessage(chipText)
+                                    },
+                                    reverseDirection = true
+                                )
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .fillMaxWidth()
-                                .background(brush = TopGradientBrushLightTheme)
                                 .statusBarsPadding()
                                 .zIndex(10f)
                         ) {
@@ -815,13 +874,14 @@ fun AiChatScreen(
                                 onBackClick = onBackClick,
                                 onMenuClick = { isDrawerOpen = true },
                                 backIcon = TopIcon.Predefined.DOWN,
+                                borderColor = MaterialTheme.colorScheme.outline.copy(0.16f),
                                 menuIcon = TopIcon.Predefined.MENU_MODERN,
                                 buttonStyle = ButtonBackground.TRANSLUCENT
                             )
                         }
 
                         AnimatedVisibility(
-                            visible = showScrollToBottomButton && !isVoiceMode,
+                            visible = showScrollToBottomButton && !isVoiceMode && dockProgress > 0.5f,
                             enter = fadeIn() + scaleIn(),
                             exit = fadeOut() + scaleOut(),
                             modifier = Modifier
@@ -853,64 +913,72 @@ fun AiChatScreen(
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth()
-                                .imePadding()
-                                .background(brush = BottomGradientBrush)
-                                .navigationBarsPadding()
-                                .padding(horizontal = 12.dp, vertical = 12.dp)
-                                .zIndex(10f)
-                        ) {
-                            AiChatInput(
-                                value = inputText,
-                                onValueChange = { inputText = it },
-                                isVoiceMode = isVoiceMode,
-                                hasSpokenFirstMessage = hasSpokenFirstMessage,
-                                isMicMuted = isMicMuted,
-                                isAiSpeaking = isAiSpeaking,
-                                isGenerating = isGenerating,
-                                audioRms = audioRms,
-                                placeholderPrefix = "Search for ",
-                                dynamicPlaceholders = listOf(
-                                    "fixed and variable expenses",
-                                    "photographers & vendors",
-                                    "venue availability",
-                                    "guest invitations & RSVPs",
-                                    "checklist progress"
-                                ),
-                                onSendClick = {
-                                    if (inputText.isNotBlank()) {
-                                        val query = inputText
-                                        inputText = ""
-                                        viewModel.sendMessage(query)
+                        if (dockProgress > 0f) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .imePadding()
+                                    .navigationBarsPadding()
+                                    .padding(horizontal = 12.dp, vertical = 12.dp)
+                                    .zIndex(10f)
+                                    .graphicsLayer {
+                                        alpha = dockProgress
+                                        translationY = (60.dp.value * density.density * (1f - dockProgress))
                                     }
-                                },
-                                onStopClick = { },
-                                onVoiceClick = {
-                                    val hasPermission = ContextCompat.checkSelfPermission(
-                                        context,
-                                        Manifest.permission.RECORD_AUDIO
-                                    ) == PackageManager.PERMISSION_GRANTED
-
-                                    if (hasPermission) {
-                                        enableVoiceMode()
-                                    } else {
-                                        audioPermissionLauncher.launch(
+                            ) {
+                                AiChatInput(
+                                    value = inputText,
+                                    onValueChange = { inputText = it },
+                                    isVoiceMode = isVoiceMode,
+                                    hasSpokenFirstMessage = hasSpokenFirstMessage,
+                                    isMicMuted = isMicMuted,
+                                    isAiSpeaking = isAiSpeaking,
+                                    isGenerating = isGenerating,
+                                    audioRms = audioRms,
+                                    placeholderPrefix = "Ask more about ",
+                                    dynamicPlaceholders = listOf(
+                                        "expenses",
+                                        "caterers",
+                                        "venue costs",
+                                        "guest RSVPs",
+                                        "checklist items"
+                                    ),
+                                    onSendClick = {
+                                        if (inputText.isNotBlank()) {
+                                            val query = inputText
+                                            inputText = ""
+                                            viewModel.sendMessage(query)
+                                        }
+                                    },
+                                    onStopClick = {
+                                        viewModel.stopGeneration()
+                                        ttsEngine?.stop()
+                                    },
+                                    onVoiceClick = {
+                                        val hasPermission = ContextCompat.checkSelfPermission(
+                                            context,
                                             Manifest.permission.RECORD_AUDIO
-                                        )
+                                        ) == PackageManager.PERMISSION_GRANTED
+
+                                        if (hasPermission) {
+                                            enableVoiceMode()
+                                        } else {
+                                            audioPermissionLauncher.launch(
+                                                Manifest.permission.RECORD_AUDIO
+                                            )
+                                        }
+                                    },
+                                    onToggleMicMute = {
+                                        isMicMuted = !isMicMuted
+                                    },
+                                    onCancelVoice = {
+                                        isVoiceMode = false
+                                        hasSpokenFirstMessage = false
+                                        interruptAndSaveSpokenPortion()
                                     }
-                                },
-                                onToggleMicMute = {
-                                    isMicMuted = !isMicMuted
-                                },
-                                onCancelVoice = {
-                                    isVoiceMode = false
-                                    hasSpokenFirstMessage = false
-                                    interruptAndSaveSpokenPortion()
-                                }
-                            )
+                                )
+                            }
                         }
 
                         if (isDrawerOpen) {
@@ -922,7 +990,7 @@ fun AiChatScreen(
                                 animatedOffsetX.animateTo(
                                     targetValue = 0f,
                                     animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        dampingRatio = Spring.DampingRatioNoBouncy,
                                         stiffness = Spring.StiffnessMediumLow
                                     )
                                 )
@@ -1248,575 +1316,7 @@ fun AiChatScreen(
     }
 }
 
-@Composable
-fun ChatSidebarDrawer(
-    sessions: List<ChatSession>,
-    currentChatId: String?,
-    onSelectChat: (String) -> Unit,
-    onNewChatClick: () -> Unit,
-    onDeleteChat: (ChatSession) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
-    val searchFocusRequester = remember { FocusRequester() }
-    var wasFocused by remember { mutableStateOf(false) }
 
-    LaunchedEffect(isSearchActive) {
-        if (isSearchActive) {
-            wasFocused = false
-            delay(100)
-            searchFocusRequester.requestFocus()
-        }
-    }
-
-    val filteredSessions = remember(sessions, searchQuery) {
-        if (searchQuery.isBlank()) sessions
-        else sessions.filter { it.title.contains(searchQuery, ignoreCase = true) }
-    }
-
-    val groupedSessions = remember(filteredSessions) {
-        val calendar = Calendar.getInstance()
-        val nowMillis = System.currentTimeMillis()
-
-        calendar.timeInMillis = nowMillis
-        val todayYear = calendar.get(Calendar.YEAR)
-        val todayDay = calendar.get(Calendar.DAY_OF_YEAR)
-
-        calendar.add(Calendar.DAY_OF_YEAR, -1)
-        val yesterdayYear = calendar.get(Calendar.YEAR)
-        val yesterdayDay = calendar.get(Calendar.DAY_OF_YEAR)
-
-        val groups = LinkedHashMap<String, MutableList<ChatSession>>()
-
-        filteredSessions.forEach { session ->
-            val sessCal = Calendar.getInstance().apply { timeInMillis = session.timestamp }
-            val sessYear = sessCal.get(Calendar.YEAR)
-            val sessDay = sessCal.get(Calendar.DAY_OF_YEAR)
-
-            val groupKey = when {
-                sessYear == todayYear && sessDay == todayDay -> "TODAY"
-                sessYear == yesterdayYear && sessDay == yesterdayDay -> "YESTERDAY"
-                else -> SimpleDateFormat("d'TH' MMM, yyyy", Locale.US).format(Date(session.timestamp)).uppercase()
-            }
-
-            groups.getOrPut(groupKey) { mutableListOf() }.add(session)
-        }
-        groups
-    }
-
-    Surface(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(320.dp),
-        color = SurfacePrimary,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(56.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_app),
-                    contentDescription = "App Logo",
-                    tint = ContentPrimary,
-                    modifier = Modifier.height(28.dp)
-                )
-            }
-
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-            Spacer(modifier = Modifier.height(12.dp))
-
-            AnimatedContent(
-                targetState = isSearchActive,
-                transitionSpec = {
-                    if (targetState) {
-                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
-                            slideOutHorizontally { width -> -width } + fadeOut()
-                        )
-                    } else {
-                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
-                            slideOutHorizontally { width -> width } + fadeOut()
-                        )
-                    }
-                },
-                label = "NewChatSearchTransition",
-                modifier = Modifier.padding(horizontal = 12.dp)
-            ) { active ->
-                if (active) {
-                    CustomSearchBar(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = "Search history...",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusRequester(searchFocusRequester)
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) {
-                                    wasFocused = true
-                                } else if (wasFocused) {
-                                    isSearchActive = false
-                                    searchQuery = ""
-                                    wasFocused = false
-                                }
-                            },
-                        onActiveChange = {}
-                    )
-                } else {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        CustomTextButton(
-                            onClick = onNewChatClick,
-                            text = "New Chat",
-                            leadingIcon = painterResource(R.drawable.ic_plus),
-                            type = ButtonType.Secondary,
-                            modifier = Modifier.weight(1f)
-                        )
-
-                        TopBarIconButton(
-                            onClick = { isSearchActive = true },
-                            icon = TopIcon.Predefined.SEARCH,
-                            size = 56.dp,
-                            iconSize = 24.dp,
-                            borderColor = ContentPrimary,
-                            backgroundStyle = ButtonBackground.OPAQUE
-                        )
-                    }
-                }
-            }
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                groupedSessions.forEach { (dateHeader, sessionList) ->
-                    item(key = dateHeader) {
-                        Text(
-                            text = dateHeader,
-                            style = JasnifyTheme.typography.labelMedium,
-                            color = ContentSecondary,
-                            modifier = Modifier.padding(top = 20.dp, bottom = 8.dp)
-                        )
-                    }
-
-                    items(sessionList, key = { it.id }) { session ->
-                        SwipeToDismissChatSessionItem(
-                            session = session,
-                            isSelected = session.id == currentChatId,
-                            onSelectChat = { onSelectChat(session.id) },
-                            onDeleteChat = { onDeleteChat(session) }
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun SwipeToDismissChatSessionItem(
-    session: ChatSession,
-    isSelected: Boolean,
-    onSelectChat: () -> Unit,
-    onDeleteChat: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val coroutineScope = rememberCoroutineScope()
-    val offsetX = remember { Animatable(0f) }
-    var itemWidthPx by remember { mutableFloatStateOf(1f) }
-    val velocityTracker = remember { VelocityTracker() }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(SquircleShape(CornerMedium))
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color(0xFFE53935))
-                .padding(start = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_delete),
-                contentDescription = "Delete Chat",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .offset { IntOffset(x = offsetX.value.roundToInt(), y = 0) }
-                .background(if (isSelected) SurfaceBrandSecondary else SurfacePrimary)
-                .pointerInput(session.id) {
-                    itemWidthPx = size.width.toFloat()
-                    detectHorizontalDragGestures(
-                        onDragStart = { velocityTracker.resetTracking() },
-                        onDragEnd = {
-                            val velocity = velocityTracker.calculateVelocity().x
-                            val triggerDistance = itemWidthPx * 0.55f
-                            val shouldDismiss = offsetX.value > triggerDistance || velocity > 1200f
-
-                            coroutineScope.launch {
-                                if (shouldDismiss) {
-                                    offsetX.animateTo(
-                                        targetValue = itemWidthPx,
-                                        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing)
-                                    )
-                                    onDeleteChat()
-                                } else {
-                                    offsetX.animateTo(
-                                        targetValue = 0f,
-                                        animationSpec = spring(
-                                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                                            stiffness = Spring.StiffnessMediumLow
-                                        )
-                                    )
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            coroutineScope.launch {
-                                offsetX.animateTo(0f)
-                            }
-                        },
-                        onHorizontalDrag = { change, dragAmount ->
-                            velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            val newOffset = (offsetX.value + dragAmount).coerceIn(0f, itemWidthPx)
-                            coroutineScope.launch {
-                                offsetX.snapTo(newOffset)
-                            }
-                            change.consume()
-                        }
-                    )
-                }
-                .clickable { onSelectChat() }
-                .padding(vertical = 12.dp, horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = session.title,
-                style = JasnifyTheme.typography.labelXLarge,
-                color = if (isSelected) ContentBrandDark else ContentPrimary,
-                maxLines = 1,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-fun GeneratingIndicator() {
-    Row(
-        modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        repeat(3) { index ->
-            val infiniteTransition = rememberInfiniteTransition(label = "generating")
-            val alpha by infiniteTransition.animateFloat(
-                initialValue = 0.3f,
-                targetValue = 1f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(600, delayMillis = index * 150),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "dot"
-            )
-            Box(
-                modifier = Modifier
-                    .size(6.dp)
-                    .clip(CircleShape)
-                    .background(ContentPrimary.copy(alpha = alpha))
-            )
-        }
-    }
-}
-
-@Composable
-fun UserMessageBubble(
-    message: AiMessage,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp),
-        horizontalArrangement = Arrangement.End
-    ) {
-        Row(
-            modifier = Modifier
-                .clip(
-                    shape = SquircleShape(
-                        topStart = CornerExtraLarge,
-                        topEnd = CornerExtraLarge,
-                        bottomStart = CornerExtraLarge,
-                        bottomEnd = CornerSmall,
-                        cornerSmoothing = CornerSmoothingDefault
-                    )
-                )
-                .background(SurfaceBrandSecondary)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
-                .widthIn(max = 280.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Text(
-                text = message.text,
-                color = ContentPrimary,
-                style = JasnifyTheme.typography.labelLarge
-            )
-        }
-    }
-}
-
-@Composable
-fun AiMessageContent(
-    message: AiMessage,
-    isStreaming: Boolean = false,
-    allVenues: List<Venue> = emptyList(),
-    allVendors: List<Vendor> = emptyList(),
-    guests: List<Guest> = emptyList(),
-    expenses: List<ExpenseEntity> = emptyList(),
-    checklists: List<Checklist> = emptyList(),
-    budgetSettings: BudgetEntity? = null,
-    onFeedbackClick: (Int) -> Unit = {},
-    onVenueClick: (Venue) -> Unit = {},
-    onVendorClick: (Vendor) -> Unit = {},
-    onGuestClick: (Guest) -> Unit = {},
-    onExpenseClick: (ExpenseEntity) -> Unit = {},
-    onChecklistClick: (Checklist) -> Unit = {},
-    onSeeAllVenues: () -> Unit = {},
-    onSeeAllVendors: () -> Unit = {},
-    onSeeAllGuests: () -> Unit = {},
-    onSeeAllBudget: () -> Unit = {},
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        if (message.text.isNotBlank()) {
-            FormattedAiText(text = message.text)
-        } else if (isStreaming) {
-            GeneratingIndicator()
-        }
-
-        if (message.showBudgetSummary && budgetSettings != null) {
-            val totalBudget = budgetSettings.totalBudget ?: 0.0
-            val spent = expenses.sumOf { it.amount }
-            val remaining = (totalBudget - spent).coerceAtLeast(0.0)
-            val progress = if (totalBudget > 0) (remaining / totalBudget).toFloat().coerceIn(0f, 1f) else 0f
-
-            Spacer(modifier = Modifier.height(12.dp))
-            BudgetTrackerCard(
-                heading = "Budget Status",
-                progress = progress,
-                amountText = "₹${remaining.toLong()}",
-                labelText = "left",
-                onClick = onSeeAllBudget
-            )
-        }
-
-        if (message.venueIds.isNotEmpty()) {
-            val matchedVenues = allVenues.filter { message.venueIds.contains(it.id) }
-            if (matchedVenues.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                VenueCarousel(
-                    title = "Suggested Venues",
-                    venues = matchedVenues,
-                    onVenueClick = onVenueClick,
-                    onFavoriteToggle = {},
-                    onSeeAllClick = onSeeAllVenues,
-                    onOfferClick = {},
-                    cardSize = CompactCardSize.MEDIUM
-                )
-            }
-        }
-
-        if (message.vendorIds.isNotEmpty()) {
-            val matchedVendors = allVendors.filter { message.vendorIds.contains(it.id) }
-            if (matchedVendors.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                VendorCarousel(
-                    title = "Suggested Vendors",
-                    vendors = matchedVendors,
-                    onVendorClick = onVendorClick,
-                    onFavoriteToggle = {},
-                    onSeeAllClick = onSeeAllVendors,
-                    onOfferClick = {},
-                    cardSize = CompactCardSize.MEDIUM
-                )
-            }
-        }
-
-        if (message.guestIds.isNotEmpty()) {
-            val matchedGuests = guests.filter { message.guestIds.contains(it.id) }.take(5)
-            matchedGuests.forEach { guest ->
-                Spacer(modifier = Modifier.height(8.dp))
-                GuestCard(
-                    name = guest.name,
-                    label = guest.type,
-                    isInvited = guest.invited,
-                    onInviteClick = {},
-                    onCardClick = { onGuestClick(guest) }
-                )
-            }
-
-            if (guests.size > matchedGuests.size) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "See all guests (${guests.size}) →",
-                    style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                    color = ContentBrandDark,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .clickable { onSeeAllGuests() }
-                        .padding(vertical = 4.dp, horizontal = 2.dp)
-                )
-            }
-        }
-
-        if (message.expenseIds.isNotEmpty()) {
-            val matchedExpenses = expenses.filter { message.expenseIds.contains(it.id) }
-            matchedExpenses.forEach { expense ->
-                Spacer(modifier = Modifier.height(12.dp))
-                ExpenseCard(
-                    title = expense.title,
-                    category = expense.category,
-                    amount = "₹${expense.amount}",
-                    emoji = expense.emoji,
-                    lastUpdatedBy = expense.lastUpdatedBy,
-                    lastUpdatedDate = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(expense.lastUpdatedDate)),
-                    onDeleteClick = {},
-                    onModifyClick = { onExpenseClick(expense) }
-                )
-            }
-        }
-
-        if (message.checklistIds.isNotEmpty()) {
-            val matchedChecklists = checklists.filter { message.checklistIds.contains(it.id) }
-            matchedChecklists.forEach { checklist ->
-                Spacer(modifier = Modifier.height(12.dp))
-                ChecklistCard(
-                    checklist = checklist,
-                    onClick = { onChecklistClick(checklist) }
-                )
-            }
-        }
-
-        if (message.text.isNotBlank() && !isStreaming) {
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val isLiked = message.feedback == 1
-            val isDisliked = message.feedback == -1
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { onFeedbackClick(1) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        painter = if (isLiked) painterResource(R.drawable.ic_thumbs_up_filled) else painterResource(R.drawable.ic_thumbs_up),
-                        contentDescription = "Helpful",
-                        tint = ContentSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = { onFeedbackClick(-1) },
-                    modifier = Modifier.size(28.dp)
-                ) {
-                    Icon(
-                        painter = if (isDisliked) painterResource(R.drawable.ic_thumbs_down_filled) else painterResource(R.drawable.ic_thumbs_down),
-                        contentDescription = "Unhelpful",
-                        tint = ContentSecondary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FormattedAiText(
-    text: String,
-    modifier: Modifier = Modifier
-) {
-    val baseStyle = JasnifyTheme.typography.labelLarge
-
-    val annotatedString = remember(text, baseStyle) {
-        buildAnnotatedString {
-            val pattern = Regex("""\*\*(.*?)\*\*""")
-            var lastIndex = 0
-
-            pattern.findAll(text).forEach { matchResult ->
-                val range = matchResult.range
-
-                if (range.first > lastIndex) {
-                    val normalText = text.substring(lastIndex, range.first)
-                    withStyle(
-                        style = SpanStyle(
-                            fontWeight = baseStyle.fontWeight ?: FontWeight.Normal,
-                            color = ContentPrimary
-                        )
-                    ) {
-                        append(normalText)
-                    }
-                }
-
-                val boldContent = matchResult.groupValues[1]
-                withStyle(
-                    style = SpanStyle(
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E2022)
-                    )
-                ) {
-                    append(boldContent)
-                }
-
-                lastIndex = range.last + 1
-            }
-
-            if (lastIndex < text.length) {
-                withStyle(
-                    style = SpanStyle(
-                        fontWeight = baseStyle.fontWeight ?: FontWeight.Normal,
-                        color = ContentPrimary
-                    )
-                ) {
-                    append(text.substring(lastIndex))
-                }
-            }
-        }
-    }
-
-    Text(
-        text = annotatedString,
-        style = baseStyle,
-        modifier = modifier.fillMaxWidth()
-    )
-}
 
 @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
 @Preview(showBackground = true)

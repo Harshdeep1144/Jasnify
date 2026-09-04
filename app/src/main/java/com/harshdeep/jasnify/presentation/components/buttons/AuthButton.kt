@@ -21,7 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MailOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import com.harshdeep.jasnify.presentation.components.others.ThreeDotsWaveLoadingIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -140,10 +140,10 @@ fun AuthButton(
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     if (isLoading) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(iconSize),
-                            color = ContentPrimary,
-                            strokeWidth = 2.dp
+                        ThreeDotsWaveLoadingIndicator(
+                            dotSize = 6.dp,
+                            dotColor = ContentPrimary,
+                            travelDistance = 5.dp
                         )
                     }
 
@@ -191,10 +191,10 @@ fun AuthButton(
         ) {
             Box(contentAlignment = Alignment.Center) {
                 if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(iconSize),
-                        color = ContentPrimary,
-                        strokeWidth = 2.dp
+                    ThreeDotsWaveLoadingIndicator(
+                        dotSize = 6.dp,
+                        dotColor = ContentPrimary,
+                        travelDistance = 5.dp
                     )
                 }
                 Row(

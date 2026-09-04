@@ -8,7 +8,7 @@ import com.google.firebase.ai.type.GenerationConfig
 import com.google.firebase.ai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.IgnoreExtraProperties
+
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.SetOptions
@@ -23,8 +23,10 @@ import com.harshdeep.jasnify.domain.repository.ChecklistRepository
 import com.harshdeep.jasnify.domain.repository.GuestRepository
 import com.harshdeep.jasnify.domain.repository.VendorRepository
 import com.harshdeep.jasnify.domain.repository.VenueRepository
-import com.harshdeep.jasnify.presentation.screens.chats.AiMessage
+import com.harshdeep.jasnify.domain.model.AiMessage
+import com.harshdeep.jasnify.domain.model.ChatSession
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,12 +44,7 @@ import org.json.JSONObject
 import java.util.UUID
 import javax.inject.Inject
 
-@IgnoreExtraProperties
-data class ChatSession(
-    var id: String = "",
-    var title: String = "New Chat",
-    var timestamp: Long = System.currentTimeMillis()
-)
+
 
 @HiltViewModel
 class GenerativeViewModel @Inject constructor(
@@ -77,6 +74,42 @@ class GenerativeViewModel @Inject constructor(
 
     private var activeStreamingMessageId: String? = null
     private var activeStreamingMessage: AiMessage? = null
+    private var generationJob: Job? = null
+
+    fun stopGeneration() {
+        generationJob?.cancel()
+        generationJob = null
+        _isGenerating.value = false
+
+        val streamingId = activeStreamingMessageId
+        val streamingMsg = activeStreamingMessage
+        if (streamingId != null) {
+            val rawText = streamingMsg?.text.orEmpty()
+            val (cleanText, finalParsedMsg) = parseAiResponse(rawText)
+            val textToKeep = cleanText.ifBlank { rawText }
+            if (textToKeep.isNotBlank()) {
+                val stoppedMsg = finalParsedMsg.copy(
+                    id = streamingId,
+                    text = textToKeep,
+                    isUser = false,
+                    timestamp = System.currentTimeMillis()
+                )
+                _messages.update { list ->
+                    list.map { msg -> if (msg.id == streamingId) stoppedMsg else msg }
+                }
+                val chatId = _currentChatId.value
+                if (!chatId.isNullOrBlank()) {
+                    saveMessageToFirestore(chatId, stoppedMsg)
+                }
+            } else {
+                _messages.update { list ->
+                    list.filterNot { it.id == streamingId }
+                }
+            }
+        }
+        activeStreamingMessageId = null
+        activeStreamingMessage = null
+    }
 
     private var sessionsListener: ListenerRegistration? = null
     private var messagesListener: ListenerRegistration? = null
@@ -144,7 +177,9 @@ class GenerativeViewModel @Inject constructor(
             .addSnapshotListener { snapshot, e ->
                 if (e != null || snapshot == null) return@addSnapshotListener
                 val sessions = snapshot.documents.mapNotNull { doc ->
-                    doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
+                    val session = doc.toObject(ChatSession::class.java)?.copy(id = doc.id)
+                    val hasMessages = doc.getBoolean("hasMessages") ?: false
+                    if (hasMessages) session else null
                 }
                 _chatSessions.value = sessions
             }
@@ -189,21 +224,14 @@ class GenerativeViewModel @Inject constructor(
     }
 
     fun createNewChatSession(initialTitle: String = "New Chat", customChatId: String? = null) {
-        val eventId = _eventId.value ?: return
+        messagesListener?.remove()
+        messagesListener = null
         val newChatId = customChatId ?: UUID.randomUUID().toString()
-        val sessionMap = hashMapOf(
-            "title" to initialTitle,
-            "timestamp" to System.currentTimeMillis()
-        )
-
-        firestore.collection("events")
-            .document(eventId)
-            .collection("aiChatHistory")
-            .document(newChatId)
-            .set(sessionMap)
-            .addOnSuccessListener {
-                selectChatSession(newChatId)
-            }
+        _currentChatId.value = newChatId
+        _messages.value = emptyList()
+        activeStreamingMessage = null
+        activeStreamingMessageId = null
+        chat = getModel(candidateModels.first()).startChat()
     }
 
     fun deleteChatSession(chatId: String) {
@@ -344,22 +372,28 @@ class GenerativeViewModel @Inject constructor(
             return
         }
 
+        val isFirstMessageInSession = _messages.value.isEmpty()
+        val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
+
         if (chatId == null) {
-            val newChatId = UUID.randomUUID().toString()
-            _currentChatId.value = newChatId
-            chatId = newChatId
-            val autoTitle = if (userText.length > 25) userText.take(25) + "..." else userText
-            createNewChatSession(autoTitle, customChatId = newChatId)
-        } else {
-            val currentSession = _chatSessions.value.find { it.id == chatId }
-            if (currentSession != null && (currentSession.title == "New Chat" || currentSession.title == "Welcome Chat")) {
-                val newTitle = if (userText.length > 25) userText.take(25) + "..." else userText
-                firestore.collection("events")
-                    .document(eventId)
-                    .collection("aiChatHistory")
-                    .document(chatId)
-                    .update("title", newTitle)
-            }
+            chatId = UUID.randomUUID().toString()
+            _currentChatId.value = chatId
+        }
+
+        val sessionMap = hashMapOf(
+            "title" to autoTitle,
+            "timestamp" to System.currentTimeMillis(),
+            "hasMessages" to true
+        )
+
+        firestore.collection("events")
+            .document(eventId)
+            .collection("aiChatHistory")
+            .document(chatId)
+            .set(sessionMap, com.google.firebase.firestore.SetOptions.merge())
+
+        if (isFirstMessageInSession && messagesListener == null) {
+            selectChatSession(chatId)
         }
 
         val userMessage = AiMessage(
@@ -385,67 +419,71 @@ class GenerativeViewModel @Inject constructor(
 
         _messages.update { current -> current + streamingAiMsg }
 
-        viewModelScope.launch {
+        generationJob?.cancel()
+        generationJob = viewModelScope.launch {
             _isGenerating.value = true
-            val fullRawAccumulator = StringBuilder()
-            var success = false
+            try {
+                val fullRawAccumulator = StringBuilder()
+                var success = false
 
-            val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER QUERY: $userText"
-            val history = _messages.value.filter { it.text.isNotBlank() && it.id != aiMessageId }.map { msg ->
-                content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
-            }
+                val fullPrompt = "CONTEXT:\n${_globalContext.value}\n\nUSER QUERY: $userText"
+                val history = _messages.value.filter { it.text.isNotBlank() && it.id != aiMessageId }.map { msg ->
+                    content(role = if (msg.isUser) "user" else "model") { text(msg.text) }
+                }
 
-            for (modelName in candidateModels) {
-                if (success) break
-                try {
-                    android.util.Log.d("GenerativeViewModel", "Trying model: $modelName")
-                    val currentModel = getModel(modelName)
-                    val currentChat = currentModel.startChat(history)
+                for (modelName in candidateModels) {
+                    if (success) break
+                    try {
+                        android.util.Log.d("GenerativeViewModel", "Trying model: $modelName")
+                        val currentModel = getModel(modelName)
+                        val currentChat = currentModel.startChat(history)
 
-                    currentChat.sendMessageStream(fullPrompt).collect { chunk ->
-                        processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
+                        currentChat.sendMessageStream(fullPrompt).collect { chunk ->
+                            processStreamChunk(chunk.text ?: "", fullRawAccumulator, streamingAiMsg, aiMessageId)
+                        }
+
+                        val (cleanText, finalParsedMsg) = parseAiResponse(fullRawAccumulator.toString())
+                        val completedMsg = finalParsedMsg.copy(
+                            id = aiMessageId,
+                            text = cleanText,
+                            isUser = false,
+                            timestamp = System.currentTimeMillis()
+                        )
+
+                        activeStreamingMessageId = null
+                        activeStreamingMessage = null
+
+                        _messages.update { list ->
+                            list.map { msg -> if (msg.id == aiMessageId) completedMsg else msg }
+                        }
+
+                        saveMessageToFirestore(chatId, completedMsg)
+                        success = true
+
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        android.util.Log.e("GenerativeViewModel", "Model $modelName failed: ${e.message}", e)
+                        fullRawAccumulator.clear()
+                        
+                        if (e.message?.contains("App Check", ignoreCase = true) == true) {
+                            android.util.Log.e("GenerativeViewModel", "CRITICAL: App Check verification failed. This usually means the device/token is not registered in Firebase Console.")
+                        }
+                        continue
                     }
+                }
 
-                    val (cleanText, finalParsedMsg) = parseAiResponse(fullRawAccumulator.toString())
-                    val completedMsg = finalParsedMsg.copy(
-                        id = aiMessageId,
-                        text = cleanText,
-                        isUser = false,
-                        timestamp = System.currentTimeMillis()
-                    )
-
+                if (!success) {
                     activeStreamingMessageId = null
                     activeStreamingMessage = null
-
-                    _messages.update { list ->
-                        list.map { msg -> if (msg.id == aiMessageId) completedMsg else msg }
-                    }
-
-                    saveMessageToFirestore(chatId, completedMsg)
-                    success = true
-
-                } catch (e: Exception) {
-                    android.util.Log.e("GenerativeViewModel", "Model $modelName failed: ${e.message}", e)
-                    fullRawAccumulator.clear()
                     
-                    if (e.message?.contains("App Check", ignoreCase = true) == true) {
-                        android.util.Log.e("GenerativeViewModel", "CRITICAL: App Check verification failed. This usually means the device/token is not registered in Firebase Console.")
+                    val errorMsg = "Sorry, I'm having trouble connecting to my brain right now. Please try again in a moment."
+                    _messages.update { list ->
+                        list.map { msg -> if (msg.id == aiMessageId) msg.copy(text = errorMsg) else msg }
                     }
-                    continue
                 }
+            } finally {
+                _isGenerating.value = false
             }
-
-            if (!success) {
-                activeStreamingMessageId = null
-                activeStreamingMessage = null
-                
-                val errorMsg = "Sorry, I'm having trouble connecting to my brain right now. Please try again in a moment."
-                _messages.update { list ->
-                    list.map { msg -> if (msg.id == aiMessageId) msg.copy(text = errorMsg) else msg }
-                }
-            }
-            
-            _isGenerating.value = false
         }
     }
 

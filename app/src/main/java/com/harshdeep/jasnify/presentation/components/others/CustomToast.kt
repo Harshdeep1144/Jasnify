@@ -77,7 +77,7 @@ fun CustomToast(
 
     val contentColor = ContentInvPrimary
     val buttonColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f)
-    val progressBarColor = ContentInvPrimary.copy(alpha = 0.35f)
+    val progressBarColor = ContentInvPrimary.copy(alpha = 0.7f)
     val showButton = buttonText != null && onButtonClick != null
     val toastShape = SquircleShape(CornerLarge, CornerSmoothingDefault)
 

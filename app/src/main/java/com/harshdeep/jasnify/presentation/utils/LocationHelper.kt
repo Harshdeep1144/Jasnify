@@ -70,6 +70,39 @@ object LocationHelper {
         }
     }
 
+    fun isLocationMatching(
+        itemCity: String?,
+        itemLocality: String?,
+        itemLocation: String?,
+        selectedLocation: String?
+    ): Boolean {
+        if (selectedLocation.isNullOrBlank() || selectedLocation.trim().equals("City, State", ignoreCase = true)) {
+            return true
+        }
+
+        val sel = selectedLocation.trim().lowercase()
+        val city = itemCity?.trim()?.lowercase() ?: ""
+        val locality = itemLocality?.trim()?.lowercase() ?: ""
+        val loc = itemLocation?.trim()?.lowercase() ?: ""
+
+        if (loc.isNotEmpty() && (loc.contains(sel) || sel.contains(loc))) return true
+        if (city.isNotEmpty() && (city.contains(sel) || sel.contains(city))) return true
+        if (locality.isNotEmpty() && (locality.contains(sel) || sel.contains(locality))) return true
+
+        val selectedTokens = sel.split(",", " ", "-", "/").map { it.trim() }.filter { it.length >= 3 }
+        if (selectedTokens.isEmpty()) return true
+
+        for (token in selectedTokens) {
+            if ((city.isNotEmpty() && city.contains(token)) ||
+                (locality.isNotEmpty() && locality.contains(token)) ||
+                (loc.isNotEmpty() && loc.contains(token))) {
+                return true
+            }
+        }
+
+        return false
+    }
+
     @SuppressLint("MissingPermission")
     fun fetchLocationAndResolveAddress(
         context: Context,

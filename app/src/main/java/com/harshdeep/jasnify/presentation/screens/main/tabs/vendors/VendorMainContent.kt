@@ -38,6 +38,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.edit
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Vendor
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.cards.CompactCardSize
@@ -109,12 +110,20 @@ fun VendorMainContent(
         }
     }
 
-    val filteredAllVendors = remember(allVendors, searchQuery) {
-        val query = searchQuery.trim()
-        if (query.isEmpty()) {
+    val locationFilteredVendors = remember(allVendors, selectedCity) {
+        if (selectedCity.isBlank() || selectedCity == "City, State") {
             allVendors
         } else {
-            allVendors.filter {
+            allVendors.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, selectedCity) }
+        }
+    }
+
+    val filteredAllVendors = remember(locationFilteredVendors, searchQuery) {
+        val query = searchQuery.trim()
+        if (query.isEmpty()) {
+            locationFilteredVendors
+        } else {
+            locationFilteredVendors.filter {
                 it.name.contains(query, ignoreCase = true) ||
                         it.category.contains(query, ignoreCase = true) ||
                         it.locality.contains(query, ignoreCase = true) ||
@@ -124,14 +133,14 @@ fun VendorMainContent(
         }
     }
 
-    val makeupVendors = remember(allVendors) {
-        allVendors.filter { it.category == "Makeup" }
+    val makeupVendors = remember(locationFilteredVendors) {
+        locationFilteredVendors.filter { it.category == "Makeup" }
     }
-    val photographyVendors = remember(allVendors) {
-        allVendors.filter { it.category == "Photography" }
+    val photographyVendors = remember(locationFilteredVendors) {
+        locationFilteredVendors.filter { it.category == "Photography" }
     }
-    val mehendiVendors = remember(allVendors) {
-        allVendors.filter { it.category == "Mehendi" }
+    val mehendiVendors = remember(locationFilteredVendors) {
+        locationFilteredVendors.filter { it.category == "Mehendi" }
     }
 
     LaunchedEffect(isSearchActive) {

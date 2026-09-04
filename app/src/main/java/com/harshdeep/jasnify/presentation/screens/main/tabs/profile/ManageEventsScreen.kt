@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
+import com.harshdeep.jasnify.presentation.components.others.ThreeDotsWaveLoadingIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -56,7 +57,8 @@ fun ManageEventsScreen(
     onBack: () -> Unit,
     onEventClick: (String) -> Unit,
     onJoinOrCreateClick: () -> Unit,
-    onShowMenu: (UserEvent) -> Unit
+    onShowMenu: (UserEvent) -> Unit,
+    createOrJoinButtonModifier: Modifier = Modifier
 ) {
     val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
     val isUserEventsLoading by eventViewModel.isUserEventsLoading.collectAsStateWithLifecycle()
@@ -113,7 +115,11 @@ fun ManageEventsScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    CircularProgressIndicator(color = ContentSecondary)
+                    ThreeDotsWaveLoadingIndicator(
+                        dotSize = 8.dp,
+                        dotColor = ContentSecondary,
+                        travelDistance = 6.dp
+                    )
                     Text(
                         text = "Redirecting to event creation...",
                         color = ContentSecondary
@@ -164,7 +170,8 @@ fun ManageEventsScreen(
                             spotColor = Color.Black.copy(alpha = 0.15f),
                             spotBlur = 18.dp,
                             spotOffsetY = 4.dp
-                        ),
+                        )
+                        .then(createOrJoinButtonModifier),
                     color = SurfacePrimary,
                     shape = CircleShape
                 ) {

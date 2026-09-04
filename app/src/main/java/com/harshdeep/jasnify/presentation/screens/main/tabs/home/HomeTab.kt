@@ -45,6 +45,8 @@ fun HomeTab(
     val homeConfig by homeViewModel.homeScreenConfig.collectAsStateWithLifecycle()
     val isVenuesLoading by venueViewModel.isLoading.collectAsStateWithLifecycle()
     val allVenues by venueViewModel.allVenues.collectAsStateWithLifecycle()
+    val isVendorsLoading by vendorViewModel.isLoading.collectAsStateWithLifecycle()
+    val allVendors by vendorViewModel.allVendors.collectAsStateWithLifecycle()
     val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
     val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
 
@@ -154,6 +156,8 @@ fun HomeTab(
         venueSavedDestinations = venueSavedDestinations,
         vendorSavedDestinations = vendorSavedDestinations,
         allVenues = allVenues,
+        allVendors = allVendors,
+        isVendorsLoading = isVendorsLoading,
         activeEvent = activeEvent,
         homeConfig = homeConfig
     )

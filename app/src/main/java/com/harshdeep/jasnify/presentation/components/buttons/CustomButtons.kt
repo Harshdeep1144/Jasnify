@@ -18,7 +18,7 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.CircularProgressIndicator
+import com.harshdeep.jasnify.presentation.components.others.ThreeDotsWaveLoadingIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -188,10 +188,14 @@ fun CustomTextButton(
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(iconSize),
-                    color = colors.contentColor,
-                    strokeWidth = 2.dp
+                ThreeDotsWaveLoadingIndicator(
+                    dotSize = when (size) {
+                        ButtonSize.Small -> 4.dp
+                        ButtonSize.Medium -> 6.dp
+                        ButtonSize.Large -> 8.dp
+                    },
+                    dotColor = colors.contentColor,
+                    travelDistance = 5.dp
                 )
             }
 
@@ -299,10 +303,11 @@ fun CustomIconButton(
     ) {
         Box(contentAlignment = Alignment.Center) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(iconSize * 0.7f),
-                    color = colors.contentColor,
-                    strokeWidth = 2.dp
+                ThreeDotsWaveLoadingIndicator(
+                    dotSize = 6.dp,
+                    dotColor = colors.contentColor,
+                    travelDistance = 4.dp,
+                    dotSpacing = 4.dp
                 )
             } else {
                 Icon(

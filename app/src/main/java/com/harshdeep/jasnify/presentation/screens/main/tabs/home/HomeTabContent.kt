@@ -53,6 +53,8 @@ import com.harshdeep.jasnify.presentation.screens.main.tabs.vendors.VendorsTab
 import com.harshdeep.jasnify.presentation.screens.moments.MomentsScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueDetailScreen
 import com.harshdeep.jasnify.presentation.screens.venues.VenueScreen
+import com.harshdeep.jasnify.presentation.utils.LocationHelper
+import com.harshdeep.jasnify.presentation.utils.SessionState
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.viewmodels.CardViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
@@ -91,6 +93,8 @@ fun HomeTabContent(
     venueSavedDestinations: Map<String, String> = emptyMap(),
     vendorSavedDestinations: Map<String, String> = emptyMap(),
     allVenues: List<Venue> = emptyList(),
+    allVendors: List<Vendor> = emptyList(),
+    isVendorsLoading: Boolean = false,
     activeEvent: Event? = null,
     homeConfig: com.harshdeep.jasnify.domain.model.HomeScreenConfig? = null
 ) {
@@ -246,12 +250,31 @@ fun HomeTabContent(
         }
     }
 
-    val trendingVenues = remember(allVenues, venueSavedDestinations) {
-        allVenues.take(5).map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    SessionState.initializeLocation(LocalContext.current)
+    val selectedLocation = SessionState.currentLocation
+
+    val locationFilteredVenues = remember(allVenues, selectedLocation) {
+        if (selectedLocation.isBlank() || selectedLocation == "City, State") {
+            allVenues
+        } else {
+            allVenues.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, selectedLocation) }
+        }
     }
 
-    val exploreVenues = remember(allVenues, venueSavedDestinations) {
-        allVenues.drop(5).map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    val trendingVenues = remember(locationFilteredVenues, venueSavedDestinations) {
+        locationFilteredVenues.take(8).map { it.copy(favorite = venueSavedDestinations.containsKey(it.name)) }
+    }
+
+    val locationFilteredVendors = remember(allVendors, selectedLocation) {
+        if (selectedLocation.isBlank() || selectedLocation == "City, State") {
+            allVendors
+        } else {
+            allVendors.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, selectedLocation) }
+        }
+    }
+
+    val trendingVendors = remember(locationFilteredVendors, vendorSavedDestinations) {
+        locationFilteredVendors.take(8).map { it.copy(favorite = vendorSavedDestinations.containsKey("${it.name}-${it.category}")) }
     }
 
     val timelineEvents = remember(activeEvent) {
@@ -482,9 +505,11 @@ fun HomeTabContent(
                 toastData = toastData,
                 isSavedListToast = isSavedListToast,
                 isMultiDay = activeEvent?.multiDay ?: false,
+                selectedLocation = selectedLocation,
                 isVenuesLoading = isVenuesLoading,
                 trendingVenues = trendingVenues,
-                exploreVenues = exploreVenues,
+                isVendorsLoading = isVendorsLoading,
+                trendingVendors = trendingVendors,
                 onMenuClick = onMenuClick,
                 onNavigate = navigateTo,
                 onCategoryClick = { category ->
@@ -495,17 +520,26 @@ fun HomeTabContent(
                     selectedVenueForDetail = venue
                     currentScreen = "venue_detail"
                 },
+                onVendorClick = { vendor ->
+                    selectedVendorForDetail = vendor
+                    currentScreen = "vendor_detail"
+                },
                 onVenueFavoriteToggle = handleVenueFavoriteToggle,
                 onVendorFavoriteToggle = handleVendorFavoriteToggle,
                 onOfferClick = { venue ->
                     offersToShow = venue.offers
                     showOfferSheet = true
                 },
+                onVendorOfferClick = { vendor ->
+                    offersToShow = vendor.offers
+                    showOfferSheet = true
+                },
                 onToastChange = { toastData = it },
                 onSaveListChange = { venue, vendor ->
                     if (venue != null) lastSavedVenue = venue
                     if (vendor != null) lastSavedVendor = vendor
-                }
+                },
+                onBottomBarVisibilityChange = onBottomBarVisibilityChange
             )
 
             if (showOfferSheet) {
@@ -608,7 +642,7 @@ fun HomeTabContent(
                     }
                     "venues" -> eventViewModel?.let { vm ->
                         VenueScreen(
-                            selectedLocation = "City, State",
+                            selectedLocation = selectedLocation,
                             onVenueClick = { venue ->
                                 selectedVenueForDetail = venue
                                 currentScreen = "venue_detail"

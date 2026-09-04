@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
@@ -70,7 +71,8 @@ fun ExpenseCategoryContent(
     onCategoryClick: (String) -> Unit,
     onCategoryMenuClick: (String) -> Unit,
     onAddCategoryClick: () -> Unit,
-    eventId: String? = null
+    eventId: String? = null,
+    categoryListModifier: Modifier = Modifier
 ) {
     val focusManager = LocalFocusManager.current
     var showAiChat by remember { mutableStateOf(false) }
@@ -173,14 +175,15 @@ fun ExpenseCategoryContent(
                         state = listState,
                         verticalArrangement = Arrangement.spacedBy(5.dp)
                     ) {
-                        items(
+                        itemsIndexed(
                             items = filteredCategorySummary,
-                            key = { it.name },
-                            contentType = { "category_item" }
-                        ) { categoryItem ->
+                            key = { _, item -> item.name },
+                            contentType = { _, _ -> "category_item" }
+                        ) { index, categoryItem ->
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .then(if (index == 0) categoryListModifier else Modifier)
                                     .clickable { onCategoryClick(categoryItem.name) }
                             ) {
                                 CategoryCard(

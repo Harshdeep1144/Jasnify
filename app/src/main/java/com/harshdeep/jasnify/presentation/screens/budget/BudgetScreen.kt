@@ -33,6 +33,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalContext
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -46,8 +54,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerSmoothingDefault
+import sv.lib.squircleshape.SquircleShape
 import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,6 +93,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
+import com.harshdeep.jasnify.theme.CornerLarge
 import kotlinx.coroutines.delay
 import java.math.BigDecimal
 import java.text.NumberFormat
@@ -303,6 +316,92 @@ fun BudgetScreen(
     var selectedCategoryChips by remember { mutableStateOf(setOf("Recent First")) }
     var sheetMotionProgress by remember { mutableFloatStateOf(1.0f) }
 
+    val context = LocalContext.current
+    val prefManager = remember { PreferenceManager(context) }
+    var isBudgetOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("budget")) }
+    var budgetStepIndex by remember { mutableIntStateOf(0) }
+    val budgetTargetRects = remember { mutableStateMapOf<String, Rect>() }
+
+    val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
+    val budgetOnboardingSteps = remember(hasSeenGroupChat) {
+        val steps = mutableListOf<OnboardingStep>()
+        if (!hasSeenGroupChat) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "room_group_chat",
+                    title = "Room Group Chat",
+                    description = "Tap here to open group chat with your room members and stay connected!",
+                    iconRes = R.drawable.ic_message,
+                    isCircleHighlight = true
+                )
+            )
+        }
+        steps.add(
+            OnboardingStep(
+                stepKey = "budget_add_expense",
+                title = "Add Expense",
+                description = "Tap the + button to record new expenses and keep track of your payments!",
+                iconRes = R.drawable.ill_budget_tracker_card,
+                isCircleHighlight = true
+            )
+        )
+        steps.add(
+            OnboardingStep(
+                stepKey = "budget_view_summary",
+                title = "View Summary",
+                description = "Check detailed expense breakdowns, category analytics, and charts!",
+                iconRes = R.drawable.ill_cards_and_guests_card,
+                highlightPadding = 4.dp,
+                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+        )
+        )
+        steps.add(
+            OnboardingStep(
+                stepKey = "budget_manage_categories",
+                title = "Manage Categories",
+                description = "Tap here to customize, edit, or add custom budget categories!",
+                iconRes = R.drawable.ill_vendor_grooming,
+                highlightPadding = 4.dp,
+                shape = CircleShape
+            )
+        )
+        steps.add(
+            OnboardingStep(
+                stepKey = "budget_categories_card",
+                title = "Budget Categories",
+                description = "Explore your category spending details and manage expenses!",
+                iconRes = R.drawable.ill_budget_tracker_card,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+            )
+        )
+        steps
+    }
+
+    val currentBudgetStepKey = if (isBudgetOnboardingActive && budgetStepIndex in budgetOnboardingSteps.indices) {
+        budgetOnboardingSteps[budgetStepIndex].stepKey
+    } else null
+
+    LaunchedEffect(currentBudgetStepKey) {
+        when (currentBudgetStepKey) {
+            "room_group_chat", "budget_add_expense", "budget_view_summary" -> {
+                if (currentView != BudgetScreenView.BUDGET_TRACKER) {
+                    currentView = BudgetScreenView.BUDGET_TRACKER
+                }
+            }
+            "budget_manage_categories" -> {
+                if (currentView != BudgetScreenView.EXPENSE_SUMMARY) {
+                    currentView = BudgetScreenView.EXPENSE_SUMMARY
+                }
+            }
+            "budget_categories_card" -> {
+                if (currentView != BudgetScreenView.EXPENSE_CATEGORY) {
+                    currentView = BudgetScreenView.EXPENSE_CATEGORY
+                }
+            }
+        }
+    }
+
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
             showBottomSheet || showAddExpenseSheet || showAddCustomCategorySheet ||
@@ -474,6 +573,9 @@ fun BudgetScreen(
                                 modifier = Modifier
                                     .padding(horizontal = 12.dp, vertical = 24.dp)
                                     .shadow(16.dp, CircleShape)
+                                    .onboardingTarget("budget_add_expense", currentBudgetStepKey) {
+                                        budgetTargetRects["budget_add_expense"] = it
+                                    }
                             )
                         }
                     },
@@ -512,7 +614,13 @@ fun BudgetScreen(
                                     },
                                     listState = listState,
                                     isSearchBarFocused = isSearchBarFocused,
-                                    onSearchBarFocusChange = { isSearchBarFocused = it }
+                                    onSearchBarFocusChange = { isSearchBarFocused = it },
+                                    viewSummaryButtonModifier = Modifier.onboardingTarget("budget_view_summary", currentBudgetStepKey) {
+                                        budgetTargetRects["budget_view_summary"] = it
+                                    },
+                                    groupChatIconModifier = Modifier.onboardingTarget("room_group_chat", currentBudgetStepKey) {
+                                        budgetTargetRects["room_group_chat"] = it
+                                    }
                                 )
 
                                 BudgetScreenView.EXPENSE_SUMMARY -> ExpenseSummaryContent(
@@ -530,6 +638,12 @@ fun BudgetScreen(
                                     isViewer = isViewer,
                                     onBackClick = { currentView = BudgetScreenView.BUDGET_TRACKER },
                                     onManageCategoriesClick = { currentView = BudgetScreenView.EXPENSE_CATEGORY },
+                                    manageCategoriesButtonModifier = Modifier.onboardingTarget("budget_manage_categories", currentBudgetStepKey) {
+                                        budgetTargetRects["budget_manage_categories"] = it
+                                    },
+                                    topExpenseCategoryCardModifier = Modifier.onboardingTarget("budget_top_category", currentBudgetStepKey) {
+                                        budgetTargetRects["budget_top_category"] = it
+                                    },
                                     onAiOverviewClick = {
                                         aiChatContext = """
                                             Budget Summary for ${activeEvent?.name ?: "Event"}:
@@ -566,7 +680,10 @@ fun BudgetScreen(
                                         categoryToRename = null
                                         showAddCustomCategorySheet = true
                                     },
-                                    eventId = activeEvent?.id
+                                    eventId = activeEvent?.id,
+                                    categoryListModifier = Modifier.onboardingTarget("budget_categories_card", currentBudgetStepKey) {
+                                        budgetTargetRects["budget_categories_card"] = it
+                                    }
                                 )
 
                                 BudgetScreenView.CATEGORY_DETAIL -> {
@@ -793,6 +910,26 @@ fun BudgetScreen(
                     initialCategoryName = categoryToRename.orEmpty(),
                     heading = if (categoryToRename != null) "Rename category" else "Add custom category",
                     onProgress = { sheetMotionProgress = it }
+                )
+            }
+
+            if (isBudgetOnboardingActive && budgetOnboardingSteps.isNotEmpty()) {
+                FeatureOnboardingOverlay(
+                    steps = budgetOnboardingSteps,
+                    currentStepIndex = budgetStepIndex,
+                    targetRectMap = budgetTargetRects,
+                    onNextStep = {
+                        if (budgetStepIndex < budgetOnboardingSteps.lastIndex) {
+                            budgetStepIndex++
+                        } else {
+                            isBudgetOnboardingActive = false
+                            prefManager.setCompletedScreenOnboarding("budget", true)
+                            prefManager.setHasSeenGroupChatOnboarding(true)
+                        }
+                    },
+                    onPreviousStep = {
+                        if (budgetStepIndex > 0) budgetStepIndex--
+                    }
                 )
             }
         }

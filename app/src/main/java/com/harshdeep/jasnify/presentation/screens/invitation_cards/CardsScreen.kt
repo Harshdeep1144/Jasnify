@@ -774,6 +774,7 @@ fun CardsScreen(
                 ) {
                     AiChatScreen(
                         eventId = activeEventId,
+                        initialContext = "Cards & Invitation Cards",
                         shouldStartNewSession = true,
                         onBackClick = { showAiChat = false }
                     )

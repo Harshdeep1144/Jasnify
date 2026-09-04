@@ -106,7 +106,8 @@ fun ProfileRootScreen(
     onNavigateTo: (ProfileScreen) -> Unit,
     onLogout: () -> Unit,
     onPlanClick: (PlanType) -> Unit,
-    lazyListState: LazyListState = rememberLazyListState()
+    lazyListState: LazyListState = rememberLazyListState(),
+    manageEventsCellModifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
@@ -377,7 +378,9 @@ fun ProfileRootScreen(
                         subtitle = eventSubtitle,
                         icon = eventsStackIcon,
                         onClick = { onNavigateTo(ProfileScreen.ManageEvents) },
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier
+                            .weight(1f)
+                            .then(manageEventsCellModifier)
                     )
                     ProfileGridCell(
                         title = "My Enquiries",

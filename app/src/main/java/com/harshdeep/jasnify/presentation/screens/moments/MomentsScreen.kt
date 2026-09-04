@@ -15,6 +15,13 @@ import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.SharedTransitionScope
 import com.harshdeep.jasnify.presentation.components.states.MomentsLoadingState
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
+import com.harshdeep.jasnify.presentation.components.others.FeatureOnboardingOverlay
+import com.harshdeep.jasnify.presentation.components.others.OnboardingStep
+import com.harshdeep.jasnify.presentation.components.others.onboardingTarget
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -52,6 +59,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
+import com.harshdeep.jasnify.presentation.components.others.ThreeDotsWaveLoadingIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -198,6 +206,41 @@ fun MomentsScreen(
     val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
     val roomUsers by roomViewModel.roomUsers.collectAsStateWithLifecycle()
     val firebaseUser = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser }
+
+    val prefManager = remember { PreferenceManager(context) }
+    var isMomentsOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("moments")) }
+    var momentsStepIndex by remember { mutableIntStateOf(0) }
+    val momentsTargetRects = remember { mutableStateMapOf<String, Rect>() }
+
+    val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
+    val momentsOnboardingSteps = remember(hasSeenGroupChat) {
+        val steps = mutableListOf<OnboardingStep>()
+        if (!hasSeenGroupChat) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "room_group_chat",
+                    title = "Room Group Chat",
+                    description = "Tap here to open group chat with your room members and stay connected!",
+                    iconRes = R.drawable.ic_message,
+                    isCircleHighlight = true
+                )
+            )
+        }
+        steps.add(
+            OnboardingStep(
+                stepKey = "moments_add_button",
+                title = "Add Moments & Albums",
+                description = "Tap the + button to upload photos, videos, or create custom photo albums!",
+                iconRes = R.drawable.ill_vendor_grooming,
+                isCircleHighlight = true
+            )
+        )
+        steps
+    }
+
+    val currentMomentsStepKey = if (isMomentsOnboardingActive && momentsStepIndex in momentsOnboardingSteps.indices) {
+        momentsOnboardingSteps[momentsStepIndex].stepKey
+    } else null
 
     val isOwner = remember(activeEvent, firebaseUser) {
         val uid = firebaseUser?.uid
@@ -806,6 +849,9 @@ fun MomentsScreen(
                                     onSecondaryClick = {
                                         viewMode = MomentViewMode.GROUP_CHAT
                                     },
+                                    secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentMomentsStepKey) {
+                                        momentsTargetRects["room_group_chat"] = it
+                                    },
                                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                                     onBackClick = {
                                         if (isSelectionMode) {
@@ -1009,7 +1055,10 @@ fun MomentsScreen(
                                                 spotColor = Color.Black.copy(alpha = 0.15f),
                                                 spotBlur = 18.dp,
                                                 spotOffsetY = 4.dp
-                                            ),
+                                            )
+                                            .onboardingTarget("moments_add_button", currentMomentsStepKey) {
+                                                momentsTargetRects["moments_add_button"] = it
+                                            },
                                         color = SurfacePrimary,
                                         shape = CircleShape
                                     ) {
@@ -1115,10 +1164,10 @@ fun MomentsScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = SurfaceBrandPrimary,
-                                    strokeWidth = 2.5.dp
+                                ThreeDotsWaveLoadingIndicator(
+                                    dotSize = 6.dp,
+                                    dotColor = SurfaceBrandPrimary,
+                                    travelDistance = 4.dp
                                 )
                                 val progressText = if (uploadProgress != null) {
                                     "Uploading... (${uploadProgress!!.first}/${uploadProgress!!.second})"
@@ -1237,6 +1286,26 @@ fun MomentsScreen(
                                 showDeleteFolderConfirmation = false
                             },
                             onProgress = { sheetMotionProgress = it }
+                        )
+                    }
+
+                    if (isMomentsOnboardingActive && momentsOnboardingSteps.isNotEmpty() && viewMode != MomentViewMode.GROUP_CHAT && viewMode != MomentViewMode.ROOM) {
+                        FeatureOnboardingOverlay(
+                            steps = momentsOnboardingSteps,
+                            currentStepIndex = momentsStepIndex,
+                            targetRectMap = momentsTargetRects,
+                            onNextStep = {
+                                if (momentsStepIndex < momentsOnboardingSteps.lastIndex) {
+                                    momentsStepIndex++
+                                } else {
+                                    isMomentsOnboardingActive = false
+                                    prefManager.setCompletedScreenOnboarding("moments", true)
+                                    prefManager.setHasSeenGroupChatOnboarding(true)
+                                }
+                            },
+                            onPreviousStep = {
+                                if (momentsStepIndex > 0) momentsStepIndex--
+                            }
                         )
                     }
                 }
