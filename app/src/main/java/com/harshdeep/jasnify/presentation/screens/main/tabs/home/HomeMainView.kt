@@ -123,7 +123,7 @@ fun HomeMainView(
                 iconRes = R.drawable.ill_vendor_grooming,
                 isCircleHighlight = true,
                 shape = CircleShape,
-                cardShape = SquircleShape(CornerExtraLarge, 0.dp, CornerExtraLarge, CornerExtraLarge, CornerSmoothingDefault)
+                arrowXShift = (-24).dp
             ),
             OnboardingStep(
                 stepKey = "home_budget_card",
@@ -159,7 +159,7 @@ fun HomeMainView(
                 iconRes = R.drawable.ill_moments_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
-                forceCardAbove = true
+                forceCardAbove = false
             ),
             OnboardingStep(
                 stepKey = "home_cards_card",
@@ -168,7 +168,7 @@ fun HomeMainView(
                 iconRes = R.drawable.ill_cards_and_guests_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
-                forceCardAbove = true
+                forceCardAbove = false
             )
         )
     }
@@ -182,6 +182,9 @@ fun HomeMainView(
             "home_menu_button" -> lazyListState.animateScrollToItem(0)
             "home_budget_card" -> lazyListState.animateScrollToItem(1)
             "home_catering_card" -> lazyListState.animateScrollToItem(2, scrollOffset = -20)
+            "home_venue_card" -> lazyListState.animateScrollToItem(2, scrollOffset = -20)
+            "home_moments_card" -> lazyListState.animateScrollToItem(3, scrollOffset = -20)
+            "home_cards_card" -> lazyListState.animateScrollToItem(3, scrollOffset = -20)
         }
     }
 

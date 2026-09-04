@@ -3,6 +3,9 @@ package com.harshdeep.jasnify.presentation.components.others
 import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -11,7 +14,19 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -19,21 +34,36 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonSize
+import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
+import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
@@ -49,14 +79,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.harshdeep.jasnify.R
+import com.harshdeep.jasnify.theme.ContentBrand
+import com.harshdeep.jasnify.theme.ContentInvPrimary
+import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import sv.lib.squircleshape.SquircleShape
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import kotlinx.coroutines.delay
+import sv.lib.squircleshape.SquircleShape
 import kotlin.time.Duration.Companion.milliseconds
 
 data class OnboardingStep(
@@ -67,8 +98,11 @@ data class OnboardingStep(
     val highlightPadding: Dp = 8.dp,
     val isCircleHighlight: Boolean = false,
     val shape: Shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
-    val cardShape: Shape = RoundedCornerShape(24.dp),
-    val forceCardAbove: Boolean? = null
+    val cardShape: Shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
+    val cardBackgroundColor: Color = ContentBrand,
+    val forceCardAbove: Boolean? = null,
+    val arrowXShift: Dp = 0.dp,
+    val cardYShift: Dp = 0.dp
 )
 
 fun Modifier.onboardingTarget(
@@ -97,35 +131,40 @@ fun FeatureOnboardingOverlay(
     if (steps.isEmpty() || currentStepIndex !in steps.indices) return
 
     val currentStep = steps[currentStepIndex]
-    var isStepSettled by remember(currentStepIndex) { mutableStateOf(false) }
+    val currentTargetRect = targetRectMap[currentStep.stepKey]
+    var isStepSettled by remember(currentStepIndex) { mutableStateOf(currentTargetRect != null) }
 
-    LaunchedEffect(currentStepIndex) {
-        isStepSettled = false
-        delay(360.milliseconds)
-        while (targetRectMap[steps[currentStepIndex].stepKey] == null) {
-            delay(40.milliseconds)
+    LaunchedEffect(currentStepIndex, currentTargetRect) {
+        if (currentTargetRect != null) {
+            isStepSettled = true
+        } else {
+            isStepSettled = false
+            delay(100.milliseconds)
+            var attempts = 0
+            while (targetRectMap[steps[currentStepIndex].stepKey] == null && attempts < 15) {
+                delay(30.milliseconds)
+                attempts++
+            }
+            isStepSettled = true
         }
-        delay(40.milliseconds)
-        isStepSettled = true
     }
 
     val cutoutScale by animateFloatAsState(
-        targetValue = if (isStepSettled && targetRectMap[currentStep.stepKey] != null) 1f else 0.85f,
+        targetValue = if (isStepSettled && currentTargetRect != null) 1f else 0.85f,
         animationSpec = spring(stiffness = Spring.StiffnessMedium, dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "cutoutScaleAnim"
     )
 
     val cardAlpha by animateFloatAsState(
-        targetValue = if (isStepSettled && targetRectMap[currentStep.stepKey] != null) 1f else 0f,
+        targetValue = if (currentTargetRect != null) 1f else 0f,
         animationSpec = tween(durationMillis = 120, easing = FastOutSlowInEasing),
         label = "cardAlphaAnim"
     )
 
-    val rawTargetRect = if (isStepSettled) targetRectMap[currentStep.stepKey] else null
-
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val screenWidthDp = configuration.screenWidthDp.dp
 
     AnimatedVisibility(
         visible = true,
@@ -145,15 +184,15 @@ fun FeatureOnboardingOverlay(
                     onNextStep()
                 }
         ) {
-            // Dark scrim overlay with spotlight cutout
+            // Dark scrim overlay with spotlight cutout and glowing white border
             Canvas(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer { alpha = 0.99f }
             ) {
-                drawRect(color = Color.Black.copy(alpha = 0.75f))
+                drawRect(color = Color.Black.copy(alpha = 0.78f))
 
-                rawTargetRect?.let { rect ->
+                currentTargetRect?.let { rect ->
                     val pad = currentStep.highlightPadding.toPx()
                     val rawInflated = Rect(
                         rect.left - pad,
@@ -171,6 +210,8 @@ fun FeatureOnboardingOverlay(
                         center.y + scaledH / 2f
                     )
 
+                    val borderStrokeWidth = 3.dp.toPx()
+
                     if (currentStep.isCircleHighlight) {
                         val radius = maxOf(inflated.width, inflated.height) / 2f
                         drawCircle(
@@ -178,6 +219,12 @@ fun FeatureOnboardingOverlay(
                             radius = radius,
                             center = center,
                             blendMode = BlendMode.Clear
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = radius,
+                            center = center,
+                            style = Stroke(width = borderStrokeWidth)
                         )
                     } else {
                         val outline = currentStep.shape.createOutline(
@@ -191,226 +238,216 @@ fun FeatureOnboardingOverlay(
                                 is Outline.Rounded -> addRoundRect(outline.roundRect)
                                 is Outline.Rectangle -> addRect(outline.rect)
                             }
-                            translate(
-                                androidx.compose.ui.geometry.Offset(
-                                    inflated.left,
-                                    inflated.top
-                                )
-                            )
+                            translate(Offset(inflated.left, inflated.top))
                         }
                         drawPath(
                             path = path,
                             color = Color.Transparent,
                             blendMode = BlendMode.Clear
                         )
+                        drawPath(
+                            path = path,
+                            color = Color.White,
+                            style = Stroke(width = borderStrokeWidth)
+                        )
                     }
                 }
             }
 
             // Tooltip Callout Box
-            val isAboveTarget = remember(rawTargetRect, screenHeightPx, currentStep.forceCardAbove) {
+            val isAboveTarget = remember(currentTargetRect, screenHeightPx, currentStep.forceCardAbove) {
                 when (currentStep.forceCardAbove) {
                     true -> true
                     false -> false
-                    null -> if (rawTargetRect == null) false else rawTargetRect.top > screenHeightPx * 0.45f
+                    null -> if (currentTargetRect == null) false else currentTargetRect.top > screenHeightPx * 0.45f
                 }
             }
 
-            val cardYOffsetPx = remember(rawTargetRect, isAboveTarget) {
-                if (rawTargetRect == null) screenHeightPx * 0.3f
-                else {
+            var calloutColumnHeightPx by remember { mutableFloatStateOf(0f) }
+            val padPx = with(density) { currentStep.highlightPadding.toPx() }
+            val customYShiftPx = with(density) { currentStep.cardYShift.toPx() }
+
+            val cardYOffsetPx = remember(currentTargetRect, isAboveTarget, calloutColumnHeightPx, customYShiftPx, padPx, screenHeightPx) {
+                if (currentTargetRect == null) {
+                    screenHeightPx * 0.3f
+                } else {
                     if (isAboveTarget) {
-                        (rawTargetRect.top - 240.dp.value * density.density).coerceAtLeast(40.dp.value * density.density)
+                        val targetCutoutTop = currentTargetRect.top - padPx
+                        val heightToUse = if (calloutColumnHeightPx > 0f) calloutColumnHeightPx else (210.dp.value * density.density)
+                        val calculatedY = targetCutoutTop - heightToUse - (8.dp.value * density.density) + customYShiftPx
+                        calculatedY.coerceAtLeast(40.dp.value * density.density)
                     } else {
-                        (rawTargetRect.bottom + 20.dp.value * density.density).coerceAtMost(screenHeightPx - 260.dp.value * density.density)
+                        val targetCutoutBottom = currentTargetRect.bottom + padPx
+                        val calculatedY = targetCutoutBottom + (8.dp.value * density.density) + customYShiftPx
+                        val heightToUse = if (calloutColumnHeightPx > 0f) calloutColumnHeightPx else (210.dp.value * density.density)
+                        calculatedY.coerceAtMost(screenHeightPx - heightToUse - (20.dp.value * density.density))
                     }
                 }
             }
 
             val cardYDp = with(density) { cardYOffsetPx.toDp() }
 
-            val padPx = with(density) { currentStep.highlightPadding.toPx() }
-            val insetTargetX = if (rawTargetRect != null) {
-                val rawX = rawTargetRect.center.x
-                val leftEdge = (rawTargetRect.left - padPx) + 12.dp.value * density.density
-                val rightEdge = (rawTargetRect.right + padPx) - 12.dp.value * density.density
-                if (leftEdge < rightEdge) rawX.coerceIn(leftEdge, rightEdge) else rawX
-            } else 0f
-            val arrowX = with(density) { insetTargetX.toDp() }
+            // Calculate pointer arrow's horizontal offset relative to the centered column
+            val arrowXOffsetDp = remember(currentTargetRect, screenWidthDp, currentStep.arrowXShift) {
+                if (currentTargetRect != null) {
+                    val targetCenterX = currentTargetRect.center.x
+                    val screenCenterX = with(density) { (screenWidthDp / 2f).toPx() }
+                    val offsetPx = targetCenterX - screenCenterX
+                    val offsetDp = with(density) { offsetPx.toDp() }
+                    val maxOffset = (screenWidthDp / 2f - 68.dp).coerceAtLeast(0.dp)
+                    (offsetDp + currentStep.arrowXShift).coerceIn(-maxOffset, maxOffset)
+                } else {
+                    0.dp
+                }
+            }
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .offset(y = cardYDp)
+                    .onGloballyPositioned { coordinates ->
+                        if (coordinates.size.height > 0) {
+                            calloutColumnHeightPx = coordinates.size.height.toFloat()
+                        }
+                    }
                     .graphicsLayer { alpha = cardAlpha },
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Pointer arrow pointing up if card is below target
-                if (!isAboveTarget && rawTargetRect != null) {
-                    val maxArrowOffset = (configuration.screenWidthDp.dp / 2 - 32.dp).coerceAtLeast(0.dp)
+                // Top pointer arrow (if card is below target)
+                if (!isAboveTarget && currentTargetRect != null) {
                     Canvas(
                         modifier = Modifier
                             .size(24.dp, 12.dp)
-                            .offset(x = (arrowX - configuration.screenWidthDp.dp / 2).coerceIn(-maxArrowOffset, maxArrowOffset))
+                            .offset(x = arrowXOffsetDp, y = 1.dp)
                     ) {
                         val path = Path().apply {
                             moveTo(size.width / 2f, 0f)
-                            lineTo(size.width, size.height)
-                            lineTo(0f, size.height)
+                            lineTo(size.width, size.height + 1f)
+                            lineTo(0f, size.height + 1f)
                             close()
                         }
-                        drawPath(path, Color(0xFF29B6F6))
+                        drawPath(path, currentStep.cardBackgroundColor)
                     }
                 }
 
                 // Callout Card
                 Surface(
                     shape = currentStep.cardShape,
-                    color = Color(0xFF29B6F6),
-                    tonalElevation = 8.dp,
-                    shadowElevation = 12.dp,
+                    color = currentStep.cardBackgroundColor,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            modifier = Modifier.fillMaxWidth()
+                                .padding(4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.Top
                         ) {
                             Box(
-                                modifier = Modifier
-                                    .size(72.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.25f)),
+                                modifier = Modifier.size(72.dp),
                                 contentAlignment = Alignment.Center
                             ) {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.20f))
+                                )
+
                                 Image(
                                     painter = painterResource(id = currentStep.iconRes),
                                     contentDescription = null,
-                                    modifier = Modifier.size(54.dp),
+                                    modifier = Modifier.requiredHeight(60.dp),
                                     contentScale = ContentScale.Fit
                                 )
                             }
 
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(
-                                    text = currentStep.title,
-                                    style = JasnifyTheme.typography.headingLarge.copy(
-                                        fontWeight = FontWeight.Medium
-                                    ),
-                                    color = Color.White
-                                )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
-                                Text(
-                                    text = currentStep.description,
-                                    style = JasnifyTheme.typography.bodyMedium.copy(
-                                        fontSize = 13.sp,
-                                        lineHeight = 18.sp
-                                    ),
-                                    color = Color.White.copy(alpha = 0.95f)
-                                )
-                            }
+                            Text(
+                                text = "${currentStepIndex + 1} of ${steps.size}",
+                                style = JasnifyTheme.typography.labelLarge.copy(
+                                    lineHeight = 24.sp
+                                ),
+                                color = ContentTertiary,
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = currentStep.title,
+                            style = JasnifyTheme.typography.headingXLarge.copy(
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = ContentInvPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Text(
+                            text = currentStep.description,
+                            style = JasnifyTheme.typography.labelLarge.copy(
+                                lineHeight = 20.sp,
+                                fontWeight = FontWeight.Light
+                            ),
+                            color = ContentInvPrimary
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${currentStepIndex + 1} of ${steps.size}",
-                                style = JasnifyTheme.typography.labelSmall,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
-
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (currentStepIndex > 0 && onPreviousStep != null) {
-                                    Surface(
-                                        onClick = onPreviousStep,
-                                        shape = RoundedCornerShape(12.dp),
-                                        color = Color.White.copy(alpha = 0.25f)
-                                    ) {
-                                        Row(
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                            Text(
-                                                text = "Previous",
-                                                style = JasnifyTheme.typography.headingMedium.copy(
-                                                    fontWeight = FontWeight.Medium,
-                                                    fontSize = 14.sp
-                                                ),
-                                                color = Color.White
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Surface(
-                                    onClick = onNextStep,
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = Color.White,
-                                    shadowElevation = 4.dp
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text(
-                                            text = if (currentStepIndex == steps.lastIndex) "Got it!" else "Next",
-                                            style = JasnifyTheme.typography.headingMedium.copy(
-                                                fontWeight = FontWeight.Medium,
-                                                fontSize = 14.sp
-                                            ),
-                                            color = Color(0xFF0288D1)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = null,
-                                            tint = Color(0xFF0288D1),
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
+                            if (currentStepIndex > 0 && onPreviousStep != null) {
+                                CustomTextButton(
+                                    onClick = onPreviousStep,
+                                    text = "Previous",
+                                    size = ButtonSize.Small,
+                                    type = ButtonType.Secondary,
+                                    shapeStyle = ButtonShapeStyle.Square,
+                                    leadingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowBack),
+                                    containerColor = ContentInvPrimary.copy(alpha = 0.1f),
+                                    contentColor = ContentInvPrimary
+                                )
+                            } else {
+                                Spacer(modifier = Modifier.width(1.dp))
                             }
+
+                            CustomTextButton(
+                                onClick = onNextStep,
+                                text = if (currentStepIndex == steps.lastIndex) "Got it!" else "Next",
+                                size = ButtonSize.Small,
+                                type = ButtonType.Primary,
+                                shapeStyle = ButtonShapeStyle.Square,
+                                trailingIcon = rememberVectorPainter(Icons.AutoMirrored.Filled.ArrowForward),
+                                containerColor = ContentInvPrimary,
+                                contentColor = ContentPrimary
+                            )
                         }
                     }
                 }
 
-                // Pointer arrow pointing down if card is above target
-                if (isAboveTarget && rawTargetRect != null) {
-                    val maxArrowOffset = (configuration.screenWidthDp.dp / 2 - 32.dp).coerceAtLeast(0.dp)
+                // Bottom pointer arrow (if card is above target)
+                if (isAboveTarget && currentTargetRect != null) {
                     Canvas(
                         modifier = Modifier
                             .size(24.dp, 12.dp)
-                            .offset(x = (arrowX - configuration.screenWidthDp.dp / 2).coerceIn(-maxArrowOffset, maxArrowOffset))
+                            .offset(x = arrowXOffsetDp, y = (-1).dp)
                     ) {
                         val path = Path().apply {
-                            moveTo(0f, 0f)
-                            lineTo(size.width, 0f)
+                            moveTo(-1f, -1f)
+                            lineTo(size.width + 1f, -1f)
                             lineTo(size.width / 2f, size.height)
                             close()
                         }
-                        drawPath(path, Color(0xFF29B6F6))
+                        drawPath(path, currentStep.cardBackgroundColor)
                     }
                 }
             }
@@ -429,25 +466,30 @@ fun FeatureOnboardingOverlayPreview() {
         listOf(
             OnboardingStep(
                 stepKey = "search_bar",
-                title = "Quick Search",
-                description = "Easily search through your vendors, appointments, and services here.",
+                title = "Track Event Budget",
+                description = "Set your budget, add expenses, keep track of your finances.",
                 iconRes = R.drawable.ill_vendor_grooming,
-                highlightPadding = 16.dp,
+                highlightPadding = 12.dp,
                 isCircleHighlight = false
             ),
             OnboardingStep(
                 stepKey = "add_fab",
-                title = "Create New Booking",
-                description = "Tap the plus icon anytime to schedule an instant appointment.",
+                title = "Explore Venues",
+                description = "Tap to view & explore the best venues near you.",
                 iconRes = R.drawable.ill_vendor_grooming,
                 highlightPadding = 8.dp,
-                isCircleHighlight = true
+                isCircleHighlight = false
             )
         )
     }
 
     var currentStepIndex by remember { mutableIntStateOf(0) }
-    val targetRectMap = remember { mutableStateMapOf<String, Rect>() }
+    val targetRectMap = remember {
+        mutableStateMapOf<String, Rect>(
+            "search_bar" to Rect(48f, 120f, 1032f, 260f),
+            "add_fab" to Rect(850f, 1700f, 1000f, 1850f)
+        )
+    }
     val currentStepKey = steps.getOrNull(currentStepIndex)?.stepKey
 
     JasnifyTheme {

@@ -50,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -64,6 +65,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
+import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
@@ -137,15 +139,23 @@ fun ChatSidebarDrawer(
         groups
     }
 
+    val aiBackgroundGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFFF3E8FA),
+            Color(0xFFF8F0FC),
+            Color(0xFFFAF4FE)
+        )
+    )
+
     Surface(
         modifier = modifier
             .fillMaxHeight()
             .width(320.dp),
-        color = SurfacePrimary,
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(aiBackgroundGradient)
                 .statusBarsPadding()
         ) {
             Row(
@@ -294,7 +304,7 @@ fun SwipeToDismissChatSessionItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(x = offsetX.value.roundToInt(), y = 0) }
-                .background(if (isSelected) SurfaceBrandSecondary else SurfacePrimary)
+                .background(if (isSelected) SurfaceBrandSecondary else Color.Transparent)
                 .pointerInput(session.id) {
                     itemWidthPx = size.width.toFloat()
                     detectHorizontalDragGestures(

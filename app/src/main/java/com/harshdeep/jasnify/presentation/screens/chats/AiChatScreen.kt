@@ -541,7 +541,7 @@ fun AiChatScreen(
         label = "dockProgress"
     )
 
-    val AiBackgroundGradient = Brush.verticalGradient(
+    val aiBackgroundGradient = Brush.verticalGradient(
         colors = listOf(
             Color(0xFFF3E8FA),
             Color(0xFFF8F0FC),
@@ -677,7 +677,7 @@ fun AiChatScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(AiBackgroundGradient)
+                            .background(aiBackgroundGradient)
                     ) {
                         if (dockProgress > 0f) {
                             LazyColumn(
@@ -807,7 +807,10 @@ fun AiChatScreen(
                                                     viewModel.sendMessage(query)
                                                 }
                                             },
-                                            onStopClick = { },
+                                            onStopClick = {
+                                                viewModel.stopGeneration()
+                                                ttsEngine?.stop()
+                                            },
                                             onVoiceClick = {
                                                 val hasPermission = ContextCompat.checkSelfPermission(
                                                     context,
@@ -948,7 +951,10 @@ fun AiChatScreen(
                                             viewModel.sendMessage(query)
                                         }
                                     },
-                                    onStopClick = { },
+                                    onStopClick = {
+                                        viewModel.stopGeneration()
+                                        ttsEngine?.stop()
+                                    },
                                     onVoiceClick = {
                                         val hasPermission = ContextCompat.checkSelfPermission(
                                             context,
