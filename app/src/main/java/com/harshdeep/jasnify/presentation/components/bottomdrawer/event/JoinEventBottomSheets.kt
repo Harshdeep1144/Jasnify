@@ -158,8 +158,9 @@ fun JoinEventBottomSheet(
         onDismiss = onDismiss,
         onProgress = onProgress,
         sheetHeight = null,
-        showDragHandle = true,
+        showDragHandle = currentState == JoinEventSheetState.ENTER_ID,
         showCloseButton = true,
+        closeButtonBackgroundStyle = if (currentState == JoinEventSheetState.ENTER_ID) ButtonBackground.OPAQUE else ButtonBackground.TRANSLUCENT,
         hasToast = toastData.message != null,
         headerBackgroundImage = {
             if (currentState == JoinEventSheetState.EVENT_DETAILS) {

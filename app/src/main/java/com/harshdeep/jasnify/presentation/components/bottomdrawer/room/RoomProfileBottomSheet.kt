@@ -157,7 +157,6 @@ fun RoomProfileContent(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_cross),
                     contentDescription = "Close",
-                    modifier = Modifier.size(18.dp),
                     tint = ContentPrimary
                 )
             }

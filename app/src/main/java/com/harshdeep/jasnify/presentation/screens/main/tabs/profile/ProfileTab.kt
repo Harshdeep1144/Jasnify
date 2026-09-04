@@ -660,7 +660,13 @@ fun ProfileTab(
                 onDismiss = { showJoinOrCreateSheet = false },
                 onCreateNewEvent = {
                     showJoinOrCreateSheet = false
-                    mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+                    coroutineScope.launch {
+                        if (ownedEvents.size >= 5 || !eventViewModel.canUserCreateEvent()) {
+                            toastData = ToastData("You reached max event creation!", ToastType.ERROR)
+                        } else {
+                            mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+                        }
+                    }
                 },
                 onJoinWithId = {
                     showJoinOrCreateSheet = false
