@@ -68,6 +68,7 @@ fun MomentsRoomContent(
         allUsers = displayUsers,
         currentUserRole = currentUserRole,
         isSelf = { it.uid == currentUserUid },
+        roomTitle = "Moments Room",
         onBackClick = onBackClick,
         onMenuClick = { },
         onRoleChange = { user, role -> roomViewModel.updateRole(eventId, "Moments", user, role) },

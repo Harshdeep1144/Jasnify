@@ -262,10 +262,20 @@ class AuthViewModel @Inject constructor(
                     email = email.lowercase().trim(),
                     username = username,
                     role = UserRole.VIEWER,
-                    profilePictureUrl = cloudinaryUrl
+                    profilePictureUrl = cloudinaryUrl ?: photoUrl
                 )
                 userRepository.createUserProfile(newUser)
                 return newUser
+            } else if (existingProfile.profilePictureUrl == null && photoUrl != null) {
+                var cloudinaryUrl: String? = null
+                try {
+                    cloudinaryUrl = cloudinaryManager.uploadProfilePictureFromUrl(photoUrl, uid)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+                val updatedProfile = existingProfile.copy(profilePictureUrl = cloudinaryUrl ?: photoUrl)
+                userRepository.updateUserProfile(updatedProfile)
+                return updatedProfile
             }
             return existingProfile
         } catch (e: Exception) {

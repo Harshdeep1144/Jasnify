@@ -71,6 +71,7 @@ fun CateringRoomContent(
             allUsers = displayUsers,
             currentUserRole = currentUserRole,
             isSelf = { it.uid == currentUserUid },
+            roomTitle = "Catering Menu Room",
             onBackClick = {
                 onBackClick()
                 focusManager.clearFocus()

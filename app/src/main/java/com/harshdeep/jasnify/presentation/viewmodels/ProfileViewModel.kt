@@ -165,7 +165,7 @@ class ProfileViewModel @Inject constructor(
                 
                 if (shouldRemovePhoto) {
                     cloudinaryManager.deleteProfilePicture(uid)
-                    profileImageUrl = null
+                    profileImageUrl = ""
                 } else if (profileImageUri != null) {
                     profileImageUrl = cloudinaryManager.uploadProfilePicture(profileImageUri, uid)
                 }

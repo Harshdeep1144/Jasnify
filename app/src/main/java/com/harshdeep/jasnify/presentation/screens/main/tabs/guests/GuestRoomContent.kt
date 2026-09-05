@@ -65,6 +65,7 @@ fun GuestRoomContent(
             allUsers = displayUsers,
             currentUserRole = currentUserRole,
             isSelf = { it.uid == currentUserUid },
+            roomTitle = "Guest List Room",
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onRoleChange = { targetUser, newRole ->

@@ -57,6 +57,7 @@ fun CardRoomContent(
         allUsers = displayUsers,
         currentUserRole = currentUserRole,
         isSelf = { it.uid == currentUser?.uid },
+        roomTitle = "Invitation Cards Room",
         onBackClick = onBackClick,
         onMenuClick = onMenuClick,
         onRoleChange = { user, newRole ->

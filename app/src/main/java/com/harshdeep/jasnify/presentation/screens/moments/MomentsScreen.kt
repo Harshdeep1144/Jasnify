@@ -123,6 +123,7 @@ import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.inputfield.PrimaryInput
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTab
 import com.harshdeep.jasnify.presentation.components.scaffold.BottomTabStyle
+import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.components.scaffold.TabItem
 import com.harshdeep.jasnify.presentation.components.states.GenericLoadingState
@@ -178,6 +179,10 @@ fun MomentsScreen(
     var selectedMomentForFullView by remember { mutableStateOf<Moment?>(null) }
     var showFabMenu by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
+
+    if (selectedMomentForFullView == null) {
+        SetStatusBarTheme(useDarkIcons = true, statusBarColor = Color.Transparent)
+    }
     var showCreateFolderSheet by remember { mutableStateOf(false) }
     var showDownloadPreferences by remember { mutableStateOf(false) }
     var selectedFolderId by remember { mutableStateOf("") }
@@ -832,7 +837,6 @@ fun MomentsScreen(
                                 shape = RoundedCornerShape(backdropCornerRadius.coerceAtLeast(0.dp))
                             }
                             .background(BackgroundPrimary)
-                            .statusBarsPadding()
                     ) {
                         Column(
                             modifier = Modifier
@@ -840,45 +844,51 @@ fun MomentsScreen(
                                 .nestedScroll(nestedScrollConnection)
                         ) {
                             if (viewMode != MomentViewMode.GROUP_CHAT && viewMode != MomentViewMode.ROOM) {
-                                CustomTopBar(
-                                    title = if (isSelectionMode) "${selectedMomentIds.size} selected" else currentTitle,
-                                    subtitle = if (!isSelectionMode && viewMode == MomentViewMode.FolderContent) "${activeMoments.size} items" else null,
-                                    buttonStyle = ButtonBackground.OPAQUE,
-                                    buttonColor = SurfaceSecondary,
-                                    secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
-                                    onSecondaryClick = {
-                                        viewMode = MomentViewMode.GROUP_CHAT
-                                    },
-                                    secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentMomentsStepKey) {
-                                        momentsTargetRects["room_group_chat"] = it
-                                    },
-                                    menuIcon = TopIcon.Predefined.MENU_VERTICAL,
-                                    onBackClick = {
-                                        if (isSelectionMode) {
-                                            selectedMomentIds = emptySet()
-                                            isForceMultiSelect = false
-                                        } else if (selectedMomentForFullView != null) {
-                                            selectedMomentForFullView = null
-                                        } else if (folderNavigationStack.isNotEmpty()) {
-                                            val newStack = folderNavigationStack.dropLast(1)
-                                            folderNavigationStack = newStack
-                                            selectedFolderId = newStack.lastOrNull()?.id ?: ""
-                                            if (selectedFolderId.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .statusBarsPadding()
+                                ) {
+                                    CustomTopBar(
+                                        title = if (isSelectionMode) "${selectedMomentIds.size} selected" else currentTitle,
+                                        subtitle = if (!isSelectionMode && viewMode == MomentViewMode.FolderContent) "${activeMoments.size} items" else null,
+                                        buttonStyle = ButtonBackground.OPAQUE,
+                                        buttonColor = SurfaceSecondary,
+                                        secondaryIcon = if (isSelectionMode) null else TopIcon.Predefined.CHAT,
+                                        onSecondaryClick = {
+                                            viewMode = MomentViewMode.GROUP_CHAT
+                                        },
+                                        secondaryIconModifier = Modifier.onboardingTarget("room_group_chat", currentMomentsStepKey) {
+                                            momentsTargetRects["room_group_chat"] = it
+                                        },
+                                        menuIcon = TopIcon.Predefined.MENU_VERTICAL,
+                                        onBackClick = {
+                                            if (isSelectionMode) {
+                                                selectedMomentIds = emptySet()
+                                                isForceMultiSelect = false
+                                            } else if (selectedMomentForFullView != null) {
+                                                selectedMomentForFullView = null
+                                            } else if (folderNavigationStack.isNotEmpty()) {
+                                                val newStack = folderNavigationStack.dropLast(1)
+                                                folderNavigationStack = newStack
+                                                selectedFolderId = newStack.lastOrNull()?.id ?: ""
+                                                if (selectedFolderId.isEmpty()) {
+                                                    viewMode = MomentViewMode.Folders
+                                                } else {
+                                                    viewModel.loadFolderContent(eventId, selectedFolderId)
+                                                }
+                                            } else if (viewMode == MomentViewMode.FolderContent) {
                                                 viewMode = MomentViewMode.Folders
+                                                selectedFolderId = ""
                                             } else {
-                                                viewModel.loadFolderContent(eventId, selectedFolderId)
+                                                onBackClick()
                                             }
-                                        } else if (viewMode == MomentViewMode.FolderContent) {
-                                            viewMode = MomentViewMode.Folders
-                                            selectedFolderId = ""
-                                        } else {
-                                            onBackClick()
+                                        },
+                                        onMenuClick = {
+                                            showMoreMenu = true
                                         }
-                                    },
-                                    onMenuClick = {
-                                        showMoreMenu = true
-                                    }
-                                )
+                                    )
+                                }
                             }
 
                             Box(modifier = Modifier.weight(1f)) {

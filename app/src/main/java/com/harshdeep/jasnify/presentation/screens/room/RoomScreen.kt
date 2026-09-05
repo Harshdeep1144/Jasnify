@@ -70,6 +70,9 @@ import com.harshdeep.jasnify.presentation.components.cards.UserListItem
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextAlign
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -88,6 +91,7 @@ fun RoomScreen(
     onRemove: (User) -> Unit,
     onReport: (User) -> Unit,
     onLeave: () -> Unit,
+    roomTitle: String = "",
     searchResults: List<User> = emptyList(),
     onSearch: (String) -> Unit = {},
     onGrantAccess: (String, UserRole) -> Unit = { _, _ -> },
@@ -203,18 +207,17 @@ fun RoomScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .height(180.dp)
-                        .padding(bottom = 12.dp)
-                        .fillMaxWidth(),
+                        .fillMaxWidth()
+                        .padding(top = 12.dp, bottom = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
-                        modifier = Modifier.size(128.dp),
+                        modifier = Modifier.size(120.dp),
                         contentAlignment = Alignment.BottomEnd
                     ) {
                         Surface(
                             modifier = Modifier
-                                .size(128.dp)
+                                .size(120.dp)
                                 .clip(CircleShape),
                             color = SurfacePrimary,
                             tonalElevation = 2.dp
@@ -250,6 +253,21 @@ fun RoomScreen(
                         }
                     }
                 }
+
+                if (roomTitle.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = roomTitle,
+                        style = JasnifyTheme.typography.headingXLarge,
+                        color = ContentPrimary,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -458,26 +476,6 @@ private val previewUsers = listOf(
     )
 )
 
-@Preview(name = "Room Screen - Owner View", showBackground = true, showSystemUi = true)
-@Composable
-fun RoomScreenOwnerPreview() {
-    JasnifyTheme {
-        RoomScreen(
-            allUsers = previewUsers,
-            currentUserRole = UserRole.OWNER,
-            isSelf = { it.uid == "1" },
-            onBackClick = {},
-            onMenuClick = {},
-            onRoleChange = { _, _ -> },
-            onRemove = {},
-            onReport = {},
-            onLeave = {},
-            roomPictureUrl = null,
-            searchResults = emptyList()
-        )
-    }
-}
-
 @Preview(name = "Room Screen - Member View", showBackground = true, showSystemUi = true)
 @Composable
 fun RoomScreenMemberPreview() {
@@ -485,6 +483,7 @@ fun RoomScreenMemberPreview() {
         RoomScreen(
             allUsers = previewUsers,
             currentUserRole = UserRole.VIEWER,
+            roomTitle = "Budget Room",
             isSelf = { it.uid == "3" },
             onBackClick = {},
             onMenuClick = {},
