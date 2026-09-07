@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.di
 
+import com.harshdeep.jasnify.BuildConfig
 import com.harshdeep.jasnify.data.remote.api.DishImageApi
 import dagger.Module
 import dagger.Provides
@@ -19,7 +20,11 @@ object NetworkModule {
     @Singleton
     fun provideLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
     }
 
