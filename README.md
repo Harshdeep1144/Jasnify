@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://res.cloudinary.com/jasnify/image/upload/v1788795096/B2C_App_Logo_1200_630_qhf4au.png" alt="Jasnify App Logo" width="100%">
+  <img src="https://res.cloudinary.com/jasnify/image/upload/v1788795096/B2C_App_Logo_1200_630_qhf4au.png" alt="Jasnify App Logo" width="80%">
 </p>
 
 [![Android](https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)](https://developer.android.com/)
