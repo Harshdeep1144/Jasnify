@@ -60,6 +60,7 @@ fun VendorRoomContent(
         allUsers = displayUsers,
         currentUserRole = currentUserRole,
         isSelf = { it.uid == currentUser?.uid },
+        roomTitle = "Vendors Room",
         onBackClick = onBackClick,
         onMenuClick = onMenuClick,
         onRoleChange = { user, newRole ->

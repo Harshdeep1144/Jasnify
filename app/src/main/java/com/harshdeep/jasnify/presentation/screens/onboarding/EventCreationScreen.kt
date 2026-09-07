@@ -189,6 +189,17 @@ fun EventCreation(
     // --- Observe Event State for feedback ---
     val eventState by eventViewModel.eventState.collectAsState()
 
+    // Check if user already reached max event creation limit
+    LaunchedEffect(Unit) {
+        if (!eventViewModel.canUserCreateEvent()) {
+            toastData = ToastData("You reached max event creation!", ToastType.ERROR)
+            if (fromProfile) {
+                delay(1500L.milliseconds)
+                navController.popBackStack()
+            }
+        }
+    }
+
     // Handle navigation/toast based on successful event saving
     LaunchedEffect(eventState) {
         when (eventState) {

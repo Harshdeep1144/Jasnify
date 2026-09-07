@@ -68,6 +68,7 @@ fun ChecklistRoomContent(
             allUsers = displayUsers,
             currentUserRole = currentUserRole,
             isSelf = { it.uid == currentUserUid },
+            roomTitle = "Checklist Room",
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onRoleChange = { targetUser, newRole ->

@@ -55,7 +55,12 @@ fun HomeScreen(
     val context = LocalContext.current
     val navBarStyle by uiViewModel.navBarStyle.collectAsState()
     val userProfile by profileViewModel.userProfile.collectAsState()
-    val profilePictureUrl = userProfile?.profilePictureUrl
+    val firebaseUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+    val profilePictureUrl = when {
+        !userProfile?.profilePictureUrl.isNullOrBlank() -> userProfile?.profilePictureUrl
+        userProfile?.profilePictureUrl == "" -> null
+        else -> firebaseUser?.photoUrl?.toString()
+    }
 
     // Handle joined event ID if provided
     LaunchedEffect(joinedEventId) {

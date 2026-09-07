@@ -82,6 +82,13 @@ class EventViewModel @Inject constructor(
     private val _activeEventId = MutableStateFlow<String?>(null)
     val activeEventId: StateFlow<String?> = _activeEventId.asStateFlow()
 
+    private val _pendingJoinEventId = MutableStateFlow<String?>(null)
+    val pendingJoinEventId: StateFlow<String?> = _pendingJoinEventId.asStateFlow()
+
+    fun setPendingJoinEventId(id: String?) {
+        _pendingJoinEventId.value = id
+    }
+
     private val _userEvents = MutableStateFlow<List<Event>>(emptyList())
     val userEvents: StateFlow<List<Event>> = _userEvents.asStateFlow()
 
@@ -208,6 +215,23 @@ class EventViewModel @Inject constructor(
     }
 
     /**
+     * Checks if the user is allowed to create a new event.
+     * Users can be owner of max 5 events only.
+     */
+    suspend fun canUserCreateEvent(): Boolean {
+        val user = auth.currentUser ?: return false
+        return try {
+            val ownedSnapshot = firestore.collection("events")
+                .whereEqualTo("ownerId", user.uid)
+                .get()
+                .await()
+            ownedSnapshot.size() < 5
+        } catch (e: Exception) {
+            _userEvents.value.size < 5
+        }
+    }
+
+    /**
      * Saves the event data to Cloud Firestore.
      */
     fun saveEventData(eventData: EventCreateUiState) {
@@ -226,6 +250,11 @@ class EventViewModel @Inject constructor(
         val budgetValue = eventData.budget.dropWhile { !it.isDigit() && it != '.' }.toDoubleOrNull()
 
         viewModelScope.launch {
+            if (!canUserCreateEvent()) {
+                _eventState.value = EventCreationState.Error("You reached max event creation")
+                return@launch
+            }
+
             val userProfile = userRepository.getUserProfile(userId)
             val ownerName = userProfile?.name ?: user.displayName ?: "Unknown"
 

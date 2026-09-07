@@ -20,6 +20,7 @@ local.properties
 .externalNativeBuild/
 .cxx/
 .kotlin/
+.artifacts/
 
 # Secrets, API Keys & Signing
 app/google-services.json

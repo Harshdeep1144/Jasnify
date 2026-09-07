@@ -173,11 +173,13 @@ fun ProfileTab(
     val userEmail = userProfile?.email ?: firebaseUser?.email ?: "User Gmail"
     val userHandle = "@${userProfile?.username ?: userEmail.substringBefore("@")}"
 
-    val profilePic: Any = if (userProfile != null) {
-        userProfile?.profilePictureUrl ?: R.drawable.img_profile_placeholder
-    } else {
-        firebaseUser?.photoUrl ?: R.drawable.img_profile_placeholder
+    val effectiveProfilePicUrl = when {
+        !userProfile?.profilePictureUrl.isNullOrBlank() -> userProfile?.profilePictureUrl
+        userProfile?.profilePictureUrl == "" -> null
+        else -> firebaseUser?.photoUrl?.toString()
     }
+
+    val profilePic: Any = effectiveProfilePicUrl ?: R.drawable.img_profile_placeholder
 
     var currentScreen by rememberSaveable { mutableStateOf(ProfileScreen.Root) }
 
@@ -598,9 +600,11 @@ fun ProfileTab(
         }
 
         if (showEditProfile) {
-            val editProfilePic: Any = userProfile?.profilePictureUrl?.takeIf { it.isNotBlank() }
-                ?: firebaseUser?.photoUrl
-                ?: R.drawable.ic_user_profile
+            val editProfilePic: Any = when {
+                !userProfile?.profilePictureUrl.isNullOrBlank() -> userProfile!!.profilePictureUrl!!
+                userProfile?.profilePictureUrl == "" -> R.drawable.ic_user_profile
+                else -> firebaseUser?.photoUrl ?: R.drawable.ic_user_profile
+            }
 
             EditProfileBottomSheet(
                 onDismiss = { showEditProfile = false },
@@ -660,7 +664,13 @@ fun ProfileTab(
                 onDismiss = { showJoinOrCreateSheet = false },
                 onCreateNewEvent = {
                     showJoinOrCreateSheet = false
-                    mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+                    coroutineScope.launch {
+                        if (ownedEvents.size >= 5 || !eventViewModel.canUserCreateEvent()) {
+                            toastData = ToastData("You reached max event creation!", ToastType.ERROR)
+                        } else {
+                            mainNavController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "true"))
+                        }
+                    }
                 },
                 onJoinWithId = {
                     showJoinOrCreateSheet = false

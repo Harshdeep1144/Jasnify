@@ -68,6 +68,7 @@ fun VenueRoomContent(
             allUsers = displayUsers,
             currentUserRole = currentUserRole,
             isSelf = { it.uid == currentUserUid },
+            roomTitle = "Venue Room",
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onRoleChange = { targetUser, newRole ->

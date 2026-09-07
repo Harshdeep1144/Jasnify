@@ -59,6 +59,7 @@ fun BudgetRoomContent(
             allUsers = displayUsers,
             currentUserRole = currentUserRole,
             isSelf = { it.uid == currentUserUid },
+            roomTitle = "Budget Room",
             onBackClick = onBackClick,
             onMenuClick = onMenuClick,
             onRoleChange = { targetUser, newRole ->
