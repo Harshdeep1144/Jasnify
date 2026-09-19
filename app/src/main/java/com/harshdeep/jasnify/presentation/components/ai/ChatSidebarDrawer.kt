@@ -11,6 +11,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -30,8 +31,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -50,29 +53,24 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.ChatSession
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
-import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
-import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopBarIconButton
-import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
-import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerMedium
 import com.harshdeep.jasnify.theme.JasnifyTheme
-import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
-import com.harshdeep.jasnify.theme.SurfacePrimary
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -139,43 +137,44 @@ fun ChatSidebarDrawer(
         groups
     }
 
-    val aiBackgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFF3E8FA),
-            Color(0xFFF8F0FC),
-            Color(0xFFFAF4FE)
-        )
-    )
+    val sidebarBgColor = Color(0xFFEFE4F8)
+    val buttonBgColor = Color.White.copy(0.5f)
+    val searchIconPainter = rememberVectorPainter(Icons.Rounded.Search)
 
     Surface(
+        color = sidebarBgColor,
         modifier = modifier
             .fillMaxHeight()
-            .width(320.dp),
+            .width(310.dp),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(aiBackgroundGradient)
                 .statusBarsPadding()
         ) {
+            // Logo Header with superscript AI tag
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .height(56.dp),
+                    .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 18.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_app),
-                    contentDescription = "App Logo",
+                    contentDescription = "Jasnify Logo",
                     tint = ContentPrimary,
                     modifier = Modifier.height(28.dp)
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "AI",
+                    style = JasnifyTheme.typography.labelMedium,
+                    color = Color(0xFF6750A4),
+                    modifier = Modifier.offset(y = (-6).dp)
+                )
             }
 
-            HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline.copy(0.16f))
-            Spacer(modifier = Modifier.height(12.dp))
-
+            // Action Row (+ New Chat / Search)
             AnimatedContent(
                 targetState = isSearchActive,
                 transitionSpec = {
@@ -197,6 +196,7 @@ fun ChatSidebarDrawer(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
                         placeholder = "Search history...",
+                        backgroundColor = buttonBgColor,
                         modifier = Modifier
                             .fillMaxWidth()
                             .focusRequester(searchFocusRequester)
@@ -217,26 +217,63 @@ fun ChatSidebarDrawer(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        CustomTextButton(
+                        // New Chat Pill Button
+                        Surface(
                             onClick = onNewChatClick,
-                            text = "New Chat",
-                            leadingIcon = painterResource(R.drawable.ic_plus),
-                            type = ButtonType.Secondary,
-                            modifier = Modifier.weight(1f)
-                        )
+                            shape = CircleShape,
+                            color = buttonBgColor,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_plus),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = ContentPrimary
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "New Chat",
+                                    style = JasnifyTheme.typography.labelXLarge,
+                                    color = ContentPrimary
+                                )
+                            }
+                        }
 
-                        TopBarIconButton(
+                        // Search Circle Button
+                        Surface(
                             onClick = { isSearchActive = true },
-                            icon = TopIcon.Predefined.SEARCH,
-                            size = 56.dp,
-                            iconSize = 24.dp,
-                            borderColor = ContentPrimary,
-                            backgroundStyle = ButtonBackground.OPAQUE
-                        )
+                            shape = CircleShape,
+                            color = buttonBgColor,
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.5f)),
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = searchIconPainter,
+                                    contentDescription = "Search history",
+                                    modifier = Modifier.size(24.dp),
+                                    tint = ContentPrimary
+                                )
+                            }
+                        }
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Chat Sessions Grouped List
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -285,26 +322,41 @@ fun SwipeToDismissChatSessionItem(
             .fillMaxWidth()
             .clip(RoundedCornerShape(CornerMedium))
     ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color(0xFFE53935))
-                .padding(start = 16.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_delete),
-                contentDescription = "Delete Chat",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+        // 1. Only render the red background if the item has actually been dragged
+        if (offsetX.value > 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clip(RoundedCornerShape(CornerMedium)) // Clip FIRST
+                    .background(Color(0xFFE53935))          // Then apply background
+                    .padding(start = 16.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_delete),
+                    contentDescription = "Delete Chat",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
         }
 
+        val rowBackgroundColor = remember(isSelected) {
+            if (isSelected) {
+                // Blends 45% white over the sidebar purple background to produce a solid opaque color
+                Color.White.copy(alpha = 0.45f).compositeOver(Color(0xFFEFE4F8))
+            } else {
+                Color(0xFFEFE4F8)
+            }
+        }
+
+        // Foreground content
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(x = offsetX.value.roundToInt(), y = 0) }
-                .background(if (isSelected) SurfaceBrandSecondary else Color.Transparent)
+                .clip(RoundedCornerShape(CornerMedium)) // Clip foreground to match
+                .background(rowBackgroundColor)
                 .pointerInput(session.id) {
                     itemWidthPx = size.width.toFloat()
                     detectHorizontalDragGestures(
@@ -348,12 +400,12 @@ fun SwipeToDismissChatSessionItem(
                     )
                 }
                 .clickable { onSelectChat() }
-                .padding(vertical = 12.dp, horizontal = 12.dp),
+                .padding(vertical = 10.dp, horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = session.title,
-                style = JasnifyTheme.typography.labelXLarge,
+                style = JasnifyTheme.typography.headingMedium,
                 color = if (isSelected) ContentBrandDark else ContentPrimary,
                 maxLines = 1,
                 modifier = Modifier.weight(1f)

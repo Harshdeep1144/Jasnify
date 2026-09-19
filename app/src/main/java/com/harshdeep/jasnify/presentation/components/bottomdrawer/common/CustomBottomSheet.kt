@@ -32,7 +32,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -47,7 +46,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -55,7 +53,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -130,7 +127,6 @@ fun CustomBottomSheet(
 
     val density = LocalDensity.current
     val coroutineScope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
 
     // Dynamic height fallback calculation
     val defaultHeightPx = with(density) { (sheetHeight ?: 400.dp).toPx() + 80.dp.toPx() }
@@ -161,23 +157,6 @@ fun CustomBottomSheet(
     val sheetOffsetY = remember { Animatable(defaultHeightPx) }
     var isDismissing by remember { mutableStateOf(false) }
 
-    // Tracks if close vibration has already fired to avoid duplicate vibrations
-    var hasVibratedOnClose by remember { mutableStateOf(false) }
-
-    val triggerCloseHaptic = {
-        if (!hasVibratedOnClose) {
-            hasVibratedOnClose = true
-            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        }
-    }
-
-    // Guarantees vibration whenever the bottom sheet leaves the composition for any reason
-    DisposableEffect(Unit) {
-        onDispose {
-            triggerCloseHaptic()
-        }
-    }
-
     // Calculate normalized progress (0f = fully open, 1f = fully down/hidden)
     val progress = (sheetOffsetY.value / actualSheetHeightPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
     val scrimAlpha = (0.55f * (1f - progress)).coerceIn(0f, 0.55f)
@@ -190,7 +169,6 @@ fun CustomBottomSheet(
         // Auto-dismiss if we've reached the bottom, and we are in dismissing state
         // This is a safety measure in case the animation coroutine was interrupted
         if (progress >= 1f && isDismissing) {
-            triggerCloseHaptic()
             onDismiss()
         }
     }
@@ -199,7 +177,6 @@ fun CustomBottomSheet(
     val dismissWithAnimation: (velocity: Float) -> Unit = { velocity ->
         if (!isDismissing) {
             isDismissing = true
-            triggerCloseHaptic()
             coroutineScope.launch {
                 try {
                     sheetOffsetY.animateTo(
@@ -216,7 +193,6 @@ fun CustomBottomSheet(
 
     // Entrance animation when sheet becomes visible
     LaunchedEffect(Unit) {
-        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         sheetOffsetY.snapTo(actualSheetHeightPx)
         sheetOffsetY.animateTo(
             targetValue = 0f,

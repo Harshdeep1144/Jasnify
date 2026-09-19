@@ -105,7 +105,7 @@ fun TopBarIconButton(
         TopIcon.Predefined.CHECKLIST -> painterResource(R.drawable.ic_checklists)
         TopIcon.Predefined.HEART -> painterResource(R.drawable.ic_top_bar_heart)
         TopIcon.Predefined.HEART_FILLED -> painterResource(R.drawable.ic_heart_filled)
-        TopIcon.Predefined.CHAT -> painterResource(R.drawable.ic_message)
+        TopIcon.Predefined.CHAT -> painterResource(R.drawable.ic_message_round)
         TopIcon.Predefined.DELETE -> painterResource(R.drawable.ic_delete)
         is TopIcon.CustomPainter -> icon.painter
     }
