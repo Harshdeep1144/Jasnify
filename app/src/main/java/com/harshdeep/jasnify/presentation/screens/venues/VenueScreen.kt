@@ -100,6 +100,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBot
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.filter.FilterButton
@@ -317,11 +318,15 @@ fun VenueScreen(
         }
     }
 
-    val exploreVenues = remember(allVenues, currentAddress) {
-        if (currentAddress.isBlank() || currentAddress == "City, State") {
+    val exploreVenues = remember(allVenues, currentAddress, venueSavedDestinations) {
+        val base = if (currentAddress.isBlank() || currentAddress == "City, State") {
             allVenues
         } else {
             allVenues.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, currentAddress) }
+        }
+        base.map { venue ->
+            val isSaved = venueSavedDestinations.containsKey(venue.id) || venueSavedDestinations.containsKey(venue.name)
+            venue.copy(favorite = isSaved)
         }
     }
 
@@ -460,8 +465,8 @@ fun VenueScreen(
         label = "backdropCornerRadius"
     )
 
-    val isSavedListToast = remember(toastData?.message, lastSavedVenue) {
-        toastData?.message?.contains("Saved List") == true && lastSavedVenue != null
+    val isSavedListToast = remember(toastData?.message) {
+        toastData?.message?.contains("Saved List") == true
     }
 
     val isOwner = activeEvent?.ownerId == currentUserUid
@@ -474,12 +479,13 @@ fun VenueScreen(
     val isViewer = currentUserRole == UserRole.VIEWER
 
     val handleFavoriteToggle: (Venue) -> Unit = { venue ->
-        val alreadySaved = venueSavedDestinations.containsKey(venue.name)
+        activeTargetVenue = venue
+        lastSavedVenue = venue
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name) || venueSavedDestinations.containsKey(venue.id)
         if (alreadySaved) {
             if (activeEvent?.multiDay == true) {
-                activeTargetVenue = venue
-                val currentDestination = venueSavedDestinations[venue.name]
-                isMySavedListChecked = currentDestination == "mysaved"
+                val currentDestination = venueSavedDestinations[venue.name] ?: venueSavedDestinations[venue.id]
+                isMySavedListChecked = currentDestination == "mysaved" || currentDestination == null
                 selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
                 showSaveListBottomSheet = true
             } else {
@@ -488,7 +494,6 @@ fun VenueScreen(
             }
         } else {
             venueViewModel.toggleSaveVenue(venue.name, venue.id, isViewer, "mysaved")
-            lastSavedVenue = venue
             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
@@ -583,14 +588,13 @@ fun VenueScreen(
                                     }
                                     VenueDetailScreen(
                                         venueDetail = detailData,
+                                        venueViewModel = venueViewModel,
                                         onBackClick = {
                                             selectedVenueForDetail = null
                                             venueViewModel.setSelectedVenueId(null)
                                             screenStack = screenStack.dropLast(1)
                                         },
-                                        onFavoriteToggle = {
-                                            handleFavoriteToggle(detailData)
-                                        },
+                                        onFavoriteToggle = { },
                                         onChatClick = { venueChat ->
                                             onChatClick(venueChat)
                                         },
@@ -598,6 +602,8 @@ fun VenueScreen(
                                             aiChatInitialContext = query
                                             showAiChat = true
                                         },
+                                        isMultiDayEvent = activeEvent?.multiDay == true,
+                                        timelineEvents = timelineEvents,
                                         modifier = Modifier.fillMaxSize()
                                     )
                                 }
@@ -611,7 +617,6 @@ fun VenueScreen(
                                         selectedVenueForDetail = venue
                                         venueViewModel.setSelectedVenueId(venue.id)
                                         screenStack = screenStack + VenueScreenState.VENUE_DETAIL
-                                        onVenueClick(venue)
                                     },
                                     onLocationSelectorClick = {
                                         screenStack = screenStack + VenueScreenState.LOCATION_PICKER

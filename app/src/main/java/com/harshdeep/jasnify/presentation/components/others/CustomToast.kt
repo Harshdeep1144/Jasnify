@@ -69,11 +69,13 @@ fun CustomToast(
     onButtonClick: (() -> Unit)? = null,
     durationMillis: Int = 2000
 ) {
-    val backgroundColor = when (type) {
+    val baseBackgroundColor = when (type) {
         ToastType.DEFAULT -> Color(0xFF555555)
         ToastType.SUCCESS -> Color(0xFF26843D)
         ToastType.ERROR -> Color(0xFFA32626)
     }
+    // 80% opacity for the toast background
+    val backgroundColor = baseBackgroundColor.copy(alpha = 0.9f)
 
     val contentColor = ContentInvPrimary
     val buttonColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f)
