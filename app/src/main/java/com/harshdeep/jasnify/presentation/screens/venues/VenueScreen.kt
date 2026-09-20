@@ -194,6 +194,7 @@ fun VenueScreen(
     val recentLocations = remember { LocationHelper.getRecentLocations(context) }
     var showAiChat by remember { mutableStateOf(false) }
     var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
+    var aiChatInitialMessage by remember { mutableStateOf<String?>(null) }
 
     // Initialize SessionState.currentLocation if it's default
     val initializedLocation = remember(context) {
@@ -599,7 +600,7 @@ fun VenueScreen(
                                             onChatClick(venueChat)
                                         },
                                         onAiSearchClick = { query ->
-                                            aiChatInitialContext = query
+                                            aiChatInitialMessage = query
                                             showAiChat = true
                                         },
                                         isMultiDayEvent = activeEvent?.multiDay == true,
@@ -913,10 +914,12 @@ fun VenueScreen(
             AiChatScreen(
                 eventId = activeEvent?.id,
                 initialContext = aiChatInitialContext,
+                initialMessage = aiChatInitialMessage,
                 shouldStartNewSession = true,
                 onBackClick = {
                     showAiChat = false
                     aiChatInitialContext = null
+                    aiChatInitialMessage = null
                 },
                 mainNavController = null
             )

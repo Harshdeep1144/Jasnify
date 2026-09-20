@@ -157,6 +157,7 @@ fun AiChatScreen(
     modifier: Modifier = Modifier,
     eventId: String? = null,
     initialContext: String? = null,
+    initialMessage: String? = null,
     shouldStartNewSession: Boolean = false,
     viewModel: GenerativeViewModel = hiltViewModel(),
     eventViewModel: EventViewModel = hiltViewModel(),
@@ -203,9 +204,15 @@ fun AiChatScreen(
     val chatSessions by viewModel.chatSessions.collectAsStateWithLifecycle()
     val currentChatId by viewModel.currentChatId.collectAsStateWithLifecycle()
 
-    LaunchedEffect(Unit) {
+    var autoSentMessage by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(initialMessage, shouldStartNewSession) {
         if (shouldStartNewSession) {
             viewModel.createNewChatSession()
+        }
+        if (!initialMessage.isNullOrBlank() && autoSentMessage != initialMessage) {
+            autoSentMessage = initialMessage
+            viewModel.sendMessage(initialMessage)
         }
     }
 
@@ -531,7 +538,7 @@ fun AiChatScreen(
         }
     }
 
-    val isDockedAtBottom = displayedMessages.isNotEmpty() || isVoiceMode
+    val isDockedAtBottom = displayedMessages.isNotEmpty() || isVoiceMode || !initialMessage.isNullOrBlank()
     val dockProgress by animateFloatAsState(
         targetValue = if (isDockedAtBottom) 1f else 0f,
         animationSpec = spring(

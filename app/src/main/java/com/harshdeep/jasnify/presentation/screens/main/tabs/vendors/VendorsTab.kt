@@ -145,6 +145,7 @@ fun VendorsTab(
     val focusManager = LocalFocusManager.current
     var showAiChat by remember { mutableStateOf(false) }
     var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
+    var aiChatInitialMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -615,7 +616,7 @@ fun VendorsTab(
                                     onFavoriteToggle = { },
                                     onChatClick = { onChatClick(it) },
                                     onAiSearchClick = { query ->
-                                        aiChatInitialContext = query
+                                        aiChatInitialMessage = query
                                         showAiChat = true
                                     },
                                     isMultiDayEvent = activeEvent?.multiDay == true,
@@ -755,10 +756,12 @@ fun VendorsTab(
                     AiChatScreen(
                         eventId = activeEventId,
                         initialContext = aiChatInitialContext,
+                        initialMessage = aiChatInitialMessage,
                         shouldStartNewSession = true,
                         onBackClick = { 
                             showAiChat = false
                             aiChatInitialContext = null
+                            aiChatInitialMessage = null
                         },
                         mainNavController = mainNavController
                     )

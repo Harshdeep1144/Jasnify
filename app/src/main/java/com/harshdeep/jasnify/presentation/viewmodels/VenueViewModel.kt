@@ -19,7 +19,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @HiltViewModel
 class VenueViewModel @Inject constructor(
     private val repository: VenueRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val userRepository: com.harshdeep.jasnify.domain.repository.UserRepository
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -86,10 +87,20 @@ class VenueViewModel @Inject constructor(
                 }.awaitAll()
 
                 val user = auth.currentUser
+                val userProfile = user?.uid?.let { uid -> userRepository.getUserProfile(uid) }
+
+                val resolvedName = userProfile?.name?.ifBlank { null }
+                    ?: userProfile?.username?.ifBlank { null }
+                    ?: user?.displayName?.ifBlank { null }
+                    ?: "Anonymous"
+
+                val resolvedAvatar = userProfile?.profilePictureUrl?.ifBlank { null }
+                    ?: user?.photoUrl?.toString()
+
                 val review = VenueReview(
                     userId = user?.uid ?: "",
-                    userName = user?.displayName ?: "Anonymous",
-                    userAvatarUrl = user?.photoUrl?.toString(),
+                    userName = resolvedName,
+                    userAvatarUrl = resolvedAvatar,
                     rating = rating,
                     reviewText = text,
                     attachedImages = uploadedUrls,

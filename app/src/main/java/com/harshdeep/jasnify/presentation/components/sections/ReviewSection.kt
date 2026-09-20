@@ -702,10 +702,15 @@ fun RatingSurface(
         else -> Color(0xFFF44336)
     }
 
-    val displayRating = if (ratingValue % 1.0 == 0.0) {
-        ratingValue.toInt().toString()
-    } else {
-        rating
+    val displayRating = remember(rating) {
+        val num = rating.toDoubleOrNull() ?: 0.0
+        if (num == 0.0) {
+            rating
+        } else if (num % 1.0 == 0.0) {
+            num.toInt().toString()
+        } else {
+            String.format(java.util.Locale.ENGLISH, "%.1f", num)
+        }
     }
 
     Surface(
@@ -757,8 +762,18 @@ fun RatingDistributionSummaryBlock(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val displaySummaryRating = remember(ratingValue) {
+                    val num = ratingValue.toDoubleOrNull() ?: 0.0
+                    if (num == 0.0) {
+                        ratingValue
+                    } else if (num % 1.0 == 0.0) {
+                        num.toInt().toString()
+                    } else {
+                        String.format(java.util.Locale.ENGLISH, "%.1f", num)
+                    }
+                }
                 Text(
-                    text = ratingValue,
+                    text = displaySummaryRating,
                     style = JasnifyTheme.typography.displayLarge,
                     color = ContentPrimary,
                     fontWeight = FontWeight.Medium
@@ -877,8 +892,18 @@ fun AttachedImagesPreviewRow(
 
 @Composable
 fun RatingBreakdownItem(rating: String, label: String, modifier: Modifier = Modifier) {
+    val formattedRating = remember(rating) {
+        val num = rating.toDoubleOrNull() ?: 0.0
+        if (num == 0.0) {
+            rating
+        } else if (num % 1.0 == 0.0) {
+            num.toInt().toString()
+        } else {
+            String.format(java.util.Locale.ENGLISH, "%.1f", num)
+        }
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        Text(rating, style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium), color = ContentSecondary)
+        Text(formattedRating, style = JasnifyTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium), color = ContentSecondary)
         Text(label, style = JasnifyTheme.typography.labelSmall, color = ContentSecondary)
     } 
 }
