@@ -184,48 +184,67 @@ fun DatePickerSlider(
     selectedDate: LocalDate,
     onDateChanged: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
-    yearRange: IntRange = LocalDate.now().year..(LocalDate.now().year + 5),
+    minDate: LocalDate = LocalDate.now(),
+    maxYear: Int = 2040,
+    yearRange: IntRange = minDate.year..maxOf(minDate.year, maxYear),
     itemHeight: Dp = 60.dp,
     visibleItems: Int = 3
 ) {
+    val effectiveSelectedDate = remember(selectedDate, minDate) {
+        if (selectedDate.isBefore(minDate)) minDate else selectedDate
+    }
+
     val years = remember(yearRange) { yearRange.toList() }
-    val months = remember { Month.entries.toList() }
 
-    val daysInMonth by remember(selectedDate.year, selectedDate.month) {
-        derivedStateOf { selectedDate.lengthOfMonth() }
-    }
-    val days by remember(daysInMonth) {
-        derivedStateOf { (1..daysInMonth).toList() }
+    val availableMonths = remember(effectiveSelectedDate.year, minDate) {
+        if (effectiveSelectedDate.year == minDate.year) {
+            Month.entries.filter { it.value >= minDate.monthValue }
+        } else {
+            Month.entries.toList()
+        }
     }
 
-    val initialYearIndex = remember { years.indexOf(selectedDate.year).coerceAtLeast(0) }
-    val initialMonthIndex = remember { months.indexOf(selectedDate.month).coerceAtLeast(0) }
-    val initialDayIndex = remember { (selectedDate.dayOfMonth - 1).coerceIn(0, daysInMonth - 1) }
+    val daysInMonth = remember(effectiveSelectedDate.year, effectiveSelectedDate.month) {
+        effectiveSelectedDate.lengthOfMonth()
+    }
+
+    val availableDays = remember(effectiveSelectedDate.year, effectiveSelectedDate.month, minDate, daysInMonth) {
+        val startDay = if (effectiveSelectedDate.year == minDate.year && effectiveSelectedDate.month == minDate.month) {
+            minDate.dayOfMonth
+        } else {
+            1
+        }
+        (startDay..daysInMonth).toList()
+    }
+
+    val initialYearIndex = remember { years.indexOf(effectiveSelectedDate.year).coerceAtLeast(0) }
+    val initialMonthIndex = remember { availableMonths.indexOf(effectiveSelectedDate.month).coerceAtLeast(0) }
+    val initialDayIndex = remember { availableDays.indexOf(effectiveSelectedDate.dayOfMonth).coerceAtLeast(0) }
 
     val yearScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialYearIndex)
     val monthScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialMonthIndex)
     val dayScrollState = rememberLazyListState(initialFirstVisibleItemIndex = initialDayIndex)
 
     var isProgrammaticScroll by remember { mutableStateOf(false) }
-    var lastScrollReportedDate by remember { mutableStateOf(selectedDate) }
+    var lastScrollReportedDate by remember { mutableStateOf(effectiveSelectedDate) }
 
     // Synchronize scroll states if selectedDate updates from external caller
-    LaunchedEffect(selectedDate, years, days) {
-        if (selectedDate != lastScrollReportedDate) {
+    LaunchedEffect(effectiveSelectedDate, years, availableMonths, availableDays) {
+        if (effectiveSelectedDate != lastScrollReportedDate) {
             isProgrammaticScroll = true
-            lastScrollReportedDate = selectedDate
+            lastScrollReportedDate = effectiveSelectedDate
 
-            val yearIndex = years.indexOf(selectedDate.year)
+            val yearIndex = years.indexOf(effectiveSelectedDate.year)
             if (yearIndex != -1 && !yearScrollState.isScrollInProgress) {
                 yearScrollState.scrollToItem(yearIndex)
             }
 
-            val monthIndex = months.indexOf(selectedDate.month)
+            val monthIndex = availableMonths.indexOf(effectiveSelectedDate.month)
             if (monthIndex != -1 && !monthScrollState.isScrollInProgress) {
                 monthScrollState.scrollToItem(monthIndex)
             }
 
-            val dayIndex = days.indexOf(selectedDate.dayOfMonth)
+            val dayIndex = availableDays.indexOf(effectiveSelectedDate.dayOfMonth)
             if (dayIndex != -1 && !dayScrollState.isScrollInProgress) {
                 dayScrollState.scrollToItem(dayIndex)
             }
@@ -234,10 +253,21 @@ fun DatePickerSlider(
         }
     }
 
-    // Coerce day index if month changes to one with fewer days (e.g., Jan 31 -> Feb)
-    LaunchedEffect(days) {
+    // Coerce month index if available months list shrinks
+    LaunchedEffect(availableMonths) {
+        val currentMonthIndex = monthScrollState.firstVisibleItemIndex
+        val maxMonthIndex = (availableMonths.size - 1).coerceAtLeast(0)
+        if (currentMonthIndex > maxMonthIndex) {
+            isProgrammaticScroll = true
+            monthScrollState.scrollToItem(maxMonthIndex)
+            isProgrammaticScroll = false
+        }
+    }
+
+    // Coerce day index if available days list shrinks
+    LaunchedEffect(availableDays) {
         val currentDayIndex = dayScrollState.firstVisibleItemIndex
-        val maxDayIndex = days.size - 1
+        val maxDayIndex = (availableDays.size - 1).coerceAtLeast(0)
         if (currentDayIndex > maxDayIndex) {
             isProgrammaticScroll = true
             dayScrollState.scrollToItem(maxDayIndex)
@@ -245,18 +275,30 @@ fun DatePickerSlider(
         }
     }
 
-    val updateDateValue = remember(selectedDate, onDateChanged) {
+    val updateDateValue = remember(effectiveSelectedDate, minDate, availableMonths, availableDays, onDateChanged) {
         { newYear: Int?, newMonth: Month?, newDay: Int? ->
             try {
-                val year = newYear ?: selectedDate.year
-                val month = newMonth ?: selectedDate.month
-                val day = newDay ?: selectedDate.dayOfMonth
+                val targetYear = newYear ?: effectiveSelectedDate.year
 
-                val maxDay = LocalDate.of(year, month, 1).lengthOfMonth()
-                val finalDay = day.coerceAtMost(maxDay)
+                val validMonths = if (targetYear == minDate.year) {
+                    Month.entries.filter { it.value >= minDate.monthValue }
+                } else {
+                    Month.entries.toList()
+                }
+                val requestedMonth = newMonth ?: effectiveSelectedDate.month
+                val targetMonth = if (requestedMonth in validMonths) requestedMonth else validMonths.first()
 
-                val calculatedDate = LocalDate.of(year, month, finalDay)
-                if (calculatedDate != selectedDate) {
+                val maxDay = LocalDate.of(targetYear, targetMonth, 1).lengthOfMonth()
+                val startDay = if (targetYear == minDate.year && targetMonth == minDate.month) minDate.dayOfMonth else 1
+                val requestedDay = newDay ?: effectiveSelectedDate.dayOfMonth
+                val targetDay = requestedDay.coerceIn(startDay, maxDay)
+
+                var calculatedDate = LocalDate.of(targetYear, targetMonth, targetDay)
+                if (calculatedDate.isBefore(minDate)) {
+                    calculatedDate = minDate
+                }
+
+                if (calculatedDate != effectiveSelectedDate) {
                     lastScrollReportedDate = calculatedDate
                     onDateChanged(calculatedDate)
                 }
@@ -316,7 +358,7 @@ fun DatePickerSlider(
 
                 // Month Column
                 DatePickerColumn(
-                    items = months,
+                    items = availableMonths,
                     scrollState = monthScrollState,
                     itemHeight = itemHeight,
                     visibleItems = visibleItems,
@@ -330,7 +372,7 @@ fun DatePickerSlider(
 
                 // Day Column
                 DatePickerColumn(
-                    items = days,
+                    items = availableDays,
                     scrollState = dayScrollState,
                     itemHeight = itemHeight,
                     visibleItems = visibleItems,
@@ -361,11 +403,16 @@ fun DatePickerSheet(
     onDismiss: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
     initialDate: LocalDate = LocalDate.now(),
+    minDate: LocalDate = LocalDate.now(),
+    maxYear: Int = 2040,
     isVisible: Boolean = true,
     onProgress: ((Float) -> Unit)? = null
 ) {
     val context = LocalContext.current
-    var selectedDate by remember { mutableStateOf(initialDate) }
+    val effectiveInitialDate = remember(initialDate, minDate) {
+        if (initialDate.isBefore(minDate)) minDate else initialDate
+    }
+    var selectedDate by remember(effectiveInitialDate) { mutableStateOf(effectiveInitialDate) }
 
     CustomBottomSheet(
         heading = "Pick a date",
@@ -373,7 +420,7 @@ fun DatePickerSheet(
         isVisible = isVisible,
         sheetHeight = 336.dp,
         sheetGesturesEnabled = false,
-        showDragHandle = false,
+        showDragHandle = true,
         onProgress = onProgress
     ) {
         Column(
@@ -388,6 +435,8 @@ fun DatePickerSheet(
             ) {
                 DatePickerSlider(
                     selectedDate = selectedDate,
+                    minDate = minDate,
+                    maxYear = maxYear,
                     onDateChanged = { newDate ->
                         selectedDate = newDate
                     },

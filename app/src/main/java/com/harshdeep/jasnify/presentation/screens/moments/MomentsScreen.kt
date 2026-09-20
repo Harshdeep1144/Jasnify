@@ -224,9 +224,9 @@ fun MomentsScreen(
             steps.add(
                 OnboardingStep(
                     stepKey = "room_group_chat",
-                    title = "Room Group Chat",
-                    description = "Tap here to open group chat with your room members and stay connected!",
-                    iconRes = R.drawable.ic_message,
+                    title = "Room Chats",
+                    description = "Tap to view & manage dedicated chat group for this room.",
+                    iconRes = R.drawable.ill_room_chat,
                     isCircleHighlight = true
                 )
             )
@@ -234,9 +234,9 @@ fun MomentsScreen(
         steps.add(
             OnboardingStep(
                 stepKey = "moments_add_button",
-                title = "Add Moments & Albums",
-                description = "Tap the + button to upload photos, videos, or create custom photo albums!",
-                iconRes = R.drawable.ill_vendor_grooming,
+                title = "Add Moments",
+                description = "Tap to add photos and videos, or create new album to organize your moments.",
+                iconRes = R.drawable.ill_moments_card,
                 isCircleHighlight = true
             )
         )

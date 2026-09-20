@@ -329,9 +329,9 @@ fun BudgetScreen(
             steps.add(
                 OnboardingStep(
                     stepKey = "room_group_chat",
-                    title = "Room Group Chat",
-                    description = "Tap here to open group chat with your room members and stay connected!",
-                    iconRes = R.drawable.ic_message,
+                    title = "Room Chats",
+                    description = "Tap to view & manage dedicated chat group for this room.",
+                    iconRes = R.drawable.ill_room_chat,
                     isCircleHighlight = true
                 )
             )
@@ -339,9 +339,9 @@ fun BudgetScreen(
         steps.add(
             OnboardingStep(
                 stepKey = "budget_add_expense",
-                title = "Add Expense",
-                description = "Tap the + button to record new expenses and keep track of your payments!",
-                iconRes = R.drawable.ill_budget_tracker_card,
+                title = "Add Expenses",
+                description = "Tap to add new expenses and keep track of them easily.",
+                iconRes = R.drawable.ill_add_expenses,
                 isCircleHighlight = true
             )
         )
@@ -349,8 +349,8 @@ fun BudgetScreen(
             OnboardingStep(
                 stepKey = "budget_view_summary",
                 title = "View Summary",
-                description = "Check detailed expense breakdowns, category analytics, and charts!",
-                iconRes = R.drawable.ill_cards_and_guests_card,
+                description = "Tap to check out your category-wise total expenses & insights.",
+                iconRes = R.drawable.ill_expense_summary,
                 highlightPadding = 4.dp,
                 shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
         )
@@ -359,8 +359,8 @@ fun BudgetScreen(
             OnboardingStep(
                 stepKey = "budget_manage_categories",
                 title = "Manage Categories",
-                description = "Tap here to customize, edit, or add custom budget categories!",
-                iconRes = R.drawable.ill_vendor_grooming,
+                description = "Tap here to add, change or remove your expense categories.",
+                iconRes = R.drawable.ill_manage_categories,
                 highlightPadding = 4.dp,
                 shape = CircleShape
             )
@@ -368,9 +368,9 @@ fun BudgetScreen(
         steps.add(
             OnboardingStep(
                 stepKey = "budget_categories_card",
-                title = "Budget Categories",
-                description = "Explore your category spending details and manage expenses!",
-                iconRes = R.drawable.ill_budget_tracker_card,
+                title = "Expense Category",
+                description = "Tap to check out the expenses for each category separately.",
+                iconRes = R.drawable.ill_expense_category,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
             )

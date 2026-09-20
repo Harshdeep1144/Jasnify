@@ -205,16 +205,16 @@ fun ProfileTab(
             OnboardingStep(
                 stepKey = "profile_manage_events",
                 title = "Manage Events",
-                description = "Tap here to view, manage, or switch between all your created and joined events!",
-                iconRes = R.drawable.ill_vendor_grooming,
+                description = "Tap to view, manage, or switch between all the events you’ve created or joined.",
+                iconRes = R.drawable.ill_manage_events,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
             ),
             OnboardingStep(
                 stepKey = "profile_create_join_event",
-                title = "Join or Create Event",
-                description = "Tap here to quickly create a new event or join an existing event using a code!",
-                iconRes = R.drawable.ill_cards_and_guests_card,
+                title = "Join or Create an event",
+                description = "Tap here to create a new event or jump into an existing one using the event code.",
+                iconRes = R.drawable.ill_new_event,
                 highlightPadding = 4.dp,
                 shape = CircleShape
             )

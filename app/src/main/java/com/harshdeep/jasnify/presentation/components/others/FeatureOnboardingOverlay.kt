@@ -105,15 +105,33 @@ data class OnboardingStep(
     val cardYShift: Dp = 0.dp
 )
 
+@Composable
 fun Modifier.onboardingTarget(
     stepKey: String,
     currentStepKey: String?,
     onTargetPositioned: (Rect) -> Unit
-): Modifier = this.onGloballyPositioned { coordinates ->
-    if (stepKey == currentStepKey && coordinates.isAttached) {
-        val bounds = coordinates.boundsInWindow()
-        if (bounds.width > 0 && bounds.height > 0) {
-            onTargetPositioned(bounds)
+): Modifier {
+    var coordinates by remember { mutableStateOf<androidx.compose.ui.layout.LayoutCoordinates?>(null) }
+
+    LaunchedEffect(currentStepKey, coordinates) {
+        if (stepKey == currentStepKey) {
+            val coords = coordinates
+            if (coords != null && coords.isAttached) {
+                val bounds = coords.boundsInWindow()
+                if (bounds.width > 0 && bounds.height > 0) {
+                    onTargetPositioned(bounds)
+                }
+            }
+        }
+    }
+
+    return this.onGloballyPositioned { newCoords ->
+        coordinates = newCoords
+        if (stepKey == currentStepKey && newCoords.isAttached) {
+            val bounds = newCoords.boundsInWindow()
+            if (bounds.width > 0 && bounds.height > 0) {
+                onTargetPositioned(bounds)
+            }
         }
     }
 }
@@ -468,7 +486,7 @@ fun FeatureOnboardingOverlayPreview() {
                 stepKey = "search_bar",
                 title = "Track Event Budget",
                 description = "Set your budget, add expenses, keep track of your finances.",
-                iconRes = R.drawable.ill_vendor_grooming,
+                iconRes = R.drawable.ill_moments_card,
                 highlightPadding = 12.dp,
                 isCircleHighlight = false
             ),

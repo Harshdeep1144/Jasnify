@@ -118,17 +118,17 @@ fun HomeMainView(
         listOf(
             OnboardingStep(
                 stepKey = "home_menu_button",
-                title = "Event Details & Settings",
-                description = "Tap the menu button to manage event details, invite members, or switch rooms!",
-                iconRes = R.drawable.ill_vendor_grooming,
+                title = "Event Details",
+                description = "Tap to view event type, timelines & more.",
+                iconRes = R.drawable.ill_event_details,
                 isCircleHighlight = true,
                 shape = CircleShape,
                 arrowXShift = (-24).dp
             ),
             OnboardingStep(
                 stepKey = "home_budget_card",
-                title = "Track Your Budget",
-                description = "Monitor your spending, manage funds, and keep track of remaining budget at a glance!",
+                title = "Track Event Budget",
+                description = "Set your budget, add expenses, keep track of your finances.",
                 iconRes = R.drawable.ill_budget_tracker_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
@@ -137,7 +137,7 @@ fun HomeMainView(
             OnboardingStep(
                 stepKey = "home_catering_card",
                 title = "Catering Menu",
-                description = "Explore custom dishes, food choices, and drinks for your event!",
+                description = "Add and keep track of your favorite dishes, foods, and drinks.",
                 iconRes = R.drawable.ill_catering_menu_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
@@ -145,8 +145,8 @@ fun HomeMainView(
             ),
             OnboardingStep(
                 stepKey = "home_venue_card",
-                title = "Venue Selection",
-                description = "Discover and manage perfect event spaces and locations!",
+                title = "Discover Venues",
+                description = "Check out venues, see what they offer, and chat with them right in the app.",
                 iconRes = R.drawable.ill_venue_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
@@ -154,8 +154,8 @@ fun HomeMainView(
             ),
             OnboardingStep(
                 stepKey = "home_moments_card",
-                title = "Capture Moments",
-                description = "Upload photos, videos, and create event memory albums!",
+                title = "Share Moments",
+                description = "Upload images & videos from the events and share with guests.",
                 iconRes = R.drawable.ill_moments_card,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
@@ -164,8 +164,8 @@ fun HomeMainView(
             OnboardingStep(
                 stepKey = "home_cards_card",
                 title = "Invitation Cards",
-                description = "Design and send digital invitation cards to your guests!",
-                iconRes = R.drawable.ill_cards_and_guests_card,
+                description = "Explore Templates, Edit and Send beautiful digital cards.",
+                iconRes = R.drawable.ill_invitation_cards,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
                 forceCardAbove = false
@@ -409,7 +409,7 @@ fun HomeMainView(
                             HomeCard(
                                 insight = "Invite and Celebrate",
                                 heading = "Cards",
-                                illustration = painterResource(R.drawable.ill_cards_and_guests_card),
+                                illustration = painterResource(R.drawable.ill_invitation_cards),
                                 modifier = Modifier
                                     .weight(1f)
                                     .onboardingTarget("home_cards_card", currentHomeStepKey) {

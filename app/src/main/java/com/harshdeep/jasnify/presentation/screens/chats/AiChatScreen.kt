@@ -770,7 +770,7 @@ fun AiChatScreen(
                                 Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
-                                    text = "What can I do for you?",
+                                    text = "How can I help you today?",
                                     style = JasnifyTheme.typography.displayMedium.copy(
                                         fontWeight = FontWeight.Medium,
                                         fontSize = 26.sp

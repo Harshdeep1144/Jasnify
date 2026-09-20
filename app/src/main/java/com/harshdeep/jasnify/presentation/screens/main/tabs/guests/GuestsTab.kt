@@ -261,9 +261,9 @@ fun GuestsTab(
             steps.add(
                 OnboardingStep(
                     stepKey = "room_group_chat",
-                    title = "Room Group Chat",
-                    description = "Tap here to open group chat with your room members and stay connected!",
-                    iconRes = R.drawable.ic_message,
+                    title = "Room Chats",
+                    description = "Tap to view & manage dedicated chat group for this room.",
+                    iconRes = R.drawable.ill_room_chat,
                     isCircleHighlight = true
                 )
             )
@@ -271,9 +271,9 @@ fun GuestsTab(
         steps.add(
             OnboardingStep(
                 stepKey = "guests_add_button",
-                title = "Add More Guests",
-                description = "Tap the + button next to search to quickly add new guests or import contacts!",
-                iconRes = R.drawable.ill_guests,
+                title = "Add Guests ",
+                description = "Tap to quickly add or import new guests to the guest list of guests.",
+                iconRes = R.drawable.ill_add_guests,
                 isCircleHighlight = true
             )
         )
