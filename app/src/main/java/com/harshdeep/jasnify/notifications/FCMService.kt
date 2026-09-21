@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.harshdeep.jasnify.data.local.prefs.PreferenceManager
 import com.harshdeep.jasnify.notifications.model.NotificationConfig
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,9 @@ class FCMService : FirebaseMessagingService() {
 
     @Inject
     lateinit var remoteUIManager: RemoteUIManager
+    
+    @Inject
+    lateinit var preferenceManager: PreferenceManager
 
     private lateinit var notificationHelper: NotificationHelper
 
@@ -57,6 +61,7 @@ class FCMService : FirebaseMessagingService() {
                 )
 
                 if (config.uiType == "bottomSheet") {
+                    preferenceManager.savePendingBottomSheet(config)
                     remoteUIManager.triggerBottomSheet(config)
                 } else {
                     notificationHelper.showNotification(config)
@@ -76,6 +81,7 @@ class FCMService : FirebaseMessagingService() {
                 val config = document.toObject(NotificationConfig::class.java)
                 if (config != null) {
                     if (config.uiType == "bottomSheet") {
+                        preferenceManager.savePendingBottomSheet(config)
                         remoteUIManager.triggerBottomSheet(config)
                     } else {
                         notificationHelper.showNotification(config)

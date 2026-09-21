@@ -74,10 +74,21 @@ class MainActivity : ComponentActivity() {
             var showRemoteBottomSheet by remember { mutableStateOf(false) }
             var activeConfig by remember { mutableStateOf<NotificationConfig?>(null) }
 
+            // Check for pending bottom sheet on launch
+            LaunchedEffect(Unit) {
+                val pendingConfig = preferenceManager.getPendingBottomSheet()
+                if (pendingConfig != null) {
+                    activeConfig = pendingConfig
+                    showRemoteBottomSheet = true
+                    preferenceManager.clearPendingBottomSheet()
+                }
+            }
+
             LaunchedEffect(remoteUIConfig) {
                 remoteUIConfig?.let {
                     activeConfig = it
                     showRemoteBottomSheet = true
+                    preferenceManager.clearPendingBottomSheet()
                 }
             }
             

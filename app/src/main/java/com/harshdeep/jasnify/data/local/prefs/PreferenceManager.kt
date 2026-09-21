@@ -7,9 +7,11 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import androidx.core.content.edit
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.harshdeep.jasnify.notifications.model.NotificationConfig
 
   @Singleton
 class PreferenceManager @Inject constructor(
@@ -136,6 +138,24 @@ class PreferenceManager @Inject constructor(
         sharedPreferences.edit { putBoolean("has_seen_group_chat_onboarding", seen) }
     }
 
+    fun savePendingBottomSheet(config: NotificationConfig) {
+        val json = Gson().toJson(config)
+        sharedPreferences.edit { putString(KEY_PENDING_BOTTOM_SHEET, json) }
+    }
+
+    fun getPendingBottomSheet(): NotificationConfig? {
+        val json = sharedPreferences.getString(KEY_PENDING_BOTTOM_SHEET, null) ?: return null
+        return try {
+            Gson().fromJson(json, NotificationConfig::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun clearPendingBottomSheet() {
+        sharedPreferences.edit { remove(KEY_PENDING_BOTTOM_SHEET) }
+    }
+
     companion object {
         private const val KEY_NAV_BAR_STYLE = "nav_bar_style"
         private const val KEY_DOWNLOAD_QUALITY = "download_quality"
@@ -148,5 +168,6 @@ class PreferenceManager @Inject constructor(
         private const val KEY_HAS_USER_MANUALLY_TOGGLED_NOTIFICATIONS = "has_user_manually_toggled_notifications"
         private const val KEY_SESSION_COUNT = "session_count"
         private const val KEY_LAST_PERMISSION_REQUEST_SESSION = "last_permission_request_session"
+        private const val KEY_PENDING_BOTTOM_SHEET = "pending_bottom_sheet"
     }
 }
