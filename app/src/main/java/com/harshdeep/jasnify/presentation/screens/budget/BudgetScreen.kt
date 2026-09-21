@@ -322,8 +322,12 @@ fun BudgetScreen(
     var budgetStepIndex by remember { mutableIntStateOf(0) }
     val budgetTargetRects = remember { mutableStateMapOf<String, Rect>() }
 
+    val isBudgetNotSet = remember(budgetEntity, activeEvent) {
+        budgetEntity?.totalBudget == null && activeEvent?.budget == null
+    }
+
     val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
-    val budgetOnboardingSteps = remember(hasSeenGroupChat) {
+    val budgetOnboardingSteps = remember(hasSeenGroupChat, isBudgetNotSet) {
         val steps = mutableListOf<OnboardingStep>()
         if (!hasSeenGroupChat) {
             steps.add(
@@ -336,46 +340,67 @@ fun BudgetScreen(
                 )
             )
         }
-        steps.add(
-            OnboardingStep(
-                stepKey = "budget_add_expense",
-                title = "Add Expenses",
-                description = "Tap to add new expenses and keep track of them easily.",
-                iconRes = R.drawable.ill_add_expenses,
-                isCircleHighlight = true
+
+        if (isBudgetNotSet) {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "budget_view_summary",
+                    title = "Set Budget",
+                    description = "Tap to assign your overall event budget and start tracking.",
+                    iconRes = R.drawable.ill_expense_summary,
+                    highlightPadding = 4.dp,
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                )
             )
-        )
-        steps.add(
-            OnboardingStep(
-                stepKey = "budget_view_summary",
-                title = "View Summary",
-                description = "Tap to check out your category-wise total expenses & insights.",
-                iconRes = R.drawable.ill_expense_summary,
-                highlightPadding = 4.dp,
-                shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-        )
-        )
-        steps.add(
-            OnboardingStep(
-                stepKey = "budget_manage_categories",
-                title = "Manage Categories",
-                description = "Tap here to add, change or remove your expense categories.",
-                iconRes = R.drawable.ill_manage_categories,
-                highlightPadding = 4.dp,
-                shape = CircleShape
+        } else {
+            steps.add(
+                OnboardingStep(
+                    stepKey = "budget_add_expense",
+                    title = "Add Expenses",
+                    description = "Tap to add new expenses and keep track of them easily.",
+                    iconRes = R.drawable.ill_add_expenses,
+                    isCircleHighlight = true
+                )
             )
-        )
-        steps.add(
-            OnboardingStep(
-                stepKey = "budget_categories_card",
-                title = "Expense Category",
-                description = "Tap to check out the expenses for each category separately.",
-                iconRes = R.drawable.ill_expense_category,
-                highlightPadding = 6.dp,
-                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+            steps.add(
+                OnboardingStep(
+                    stepKey = "budget_view_summary",
+                    title = "View Summary",
+                    description = "Tap to check out your category-wise total expenses & insights.",
+                    iconRes = R.drawable.ill_expense_summary,
+                    highlightPadding = 4.dp,
+                    shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
+                )
             )
-        )
+            steps.add(
+                OnboardingStep(
+                    stepKey = "budget_manage_categories",
+                    title = "Manage Categories",
+                    description = "Tap here to add, change or remove your expense categories.",
+                    iconRes = R.drawable.ill_manage_categories,
+                    highlightPadding = 4.dp,
+                    shape = CircleShape
+                )
+            )
+            steps.add(
+                OnboardingStep(
+                    stepKey = "budget_categories_card",
+                    title = "Expense Category",
+                    description = "Tap to check out the expenses for each category separately.",
+                    iconRes = R.drawable.ill_expense_category,
+                    highlightPadding = 6.dp,
+                    shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+                )
+            )
+        }
         steps
+    }
+
+    LaunchedEffect(isBudgetNotSet) {
+        if (!isBudgetNotSet && !prefManager.hasCompletedScreenOnboarding("budget")) {
+            isBudgetOnboardingActive = true
+            budgetStepIndex = 0
+        }
     }
 
     val currentBudgetStepKey = if (isBudgetOnboardingActive && budgetStepIndex in budgetOnboardingSteps.indices) {
@@ -430,10 +455,6 @@ fun BudgetScreen(
 
     var defaultCategories by remember {
         mutableStateOf(DefaultCategoryList)
-    }
-
-    val isBudgetNotSet = remember(budgetEntity, activeEvent) {
-        budgetEntity?.totalBudget == null && activeEvent?.budget == null
     }
 
     val totalBudget = remember(budgetValue) {
@@ -923,7 +944,9 @@ fun BudgetScreen(
                             budgetStepIndex++
                         } else {
                             isBudgetOnboardingActive = false
-                            prefManager.setCompletedScreenOnboarding("budget", true)
+                            if (!isBudgetNotSet) {
+                                prefManager.setCompletedScreenOnboarding("budget", true)
+                            }
                             prefManager.setHasSeenGroupChatOnboarding(true)
                         }
                     },

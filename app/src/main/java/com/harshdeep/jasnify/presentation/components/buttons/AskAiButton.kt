@@ -1,5 +1,6 @@
 package com.harshdeep.jasnify.presentation.components.buttons
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -43,6 +44,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.milliseconds
 
+@SuppressLint("ConfigurationScreenWidthHeight")
 @Composable
 fun AskAiButton(
     onClick: () -> Unit,

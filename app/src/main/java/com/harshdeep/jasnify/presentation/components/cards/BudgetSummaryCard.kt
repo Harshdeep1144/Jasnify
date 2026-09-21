@@ -132,15 +132,6 @@ fun BudgetSummaryCard(
                         text = "Add a Budget",
                         containerColor = ContentPrimary,
                         shapeStyle = ButtonShapeStyle.Square,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    CustomTextButton(
-                        onClick = onViewSummaryClick,
-                        text = "View Summary",
-                        size = ButtonSize.Medium,
-                        type = ButtonType.Secondary,
-                        shapeStyle = ButtonShapeStyle.Square,
                         modifier = Modifier
                             .fillMaxWidth()
                             .then(viewSummaryButtonModifier)
