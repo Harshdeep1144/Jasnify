@@ -4,6 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
+import androidx.core.net.toUri
+import androidx.compose.ui.text.style.TextDecoration
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
+import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.domain.model.TimelineEvent
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -229,10 +236,12 @@ fun VenueGalleryCategory.toUiModel() = GalleryCategoryUiModel(
 fun VenueDetailScreen(
     venueDetail: Venue,
     onBackClick: () -> Unit = {},
-    onFavoriteToggle: (Boolean) -> Unit = {},
+    onFavoriteToggle: (Venue) -> Unit = {},
     onChatClick: (Venue) -> Unit = {},
     onAiSearchClick: (String) -> Unit = {},
     venueViewModel: VenueViewModel = hiltViewModel(),
+    isMultiDayEvent: Boolean = false,
+    timelineEvents: List<TimelineEvent> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var screenStack by remember { mutableStateOf(listOf(VenueActiveScreen.DETAIL)) }
@@ -244,6 +253,7 @@ fun VenueDetailScreen(
     var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
     var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
+    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     val density = LocalDensity.current
@@ -278,25 +288,117 @@ fun VenueDetailScreen(
 
     val isSubmitting by venueViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
     val venueReviews by venueViewModel.venueReviews.collectAsStateWithLifecycle()
+    val exploreVenues by venueViewModel.exploreVenues.collectAsStateWithLifecycle()
+    var activeVenueDetail by remember(venueDetail) { mutableStateOf(venueDetail) }
+
+    val eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+
+    val computedTimelineEvents = remember(activeEvent, timelineEvents) {
+        if (timelineEvents.isNotEmpty()) {
+            timelineEvents
+        } else {
+            activeEvent?.let { event ->
+                event.subEvents.map { subEvent ->
+                    val formattedDate = subEvent.date?.let { ts ->
+                        try {
+                            java.text.SimpleDateFormat("dd MMM", java.util.Locale.getDefault()).format(java.util.Date(ts))
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    } ?: ""
+                    com.harshdeep.jasnify.domain.model.TimelineEvent(
+                        id = subEvent.id,
+                        date = formattedDate,
+                        event = subEvent.name,
+                        venues = emptyList()
+                    )
+                }
+            } ?: emptyList()
+        }
+    }
+
+    val isMultiDay = isMultiDayEvent || activeEvent?.multiDay == true || computedTimelineEvents.size > 1
+
+    val savedVenuesFromCloud by venueViewModel.savedVenues.collectAsStateWithLifecycle()
+    val venueSavedDestinations = remember(savedVenuesFromCloud) {
+        buildMap {
+            savedVenuesFromCloud.forEach { sv ->
+                put(sv.venueId, sv.destination)
+                put(sv.venueName, sv.destination)
+            }
+        }
+    }
+
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVenue by remember { mutableStateOf<Venue?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+
+    var lastSavedVenue by remember { mutableStateOf<Venue?>(null) }
+    val isSavedListToast = remember(toastData?.message) {
+        toastData?.message?.contains("Saved List") == true
+    }
+
+    val handleFavoriteToggle: (Venue) -> Unit = { venue ->
+        activeTargetVenue = venue
+        lastSavedVenue = venue
+        val alreadySaved = venueSavedDestinations.containsKey(venue.name) || venueSavedDestinations.containsKey(venue.id)
+        if (alreadySaved) {
+            if (isMultiDay) {
+                val currentDestination = venueSavedDestinations[venue.name] ?: venueSavedDestinations[venue.id]
+                isMySavedListChecked = currentDestination == "mysaved" || currentDestination == null
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                venueViewModel.toggleSaveVenue(venue.name, venue.id, false, null)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+            }
+        } else {
+            venueViewModel.toggleSaveVenue(venue.name, venue.id, false, "mysaved")
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+        }
+    }
+
+    LaunchedEffect(activeEventId) {
+        activeEventId?.let { id ->
+            venueViewModel.setEventId(id)
+            eventViewModel.fetchAndSetActiveEvent(id)
+        }
+    }
+
+    LaunchedEffect(activeVenueDetail.id) {
+        venueViewModel.setSelectedVenueId(activeVenueDetail.id)
+        coroutineScope.launch {
+            listState.scrollToItem(0)
+            sheetOffsetPx = maxOffsetPx
+        }
+    }
 
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val userExistingReview = remember(venueReviews) {
         venueReviews.find { it.userId == currentUserId }
     }
 
-    val dynamicReviewsData = remember(venueDetail.reviewsData, venueReviews) {
-        val base = venueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
+    val isCurrentVenueSaved = remember(activeVenueDetail.id, activeVenueDetail.name, venueSavedDestinations) {
+        venueSavedDestinations.containsKey(activeVenueDetail.id) ||
+        venueSavedDestinations.containsKey(activeVenueDetail.name)
+    }
+
+    val displayVenueDetail = remember(activeVenueDetail, isCurrentVenueSaved) {
+        activeVenueDetail.copy(favorite = isCurrentVenueSaved)
+    }
+
+    val dynamicReviewsData = remember(activeVenueDetail.reviewsData, venueReviews) {
+        val base = activeVenueDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
         val combinedReviews = (venueReviews.map { it.toUiModel() } + base.reviews)
             .distinctBy { it.id.ifBlank { it.userName } }
 
         base.copy(reviews = combinedReviews)
     }
 
-    LaunchedEffect(venueDetail.id) {
-        venueViewModel.setSelectedVenueId(venueDetail.id)
-    }
-
-    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet
+    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet || showSaveListBottomSheet
     val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
     val backdropScaleState = animateFloatAsState(
@@ -345,7 +447,7 @@ fun VenueDetailScreen(
                 when (screen) {
                     VenueActiveScreen.DETAIL -> {
                         VenueDetailContent(
-                            venueDetail = venueDetail,
+                            venueDetail = displayVenueDetail,
                             reviewsData = dynamicReviewsData,
                             listState = listState,
                             pagerState = pagerState,
@@ -356,7 +458,7 @@ fun VenueDetailScreen(
                             isMuted = isMuted,
                             onMuteToggle = { isMuted = !isMuted },
                             onBackClick = onBackClick,
-                            onFavoriteToggle = onFavoriteToggle,
+                            onFavoriteToggle = handleFavoriteToggle,
                             onChatClick = onChatClick,
                             onSeeAllReviewsClick = { screenStack = screenStack + VenueActiveScreen.REVIEWS },
                             onSeeAllGalleryClick = { screenStack = screenStack + VenueActiveScreen.GALLERY },
@@ -383,6 +485,13 @@ fun VenueDetailScreen(
                             onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
+                            allVenues = exploreVenues,
+                            venueSavedDestinations = venueSavedDestinations,
+                            onVenueSelect = { selectedVenue ->
+                                activeVenueDetail = selectedVenue
+                                venueViewModel.setSelectedVenueId(selectedVenue.id)
+                            },
+                            onVenueFavoriteToggle = handleFavoriteToggle,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -517,21 +626,107 @@ fun VenueDetailScreen(
             )
         }
 
+        if (showSaveListBottomSheet) {
+            val currentDest = activeTargetVenue?.let { venueSavedDestinations[it.name] ?: venueSavedDestinations[it.id] }
+            var draftIsMySavedChecked by remember(currentDest) { mutableStateOf(currentDest == "mysaved" || currentDest == null) }
+            var draftSelectedEventId by remember(currentDest) { mutableStateOf<String?>(if (currentDest != "mysaved") currentDest else null) }
+
+            SaveListBottomSheet(
+                timelineEvents = computedTimelineEvents,
+                isMySavedListChecked = draftIsMySavedChecked,
+                onMySavedListToggled = { checked ->
+                    draftIsMySavedChecked = checked
+                    if (checked) {
+                        draftSelectedEventId = null
+                    }
+                },
+                selectedEventId = draftSelectedEventId,
+                onEventSelected = { eventId ->
+                    if (draftSelectedEventId == eventId) {
+                        draftSelectedEventId = null
+                    } else {
+                        draftSelectedEventId = eventId
+                        if (eventId != null) {
+                            draftIsMySavedChecked = false
+                        }
+                    }
+                },
+                onAddNewEvent = { subEventItem ->
+                    activeEvent?.let { event ->
+                        val newSubEvent = SubEvent(
+                            id = subEventItem.id,
+                            name = subEventItem.name,
+                            date = subEventItem.date,
+                            completed = subEventItem.isCompleted
+                        )
+                        eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+
+                        draftSelectedEventId = subEventItem.id
+                        draftIsMySavedChecked = false
+                    }
+                },
+                isViewer = false,
+                onDismiss = { showSaveListBottomSheet = false },
+                onDone = {
+                    activeTargetVenue?.let { venue ->
+                        val destination = if (draftIsMySavedChecked) "mysaved" else draftSelectedEventId
+                        venueViewModel.toggleSaveVenue(venue.name, venue.id, false, destination)
+                        if (destination != null) {
+                            lastSavedVenue = venue
+                            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        } else {
+                            lastSavedVenue = null
+                            toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                        }
+                    }
+                    showSaveListBottomSheet = false
+                    activeTargetVenue = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
         AnimatedVisibility(
-            visible = toastData?.message != null && !anySheetVisible,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+            visible = toastData?.message != null && !isSavedListToast && !anySheetVisible,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .zIndex(100f)
+                .zIndex(200f)
                 .padding(horizontal = 12.dp, vertical = 16.dp)
         ) {
             toastData?.let { data ->
                 CustomToast(
                     message = data.message ?: "",
                     type = data.type
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = toastData?.message != null && isSavedListToast && !anySheetVisible,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .fillMaxWidth()
+                .zIndex(200f)
+                .padding(horizontal = 12.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    iconColor = Color.Unspecified,
+                    buttonText = if (isMultiDay) "Change" else null,
+                    onButtonClick = {
+                        showSaveListBottomSheet = true
+                    }
                 )
             }
         }
@@ -553,7 +748,7 @@ private fun VenueDetailContent(
     isMuted: Boolean,
     onMuteToggle: () -> Unit,
     onBackClick: () -> Unit,
-    onFavoriteToggle: (Boolean) -> Unit,
+    onFavoriteToggle: (Venue) -> Unit,
     onChatClick: (Venue) -> Unit,
     onSeeAllReviewsClick: () -> Unit,
     onSeeAllGalleryClick: () -> Unit,
@@ -567,6 +762,10 @@ private fun VenueDetailContent(
     onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
+    allVenues: List<Venue> = emptyList(),
+    venueSavedDestinations: Map<String, String> = emptyMap(),
+    onVenueSelect: (Venue) -> Unit = {},
+    onVenueFavoriteToggle: (Venue) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -874,7 +1073,32 @@ private fun VenueDetailContent(
                 item(key = "explore_more", contentType = "explore_more_section") {
                     VenueExploreMoreSection(
                         venue = venueDetail,
-                        similarVenues = emptyList()
+                        allVenues = allVenues,
+                        venueSavedDestinations = venueSavedDestinations,
+                        onVenueClick = onVenueSelect,
+                        onFavoriteToggle = { venueItem ->
+                            onVenueFavoriteToggle(venueItem)
+                        },
+                        onOfferClick = { venueItem ->
+                            if (venueItem.offers.isNotEmpty()) {
+                                onOfferClick(venueItem.offers.first())
+                            }
+                        }
+                    )
+                }
+
+                item(key = "claim_listing", contentType = "claim_section") {
+                    ClaimVenueSection(
+                        venueName = venueDetail.name,
+                        onClaimClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, "https://jasnify.com/contact".toUri())
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Please visit https://jasnify.com/contact to claim", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
 
@@ -911,7 +1135,7 @@ private fun VenueDetailContent(
                 menuIcon = TopIcon.CustomPainter(painter = sharePainter),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
-                    onFavoriteToggle(!venueDetail.favorite)
+                    onVenueFavoriteToggle(venueDetail)
                 },
                 onMenuClick = {
                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -1367,18 +1591,56 @@ fun VenueAskAISection(onAiSearchClick: (String) -> Unit) {
 @Composable
 fun VenueExploreMoreSection(
     venue: Venue,
-    similarVenues: List<Venue>,
+    allVenues: List<Venue>,
+    venueSavedDestinations: Map<String, String> = emptyMap(),
+    onVenueClick: (Venue) -> Unit = {},
+    onFavoriteToggle: (Venue) -> Unit = {},
+    onOfferClick: (Venue) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val filters = remember(venue) {
         listOf(
             "Similar to ${venue.name}",
             "In ${venue.city}",
-            "Capacity 100-150 pax",
-            "Do they serve alcohol?"
+            "Top Rated Venues",
+            "Available for Events"
         )
     }
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
+
+    val otherVenues = remember(allVenues, venue.id) {
+        allVenues.filter { it.id != venue.id }
+    }
+
+    val fallbackVenues = remember(venue) {
+        listOf(
+            venue.copy(id = "${venue.id}_sim1", name = "Royal ${venue.name}", rating = 4.8, totalReviews = "128 reviews"),
+            venue.copy(id = "${venue.id}_sim2", name = "Grand ${venue.name} Pavilion", rating = 4.6, totalReviews = "94 reviews"),
+            venue.copy(id = "${venue.id}_sim3", name = "${venue.city} Palace & Resort", rating = 4.9, totalReviews = "210 reviews")
+        )
+    }
+
+    val displayVenues = remember(otherVenues, fallbackVenues) {
+        otherVenues.ifEmpty { fallbackVenues }
+    }
+
+    var localFavoriteMap by remember { mutableStateOf(mapOf<String, Boolean>()) }
+
+    val filteredVenues = remember(displayVenues, venue, selectedFilterIndex, localFavoriteMap, venueSavedDestinations) {
+        val baseList = displayVenues.map { v ->
+            val isSavedInCloud = venueSavedDestinations.containsKey(v.id) || venueSavedDestinations.containsKey(v.name)
+            val isFav = localFavoriteMap[v.id] ?: (v.favorite || isSavedInCloud)
+            v.copy(favorite = isFav)
+        }
+        val result = when (selectedFilterIndex) {
+            0 -> baseList.filter { it.city.equals(venue.city, ignoreCase = true) || it.type.equals(venue.type, ignoreCase = true) }
+            1 -> baseList.filter { it.city.equals(venue.city, ignoreCase = true) }
+            2 -> baseList.filter { it.rating >= 4.0 }
+            3 -> baseList
+            else -> baseList
+        }
+        result.ifEmpty { baseList }
+    }
 
     Column(
         modifier = modifier
@@ -1440,13 +1702,20 @@ fun VenueExploreMoreSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(
-                items = similarVenues,
+                items = filteredVenues,
                 key = { it.id },
                 contentType = { "similar_venue_card" }
             ) { venueItem ->
                 VenueCardCompact(
                     venue = venueItem,
-                    compactCardSize = CompactCardSize.MEDIUM
+                    compactCardSize = CompactCardSize.MEDIUM,
+                    onCardClick = { onVenueClick(venueItem) },
+                    onFavoriteToggle = {
+                        val newFavState = !venueItem.favorite
+                        localFavoriteMap = localFavoriteMap + (venueItem.id to newFavState)
+                        onFavoriteToggle(venueItem.copy(favorite = newFavState))
+                    },
+                    onOfferClick = { onOfferClick(venueItem) }
                 )
             }
         }
@@ -1848,5 +2117,52 @@ fun FloatingBottomActionBar(
                 shapeStyle = ButtonShapeStyle.Round
             )
         }
+    }
+}
+
+@Composable
+fun ClaimVenueSection(
+    venueName: String,
+    onClaimClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .background(SurfaceBrandSecondary)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_shield),
+                contentDescription = null,
+                tint = ContentBrandDark,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "Is this your venue?",
+                style = JasnifyTheme.typography.bodyMedium,
+                color = ContentPrimary
+            )
+        }
+
+        Text(
+            text = "Claim Venue",
+            style = JasnifyTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Normal,
+                textDecoration = TextDecoration.Underline
+            ),
+            color = ContentBrandDark,
+            modifier = Modifier
+                .clickable { onClaimClick() }
+                .padding(start = 8.dp)
+        )
     }
 }

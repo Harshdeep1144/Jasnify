@@ -146,9 +146,9 @@ fun CateringMenuMainContent(
             steps.add(
                 OnboardingStep(
                     stepKey = "room_group_chat",
-                    title = "Room Group Chat",
-                    description = "Tap here to open group chat with your room members and stay connected!",
-                    iconRes = R.drawable.ic_message,
+                    title = "Room Chats",
+                    description = "Tap to view & manage dedicated chat group for this room.",
+                    iconRes = R.drawable.ill_room_chat,
                     isCircleHighlight = true
                 )
             )
@@ -156,9 +156,9 @@ fun CateringMenuMainContent(
         steps.add(
             OnboardingStep(
                 stepKey = "catering_add_item",
-                title = "Add Custom Item",
-                description = "Tap here to add custom dishes, food choices, or drinks to your catering menu!",
-                iconRes = R.drawable.ill_vendor_food
+                title = "Add items to menu",
+                description = "Tap to add your favorite dishes, drinks, and snacks here to keep a track.",
+                iconRes = R.drawable.ill_catering_menu_card,
             )
         )
         steps

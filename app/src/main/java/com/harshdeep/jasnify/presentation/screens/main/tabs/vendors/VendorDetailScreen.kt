@@ -4,6 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import android.widget.Toast
+import androidx.core.net.toUri
+import androidx.compose.ui.text.style.TextDecoration
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
+import com.harshdeep.jasnify.domain.model.SubEvent
+import com.harshdeep.jasnify.domain.model.TimelineEvent
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
@@ -233,6 +240,8 @@ fun VendorDetailScreen(
     onFavoriteToggle: (Vendor) -> Unit = {},
     onAiSearchClick: (String) -> Unit = {},
     vendorViewModel: VendorViewModel = hiltViewModel(),
+    isMultiDayEvent: Boolean = false,
+    timelineEvents: List<TimelineEvent> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     var screenStack by remember { mutableStateOf(listOf(VendorActiveScreen.DETAIL)) }
@@ -244,6 +253,7 @@ fun VendorDetailScreen(
     var mediaViewerList by remember { mutableStateOf<List<MediaItemUiModel>>(emptyList()) }
     var mediaViewerInitialIndex by remember { mutableIntStateOf(0) }
 
+    val coroutineScope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     val density = LocalDensity.current
@@ -279,25 +289,119 @@ fun VendorDetailScreen(
 
     val isSubmitting by vendorViewModel.isReviewSubmitting.collectAsStateWithLifecycle()
     val vendorReviews by vendorViewModel.vendorReviews.collectAsStateWithLifecycle()
+    val allVendors by vendorViewModel.exploreVendors.collectAsStateWithLifecycle()
+    var activeVendorDetail by remember(vendorDetail) { mutableStateOf(vendorDetail) }
+
+    val eventViewModel: com.harshdeep.jasnify.presentation.viewmodels.EventViewModel = hiltViewModel()
+    val activeEvent by eventViewModel.activeEvent.collectAsStateWithLifecycle()
+    val activeEventId by eventViewModel.activeEventId.collectAsStateWithLifecycle()
+
+    val computedTimelineEvents = remember(activeEvent, timelineEvents) {
+        if (timelineEvents.isNotEmpty()) {
+            timelineEvents
+        } else {
+            activeEvent?.let { event ->
+                event.subEvents.map { subEvent ->
+                    val formattedDate = subEvent.date?.let { ts ->
+                        try {
+                            java.text.SimpleDateFormat("dd MMM", java.util.Locale.getDefault()).format(java.util.Date(ts))
+                        } catch (e: Exception) {
+                            ""
+                        }
+                    } ?: ""
+                    com.harshdeep.jasnify.domain.model.TimelineEvent(
+                        id = subEvent.id,
+                        date = formattedDate,
+                        event = subEvent.name,
+                        venues = emptyList()
+                    )
+                }
+            } ?: emptyList()
+        }
+    }
+
+    val isMultiDay = isMultiDayEvent || activeEvent?.multiDay == true || computedTimelineEvents.size > 1
+
+    val savedVendorsFromCloud by vendorViewModel.savedVendors.collectAsStateWithLifecycle()
+    val vendorSavedDestinations = remember(savedVendorsFromCloud) {
+        buildMap {
+            savedVendorsFromCloud.forEach { sv ->
+                put(sv.vendorId, sv.destination)
+                put(sv.vendorName, sv.destination)
+                put("${sv.vendorName}-${sv.category}", sv.destination)
+            }
+        }
+    }
+
+    var showSaveListBottomSheet by remember { mutableStateOf(false) }
+    var activeTargetVendor by remember { mutableStateOf<Vendor?>(null) }
+    var isMySavedListChecked by remember { mutableStateOf(true) }
+    var selectedSaveEventId by remember { mutableStateOf<String?>(null) }
+
+    var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
+    val isSavedListToast = remember(toastData?.message) {
+        toastData?.message?.contains("Saved List") == true
+    }
+
+    val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
+        activeTargetVendor = vendor
+        lastSavedVendor = vendor
+        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}") || vendorSavedDestinations.containsKey(vendor.id)
+        if (alreadySaved) {
+            if (isMultiDay) {
+                val currentDestination = vendorSavedDestinations["${vendor.name}-${vendor.category}"] ?: vendorSavedDestinations[vendor.id]
+                isMySavedListChecked = currentDestination == "mysaved" || currentDestination == null
+                selectedSaveEventId = if (currentDestination != "mysaved" && currentDestination != null) currentDestination else null
+                showSaveListBottomSheet = true
+            } else {
+                vendorViewModel.toggleSaveVendor(vendor, false, null)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+            }
+        } else {
+            vendorViewModel.toggleSaveVendor(vendor, false, "mysaved")
+            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+        }
+    }
+
+    LaunchedEffect(activeEventId) {
+        activeEventId?.let { id ->
+            vendorViewModel.setEventId(id)
+            eventViewModel.fetchAndSetActiveEvent(id)
+        }
+    }
+
+    LaunchedEffect(activeVendorDetail.id) {
+        vendorViewModel.setSelectedVendorId(activeVendorDetail.id)
+        coroutineScope.launch {
+            listState.scrollToItem(0)
+            sheetOffsetPx = maxOffsetPx
+        }
+    }
 
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
     val userExistingReview = remember(vendorReviews) {
         vendorReviews.find { it.userId == currentUserId }
     }
 
-    val dynamicReviewsData = remember(vendorDetail.reviewsData, vendorReviews) {
-        val base = vendorDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
+    val isCurrentVendorSaved = remember(activeVendorDetail.id, activeVendorDetail.name, vendorSavedDestinations) {
+        vendorSavedDestinations.containsKey(activeVendorDetail.id) ||
+        vendorSavedDestinations.containsKey(activeVendorDetail.name) ||
+        vendorSavedDestinations.containsKey("${activeVendorDetail.name}-${activeVendorDetail.category}")
+    }
+
+    val displayVendorDetail = remember(activeVendorDetail, isCurrentVendorSaved) {
+        activeVendorDetail.copy(favorite = isCurrentVendorSaved)
+    }
+
+    val dynamicReviewsData = remember(activeVendorDetail.reviewsData, vendorReviews) {
+        val base = activeVendorDetail.reviewsData?.toUiModel() ?: ReviewsDataUiModel()
         val combinedReviews = (vendorReviews.map { it.toUiModel() } + base.reviews)
             .distinctBy { it.id.ifBlank { it.userName } }
 
         base.copy(reviews = combinedReviews)
     }
 
-    LaunchedEffect(vendorDetail.id) {
-        vendorViewModel.setSelectedVendorId(vendorDetail.id)
-    }
-
-    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet
+    val anySheetVisible = showReviewSheet || showAddressSheet || showAboutSheet || showOfferSheet || showSaveListBottomSheet
     val targetScale = if (anySheetVisible) 0.92f + (0.08f * sheetMotionProgress) else 1.0f
 
     val backdropScaleState = animateFloatAsState(
@@ -346,7 +450,7 @@ fun VendorDetailScreen(
                 when (screen) {
                     VendorActiveScreen.DETAIL -> {
                         VendorDetailContent(
-                            vendorDetail = vendorDetail,
+                            vendorDetail = displayVendorDetail,
                             reviewsData = dynamicReviewsData,
                             listState = listState,
                             pagerState = pagerState,
@@ -393,6 +497,13 @@ fun VendorDetailScreen(
                             onShowToast = { toastData = it },
                             anySheetVisible = anySheetVisible,
                             hasUserReviewed = userExistingReview != null,
+                            allVendors = allVendors,
+                            vendorSavedDestinations = vendorSavedDestinations,
+                            onVendorSelect = { selectedVendor ->
+                                activeVendorDetail = selectedVendor
+                                vendorViewModel.setSelectedVendorId(selectedVendor.id)
+                            },
+                            onVendorFavoriteToggle = handleFavoriteToggle,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -528,21 +639,108 @@ fun VendorDetailScreen(
             )
         }
 
+        if (showSaveListBottomSheet) {
+            val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] ?: vendorSavedDestinations[it.id] }
+            var draftIsMySavedChecked by remember(currentDest) { mutableStateOf(currentDest == "mysaved" || currentDest == null) }
+            var draftSelectedEventId by remember(currentDest) { mutableStateOf<String?>(if (currentDest != "mysaved") currentDest else null) }
+
+            SaveListBottomSheet(
+                timelineEvents = computedTimelineEvents,
+                isMySavedListChecked = draftIsMySavedChecked,
+                onMySavedListToggled = { checked ->
+                    draftIsMySavedChecked = checked
+                    if (checked) {
+                        draftSelectedEventId = null
+                    }
+                },
+                selectedEventId = draftSelectedEventId,
+                onEventSelected = { eventId ->
+                    if (draftSelectedEventId == eventId) {
+                        draftSelectedEventId = null
+                    } else {
+                        draftSelectedEventId = eventId
+                        if (eventId != null) {
+                            draftIsMySavedChecked = false
+                        }
+                    }
+                },
+                onAddNewEvent = { subEventItem ->
+                    activeEvent?.let { event ->
+                        val newSubEvent = SubEvent(
+                            id = subEventItem.id,
+                            name = subEventItem.name,
+                            date = subEventItem.date,
+                            completed = subEventItem.isCompleted
+                        )
+                        eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
+
+                        draftSelectedEventId = subEventItem.id
+                        draftIsMySavedChecked = false
+                    }
+                },
+                isViewer = false,
+                onDismiss = { showSaveListBottomSheet = false },
+                onDone = {
+                    activeTargetVendor?.let { vendor ->
+                        val destination = if (draftIsMySavedChecked) "mysaved" else draftSelectedEventId
+                        vendorViewModel.toggleSaveVendor(vendor, false, destination)
+                        if (destination != null) {
+                            lastSavedVendor = vendor
+                            toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
+                        } else {
+                            lastSavedVendor = null
+                            toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+                        }
+                    }
+                    showSaveListBottomSheet = false
+                    activeTargetVendor = null
+                },
+                onProgress = { sheetMotionProgress = it }
+            )
+        }
+
         AnimatedVisibility(
-            visible = toastData?.message != null && !anySheetVisible,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { -it }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { -it }),
+            visible = toastData?.message != null && !isSavedListToast && !anySheetVisible,
+            enter = slideInVertically(initialOffsetY = { -it - 500 }),
+            exit = slideOutVertically(targetOffsetY = { -it - 500 }),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .statusBarsPadding()
                 .fillMaxWidth()
-                .zIndex(100f)
+                .zIndex(200f)
                 .padding(horizontal = 12.dp, vertical = 16.dp)
         ) {
             toastData?.let { data ->
                 CustomToast(
                     message = data.message ?: "",
                     type = data.type
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = toastData?.message != null && isSavedListToast && !anySheetVisible,
+            enter = slideInVertically(initialOffsetY = { it + 500 }),
+            exit = slideOutVertically(targetOffsetY = { it + 500 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 80.dp)
+                .fillMaxWidth()
+                .zIndex(200f)
+                .padding(horizontal = 12.dp)
+        ) {
+            toastData?.let { data ->
+                CustomToast(
+                    message = data.message ?: "",
+                    type = data.type,
+                    leadingIcon = painterResource(id = R.drawable.ic_heart_filled),
+                    iconColor = Color.Unspecified,
+                    buttonText = if (isMultiDay) "Change" else null,
+                    onButtonClick = {
+                        activeTargetVendor = lastSavedVendor ?: activeVendorDetail
+                        showSaveListBottomSheet = true
+                    }
                 )
             }
         }
@@ -579,6 +777,10 @@ private fun VendorDetailContent(
     onShowToast: (ToastData) -> Unit,
     anySheetVisible: Boolean,
     hasUserReviewed: Boolean,
+    allVendors: List<Vendor> = emptyList(),
+    vendorSavedDestinations: Map<String, String> = emptyMap(),
+    onVendorSelect: (Vendor) -> Unit = {},
+    onVendorFavoriteToggle: (Vendor) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -889,7 +1091,32 @@ private fun VendorDetailContent(
                 item(key = "explore_more", contentType = "explore_more_section") {
                     VendorExploreMoreSection(
                         vendor = vendorDetail,
-                        similarVendors = emptyList()
+                        allVendors = allVendors,
+                        vendorSavedDestinations = vendorSavedDestinations,
+                        onVendorClick = onVendorSelect,
+                        onFavoriteToggle = { vendorItem ->
+                            onVendorFavoriteToggle(vendorItem)
+                        },
+                        onOfferClick = { vendorItem ->
+                            if (vendorItem.offers.isNotEmpty()) {
+                                onOfferClick(vendorItem.offers.first())
+                            }
+                        }
+                    )
+                }
+
+                item(key = "claim_listing", contentType = "claim_section") {
+                    ClaimVendorSection(
+                        vendorName = vendorDetail.name,
+                        onClaimClick = {
+                            try {
+                                val intent = Intent(Intent.ACTION_VIEW, "https://jasnify.com/contact".toUri())
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Please visit https://jasnify.com/contact to claim", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
 
@@ -926,7 +1153,7 @@ private fun VendorDetailContent(
                 menuIcon = TopIcon.CustomPainter(painter = sharePainter),
                 backIcon = TopIcon.Predefined.DOWN,
                 onSecondaryClick = {
-                    onFavoriteToggle(vendorDetail)
+                    onVendorFavoriteToggle(vendorDetail)
                 },
                 onMenuClick = onMenuClick,
                 buttonStyle = dynamicButtonStyle,
@@ -1683,7 +1910,11 @@ fun HighlightItemRow(data: VendorHighlightItem) {
 @Composable
 fun VendorExploreMoreSection(
     vendor: Vendor,
-    similarVendors: List<Vendor>,
+    allVendors: List<Vendor>,
+    vendorSavedDestinations: Map<String, String> = emptyMap(),
+    onVendorClick: (Vendor) -> Unit = {},
+    onFavoriteToggle: (Vendor) -> Unit = {},
+    onOfferClick: (Vendor) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val filters = remember(vendor) {
@@ -1691,10 +1922,46 @@ fun VendorExploreMoreSection(
             "Similar to ${vendor.name}",
             "In ${vendor.city}",
             "Top Rated ${vendor.category}",
-            "Available now"
+            "Available Vendors"
         )
     }
     var selectedFilterIndex by remember { mutableIntStateOf(0) }
+
+    val otherVendors = remember(allVendors, vendor.id) {
+        allVendors.filter { it.id != vendor.id }
+    }
+
+    val fallbackVendors = remember(vendor) {
+        listOf(
+            vendor.copy(id = "${vendor.id}_sim1", name = "Royal ${vendor.name}", rating = 4.8, totalReviews = "112 reviews"),
+            vendor.copy(id = "${vendor.id}_sim2", name = "Elite ${vendor.category} Studio", rating = 4.7, totalReviews = "86 reviews"),
+            vendor.copy(id = "${vendor.id}_sim3", name = "${vendor.city} Premier Events", rating = 4.9, totalReviews = "175 reviews")
+        )
+    }
+
+    val displayVendors = remember(otherVendors, fallbackVendors) {
+        if (otherVendors.isNotEmpty()) otherVendors else fallbackVendors
+    }
+
+    var localFavoriteMap by remember { mutableStateOf(mapOf<String, Boolean>()) }
+
+    val filteredVendors = remember(displayVendors, vendor, selectedFilterIndex, localFavoriteMap, vendorSavedDestinations) {
+        val baseList = displayVendors.map { v ->
+            val isSavedInCloud = vendorSavedDestinations.containsKey(v.id) ||
+                                 vendorSavedDestinations.containsKey(v.name) ||
+                                 vendorSavedDestinations.containsKey("${v.name}-${v.category}")
+            val isFav = localFavoriteMap[v.id] ?: (v.favorite || isSavedInCloud)
+            v.copy(favorite = isFav)
+        }
+        val result = when (selectedFilterIndex) {
+            0 -> baseList.filter { it.category.equals(vendor.category, ignoreCase = true) }
+            1 -> baseList.filter { it.city.equals(vendor.city, ignoreCase = true) }
+            2 -> baseList.filter { it.category.equals(vendor.category, ignoreCase = true) && it.rating >= 4.0 }
+            3 -> baseList
+            else -> baseList
+        }
+        if (result.isNotEmpty()) result else baseList
+    }
 
     Column(
         modifier = modifier
@@ -1756,13 +2023,20 @@ fun VendorExploreMoreSection(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(
-                items = similarVendors,
+                items = filteredVendors,
                 key = { it.id },
                 contentType = { "similar_vendor_card" }
             ) { vendorItem ->
                 VendorCardCompact(
                     vendor = vendorItem,
-                    compactCardSize = CompactCardSize.MEDIUM
+                    compactCardSize = CompactCardSize.MEDIUM,
+                    onCardClick = { onVendorClick(vendorItem) },
+                    onFavoriteToggle = {
+                        val newFavState = !vendorItem.favorite
+                        localFavoriteMap = localFavoriteMap + (vendorItem.id to newFavState)
+                        onFavoriteToggle(vendorItem.copy(favorite = newFavState))
+                    },
+                    onOfferClick = { onOfferClick(vendorItem) }
                 )
             }
         }
@@ -1813,5 +2087,52 @@ fun FloatingBottomActionBar(
                 shapeStyle = ButtonShapeStyle.Round
             )
         }
+    }
+}
+
+@Composable
+fun ClaimVendorSection(
+    vendorName: String,
+    onClaimClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
+            .background(SurfaceBrandSecondary)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_shield),
+                contentDescription = null,
+                tint = ContentBrandDark,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = "Is this your business?",
+                style = JasnifyTheme.typography.bodyMedium,
+                color = ContentPrimary
+            )
+        }
+
+        Text(
+            text = "Claim Vendor",
+            style = JasnifyTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Normal,
+                textDecoration = TextDecoration.Underline
+            ),
+            color = ContentBrandDark,
+            modifier = Modifier
+                .clickable { onClaimClick() }
+                .padding(start = 8.dp)
+        )
     }
 }

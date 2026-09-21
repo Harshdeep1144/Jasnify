@@ -88,6 +88,7 @@ fun HelpFeedbackScreen(
     var rating by remember { mutableIntStateOf(0) }
     var feedbackText by remember { mutableStateOf("") }
     var showSuccessSheet by remember { mutableStateOf(false) }
+    var openFaqIndex by remember { mutableIntStateOf(-1) }
 
     LaunchedEffect(isImeVisible) {
         if (isImeVisible) {
@@ -106,8 +107,8 @@ fun HelpFeedbackScreen(
 
     val faqs = remember {
         listOf(
-            "What is Jasnify?" to "Jasnify is your ultimate wedding and event planning assistant, helping you manage venues, vendors, guests, budgets, and checklists all in one place.",
-            "How do I invite collaborators?" to "You can invite collaborators to your event rooms (like Venue or Budget) by sharing the unique Event ID or using the 'Manage Room Access' option in the menu.",
+            "What is Jasnify?" to "Jasnify is your ultimate event planning assistant, helping you manage venues, vendors, guests, budgets, and checklists all in one place.",
+            "How do I invite collaborators?" to "You can invite collaborators to your event rooms (like Venue or Budget) by sharing the unique Event ID after giving access to the room, using the 'Manage Room Access' option in the menu.",
             "Can I use Jasnify offline?" to "Yes, most features like viewing your checklist and budget are available offline. Data will sync once you're back online.",
             "How does the AI assistant work?" to "Jasnify AI uses your event context to provide smart suggestions, summarize budgets, and help you find the best choices for your big day."
         )
@@ -147,8 +148,15 @@ fun HelpFeedbackScreen(
                         style = JasnifyTheme.typography.headingMedium,
                         color = ContentPrimary
                     )
-                    faqs.forEach { (q, a) ->
-                        FaqAccordion(question = q, answer = a)
+                    faqs.forEachIndexed { index, (q, a) ->
+                        FaqAccordion(
+                            question = q,
+                            answer = a,
+                            isExpanded = openFaqIndex == index,
+                            onToggle = {
+                                openFaqIndex = if (openFaqIndex == index) -1 else index
+                            }
+                        )
                     }
                 }
 
@@ -278,7 +286,7 @@ fun HelpFeedbackScreen(
                 onClick = onShowAiChat,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 24.dp)
+                    .padding(bottom = 156.dp)
                     .zIndex(100f)
             )
         }

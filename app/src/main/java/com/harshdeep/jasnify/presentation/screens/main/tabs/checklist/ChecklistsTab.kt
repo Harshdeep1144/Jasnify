@@ -237,9 +237,9 @@ fun ChecklistsTab(
             steps.add(
                 OnboardingStep(
                     stepKey = "room_group_chat",
-                    title = "Room Group Chat",
-                    description = "Tap here to open group chat with your room members and stay connected!",
-                    iconRes = R.drawable.ic_message,
+                    title = "Room Chats",
+                    description = "Tap to view & manage dedicated chat group for this room.",
+                    iconRes = R.drawable.ill_room_chat,
                     isCircleHighlight = true
                 )
             )
@@ -247,9 +247,9 @@ fun ChecklistsTab(
         steps.add(
             OnboardingStep(
                 stepKey = "checklist_add_button",
-                title = "Add New Checklist",
-                description = "Tap the + button to create new checklists and organize your event to-dos!",
-                iconRes = R.drawable.ill_checklists,
+                title = "Add Checklists",
+                description = "Tap to create new list of tasks for your event.",
+                iconRes = R.drawable.ill_add_checklists,
                 isCircleHighlight = true
             )
         )

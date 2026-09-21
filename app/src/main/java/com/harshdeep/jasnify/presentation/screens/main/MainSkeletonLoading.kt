@@ -110,16 +110,16 @@ fun MainSkeletonLoading(
                 android.util.Log.d("MainSkeletonLoading", "Found cached eventId: $cachedEventId. Resolving.")
                 eventViewModel.fetchAndSetActiveEvent(cachedEventId)
             }
-            
+
             // Short delay to ensure state updates reach observers
             delay(100.milliseconds)
-            
+
             navController.navigate(Screen.MainAppScreen.route) {
                 popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }
             }
         } else {
             android.util.Log.d("MainSkeletonLoading", "No events found. Redirecting to EventCreation.")
-            eventViewModel.clearActiveEvent() 
+            eventViewModel.clearActiveEvent()
             // Bypassing dashboard and going straight to creation for new users
             navController.navigate(Screen.EventCreationScreen.route.replace("{fromProfile}", "false")) {
                 popUpTo(Screen.MainSkeletonLoading.route) { inclusive = true }

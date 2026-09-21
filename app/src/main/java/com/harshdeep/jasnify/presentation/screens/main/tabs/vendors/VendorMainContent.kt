@@ -80,6 +80,7 @@ fun VendorMainContent(
     context: Context,
     onRecentSearchesUpdate: (List<String>) -> Unit,
     allVendors: List<Vendor>,
+    vendorSavedDestinations: Map<String, String> = emptyMap(),
     isLoading: Boolean,
     listState: LazyListState = rememberLazyListState()
 ) {
@@ -110,11 +111,15 @@ fun VendorMainContent(
         }
     }
 
-    val locationFilteredVendors = remember(allVendors, selectedCity) {
-        if (selectedCity.isBlank() || selectedCity == "City, State") {
+    val locationFilteredVendors = remember(allVendors, selectedCity, vendorSavedDestinations) {
+        val base = if (selectedCity.isBlank() || selectedCity == "City, State") {
             allVendors
         } else {
             allVendors.filter { LocationHelper.isLocationMatching(it.city, it.locality, it.location, selectedCity) }
+        }
+        base.map { vendor ->
+            val isSaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}") || vendorSavedDestinations.containsKey(vendor.id)
+            vendor.copy(favorite = isSaved)
         }
     }
 

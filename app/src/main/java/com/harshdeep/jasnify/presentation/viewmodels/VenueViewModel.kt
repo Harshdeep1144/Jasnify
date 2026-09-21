@@ -19,7 +19,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @HiltViewModel
 class VenueViewModel @Inject constructor(
     private val repository: VenueRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val userRepository: com.harshdeep.jasnify.domain.repository.UserRepository
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -46,12 +47,20 @@ class VenueViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val savedVenues: StateFlow<List<SavedVenue>> = _eventId
+    val savedVenues: StateFlow<List<SavedVenue>> = combine(_eventId, auth.currentUser?.uid?.let { flowOf(it) } ?: flowOf("default_event")) { id, fallback -> id ?: fallback }
         .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getSavedVenues(id)
+            repository.getSavedVenues(id)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val exploreVenues: StateFlow<List<Venue>> = combine(allVenues, savedVenues) { all, saved ->
+        val savedNames = saved.map { it.venueName }.toSet()
+        val savedIds = saved.map { it.venueId }.toSet()
+        all.map { venue ->
+            venue.copy(favorite = savedIds.contains(venue.id) || savedNames.contains(venue.name))
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun submitReview(
         venueId: String,
@@ -78,10 +87,20 @@ class VenueViewModel @Inject constructor(
                 }.awaitAll()
 
                 val user = auth.currentUser
+                val userProfile = user?.uid?.let { uid -> userRepository.getUserProfile(uid) }
+
+                val resolvedName = userProfile?.name?.ifBlank { null }
+                    ?: userProfile?.username?.ifBlank { null }
+                    ?: user?.displayName?.ifBlank { null }
+                    ?: "Anonymous"
+
+                val resolvedAvatar = userProfile?.profilePictureUrl?.ifBlank { null }
+                    ?: user?.photoUrl?.toString()
+
                 val review = VenueReview(
                     userId = user?.uid ?: "",
-                    userName = user?.displayName ?: "Anonymous",
-                    userAvatarUrl = user?.photoUrl?.toString(),
+                    userName = resolvedName,
+                    userAvatarUrl = resolvedAvatar,
                     rating = rating,
                     reviewText = text,
                     attachedImages = uploadedUrls,
@@ -127,8 +146,8 @@ class VenueViewModel @Inject constructor(
     }
 
     fun toggleSaveVenue(venueName: String, venueId: String, isViewer: Boolean, destination: String? = null) {
-        val eventId = _eventId.value ?: return
-        val currentSaved = savedVenues.value.find { it.venueName == venueName }
+        val eventId = _eventId.value ?: auth.currentUser?.uid ?: "default_event"
+        val currentSaved = savedVenues.value.find { it.venueName == venueName || it.venueId == venueId }
         val syncToCloud = !isViewer
         
         viewModelScope.launch {

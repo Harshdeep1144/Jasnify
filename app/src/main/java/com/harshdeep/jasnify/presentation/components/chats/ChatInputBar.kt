@@ -141,7 +141,7 @@ fun ChatInputBar(
                     modifier = Modifier
                         .size(44.dp)
                         .background(
-                            if (value.isNotBlank()) SurfacePrimary else SurfacePrimary.copy(alpha = 0.5f),
+                            if (value.isNotBlank()) ContentBrand else SurfacePrimary,
                             CircleShape
                         )
                         .clickable(
@@ -156,7 +156,7 @@ fun ChatInputBar(
                     Icon(
                         painter = if (isEditing) painterResource(R.drawable.ic_check) else painterResource(R.drawable.ic_send),
                         contentDescription = if (isEditing) "Save" else "Send",
-                        tint = if (value.isNotBlank()) ContentPrimary else ContentSecondary,
+                        tint = if (value.isNotBlank()) ContentInvPrimary else ContentSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                 }

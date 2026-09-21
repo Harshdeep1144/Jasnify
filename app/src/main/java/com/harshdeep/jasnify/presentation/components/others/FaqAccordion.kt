@@ -26,17 +26,27 @@ import sv.lib.squircleshape.SquircleShape
 fun FaqAccordion(
     question: String,
     answer: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isExpanded: Boolean = false,
+    onToggle: (() -> Unit)? = null
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-    val rotationState by animateFloatAsState(targetValue = if (isExpanded) 180f else 0f, label = "rotation")
+    var internalExpanded by remember { mutableStateOf(isExpanded) }
+    val expanded = if (onToggle != null) isExpanded else internalExpanded
+
+    val rotationState by animateFloatAsState(targetValue = if (expanded) 180f else 0f, label = "rotation")
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
             .background(SurfaceSecondary)
-            .noRippleClickable { isExpanded = !isExpanded }
+            .noRippleClickable {
+                if (onToggle != null) {
+                    onToggle()
+                } else {
+                    internalExpanded = !internalExpanded
+                }
+            }
             .padding(16.dp)
     ) {
         Row(
@@ -60,7 +70,7 @@ fun FaqAccordion(
             )
         }
 
-        AnimatedVisibility(visible = isExpanded) {
+        AnimatedVisibility(visible = expanded) {
             Column {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(

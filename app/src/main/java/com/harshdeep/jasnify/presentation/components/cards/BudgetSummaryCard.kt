@@ -132,7 +132,9 @@ fun BudgetSummaryCard(
                         text = "Add a Budget",
                         containerColor = ContentPrimary,
                         shapeStyle = ButtonShapeStyle.Square,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(viewSummaryButtonModifier)
                     )
                 }
             }

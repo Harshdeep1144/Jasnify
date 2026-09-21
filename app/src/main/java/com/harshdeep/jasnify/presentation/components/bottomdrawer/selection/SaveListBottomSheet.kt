@@ -79,7 +79,6 @@ private val SavedListBottomCardShape = SquircleShape(
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SaveListBottomSheet(
     timelineEvents: List<TimelineEvent>,

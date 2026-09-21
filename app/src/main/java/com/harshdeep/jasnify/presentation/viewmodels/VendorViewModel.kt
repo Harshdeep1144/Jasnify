@@ -19,7 +19,8 @@ import javax.inject.Inject
 @HiltViewModel
 class VendorViewModel @Inject constructor(
     private val repository: VendorRepository,
-    private val cloudinaryManager: CloudinaryManager
+    private val cloudinaryManager: CloudinaryManager,
+    private val userRepository: com.harshdeep.jasnify.domain.repository.UserRepository
 ) : ViewModel() {
 
     private val auth = FirebaseAuth.getInstance()
@@ -38,11 +39,18 @@ class VendorViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, _eventId) { all, eventId ->
-        val saved = if (eventId != null) repository.getSavedVendors(eventId).first() else emptyList()
+    val savedVendors: StateFlow<List<SavedVendor>> = combine(_eventId, auth.currentUser?.uid?.let { flowOf(it) } ?: flowOf("default_event")) { id, fallback -> id ?: fallback }
+        .flatMapLatest { id ->
+            repository.getSavedVendors(id)
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    val exploreVendors: StateFlow<List<Vendor>> = combine(allVendors, savedVendors) { all, saved ->
         val savedKeys = saved.map { "${it.vendorName}-${it.category}" }.toSet()
+        val savedIds = saved.map { it.vendorId }.toSet()
         all.map { vendor ->
-            vendor.copy(favorite = savedKeys.contains("${vendor.name}-${vendor.category}"))
+            vendor.copy(favorite = savedIds.contains(vendor.id) || savedKeys.contains("${vendor.name}-${vendor.category}"))
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -51,14 +59,6 @@ class VendorViewModel @Inject constructor(
         .flatMapLatest { id ->
             if (id == null) flowOf(emptyList())
             else repository.getVendorReviews(id)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
-    val savedVendors: StateFlow<List<SavedVendor>> = _eventId
-        .flatMapLatest { id ->
-            if (id == null) flowOf(emptyList())
-            else repository.getSavedVendors(id)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -87,10 +87,20 @@ class VendorViewModel @Inject constructor(
                 }.awaitAll()
 
                 val user = auth.currentUser
+                val userProfile = user?.uid?.let { uid -> userRepository.getUserProfile(uid) }
+
+                val resolvedName = userProfile?.name?.ifBlank { null }
+                    ?: userProfile?.username?.ifBlank { null }
+                    ?: user?.displayName?.ifBlank { null }
+                    ?: "Anonymous"
+
+                val resolvedAvatar = userProfile?.profilePictureUrl?.ifBlank { null }
+                    ?: user?.photoUrl?.toString()
+
                 val review = VendorReview(
                     userId = user?.uid ?: "",
-                    userName = user?.displayName ?: "Anonymous",
-                    userAvatarUrl = user?.photoUrl?.toString(),
+                    userName = resolvedName,
+                    userAvatarUrl = resolvedAvatar,
                     rating = rating,
                     reviewText = text,
                     attachedImages = uploadedUrls,
@@ -138,8 +148,8 @@ class VendorViewModel @Inject constructor(
     }
 
     fun toggleSaveVendor(vendor: Vendor, isViewer: Boolean, destination: String? = null) {
-        val eventId = _eventId.value ?: return
-        val currentSaved = savedVendors.value.find { it.vendorName == vendor.name && it.category == vendor.category }
+        val eventId = _eventId.value ?: auth.currentUser?.uid ?: "default_event"
+        val currentSaved = savedVendors.value.find { (it.vendorName == vendor.name && it.category == vendor.category) || it.vendorId == vendor.id }
         val syncToCloud = !isViewer
         
         viewModelScope.launch {

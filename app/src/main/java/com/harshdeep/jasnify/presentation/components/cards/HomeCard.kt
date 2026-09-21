@@ -194,7 +194,7 @@ fun HomeCardPreview() {
                 HomeCard(
                     insight = "See cards for guests",
                     heading = "Guests & Cards",
-                    illustration = painterResource(R.drawable.ill_cards_and_guests_card),
+                    illustration = painterResource(R.drawable.ill_invitation_cards),
                     modifier = Modifier.weight(1f),
                     insightColor = Color.White,
                     cardBgColor = Color.Gray,
@@ -205,7 +205,7 @@ fun HomeCardPreview() {
                 HomeCard(
                     insight = "See cards for guests",
                     heading = "Guests & Cards",
-                    illustration = painterResource(R.drawable.ill_cards_and_guests_card),
+                    illustration = painterResource(R.drawable.ill_invitation_cards),
                     modifier = Modifier.weight(1f),
                     insightColor = Color.White,
                     cardBgColor = Color.Gray,

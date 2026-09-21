@@ -76,6 +76,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuBot
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.MenuSheetActionItem
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.OfferBottomSheet
 import com.harshdeep.jasnify.presentation.components.bottomdrawer.selection.SaveListBottomSheet
+import com.harshdeep.jasnify.presentation.viewmodels.SubEventItem
 import com.harshdeep.jasnify.presentation.components.buttons.TopIcon
 import com.harshdeep.jasnify.presentation.components.buttons.AskAiButton
 import com.harshdeep.jasnify.presentation.screens.chats.AiChatScreen
@@ -144,6 +145,7 @@ fun VendorsTab(
     val focusManager = LocalFocusManager.current
     var showAiChat by remember { mutableStateOf(false) }
     var aiChatInitialContext by remember { mutableStateOf<String?>(null) }
+    var aiChatInitialMessage by remember { mutableStateOf<String?>(null) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var showMenuSheet by remember { mutableStateOf(false) }
@@ -258,8 +260,8 @@ fun VendorsTab(
     var lastSavedVendor by remember { mutableStateOf<Vendor?>(null) }
     val haptic = LocalHapticFeedback.current
 
-    val isSavedListToast = remember(toastData.message, lastSavedVendor) {
-        toastData.message?.contains("Saved List") == true && lastSavedVendor != null
+    val isSavedListToast = remember(toastData.message) {
+        toastData.message?.contains("Saved List") == true
     }
 
     LaunchedEffect(toastData.message) {
@@ -374,13 +376,18 @@ fun VendorsTab(
     }
 
     val handleFavoriteToggle: (Vendor) -> Unit = { vendor ->
-        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
+        activeTargetVendor = vendor
+        lastSavedVendor = vendor
+        val alreadySaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}") || vendorSavedDestinations.containsKey(vendor.id)
         if (alreadySaved) {
-            activeTargetVendor = vendor
-            showSaveListBottomSheet = true
+            if (activeEvent?.multiDay == true) {
+                showSaveListBottomSheet = true
+            } else {
+                vendorViewModel.toggleSaveVendor(vendor, isViewer, null)
+                toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
+            }
         } else {
             vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
-            lastSavedVendor = vendor
             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
         }
     }
@@ -541,6 +548,7 @@ fun VendorsTab(
                                 context = context,
                                 onRecentSearchesUpdate = { recentSearchesNames = it },
                                 allVendors = exploreVendors,
+                                vendorSavedDestinations = vendorSavedDestinations,
                                 isLoading = isLoading,
                                 listState = mainListState
                             )
@@ -597,6 +605,7 @@ fun VendorsTab(
                                 }
                                 VendorDetailScreen(
                                     vendorDetail = detailData,
+                                    vendorViewModel = vendorViewModel,
                                     onBackClick = {
                                         if (screenStack.size > 1) {
                                             screenStack = screenStack.dropLast(1)
@@ -604,12 +613,14 @@ fun VendorsTab(
                                             onBackClick()
                                         }
                                     },
-                                    onFavoriteToggle = { handleFavoriteToggle(it) },
+                                    onFavoriteToggle = { },
                                     onChatClick = { onChatClick(it) },
                                     onAiSearchClick = { query ->
-                                        aiChatInitialContext = query
+                                        aiChatInitialMessage = query
                                         showAiChat = true
-                                    }
+                                    },
+                                    isMultiDayEvent = activeEvent?.multiDay == true,
+                                    timelineEvents = timelineEvents
                                 )
                             }
                         }
@@ -745,10 +756,12 @@ fun VendorsTab(
                     AiChatScreen(
                         eventId = activeEventId,
                         initialContext = aiChatInitialContext,
+                        initialMessage = aiChatInitialMessage,
                         shouldStartNewSession = true,
                         onBackClick = { 
                             showAiChat = false
                             aiChatInitialContext = null
+                            aiChatInitialMessage = null
                         },
                         mainNavController = mainNavController
                     )
@@ -937,23 +950,28 @@ fun VendorsTab(
         }
 
         if (showSaveListBottomSheet) {
-            val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] }
+            val currentDest = activeTargetVendor?.let { vendorSavedDestinations["${it.name}-${it.category}"] ?: vendorSavedDestinations[it.id] }
+            var draftIsMySavedChecked by remember(currentDest) { mutableStateOf(currentDest == "mysaved" || currentDest == null) }
+            var draftSelectedEventId by remember(currentDest) { mutableStateOf<String?>(if (currentDest != "mysaved") currentDest else null) }
+
             SaveListBottomSheet(
                 timelineEvents = timelineEvents,
-                isMySavedListChecked = currentDest == "mysaved",
+                isMySavedListChecked = draftIsMySavedChecked,
                 onMySavedListToggled = { checked ->
-                    activeTargetVendor?.let { vendor ->
-                        if (checked) {
-                            vendorViewModel.toggleSaveVendor(vendor, isViewer, "mysaved")
-                        } else {
-                            vendorViewModel.toggleSaveVendor(vendor, isViewer, null)
-                        }
+                    draftIsMySavedChecked = checked
+                    if (checked) {
+                        draftSelectedEventId = null
                     }
                 },
-                selectedEventId = if (currentDest != "mysaved") currentDest else null,
+                selectedEventId = draftSelectedEventId,
                 onEventSelected = { eventId ->
-                    activeTargetVendor?.let { vendor ->
-                        vendorViewModel.toggleSaveVendor(vendor, isViewer, eventId)
+                    if (draftSelectedEventId == eventId) {
+                        draftSelectedEventId = null
+                    } else {
+                        draftSelectedEventId = eventId
+                        if (eventId != null) {
+                            draftIsMySavedChecked = false
+                        }
                     }
                 },
                 onAddNewEvent = { subEventItem ->
@@ -966,20 +984,21 @@ fun VendorsTab(
                         )
                         eventViewModel.updateEvent(event.copy(subEvents = event.subEvents + newSubEvent))
 
-                        activeTargetVendor?.let { vendor ->
-                            vendorViewModel.toggleSaveVendor(vendor, isViewer, subEventItem.id)
-                        }
+                        draftSelectedEventId = subEventItem.id
+                        draftIsMySavedChecked = false
                     }
                 },
                 isViewer = isViewer,
                 onDismiss = { showSaveListBottomSheet = false },
                 onDone = {
                     activeTargetVendor?.let { vendor ->
-                        val isSaved = vendorSavedDestinations.containsKey("${vendor.name}-${vendor.category}")
-                        if (isSaved) {
+                        val destination = if (draftIsMySavedChecked) "mysaved" else draftSelectedEventId
+                        vendorViewModel.toggleSaveVendor(vendor, isViewer, destination)
+                        if (destination != null) {
                             lastSavedVendor = vendor
                             toastData = ToastData("Added to Saved List!", ToastType.DEFAULT)
                         } else {
+                            lastSavedVendor = null
                             toastData = ToastData("Removed from Saved List", ToastType.DEFAULT)
                         }
                     }
