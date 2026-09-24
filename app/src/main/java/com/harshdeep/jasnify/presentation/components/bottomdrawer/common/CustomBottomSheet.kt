@@ -103,9 +103,11 @@ import kotlin.math.roundToInt
 @Composable
 fun CustomBottomSheet(
     heading: String = "",
-    headingStyle: TextStyle = JasnifyTheme.typography.displayLarge,
+    headingStyle: TextStyle = JasnifyTheme.typography.displayMedium,
     headingLineHeight: TextUnit = 40.sp,
+    headerTextColor: Color = ContentPrimary,
     closeButtonBackgroundStyle: ButtonBackground = ButtonBackground.OPAQUE,
+    closeButtonColor: Color = ContentPrimary,
     onDismiss: () -> Unit,
     isVisible: Boolean = true,
     sheetHeight: Dp? = 400.dp,
@@ -401,7 +403,7 @@ fun CustomBottomSheet(
                                         Text(
                                             text = heading,
                                             style = headingStyle,
-                                            color = ContentPrimary,
+                                            color = headerTextColor,
                                             lineHeight = headingLineHeight
                                         )
                                     } else {
@@ -412,6 +414,7 @@ fun CustomBottomSheet(
                                         TopBarIconButton(
                                             backgroundStyle = closeButtonBackgroundStyle,
                                             icon = TopIcon.Predefined.CLOSE,
+                                            iconColor = closeButtonColor,
                                             onClick = { dismissWithAnimation(0f) },
                                         )
                                     }

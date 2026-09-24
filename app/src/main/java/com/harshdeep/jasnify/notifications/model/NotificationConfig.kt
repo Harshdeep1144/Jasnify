@@ -15,6 +15,8 @@ data class NotificationConfig(
     @get:PropertyName("buttonColor") @set:PropertyName("buttonColor") var buttonColor: String? = null,
     @get:PropertyName("headerBackgroundImage") @set:PropertyName("headerBackgroundImage") var headerBackgroundImage: String? = null,
     @get:PropertyName("headerHeight") @set:PropertyName("headerHeight") var headerHeight: Int = 80,
+    @get:PropertyName("headerTextColor") @set:PropertyName("headerTextColor") var headerTextColor: String? = null,
+    @get:PropertyName("closeButtonColor") @set:PropertyName("closeButtonColor") var closeButtonColor: String? = null,
     @get:PropertyName("buttonText") @set:PropertyName("buttonText") var buttonText: String? = null,
     @get:PropertyName("imageHeight") @set:PropertyName("imageHeight") var imageHeight: Int = 180,
     @get:PropertyName("showCloseButton") @set:PropertyName("showCloseButton") var showCloseButton: Boolean = true,

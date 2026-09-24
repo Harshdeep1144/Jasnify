@@ -29,6 +29,7 @@ import com.harshdeep.jasnify.notifications.model.NotificationConfig
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonBackground
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
+import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.CornerLarge
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
@@ -49,9 +50,13 @@ fun AnnouncementBottomSheet(
     val containerColor = config.backgroundColor?.let { safeHex(it) }?.let { Color(it.toColorInt()) } ?: SurfacePrimary
     val buttonTextColor = config.textColor?.let { safeHex(it) }?.let { Color(it.toColorInt()) }
     val buttonBgColor = config.buttonColor?.let { safeHex(it) }?.let { Color(it.toColorInt()) }
+    val headerTextColor = config.headerTextColor?.let { safeHex(it) }?.let { Color(it.toColorInt()) } ?: ContentPrimary
+    val closeButtonColor = config.closeButtonColor?.let { safeHex(it) }?.let { Color(it.toColorInt()) } ?: ContentPrimary
 
     CustomBottomSheet(
         heading = config.title,
+        headerTextColor = headerTextColor,
+        closeButtonColor = closeButtonColor,
         onDismiss = onDismiss,
         isVisible = true,
         showDragHandle = false,

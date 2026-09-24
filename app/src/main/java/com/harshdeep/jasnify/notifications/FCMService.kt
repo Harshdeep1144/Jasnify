@@ -56,6 +56,8 @@ class FCMService : FirebaseMessagingService() {
                     buttonColor = remoteMessage.data["buttonColor"],
                     headerBackgroundImage = remoteMessage.data["headerBackgroundImage"],
                     headerHeight = remoteMessage.data["headerHeight"]?.toIntOrNull() ?: 80,
+                    headerTextColor = remoteMessage.data["headerTextColor"],
+                    closeButtonColor = remoteMessage.data["closeButtonColor"],
                     imageHeight = remoteMessage.data["imageHeight"]?.toIntOrNull() ?: 180,
                     showCloseButton = remoteMessage.data["showCloseButton"]?.toBoolean() ?: true
                 )
