@@ -148,6 +148,13 @@ fun FeatureOnboardingOverlay(
 ) {
     if (steps.isEmpty() || currentStepIndex !in steps.indices) return
 
+    var isVisibleAfterDelay by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(500.milliseconds)
+        isVisibleAfterDelay = true
+    }
+
     val currentStep = steps[currentStepIndex]
     val currentTargetRect = targetRectMap[currentStep.stepKey]
     var isStepSettled by remember(currentStepIndex) { mutableStateOf(currentTargetRect != null) }
@@ -185,9 +192,9 @@ fun FeatureOnboardingOverlay(
     val screenWidthDp = configuration.screenWidthDp.dp
 
     AnimatedVisibility(
-        visible = true,
-        enter = fadeIn(),
-        exit = fadeOut(),
+        visible = isVisibleAfterDelay,
+        enter = fadeIn(animationSpec = tween(500)),
+        exit = fadeOut(animationSpec = tween(300)),
         modifier = modifier
             .fillMaxSize()
             .zIndex(9999f)

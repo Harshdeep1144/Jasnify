@@ -31,7 +31,7 @@ animationCoreVersion = "1.11.3"
 room = "2.8.4"
 gson = "2.10.1"
 media3 = "1.5.1"
-cloudinary = "3.0.2"
+cloudinary = "3.1.2"
 playServicesLocation = "21.3.0"
 firebaseBom = "34.17.0"
 
