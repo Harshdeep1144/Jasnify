@@ -318,8 +318,15 @@ fun BudgetScreen(
 
     val context = LocalContext.current
     val prefManager = remember { PreferenceManager(context) }
-    var isBudgetOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("budget")) }
-    var budgetStepIndex by remember { mutableIntStateOf(0) }
+    
+    var isBudgetTrackerOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("budget_tracker")) }
+    var isBudgetSummaryOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("budget_summary")) }
+    var isBudgetCategoryOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("budget_category")) }
+    
+    var budgetTrackerStepIndex by remember { mutableIntStateOf(0) }
+    var budgetSummaryStepIndex by remember { mutableIntStateOf(0) }
+    var budgetCategoryStepIndex by remember { mutableIntStateOf(0) }
+    
     val budgetTargetRects = remember { mutableStateMapOf<String, Rect>() }
 
     val isBudgetNotSet = remember(budgetEntity, activeEvent) {
@@ -327,7 +334,8 @@ fun BudgetScreen(
     }
 
     val hasSeenGroupChat = prefManager.hasSeenGroupChatOnboarding()
-    val budgetOnboardingSteps = remember(hasSeenGroupChat, isBudgetNotSet) {
+    
+    val budgetTrackerSteps = remember(hasSeenGroupChat, isBudgetNotSet) {
         val steps = mutableListOf<OnboardingStep>()
         if (!hasSeenGroupChat) {
             steps.add(
@@ -372,59 +380,48 @@ fun BudgetScreen(
                     shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
                 )
             )
-            steps.add(
-                OnboardingStep(
-                    stepKey = "budget_manage_categories",
-                    title = "Manage Categories",
-                    description = "Tap here to add, change or remove your expense categories.",
-                    iconRes = R.drawable.ill_manage_categories,
-                    highlightPadding = 4.dp,
-                    shape = CircleShape
-                )
-            )
-            steps.add(
-                OnboardingStep(
-                    stepKey = "budget_categories_card",
-                    title = "Expense Category",
-                    description = "Tap to check out the expenses for each category separately.",
-                    iconRes = R.drawable.ill_expense_category,
-                    highlightPadding = 6.dp,
-                    shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
-                )
-            )
         }
         steps
     }
 
+    val budgetSummarySteps = remember(isBudgetNotSet) {
+        if (isBudgetNotSet) emptyList() else listOf(
+            OnboardingStep(
+                stepKey = "budget_manage_categories",
+                title = "Manage Categories",
+                description = "Tap here to add, change or remove your expense categories.",
+                iconRes = R.drawable.ill_manage_categories,
+                highlightPadding = 4.dp,
+                shape = CircleShape
+            )
+        )
+    }
+
+    val budgetCategorySteps = remember(isBudgetNotSet) {
+        if (isBudgetNotSet) emptyList() else listOf(
+            OnboardingStep(
+                stepKey = "budget_categories_card",
+                title = "Expense Category",
+                description = "Tap to check out the expenses for each category separately.",
+                iconRes = R.drawable.ill_expense_category,
+                highlightPadding = 6.dp,
+                shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault)
+            )
+        )
+    }
+
     LaunchedEffect(isBudgetNotSet) {
-        if (!isBudgetNotSet && !prefManager.hasCompletedScreenOnboarding("budget")) {
-            isBudgetOnboardingActive = true
-            budgetStepIndex = 0
+        if (!isBudgetNotSet && !prefManager.hasCompletedScreenOnboarding("budget_tracker")) {
+            isBudgetTrackerOnboardingActive = true
+            budgetTrackerStepIndex = 0
         }
     }
 
-    val currentBudgetStepKey = if (isBudgetOnboardingActive && budgetStepIndex in budgetOnboardingSteps.indices) {
-        budgetOnboardingSteps[budgetStepIndex].stepKey
-    } else null
-
-    LaunchedEffect(currentBudgetStepKey) {
-        when (currentBudgetStepKey) {
-            "room_group_chat", "budget_add_expense", "budget_view_summary" -> {
-                if (currentView != BudgetScreenView.BUDGET_TRACKER) {
-                    currentView = BudgetScreenView.BUDGET_TRACKER
-                }
-            }
-            "budget_manage_categories" -> {
-                if (currentView != BudgetScreenView.EXPENSE_SUMMARY) {
-                    currentView = BudgetScreenView.EXPENSE_SUMMARY
-                }
-            }
-            "budget_categories_card" -> {
-                if (currentView != BudgetScreenView.EXPENSE_CATEGORY) {
-                    currentView = BudgetScreenView.EXPENSE_CATEGORY
-                }
-            }
-        }
+    val currentBudgetStepKey = when (currentView) {
+        BudgetScreenView.BUDGET_TRACKER -> if (isBudgetTrackerOnboardingActive && budgetTrackerStepIndex in budgetTrackerSteps.indices) budgetTrackerSteps[budgetTrackerStepIndex].stepKey else null
+        BudgetScreenView.EXPENSE_SUMMARY -> if (isBudgetSummaryOnboardingActive && budgetSummaryStepIndex in budgetSummarySteps.indices) budgetSummarySteps[budgetSummaryStepIndex].stepKey else null
+        BudgetScreenView.EXPENSE_CATEGORY -> if (isBudgetCategoryOnboardingActive && budgetCategoryStepIndex in budgetCategorySteps.indices) budgetCategorySteps[budgetCategoryStepIndex].stepKey else null
+        else -> null
     }
 
     val isAnyBottomSheetOpen by remember {
@@ -934,24 +931,66 @@ fun BudgetScreen(
                 )
             }
 
-            if (isBudgetOnboardingActive && budgetOnboardingSteps.isNotEmpty()) {
+            if (currentView == BudgetScreenView.BUDGET_TRACKER && isBudgetTrackerOnboardingActive && budgetTrackerSteps.isNotEmpty()) {
                 FeatureOnboardingOverlay(
-                    steps = budgetOnboardingSteps,
-                    currentStepIndex = budgetStepIndex,
+                    steps = budgetTrackerSteps,
+                    currentStepIndex = budgetTrackerStepIndex,
                     targetRectMap = budgetTargetRects,
                     onNextStep = {
-                        if (budgetStepIndex < budgetOnboardingSteps.lastIndex) {
-                            budgetStepIndex++
+                        if (budgetTrackerStepIndex < budgetTrackerSteps.lastIndex) {
+                            budgetTrackerStepIndex++
                         } else {
-                            isBudgetOnboardingActive = false
+                            isBudgetTrackerOnboardingActive = false
                             if (!isBudgetNotSet) {
-                                prefManager.setCompletedScreenOnboarding("budget", true)
+                                prefManager.setCompletedScreenOnboarding("budget_tracker", true)
                             }
                             prefManager.setHasSeenGroupChatOnboarding(true)
                         }
                     },
                     onPreviousStep = {
-                        if (budgetStepIndex > 0) budgetStepIndex--
+                        if (budgetTrackerStepIndex > 0) budgetTrackerStepIndex--
+                    }
+                )
+            }
+            
+            if (currentView == BudgetScreenView.EXPENSE_SUMMARY && isBudgetSummaryOnboardingActive && budgetSummarySteps.isNotEmpty()) {
+                FeatureOnboardingOverlay(
+                    steps = budgetSummarySteps,
+                    currentStepIndex = budgetSummaryStepIndex,
+                    targetRectMap = budgetTargetRects,
+                    onNextStep = {
+                        if (budgetSummaryStepIndex < budgetSummarySteps.lastIndex) {
+                            budgetSummaryStepIndex++
+                        } else {
+                            isBudgetSummaryOnboardingActive = false
+                            if (!isBudgetNotSet) {
+                                prefManager.setCompletedScreenOnboarding("budget_summary", true)
+                            }
+                        }
+                    },
+                    onPreviousStep = {
+                        if (budgetSummaryStepIndex > 0) budgetSummaryStepIndex--
+                    }
+                )
+            }
+            
+            if (currentView == BudgetScreenView.EXPENSE_CATEGORY && isBudgetCategoryOnboardingActive && budgetCategorySteps.isNotEmpty()) {
+                FeatureOnboardingOverlay(
+                    steps = budgetCategorySteps,
+                    currentStepIndex = budgetCategoryStepIndex,
+                    targetRectMap = budgetTargetRects,
+                    onNextStep = {
+                        if (budgetCategoryStepIndex < budgetCategorySteps.lastIndex) {
+                            budgetCategoryStepIndex++
+                        } else {
+                            isBudgetCategoryOnboardingActive = false
+                            if (!isBudgetNotSet) {
+                                prefManager.setCompletedScreenOnboarding("budget_category", true)
+                            }
+                        }
+                    },
+                    onPreviousStep = {
+                        if (budgetCategoryStepIndex > 0) budgetCategoryStepIndex--
                     }
                 )
             }

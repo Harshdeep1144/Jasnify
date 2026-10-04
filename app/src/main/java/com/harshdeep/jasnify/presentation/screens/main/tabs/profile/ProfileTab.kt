@@ -196,11 +196,15 @@ fun ProfileTab(
     val profileLazyListState = rememberLazyListState()
 
     val prefManager = remember { PreferenceManager(context) }
-    var isProfileOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("profile")) }
-    var profileStepIndex by remember { mutableIntStateOf(0) }
+    var isProfileRootOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("profile_root")) }
+    var isProfileManageEventsOnboardingActive by remember { mutableStateOf(!prefManager.hasCompletedScreenOnboarding("profile_manage_events")) }
+    
+    var profileRootStepIndex by remember { mutableIntStateOf(0) }
+    var profileManageEventsStepIndex by remember { mutableIntStateOf(0) }
+    
     val profileTargetRects = remember { mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>() }
 
-    val profileOnboardingSteps = remember {
+    val profileRootOnboardingSteps = remember {
         listOf(
             OnboardingStep(
                 stepKey = "profile_manage_events",
@@ -209,7 +213,12 @@ fun ProfileTab(
                 iconRes = R.drawable.ill_manage_events,
                 highlightPadding = 6.dp,
                 shape = SquircleShape(CornerLarge, CornerSmoothingDefault)
-            ),
+            )
+        )
+    }
+
+    val profileManageEventsOnboardingSteps = remember {
+        listOf(
             OnboardingStep(
                 stepKey = "profile_create_join_event",
                 title = "Join or Create an event",
@@ -221,23 +230,14 @@ fun ProfileTab(
         )
     }
 
-    val currentProfileStepKey = if (isProfileOnboardingActive && profileStepIndex in profileOnboardingSteps.indices) {
-        profileOnboardingSteps[profileStepIndex].stepKey
-    } else null
-
-    LaunchedEffect(currentProfileStepKey) {
-        when (currentProfileStepKey) {
-            "profile_manage_events" -> {
-                if (currentScreen != ProfileScreen.Root) {
-                    currentScreen = ProfileScreen.Root
-                }
-            }
-            "profile_create_join_event" -> {
-                if (currentScreen != ProfileScreen.ManageEvents) {
-                    currentScreen = ProfileScreen.ManageEvents
-                }
-            }
-        }
+    val currentProfileStepKey = when (currentScreen) {
+        ProfileScreen.Root -> if (isProfileRootOnboardingActive && profileRootStepIndex in profileRootOnboardingSteps.indices) {
+            profileRootOnboardingSteps[profileRootStepIndex].stepKey
+        } else null
+        ProfileScreen.ManageEvents -> if (isProfileManageEventsOnboardingActive && profileManageEventsStepIndex in profileManageEventsOnboardingSteps.indices) {
+            profileManageEventsOnboardingSteps[profileManageEventsStepIndex].stepKey
+        } else null
+        else -> null
     }
 
     var showAiChatByHelp by remember { mutableStateOf(false) }
@@ -279,7 +279,7 @@ fun ProfileTab(
 
     val isBottomBarVisible by remember {
         derivedStateOf {
-            currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen && !isProfileOnboardingActive
+            currentScreen == ProfileScreen.Root && !isAnyBottomSheetOpen && !isProfileRootOnboardingActive
         }
     }
 
@@ -829,21 +829,40 @@ fun ProfileTab(
             }
         }
 
-        if (isProfileOnboardingActive && profileOnboardingSteps.isNotEmpty()) {
+        if (currentScreen == ProfileScreen.Root && isProfileRootOnboardingActive && profileRootOnboardingSteps.isNotEmpty()) {
             FeatureOnboardingOverlay(
-                steps = profileOnboardingSteps,
-                currentStepIndex = profileStepIndex,
+                steps = profileRootOnboardingSteps,
+                currentStepIndex = profileRootStepIndex,
                 targetRectMap = profileTargetRects,
                 onNextStep = {
-                    if (profileStepIndex < profileOnboardingSteps.lastIndex) {
-                        profileStepIndex++
+                    if (profileRootStepIndex < profileRootOnboardingSteps.lastIndex) {
+                        profileRootStepIndex++
                     } else {
-                        isProfileOnboardingActive = false
-                        prefManager.setCompletedScreenOnboarding("profile", true)
+                        isProfileRootOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("profile_root", true)
                     }
                 },
                 onPreviousStep = {
-                    if (profileStepIndex > 0) profileStepIndex--
+                    if (profileRootStepIndex > 0) profileRootStepIndex--
+                }
+            )
+        }
+
+        if (currentScreen == ProfileScreen.ManageEvents && isProfileManageEventsOnboardingActive && profileManageEventsOnboardingSteps.isNotEmpty()) {
+            FeatureOnboardingOverlay(
+                steps = profileManageEventsOnboardingSteps,
+                currentStepIndex = profileManageEventsStepIndex,
+                targetRectMap = profileTargetRects,
+                onNextStep = {
+                    if (profileManageEventsStepIndex < profileManageEventsOnboardingSteps.lastIndex) {
+                        profileManageEventsStepIndex++
+                    } else {
+                        isProfileManageEventsOnboardingActive = false
+                        prefManager.setCompletedScreenOnboarding("profile_manage_events", true)
+                    }
+                },
+                onPreviousStep = {
+                    if (profileManageEventsStepIndex > 0) profileManageEventsStepIndex--
                 }
             )
         }
