@@ -548,12 +548,14 @@ fun AiChatScreen(
         label = "dockProgress"
     )
 
-    val aiBackgroundGradient = Brush.verticalGradient(
-        colors = listOf(
-            Color(0xFFF3E8FA),
-            Color(0xFFF8F0FC),
-            Color(0xFFFAF4FE)
-        )
+    val aiChatSolidBg = Color(0xFFEFDBF6)
+    val aiMainGradient = Brush.verticalGradient(
+        0.0f to Color(0xFFFFFFFF),
+        0.15f to Color(0xFFFAF3FC),
+        0.38f to Color(0xFFEFDBF6),
+        0.62f to Color(0xFFEFDBF6),
+        0.85f to Color(0xFFFAF4FC),
+        1.0f to Color(0xFFFFFFFF)
     )
 
     val targetEventId = eventId ?: activeEvent?.id
@@ -684,8 +686,16 @@ fun AiChatScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(aiBackgroundGradient)
+                            .background(aiChatSolidBg)
                     ) {
+                        if (dockProgress < 1f) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer { alpha = 1f - dockProgress }
+                                    .background(aiMainGradient)
+                            )
+                        }
                         if (dockProgress > 0f) {
                             LazyColumn(
                                 state = listState,
@@ -758,38 +768,32 @@ fun AiChatScreen(
                                     painter = painterResource(id = R.drawable.ic_ai),
                                     contentDescription = "AI Sparkles",
                                     modifier = Modifier
-                                        .padding(horizontal = 16.dp)
-                                        .size(68.dp)
+                                        .size(60.dp)
                                 )
-
-                                Spacer(modifier = Modifier.height(20.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
 
                                 Text(
                                     text = "Hi $userFirstName,",
-                                    style = JasnifyTheme.typography.displayMedium.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 32.sp
+                                    style = JasnifyTheme.typography.displayLarge.copy(
+                                        fontWeight = FontWeight.Medium
                                     ),
-                                    color = Color(0xFF3C225C),
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    color = Color(0xFF6750A4)
                                 )
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
                                 Text(
-                                    text = "How can I help you today?",
-                                    style = JasnifyTheme.typography.displayMedium.copy(
-                                        fontWeight = FontWeight.Medium,
-                                        fontSize = 26.sp
+                                    text = "What can I do for you?",
+                                    style = JasnifyTheme.typography.displayLarge.copy(
+                                        fontWeight = FontWeight.Medium
                                     ),
-                                    color = Color(0xFF3C225C),
-                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                    color = Color(0xFF6750A4)
                                 )
 
                                 Spacer(modifier = Modifier.height(28.dp))
 
                                 if (dockProgress < 0.1f) {
-                                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                    Box(modifier = Modifier.padding(horizontal = 24.dp)) {
                                         AiChatInput(
                                             value = inputText,
                                             onValueChange = { inputText = it },
@@ -843,10 +847,10 @@ fun AiChatScreen(
                                         )
                                     }
                                 } else {
-                                    Spacer(modifier = Modifier.height(68.dp))
+                                    Spacer(modifier = Modifier.height(80.dp))
                                 }
 
-                                Spacer(modifier = Modifier.height(24.dp))
+                                Spacer(modifier = Modifier.height(28.dp))
 
                                 val (contextualRow1, contextualRow2) = remember(initialContext) { getContextualChips(initialContext) }
 
@@ -856,8 +860,7 @@ fun AiChatScreen(
                                         viewModel.sendMessage(chipText)
                                     }
                                 )
-
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
 
                                 AutoScrollingChipRow(
                                     chips = contextualRow2,

@@ -71,6 +71,7 @@ fun BudgetTrackerCard(
     progress: Float,
     amountText: String,
     labelText: String? = null,
+    containerColor: Color = Color(0xFFBED4D4),
     onClick: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -110,7 +111,7 @@ fun BudgetTrackerCard(
             .noRippleClickable { onClick() },
         shape = SquircleShape(CornerExtraLarge, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFBED4D4),
+            containerColor = containerColor,
             contentColor = ContentPrimary
         ),
         elevation = CardDefaults.cardElevation(0.dp)

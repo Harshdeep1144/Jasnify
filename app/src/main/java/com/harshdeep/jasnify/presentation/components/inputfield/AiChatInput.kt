@@ -144,7 +144,7 @@ fun AiChatInput(
                     .shadow(12.dp, CircleShape, ambientColor = Color(0x30A033FF), spotColor = Color(0x407000FF))
                     .clip(CircleShape)
                     .border(1.5.dp, Color.White, CircleShape)
-                    .background(Color.White.copy(alpha = 0.88f))
+                    .background(Color(0x80FFFFFF))
                     .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -160,11 +160,9 @@ fun AiChatInput(
                             dynamicPhrases = dynamicPlaceholders,
                             cycleIntervalMs = 3000L,
                             style = JasnifyTheme.typography.labelXLarge.copy(
-                                lineHeight = 26.sp,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium
+                                lineHeight = 26.sp
                             ),
-                            color = Color(0xFF8E75B2)
+                            color = ContentSecondary
                         )
                     }
 

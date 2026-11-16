@@ -5,7 +5,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -18,7 +17,7 @@ fun FormattedAiText(
     text: String,
     modifier: Modifier = Modifier
 ) {
-    val baseStyle = JasnifyTheme.typography.labelLarge
+    val baseStyle = JasnifyTheme.typography.labelXLarge
 
     val annotatedString = remember(text, baseStyle) {
         buildAnnotatedString {
@@ -32,7 +31,7 @@ fun FormattedAiText(
                     val normalText = text.substring(lastIndex, range.first)
                     withStyle(
                         style = SpanStyle(
-                            fontWeight = baseStyle.fontWeight ?: FontWeight.Normal,
+                            fontWeight = FontWeight.Normal,
                             color = ContentPrimary
                         )
                     ) {
@@ -44,7 +43,7 @@ fun FormattedAiText(
                 withStyle(
                     style = SpanStyle(
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF1E2022)
+                        color = ContentPrimary
                     )
                 ) {
                     append(boldContent)
@@ -56,7 +55,7 @@ fun FormattedAiText(
             if (lastIndex < text.length) {
                 withStyle(
                     style = SpanStyle(
-                        fontWeight = baseStyle.fontWeight ?: FontWeight.Normal,
+                        fontWeight = FontWeight.Normal,
                         color = ContentPrimary
                     )
                 ) {
@@ -68,7 +67,7 @@ fun FormattedAiText(
 
     Text(
         text = annotatedString,
-        style = baseStyle,
+        style = baseStyle.copy(fontWeight = FontWeight.Normal),
         modifier = modifier.fillMaxWidth()
     )
 }
