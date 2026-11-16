@@ -122,9 +122,6 @@ fun RoomAccessBottomSheet(
             selectedUser = selectedUser,
             onSelectedUserChange = { user ->
                 selectedUser = user
-                if (user != null) {
-                    searchQuery = user.email
-                }
             },
             selectedRole = selectedRole,
             onSelectedRoleChange = { selectedRole = it },

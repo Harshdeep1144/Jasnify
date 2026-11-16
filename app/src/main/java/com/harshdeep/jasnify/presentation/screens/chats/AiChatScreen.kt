@@ -143,6 +143,7 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
+import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -688,6 +689,14 @@ fun AiChatScreen(
                             .fillMaxSize()
                             .background(aiChatSolidBg)
                     ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 80.dp)
+                                .align(Alignment.TopCenter)
+                                .background(TopGradientBrushLightTheme)
+                                .zIndex(1f)
+                        )
                         if (dockProgress < 1f) {
                             Box(
                                 modifier = Modifier
@@ -884,7 +893,7 @@ fun AiChatScreen(
                                 onBackClick = onBackClick,
                                 onMenuClick = { isDrawerOpen = true },
                                 backIcon = TopIcon.Predefined.DOWN,
-                                borderColor = MaterialTheme.colorScheme.outline.copy(0.16f),
+                                borderColor = Color(0x33FFFFFF),
                                 menuIcon = TopIcon.Predefined.MENU_MODERN,
                                 buttonStyle = ButtonBackground.TRANSLUCENT
                             )
