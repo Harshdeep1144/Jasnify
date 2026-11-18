@@ -46,6 +46,10 @@ fun CateringLoadingState(
             item {
                 CustomTopBar(
                     title = "Catering Menu",
+                    onBackClick = {},
+                    onMenuClick = {},
+                    secondaryIcon = TopIcon.Predefined.CHAT,
+                    onSecondaryClick = {},
                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                     isLargeTitle = true,
                     buttonStyle = ButtonBackground.OPAQUE

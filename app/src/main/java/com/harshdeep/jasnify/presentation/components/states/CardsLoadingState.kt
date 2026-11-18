@@ -60,11 +60,13 @@ fun CardsLoadingState(
                 .fillMaxSize()
                 .statusBarsPadding()
         ) {
-            // 1. Top Bar (Matching centered title + back and menu actions)
+            // 1. Top Bar
             CustomTopBar(
                 title = "Cards",
                 onBackClick = {},
                 onMenuClick = {},
+                secondaryIcon = TopIcon.Predefined.CHAT,
+                onSecondaryClick = {},
                 backIcon = TopIcon.Predefined.BACK,
                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                 isLargeTitle = true,

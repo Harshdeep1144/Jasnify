@@ -62,11 +62,14 @@ fun GuestsLoadingState(
                 CustomTopBar(
                     title = "Guests",
                     titleIcon = painterResource(R.drawable.ill_guests),
+                    onBackClick = {},
+                    onMenuClick = {},
+                    secondaryIcon = TopIcon.Predefined.CHAT,
+                    onSecondaryClick = {},
                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                     isLeftAligned = true,
                     isLargeTitle = true,
-                    buttonStyle = ButtonBackground.OPAQUE,
-                    onMenuClick = {}
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
 

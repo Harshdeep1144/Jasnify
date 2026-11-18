@@ -49,13 +49,14 @@ fun VenueLoadingState(
             item {
                 CustomTopBar(
                     title = "Venue",
+                    onBackClick = {},
+                    onMenuClick = {},
+                    secondaryIcon = TopIcon.Predefined.CHAT,
+                    onSecondaryClick = {},
                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                     backIcon = TopIcon.Predefined.BACK,
                     isLargeTitle = true,
-                    isLeftAligned = false,
-                    buttonStyle = ButtonBackground.OPAQUE,
-                    onBackClick = {},
-                    onMenuClick = {}
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
 

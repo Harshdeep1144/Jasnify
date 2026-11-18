@@ -90,7 +90,6 @@ fun CustomTopBar(
                         iconColor = textColor,
                         translucentAlpha = translucentAlpha
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
                 }
 
                 // Left Aligned Container: Icon + Title + Subtitle
@@ -284,10 +283,16 @@ fun CustomTopBar(
                     }
                 }
 
-                // Center Title Container
+                val shouldAlignLeft = image != null || secondaryIcon != null || tertiaryIcon != null
+
+                // Title Container
                 Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = if (image != null) Alignment.CenterStart else Alignment.Center
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(
+                            start = if (shouldAlignLeft && image == null && onBackClick != null && titleIcon == null) 8.dp else 0.dp
+                        ),
+                    contentAlignment = if (shouldAlignLeft) Alignment.CenterStart else Alignment.Center
                 ) {
                     when {
                         image != null -> {
@@ -307,7 +312,8 @@ fun CustomTopBar(
                                 isLargeTitle = isLargeTitle,
                                 textColor = textColor,
                                 isClickable = onDropdownClick != null,
-                                onClick = onDropdownClick ?: {}
+                                onClick = onDropdownClick ?: {},
+                                horizontalAlignment = if (shouldAlignLeft) Alignment.Start else Alignment.CenterHorizontally
                             )
                         }
                     }
@@ -387,7 +393,8 @@ private fun TopBarTextLayout(
     isLargeTitle: Boolean,
     textColor: Color,
     isClickable: Boolean,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally
 ) {
     Column(
         modifier = Modifier
@@ -396,7 +403,7 @@ private fun TopBarTextLayout(
                     onClick = onClick
                 ) else Modifier
             ),
-        horizontalAlignment = Alignment.CenterHorizontally,
+        horizontalAlignment = horizontalAlignment,
         verticalArrangement = Arrangement.Center
     ) {
         val titleStyle = if (isLargeTitle) {
@@ -669,14 +676,16 @@ fun CustomTopBarVariantsPreview() {
             buttonColor = Color.Blue
         )
 
-        // 8. Translucent with custom gradient border
+        // 8. Left aligned heading due to secondary button
         CustomTopBar(
-            onBackClick = {},
-            secondaryIcon = TopIcon.Predefined.PIN,
-            onSecondaryClick = {},
-            onMenuClick = {},
-            buttonStyle = ButtonBackground.TRANSLUCENT,
-            borderColor = Color.Red
+            title = "Budget Tracker",
+            onBackClick = {  },
+            onMenuClick = {  },
+            secondaryIcon = TopIcon.Predefined.CHAT,
+            onSecondaryClick = {  },
+            secondaryIconModifier = Modifier.statusBarsPadding(),
+            isLargeTitle = true,
+            buttonStyle = ButtonBackground.OPAQUE
         )
 
         // 9. Custom Color top bar (Purple/Blue text styling)
