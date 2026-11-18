@@ -134,7 +134,7 @@ fun MessageBubble(
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             text = message.text,
-                            style = JasnifyTheme.typography.labelLarge,
+                            style = JasnifyTheme.typography.labelXLarge,
                             color = if (message.deletedForEveryone) ContentSecondary else contentColor
                         )
 

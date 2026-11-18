@@ -139,7 +139,9 @@ fun HeaderMediaSlider(
                             modifier = Modifier.fillMaxSize(),
                             isMuted = true,
                             autoPlay = true,
-                            isLooping = true
+                            isLooping = true,
+                            placeholderResId = R.drawable.app_hero_display_default,
+                            showLoadingIndicator = false
                         )
                     }
 
@@ -149,7 +151,9 @@ fun HeaderMediaSlider(
                             modifier = Modifier.fillMaxSize(),
                             isMuted = true,
                             autoPlay = true,
-                            isLooping = true
+                            isLooping = true,
+                            placeholderResId = R.drawable.app_hero_display_default,
+                            showLoadingIndicator = false
                         )
                     }
 

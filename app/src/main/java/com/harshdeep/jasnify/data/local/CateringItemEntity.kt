@@ -20,5 +20,9 @@ data class CateringItemEntity(
     @get:PropertyName("isSynced")
     @set:PropertyName("isSynced")
     var isSynced: Boolean = false,
-    val lastUpdated: Long = System.currentTimeMillis()
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val lastUpdatedBy: String? = null,
+    val lastUpdatedTime: Long? = null,
+    val addedBy: String? = null,
+    val addedTime: Long? = null
 )

@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.domain.model.AiMessage
 import com.harshdeep.jasnify.theme.CornerExtraLarge
 import com.harshdeep.jasnify.theme.CornerSmall
@@ -50,16 +49,15 @@ fun UserMessageBubble(
                         colors = listOf(Color(0xFFA033FF), Color(0xFF7000FF))
                     )
                 )
-                .padding(horizontal = 20.dp, vertical = 14.dp)
+                .padding(horizontal = 24.dp, vertical = 16.dp)
                 .widthIn(max = 280.dp),
             verticalAlignment = Alignment.Top
         ) {
             Text(
                 text = message.text,
                 color = Color.White,
-                style = JasnifyTheme.typography.labelLarge.copy(
-                    fontWeight = FontWeight.Medium,
-                    fontSize = 15.sp
+                style = JasnifyTheme.typography.labelXLarge.copy(
+                    fontWeight = FontWeight.Normal
                 )
             )
         }

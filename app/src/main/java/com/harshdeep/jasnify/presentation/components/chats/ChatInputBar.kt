@@ -116,7 +116,7 @@ fun ChatInputBar(
                     if (value.isEmpty()) {
                         Text(
                             text = "Type a message...",
-                            style = JasnifyTheme.typography.labelLarge,
+                            style = JasnifyTheme.typography.labelXLarge,
                             color = ContentSecondary
                         )
                     }
@@ -128,7 +128,7 @@ fun ChatInputBar(
                                 onValueChange(newValue.text)
                             }
                         },
-                        textStyle = JasnifyTheme.typography.labelLarge.copy(color = ContentPrimary),
+                        textStyle = JasnifyTheme.typography.labelXLarge.copy(color = ContentPrimary),
                         cursorBrush = SolidColor(ContentPrimary),
                         modifier = Modifier
                             .fillMaxWidth()

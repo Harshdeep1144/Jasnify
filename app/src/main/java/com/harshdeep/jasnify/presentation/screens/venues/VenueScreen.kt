@@ -938,7 +938,7 @@ fun VenueScreen(
                 val target = userToRemove
                 val eventId = activeEvent?.id
                 if (target != null && eventId != null) {
-                    roomViewModel.removeAccess(eventId, "Venue", target.uid)
+                    roomViewModel.removeUserAccess(eventId, "Venue", target)
                     toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                 }
                 userToRemove = null

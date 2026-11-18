@@ -94,7 +94,7 @@ fun AddItemSheetContent(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "ITEM",
+                    text = "ITEM NAME",
                     style = JasnifyTheme.typography.labelSmall,
                     color = ContentSecondary,
                     fontWeight = FontWeight.Medium,
@@ -116,11 +116,11 @@ fun AddItemSheetContent(
                 enter = fadeIn(animationSpec = tween(durationMillis = 300)) + expandVertically(animationSpec = tween(durationMillis = 300)),
                 exit = fadeOut(animationSpec = tween(durationMillis = 300)) + shrinkVertically(animationSpec = tween(durationMillis = 300))
             ) {
-                Column(
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "CUISINE",
                             style = JasnifyTheme.typography.labelSmall,
@@ -150,7 +150,7 @@ fun AddItemSheetContent(
                         }
                     }
 
-                    Column(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "TYPE",
                             style = JasnifyTheme.typography.labelSmall,

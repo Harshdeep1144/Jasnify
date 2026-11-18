@@ -9,9 +9,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,6 +79,7 @@ fun getContextualChips(initialContext: String?): Pair<List<String>, List<String>
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AutoScrollingChipRow(
     chips: List<String>,
@@ -107,31 +111,29 @@ fun AutoScrollingChipRow(
         }
     }
 
-    LazyRow(
-        state = listState,
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        contentPadding = PaddingValues(horizontal = 0.dp),
-        userScrollEnabled = true
-    ) {
-        items(chips.size * 100) { index ->
-            val chipText = chips[index % chips.size]
-            Surface(
-                onClick = { onChipClick(chipText) },
-                shape = CircleShape,
-                color = Color.White.copy(alpha = 0.65f),
-                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.9f)),
-                modifier = Modifier.padding(vertical = 2.dp)
-            ) {
-                Text(
-                    text = chipText,
-                    style = JasnifyTheme.typography.bodyMedium.copy(
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium
-                    ),
-                    color = Color(0xFF5D3898),
-                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 10.dp)
-                )
+    CompositionLocalProvider(LocalMinimumInteractiveComponentSize provides 0.dp) {
+        LazyRow(
+            state = listState,
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(horizontal = 0.dp),
+            userScrollEnabled = true
+        ) {
+            items(chips.size * 100) { index ->
+                val chipText = chips[index % chips.size]
+                Surface(
+                    onClick = { onChipClick(chipText) },
+                    shape = CircleShape,
+                    color = Color(0x33FFFFFF),
+                    border = BorderStroke(1.dp, Color(0x80FFFFFF))
+                ) {
+                    Text(
+                        text = chipText,
+                        style = JasnifyTheme.typography.labelLarge,
+                        color = Color(0xFF6750A4),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
             }
         }
     }

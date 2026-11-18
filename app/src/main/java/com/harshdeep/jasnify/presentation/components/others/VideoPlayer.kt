@@ -5,6 +5,7 @@ import androidx.annotation.OptIn
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -22,8 +23,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -49,6 +52,8 @@ fun VideoPlayer(
     isMuted: Boolean = false,
     autoPlay: Boolean = true,
     isLooping: Boolean = true,
+    placeholderResId: Int? = null,
+    showLoadingIndicator: Boolean = true,
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -66,7 +71,7 @@ fun VideoPlayer(
     }
 
     // Add listener to detect buffering, error, play state, and completion
-    DisposableEffect(exoPlayer) {
+    DisposableEffect(exoPlayer, isLooping, autoPlay) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
@@ -77,11 +82,15 @@ fun VideoPlayer(
                     Player.STATE_READY -> {
                         isLoading = false
                         hasError = false
+                        if (autoPlay || isLooping || isPlaying) {
+                            exoPlayer.playWhenReady = true
+                        }
                     }
                     Player.STATE_ENDED -> {
                         isLoading = false
                         if (isLooping) {
                             exoPlayer.seekTo(0)
+                            exoPlayer.playWhenReady = true
                             exoPlayer.play()
                         } else {
                             isPlaying = false
@@ -94,12 +103,20 @@ fun VideoPlayer(
             }
 
             override fun onIsPlayingChanged(isPlayingState: Boolean) {
-                isPlaying = isPlayingState
+                if (isPlayingState) {
+                    isPlaying = true
+                } else if (!isLooping && exoPlayer.playbackState == Player.STATE_ENDED) {
+                    isPlaying = false
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 isLoading = false
                 hasError = true
+                if (isLooping) {
+                    exoPlayer.prepare()
+                    exoPlayer.playWhenReady = true
+                }
             }
         }
 
@@ -119,7 +136,7 @@ fun VideoPlayer(
                     exoPlayer.playWhenReady = false
                 }
                 Lifecycle.Event.ON_RESUME -> {
-                    if (isPlaying && exoPlayer.playbackState != Player.STATE_ENDED) {
+                    if (isLooping || (isPlaying && exoPlayer.playbackState != Player.STATE_ENDED)) {
                         exoPlayer.playWhenReady = true
                     }
                 }
@@ -212,12 +229,21 @@ fun VideoPlayer(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Loading Spinner during video buffering
+        // Loading State Indicator (Placeholder image or Spinner)
         if (isLoading) {
-            CircularProgressIndicator(
-                color = Color.White,
-                modifier = Modifier.size(40.dp)
-            )
+            if (placeholderResId != null) {
+                Image(
+                    painter = painterResource(id = placeholderResId),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else if (showLoadingIndicator) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
         }
 
         // Error State Indicator if media failed to load or network error occurred

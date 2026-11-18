@@ -83,6 +83,7 @@ fun GuestCard(
     showActions: Boolean = false,
     labelColor: Color = Color(0xFF635994),
     cardShape: SquircleShape = SquircleShape(CornerLarge, CornerSmoothingDefault),
+    containerColor: Color = SurfaceSecondary,
     onCardClick: () -> Unit = {},
     onSelectToggle: (Boolean) -> Unit = {},
     onInviteClick: () -> Unit = {},
@@ -105,7 +106,7 @@ fun GuestCard(
                 )
             ),
         shape = cardShape,
-        colors = CardDefaults.cardColors(containerColor = SurfaceSecondary),
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(

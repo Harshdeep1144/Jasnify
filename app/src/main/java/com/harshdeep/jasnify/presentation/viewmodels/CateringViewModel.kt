@@ -48,8 +48,15 @@ class CateringViewModel @Inject constructor(
         }
     }
 
-    fun addItem(name: String, dietary: Dietary, type: String, cuisine: String) {
+    fun addItem(
+        name: String,
+        dietary: Dietary,
+        type: String,
+        cuisine: String,
+        addedBy: String? = null
+    ) {
         val eventId = _eventId.value ?: return
+        val now = System.currentTimeMillis()
         viewModelScope.launch {
             val item = CateringItemEntity(
                 id = UUID.randomUUID().toString(),
@@ -57,14 +64,27 @@ class CateringViewModel @Inject constructor(
                 name = name,
                 dietary = dietary,
                 type = type,
-                cuisine = cuisine
+                cuisine = cuisine,
+                lastUpdated = now,
+                addedBy = addedBy,
+                addedTime = now
             )
             repository.addItem(item)
         }
     }
 
-    fun updateItem(id: String, name: String, dietary: Dietary, type: String, cuisine: String) {
+    fun updateItem(
+        id: String,
+        name: String,
+        dietary: Dietary,
+        type: String,
+        cuisine: String,
+        updatedBy: String? = null,
+        existingAddedBy: String? = null,
+        existingAddedTime: Long? = null
+    ) {
         val eventId = _eventId.value ?: return
+        val now = System.currentTimeMillis()
         viewModelScope.launch {
             val item = CateringItemEntity(
                 id = id,
@@ -72,7 +92,12 @@ class CateringViewModel @Inject constructor(
                 name = name,
                 dietary = dietary,
                 type = type,
-                cuisine = cuisine
+                cuisine = cuisine,
+                lastUpdated = now,
+                lastUpdatedBy = updatedBy,
+                lastUpdatedTime = now,
+                addedBy = existingAddedBy,
+                addedTime = existingAddedTime
             )
             repository.addItem(item)
         }

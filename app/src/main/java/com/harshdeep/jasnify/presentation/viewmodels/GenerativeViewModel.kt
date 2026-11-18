@@ -256,11 +256,16 @@ class GenerativeViewModel @Inject constructor(
 
     fun restoreChatSession(session: ChatSession) {
         val eventId = _eventId.value ?: return
+        val sessionData = hashMapOf(
+            "title" to session.title,
+            "timestamp" to session.timestamp,
+            "hasMessages" to true
+        )
         firestore.collection("events")
             .document(eventId)
             .collection("aiChatHistory")
             .document(session.id)
-            .set(session)
+            .set(sessionData, com.google.firebase.firestore.SetOptions.merge())
             .addOnSuccessListener {
                 selectChatSession(session.id)
             }

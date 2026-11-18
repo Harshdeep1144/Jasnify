@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,6 +28,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import coil.compose.rememberAsyncImagePainter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -71,8 +74,11 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -158,6 +164,18 @@ fun RoomScreen(
         }
     }
 
+    val listState = rememberLazyListState()
+
+    val collapseFraction by remember {
+        derivedStateOf {
+            if (listState.firstVisibleItemIndex > 0) {
+                1.0f
+            } else {
+                (listState.firstVisibleItemScrollOffset / 160f).coerceIn(0f, 1f)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -176,8 +194,18 @@ fun RoomScreen(
                             focusManager.clearFocus()
                         }
                 ) {
+                    val topBarImage = if (collapseFraction > 0.45f) {
+                        if (!roomPictureUrl.isNullOrBlank()) {
+                            rememberAsyncImagePainter(roomPictureUrl)
+                        } else {
+                            painterResource(R.drawable.img_profile_placeholder)
+                        }
+                    } else null
+
                     CustomTopBar(
                         title = "Manage Room Access",
+                        subtitle = if (collapseFraction > 0.7f && roomTitle.isNotBlank()) roomTitle else null,
+                        image = topBarImage,
                         onBackClick = onBackClick,
                         onMenuClick = if(!isAdmin) onMenuClick else null,
                         backIcon = TopIcon.Predefined.BACK,
@@ -196,146 +224,251 @@ fun RoomScreen(
                 },
             containerColor = BackgroundSecondary,
         ) { paddingValues ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { focusManager.clearFocus() })
                     }
             ) {
-                Box(
+                val (memberUsers, invitedUsers) = remember(filteredUsers) {
+                    filteredUsers.partition { !it.isPending }
+                }
+
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp, bottom = 4.dp),
-                    contentAlignment = Alignment.Center
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp)
+                        .background(Color.Transparent),
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.size(120.dp),
-                        contentAlignment = Alignment.BottomEnd
-                    ) {
-                        Surface(
+                    // --- Header Item 1: Profile Picture ---
+                    item(key = "room_picture_header", contentType = "picture_header") {
+                        val avatarScale = 1.0f - (0.45f * collapseFraction)
+                        val avatarAlpha = 1.0f - (0.55f * collapseFraction)
+
+                        Box(
                             modifier = Modifier
-                                .size(120.dp)
-                                .clip(CircleShape),
-                            color = SurfacePrimary,
-                            tonalElevation = 2.dp
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            if (!roomPictureUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = roomPictureUrl,
-                                    contentDescription = "Room Profile Picture",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Image(
-                                    painter = painterResource(R.drawable.img_profile_placeholder),
-                                    contentDescription = "Default Room Picture",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.fillMaxSize()
+                            Box(
+                                modifier = Modifier
+                                    .size(120.dp)
+                                    .graphicsLayer {
+                                        scaleX = avatarScale
+                                        scaleY = avatarScale
+                                        alpha = avatarAlpha
+                                    },
+                                contentAlignment = Alignment.BottomEnd
+                            ) {
+                                Surface(
+                                    modifier = Modifier
+                                        .size(120.dp)
+                                        .clip(CircleShape),
+                                    color = SurfacePrimary,
+                                    tonalElevation = 2.dp
+                                ) {
+                                    if (!roomPictureUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = roomPictureUrl,
+                                            contentDescription = "Room Profile Picture",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Image(
+                                            painter = painterResource(R.drawable.img_profile_placeholder),
+                                            contentDescription = "Default Room Picture",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+
+                                val canEditRoomPicture = currentUserRole == UserRole.OWNER || currentUserRole == UserRole.EDITOR
+
+                                if (canEditRoomPicture) {
+                                    CustomIconButton(
+                                        onClick = {
+                                            showRoomPictureBottomSheet = true
+                                        },
+                                        icon = painterResource(R.drawable.ic_edit_pen),
+                                        size = ButtonSize.Small,
+                                        contentColor = ContentInvPrimary,
+                                        containerColor = Color.Black.copy(alpha = 0.4f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Header Item 2: Room Title ---
+                    if (roomTitle.isNotBlank()) {
+                        item(key = "room_title_header", contentType = "title_header") {
+                            Text(
+                                text = roomTitle,
+                                style = JasnifyTheme.typography.headingXLarge,
+                                color = ContentPrimary,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    // --- Header Item 3: Search Bar & Add Button Row ---
+                    item(key = "search_and_add_row", contentType = "search_row") {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CustomSearchBar(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = "Search a user",
+                                backgroundColor = SurfacePrimary,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            if (isAdmin) {
+                                CustomIconButton(
+                                    onClick = {
+                                        focusManager.clearFocus()
+                                        showAccessBottomSheet = true
+                                    },
+                                    icon = painterResource(R.drawable.ic_plus),
+                                    type = ButtonType.Tertiary,
+                                    enabled = true,
+                                    containerColor = SurfacePrimary,
+                                    modifier = Modifier.width(84.dp)
                                 )
                             }
                         }
-                        val canEditRoomPicture = currentUserRole == UserRole.OWNER || currentUserRole == UserRole.EDITOR
+                    }
 
-                        if (canEditRoomPicture) {
-                            CustomIconButton(
+                    // --- Members Section ---
+                    if (memberUsers.isNotEmpty()) {
+                        item(key = "members_header", contentType = "header") {
+                            Text(
+                                text = "Members (${memberUsers.size})",
+                                style = JasnifyTheme.typography.headingSmall.copy(
+                                    fontWeight = FontWeight.Normal
+                                ),
+                                color = ContentSecondary,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
+                            )
+                        }
+
+                        itemsIndexed(
+                            items = memberUsers,
+                            key = { idx, user ->
+                                val k = user.uid.ifBlank { user.email.ifBlank { user.username } }
+                                if (k.isNotBlank()) "member_$k" else "member_$idx"
+                            },
+                            contentType = { _, _ -> "user_list_item" }
+                        ) { index, user ->
+                            val isFirst = index == 0
+                            val isLast = index == memberUsers.size - 1
+
+                            val itemShape = when {
+                                isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
+                                isFirst -> RoundedCornerShape(
+                                    topStart = CornerExtraLarge,
+                                    topEnd = CornerExtraLarge
+                                )
+                                isLast -> RoundedCornerShape(
+                                    bottomStart = CornerExtraLarge,
+                                    bottomEnd = CornerExtraLarge
+                                )
+                                else -> RectangleShape
+                            }
+
+                            UserListItem(
+                                user = user,
+                                shape = itemShape,
                                 onClick = {
-                                    showRoomPictureBottomSheet = true
+                                    selectedUser = user
+                                    showProfileBottomSheet = true
                                 },
-                                icon = painterResource(R.drawable.ic_edit_pen),
-                                size = ButtonSize.Small,
-                                contentColor = ContentInvPrimary,
-                                containerColor = Color.Black.copy(alpha = 0.4f)
+                                modifier = Modifier.padding(bottom = 2.dp)
                             )
                         }
                     }
-                }
 
-                if (roomTitle.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = roomTitle,
-                        style = JasnifyTheme.typography.headingXLarge,
-                        color = ContentPrimary,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    CustomSearchBar(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        placeholder = "Search a user",
-                        backgroundColor = SurfacePrimary,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (isAdmin) {
-                        CustomIconButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                                showAccessBottomSheet = true
-                            },
-                            icon = painterResource(R.drawable.ic_plus),
-                            type = ButtonType.Tertiary,
-                            enabled = true,
-                            containerColor = SurfacePrimary,
-                            modifier = Modifier.width(84.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(CornerExtraLarge))
-                        .background(Color.Transparent)
-                        .navigationBarsPadding(),
-                ) {
-                    itemsIndexed(
-                        items = filteredUsers,
-                        key = { _, user -> user.uid },
-                        contentType = { _, _ -> "user_list_item" }
-                    ) { index, user ->
-                        val isFirst = index == 0
-                        val isLast = index == filteredUsers.size - 1
-
-                        val itemShape = when {
-                            isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
-                            isFirst -> RoundedCornerShape(
-                                topStart = CornerExtraLarge,
-                                topEnd = CornerExtraLarge
+                    // --- Invited Section ---
+                    if (invitedUsers.isNotEmpty()) {
+                        item(key = "invited_header", contentType = "header") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Invited (${invitedUsers.size})",
+                                style = JasnifyTheme.typography.headingSmall.copy(
+                                    fontWeight = FontWeight.Normal
+                                ),
+                                color = ContentSecondary,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
                             )
-                            isLast -> RoundedCornerShape(
-                                bottomStart = CornerExtraLarge,
-                                bottomEnd = CornerExtraLarge
-                            )
-                            else -> RectangleShape
                         }
 
-                        UserListItem(
-                            user = user,
-                            shape = itemShape,
-                            onClick = {
-                                selectedUser = user
-                                showProfileBottomSheet = true
+                        itemsIndexed(
+                            items = invitedUsers,
+                            key = { idx, user ->
+                                val k = user.uid.ifBlank { user.email.ifBlank { user.username } }
+                                if (k.isNotBlank()) "invited_$k" else "invited_$idx"
                             },
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
+                            contentType = { _, _ -> "user_list_item" }
+                        ) { index, user ->
+                            val isFirst = index == 0
+                            val isLast = index == invitedUsers.size - 1
+
+                            val itemShape = when {
+                                isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
+                                isFirst -> RoundedCornerShape(
+                                    topStart = CornerExtraLarge,
+                                    topEnd = CornerExtraLarge
+                                )
+                                isLast -> RoundedCornerShape(
+                                    bottomStart = CornerExtraLarge,
+                                    bottomEnd = CornerExtraLarge
+                                )
+                                else -> RectangleShape
+                            }
+
+                            UserListItem(
+                                user = user,
+                                shape = itemShape,
+                                onClick = {
+                                    selectedUser = user
+                                    showProfileBottomSheet = true
+                                },
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (memberUsers.isEmpty() && invitedUsers.isEmpty()) {
+                        item(key = "no_users_found", contentType = "empty_search") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No user found",
+                                    style = JasnifyTheme.typography.bodyLarge,
+                                    color = ContentSecondary
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -359,7 +492,12 @@ fun RoomScreen(
         if (showProfileBottomSheet && selectedUser != null) {
             focusManager.clearFocus()
             val activeUser = remember(selectedUser, allUsers) {
-                allUsers.find { it.uid == selectedUser?.uid } ?: selectedUser!!
+                val target = selectedUser!!
+                if (target.isPending) {
+                    allUsers.find { it.isPending && (it.email.equals(target.email, ignoreCase = true) || (target.uid.isNotBlank() && it.uid == target.uid)) } ?: target
+                } else {
+                    allUsers.find { !it.isPending && it.uid == target.uid } ?: target
+                }
             }
             RoomProfileBottomSheet(
                 user = activeUser,

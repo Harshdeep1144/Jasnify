@@ -72,7 +72,9 @@ fun MomentsRoomContent(
         onBackClick = onBackClick,
         onMenuClick = { },
         onRoleChange = { user, role -> roomViewModel.updateRole(eventId, "Moments", user, role) },
-        onRemove = { user -> roomViewModel.removeAccess(eventId, "Moments", user.uid) },
+        onRemove = { user ->
+            roomViewModel.removeUserAccess(eventId, "Moments", user)
+        },
         onReport = { },
         onLeave = { roomViewModel.removeAccess(eventId, "Moments", currentUserUid) },
         searchResults = searchResults,

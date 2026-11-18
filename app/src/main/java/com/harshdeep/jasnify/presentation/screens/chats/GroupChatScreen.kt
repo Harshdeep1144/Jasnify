@@ -158,7 +158,7 @@ fun GroupChatScreen(
         // Tiled background runs from the very top and fades around 1/3 of the CustomTopBar
         TiledChatBackground(
             drawableId = R.drawable.bg_chat,
-            alpha = 0.08f,
+            alpha = 0.035f,
             topBarCutoffDp = statusBarHeight + (topBarHeight * 0.35f), // Dissolves at ~1/3 of top bar
             fadeTransitionLength = 54.dp,
             bottomFadeLength = 48.dp
@@ -201,13 +201,18 @@ fun GroupChatScreen(
                             } else null
                         )
                     } else {
+                        val joinedCount = remember(roomUsers) {
+                            roomUsers.count { !it.isPending }
+                        }
+                        val roomSubtitle = if (joinedCount == 1) "1 member" else "$joinedCount members"
+
                         CustomTopBar(
                             title = "${roomType.replaceFirstChar { it.uppercase() }} Room",
-                            subtitle = "${roomUsers.size} members",
+                            subtitle = roomSubtitle,
                             image = if (!roomPictureUrl.isNullOrBlank()) {
                                 rememberAsyncImagePainter(roomPictureUrl)
                             } else {
-                                painterResource(R.drawable.ic_user_profile)
+                                painterResource(R.drawable.img_profile_placeholder)
                             },
                             onBackClick = onBackClick,
                             onDropdownClick = onMembersClick,

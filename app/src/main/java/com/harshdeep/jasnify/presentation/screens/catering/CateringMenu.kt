@@ -420,6 +420,8 @@ fun CateringMenuContent(
     var selectedItemForDetails by remember { mutableStateOf<MenuItem?>(null) }
     var showDetailsBottomSheet by remember { mutableStateOf(false) }
 
+    var selectedItemForRecentActivity by remember { mutableStateOf<MenuItem?>(null) }
+
     var showDeleteConfirmationSheet by remember { mutableStateOf(false) }
     var itemToDelete by remember { mutableStateOf<MenuItem?>(null) }
 
@@ -529,6 +531,7 @@ fun CateringMenuContent(
     val isAnyBottomSheetOpen by remember {
         derivedStateOf {
             showDetailsBottomSheet ||
+                    selectedItemForRecentActivity != null ||
                     showDeleteConfirmationSheet ||
                     showCuisineBottomSheet ||
                     showTypeBottomSheet ||
@@ -657,6 +660,11 @@ fun CateringMenuContent(
 
     BackHandler {
         when {
+            selectedItemForRecentActivity != null -> selectedItemForRecentActivity = null
+            showDetailsBottomSheet -> {
+                showDetailsBottomSheet = false
+                selectedItemForDetails = null
+            }
             showAiChat -> showAiChat = false
             showSaveListBottomSheet -> showSaveListBottomSheet = false
             showOfferSheet -> showOfferSheet = false
@@ -1078,7 +1086,25 @@ fun CateringMenuContent(
             },
             containerBrush = itemCategoryStyle.sheetBrush,
             showDragHandle = false,
-            closeButtonBackgroundStyle = ButtonBackground.TRANSLUCENT
+            closeButtonBackgroundStyle = ButtonBackground.TRANSLUCENT,
+            hasToast = toastData.message != null,
+            toast = {
+                AnimatedVisibility(
+                    visible = toastData.message != null,
+                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 16.dp)
+                ) {
+                    activeToastData?.let { data ->
+                        CustomToast(
+                            message = data.message.orEmpty(),
+                            type = data.type
+                        )
+                    }
+                }
+            }
         ) {
             ItemDetailsSheetContent(
                 item = currentItem,
@@ -1102,9 +1128,25 @@ fun CateringMenuContent(
 
                     showDetailsBottomSheet = false
                     showAddItemSheet = true
+                },
+                onRecentActivityClick = {
+                    selectedItemForRecentActivity = currentItem
                 }
             )
         }
+    }
+
+    if (selectedItemForRecentActivity != null) {
+        val item = selectedItemForRecentActivity!!
+        val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+        val currentUserName = currentUser?.displayName?.ifBlank { "You" } ?: activeEvent.ownerName.ifBlank { "You" }
+
+        ItemRecentActivityBottomSheet(
+            item = item,
+            defaultUserName = currentUserName,
+            onDismiss = { selectedItemForRecentActivity = null },
+            onProgress = { sheetMotionProgress = it }
+        )
     }
     if (showDeleteConfirmationSheet) {
         val count = selectedItemIds.size
@@ -1265,20 +1307,27 @@ fun CateringMenuContent(
                             "Item added to menu"
                         }
 
+                        val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+                        val userName = currentUser?.displayName?.ifBlank { "You" } ?: "User"
+
                         if (editingItem != null) {
                             cateringViewModel.updateItem(
                                 id = editingItem!!.id,
                                 name = newItemName,
                                 dietary = newItemDietary,
                                 type = newItemType,
-                                cuisine = newItemCuisine
+                                cuisine = newItemCuisine,
+                                updatedBy = userName,
+                                existingAddedBy = editingItem!!.addedBy,
+                                existingAddedTime = editingItem!!.addedTime
                             )
                         } else {
                             cateringViewModel.addItem(
                                 name = newItemName,
                                 dietary = newItemDietary,
                                 type = newItemType,
-                                cuisine = newItemCuisine
+                                cuisine = newItemCuisine,
+                                addedBy = userName
                             )
                         }
 
@@ -1469,7 +1518,7 @@ fun CateringMenuContent(
             onConfirm = {
                 val target = userToRemove
                 if (target != null) {
-                    roomViewModel.removeAccess(activeEvent.id, "Catering", target.uid)
+                    roomViewModel.removeUserAccess(activeEvent.id, "Catering", target)
                     toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null

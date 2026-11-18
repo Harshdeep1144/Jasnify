@@ -183,13 +183,22 @@ class UserRepositoryImpl @Inject constructor(
                 ), com.google.firebase.firestore.SetOptions.merge())
                 .await()
 
-            // User doesn't exist, store in pending_access for when they sign up
-            val pendingData = mapOf(
+            // User doesn't exist or hasn't joined event room, store in pending_access
+            val pendingData = mutableMapOf<String, Any>(
                 "eventId" to eventId,
                 "roomType" to normalizedRoom,
                 "role" to role.name,
                 "email" to cleanEmail
             )
+
+            if (existingUser != null) {
+                pendingData["uid"] = existingUser.uid
+                pendingData["name"] = existingUser.name
+                pendingData["username"] = existingUser.username
+                if (!existingUser.profilePictureUrl.isNullOrEmpty()) {
+                    pendingData["profilePictureUrl"] = existingUser.profilePictureUrl
+                }
+            }
 
             android.util.Log.d("UserRepository", "Storing access request in pending_access for $cleanEmail in $normalizedRoom")
             firestore.collection("events").document(eventId)
@@ -380,6 +389,36 @@ class UserRepositoryImpl @Inject constructor(
     }
 
 
+    override suspend fun updatePendingRoomRole(eventId: String, roomType: String, email: String, role: UserRole) {
+        if (eventId.isBlank() || email.isBlank()) return
+        val normalizedRoom = getRoomDocId(roomType)
+        val cleanEmail = email.lowercase().trim()
+        try {
+            firestore.collection("events").document(eventId)
+                .collection("rooms").document(normalizedRoom)
+                .collection("pending_access").document(cleanEmail)
+                .update("role", role.name)
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error updating pending room role for $cleanEmail", e)
+        }
+    }
+
+    override suspend fun removePendingRoomAccess(eventId: String, roomType: String, email: String) {
+        if (eventId.isBlank() || email.isBlank()) return
+        val normalizedRoom = getRoomDocId(roomType)
+        val cleanEmail = email.lowercase().trim()
+        try {
+            firestore.collection("events").document(eventId)
+                .collection("rooms").document(normalizedRoom)
+                .collection("pending_access").document(cleanEmail)
+                .delete()
+                .await()
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error in removePendingRoomAccess: ${e.message}", e)
+        }
+    }
+
     override fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>> = callbackFlow {
         if (eventId.isBlank()) {
             trySend(emptyList())
@@ -388,38 +427,72 @@ class UserRepositoryImpl @Inject constructor(
         }
         val normalizedRoom = getRoomDocId(roomType)
         val collectionName = getUserCollectionName(normalizedRoom)
-        val subscription = firestore.collection("events").document(eventId)
+
+        var activeUsers = emptyList<User>()
+        var pendingUsers = emptyList<User>()
+
+        fun emitCombined() {
+            val combined = (activeUsers + pendingUsers).distinctBy { it.uid.ifEmpty { it.email } }
+            trySend(combined)
+        }
+
+        val roomRef = firestore.collection("events").document(eventId)
             .collection("rooms").document(normalizedRoom)
-            .collection(collectionName)
+
+        val activeSub = roomRef.collection(collectionName)
             .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    android.util.Log.e("UserRepository", "Error listening to room users for $roomType: ${error.message}")
-                    trySend(emptyList())
-                    return@addSnapshotListener
-                }
-                if (snapshot != null) {
-                    val users = snapshot.documents.mapNotNull { doc ->
+                if (error == null && snapshot != null) {
+                    activeUsers = snapshot.documents.mapNotNull { doc ->
                         try {
                             val uid = doc.getString("uid") ?: ""
                             val name = doc.getString("name") ?: ""
                             val email = doc.getString("email") ?: ""
                             val username = doc.getString("username") ?: ""
                             val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
-                            val role = try {
-                                UserRole.valueOf(roleStr)
-                            } catch (e: IllegalArgumentException) {
-                                UserRole.VIEWER
-                            }
+                            val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
                             val profilePictureUrl = doc.getString("profilePictureUrl")
                             User(uid, name, email, username, role, profilePictureUrl)
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             null
                         }
                     }
-                    trySend(users)
+                    emitCombined()
                 }
             }
-        awaitClose { subscription.remove() }
+
+        val pendingSub = roomRef.collection("pending_access")
+            .addSnapshotListener { snapshot, error ->
+                if (error == null && snapshot != null) {
+                    pendingUsers = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            val email = doc.getString("email") ?: doc.id
+                            val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
+                            val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
+                            val uid = doc.getString("uid") ?: ""
+                            val name = doc.getString("name")?.ifBlank { null } ?: email.substringBefore("@")
+                            val username = doc.getString("username")?.ifBlank { null } ?: email.substringBefore("@")
+                            val profilePictureUrl = doc.getString("profilePictureUrl")
+                            User(
+                                uid = uid,
+                                name = name,
+                                email = email,
+                                username = username,
+                                role = role,
+                                profilePictureUrl = profilePictureUrl,
+                                isPending = true
+                            )
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                    emitCombined()
+                }
+            }
+
+        awaitClose {
+            activeSub.remove()
+            pendingSub.remove()
+        }
     }
 
     override fun getRoomPictureUrlFlow(eventId: String, roomType: String): Flow<String?> = callbackFlow {

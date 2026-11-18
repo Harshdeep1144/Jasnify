@@ -1,7 +1,9 @@
 package com.harshdeep.jasnify.presentation.components.inputfield
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -88,6 +90,22 @@ fun AiChatInput(
         label = "ControlsAlpha"
     )
 
+    var lineCount by remember { mutableIntStateOf(1) }
+
+    val targetCornerRadius = when {
+        lineCount >= 3 -> 36.dp
+        lineCount == 2 || value.contains('\n') -> 36.dp
+        else -> 56.dp
+    }
+
+    val animatedCornerRadius by animateDpAsState(
+        targetValue = targetCornerRadius,
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        label = "CornerRadiusAnimation"
+    )
+
+    val currentShape = RoundedCornerShape(animatedCornerRadius)
+
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = Alignment.Center
@@ -140,18 +158,36 @@ fun AiChatInput(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(80.dp)
-                    .shadow(12.dp, CircleShape, ambientColor = Color(0x30A033FF), spotColor = Color(0x407000FF))
-                    .clip(CircleShape)
-                    .border(1.5.dp, Color.White, CircleShape)
-                    .background(Color.White.copy(alpha = 0.88f))
+                    .heightIn(min = 80.dp, max = 144.dp)
+                    .animateContentSize(
+                        animationSpec = tween(
+                            durationMillis = 280,
+                            easing = FastOutSlowInEasing
+                        )
+                    )
+                    .shadow(12.dp, currentShape, ambientColor = Color(0x30A033FF), spotColor = Color(0x407000FF))
+                    .clip(currentShape)
+                    .border(1.5.dp, Color.White.copy(alpha = 0.5f), currentShape)
+                    .background(Color(0x80FFFFFF))
                     .padding(start = 24.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.Bottom
             ) {
+                Image(
+                    painter = painterResource(id = R.drawable.ic_ai),
+                    contentDescription = "AI Sparkle",
+                    modifier = Modifier
+                        .align(Alignment.Top)
+                        .padding(top = 16.dp)
+                        .size(20.dp)
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(vertical = 4.dp),
+                        .padding(vertical = 4.dp)
+                        .align(Alignment.CenterVertically),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (value.isEmpty()) {
@@ -160,22 +196,23 @@ fun AiChatInput(
                             dynamicPhrases = dynamicPlaceholders,
                             cycleIntervalMs = 3000L,
                             style = JasnifyTheme.typography.labelXLarge.copy(
-                                lineHeight = 26.sp,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium
+                                lineHeight = 26.sp
                             ),
-                            color = Color(0xFF8E75B2)
+                            color = ContentSecondary
                         )
                     }
 
                     BasicTextField(
                         value = value,
                         onValueChange = onValueChange,
+                        onTextLayout = { textLayoutResult ->
+                            lineCount = textLayoutResult.lineCount
+                        },
                         textStyle = JasnifyTheme.typography.labelXLarge.copy(
                             color = Color(0xFF3C225C)
                         ),
                         cursorBrush = SolidColor(Color(0xFF8B10F0)),
-                        maxLines = 5,
+                        maxLines = 6,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -184,6 +221,7 @@ fun AiChatInput(
 
                 Box(
                     modifier = Modifier
+                        .align(Alignment.Bottom)
                         .size(56.dp)
                         .clip(CircleShape)
                         .background(

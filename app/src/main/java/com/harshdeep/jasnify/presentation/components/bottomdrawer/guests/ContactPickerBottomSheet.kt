@@ -52,6 +52,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DoneAll
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import coil.compose.AsyncImage
 import com.harshdeep.jasnify.R
 import com.harshdeep.jasnify.domain.model.Contact
@@ -59,6 +62,7 @@ import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomB
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonShapeStyle
 import com.harshdeep.jasnify.presentation.components.buttons.ButtonType
 import com.harshdeep.jasnify.presentation.components.buttons.CustomChecker
+import com.harshdeep.jasnify.presentation.components.buttons.CustomIconButton
 import com.harshdeep.jasnify.presentation.components.buttons.CustomTextButton
 import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.others.SearchBarType
@@ -177,6 +181,14 @@ fun ContactPickerBottomSheet(
         mockContacts
     }
 
+    val isAllSelected by remember(displayContacts, selectedPhoneNumbers) {
+        derivedStateOf {
+            displayContacts.isNotEmpty() && displayContacts.all { contact ->
+                selectedPhoneNumbers.contains(contact.phoneNumber)
+            }
+        }
+    }
+
     CustomBottomSheet(
         heading = "Add Guests",
         onDismiss = onDismiss,
@@ -199,6 +211,26 @@ fun ContactPickerBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                CustomIconButton(
+                    onClick = {
+                        if (hasPermission) {
+                            if (isAllSelected) {
+                                selectedContacts.clear()
+                            } else {
+                                selectedContacts.clear()
+                                selectedContacts.addAll(displayContacts)
+                            }
+                        } else {
+                            onPermissionRequest()
+                        }
+                    },
+                    icon = rememberVectorPainter(Icons.Rounded.DoneAll),
+                    type = ButtonType.Secondary,
+                    shapeStyle = ButtonShapeStyle.Round,
+                    containerColor = if (isAllSelected) ContentPrimary else SurfaceSecondary,
+                    contentColor = if (isAllSelected) ContentInvPrimary else ContentPrimary
+                )
+
                 CustomTextButton(
                     onClick = onAddManuallyClick,
                     text = "Add Manually",

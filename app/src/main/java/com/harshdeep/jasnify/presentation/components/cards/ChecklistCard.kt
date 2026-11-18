@@ -26,6 +26,7 @@ import sv.lib.squircleshape.SquircleShape
 fun ChecklistCard(
     checklist: Checklist,
     modifier: Modifier = Modifier,
+    containerColor: Color? = null,
     onClick: () -> Unit = {}
 ) {
     Card(
@@ -33,7 +34,7 @@ fun ChecklistCard(
         modifier = modifier.fillMaxWidth(),
         shape = SquircleShape(CornerLargeIncrease, CornerSmoothingDefault),
         colors = CardDefaults.cardColors(
-            containerColor = Color(checklist.bgColorHex)
+            containerColor = containerColor ?: Color(checklist.bgColorHex)
         ),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f)),
         elevation = CardDefaults.cardElevation(0.dp)

@@ -38,6 +38,7 @@ import com.harshdeep.jasnify.presentation.components.carousels.VenueCarousel
 import com.harshdeep.jasnify.theme.ContentBrandDark
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.JasnifyTheme
+import com.harshdeep.jasnify.theme.SurfacePrimary
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -87,6 +88,7 @@ fun AiMessageContent(
                 progress = progress,
                 amountText = "₹${remaining.toLong()}",
                 labelText = "left",
+                containerColor = SurfacePrimary,
                 onClick = onSeeAllBudget
             )
         }
@@ -131,6 +133,7 @@ fun AiMessageContent(
                     name = guest.name,
                     label = guest.type,
                     isInvited = guest.invited,
+                    containerColor = SurfacePrimary,
                     onInviteClick = {},
                     onCardClick = { onGuestClick(guest) }
                 )
@@ -173,6 +176,7 @@ fun AiMessageContent(
                 Spacer(modifier = Modifier.height(12.dp))
                 ChecklistCard(
                     checklist = checklist,
+                    containerColor = SurfacePrimary,
                     onClick = { onChecklistClick(checklist) }
                 )
             }
