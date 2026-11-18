@@ -994,19 +994,7 @@ fun ChecklistsTab(
                     onConfirm = {
                         val eventId = activeEvent?.id
                         if (eventId != null) {
-                            if (targetUser.uid.isNotBlank()) {
-                                roomViewModel.removeAccess(
-                                    eventId,
-                                    "Checklist",
-                                    targetUser.uid
-                                )
-                            } else if (targetUser.email.isNotBlank()) {
-                                roomViewModel.removePendingAccess(
-                                    eventId,
-                                    "Checklist",
-                                    targetUser.email
-                                )
-                            }
+                            roomViewModel.removeUserAccess(eventId, "Checklist", targetUser)
                             toastData = ToastData(
                                 "${targetUser.name} removed from Room!",
                                 ToastType.SUCCESS

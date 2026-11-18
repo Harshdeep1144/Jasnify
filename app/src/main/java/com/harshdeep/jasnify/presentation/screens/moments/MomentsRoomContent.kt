@@ -73,11 +73,7 @@ fun MomentsRoomContent(
         onMenuClick = { },
         onRoleChange = { user, role -> roomViewModel.updateRole(eventId, "Moments", user, role) },
         onRemove = { user ->
-            if (user.uid.isNotBlank()) {
-                roomViewModel.removeAccess(eventId, "Moments", user.uid)
-            } else if (user.email.isNotBlank()) {
-                roomViewModel.removePendingAccess(eventId, "Moments", user.email)
-            }
+            roomViewModel.removeUserAccess(eventId, "Moments", user)
         },
         onReport = { },
         onLeave = { roomViewModel.removeAccess(eventId, "Moments", currentUserUid) },

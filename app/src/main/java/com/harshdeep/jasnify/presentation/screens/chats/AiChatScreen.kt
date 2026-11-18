@@ -143,7 +143,6 @@ import com.harshdeep.jasnify.theme.BackgroundPrimary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandPrimary
-import com.harshdeep.jasnify.theme.TopGradientBrushLightTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -550,6 +549,18 @@ fun AiChatScreen(
     )
 
     val aiChatSolidBg = Color(0xFFEFDBF6)
+    val aiTopGradientBrush = remember {
+        Brush.verticalGradient(
+            colorStops = Array(16) { index ->
+                val fraction = index / 15f
+                val x = 1f - fraction
+                val easedAlpha = x * x * (3f - 2f * x)
+                val alpha = easedAlpha * 0.95f
+
+                fraction to Color(0xFFFAF3FC).copy(alpha = alpha)
+            }
+        )
+    }
     val aiMainGradient = Brush.verticalGradient(
         0.0f to Color(0xFFFFFFFF),
         0.15f to Color(0xFFFAF3FC),
@@ -694,7 +705,7 @@ fun AiChatScreen(
                                 .fillMaxWidth()
                                 .height(WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 80.dp)
                                 .align(Alignment.TopCenter)
-                                .background(TopGradientBrushLightTheme)
+                                .background(aiTopGradientBrush)
                                 .zIndex(1f)
                         )
                         if (dockProgress < 1f) {

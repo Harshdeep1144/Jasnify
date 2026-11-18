@@ -1178,11 +1178,7 @@ fun BudgetScreen(
                 onDismiss = { userToRemove = null },
                 onConfirm = {
                     activeEvent?.id?.let { id ->
-                        if (user.uid.isNotBlank()) {
-                            roomViewModel.removeAccess(id, "Budget", user.uid)
-                        } else if (user.email.isNotBlank()) {
-                            roomViewModel.removePendingAccess(id, "Budget", user.email)
-                        }
+                        roomViewModel.removeUserAccess(id, "Budget", user)
                         toastData = ToastData("${user.name} removed from room", ToastType.SUCCESS)
                     }
                     userToRemove = null

@@ -71,7 +71,7 @@ fun VideoPlayer(
     }
 
     // Add listener to detect buffering, error, play state, and completion
-    DisposableEffect(exoPlayer) {
+    DisposableEffect(exoPlayer, isLooping, autoPlay) {
         val listener = object : Player.Listener {
             override fun onPlaybackStateChanged(playbackState: Int) {
                 when (playbackState) {
@@ -82,11 +82,15 @@ fun VideoPlayer(
                     Player.STATE_READY -> {
                         isLoading = false
                         hasError = false
+                        if (autoPlay || isLooping || isPlaying) {
+                            exoPlayer.playWhenReady = true
+                        }
                     }
                     Player.STATE_ENDED -> {
                         isLoading = false
                         if (isLooping) {
                             exoPlayer.seekTo(0)
+                            exoPlayer.playWhenReady = true
                             exoPlayer.play()
                         } else {
                             isPlaying = false
@@ -99,12 +103,20 @@ fun VideoPlayer(
             }
 
             override fun onIsPlayingChanged(isPlayingState: Boolean) {
-                isPlaying = isPlayingState
+                if (isPlayingState) {
+                    isPlaying = true
+                } else if (!isLooping && exoPlayer.playbackState == Player.STATE_ENDED) {
+                    isPlaying = false
+                }
             }
 
             override fun onPlayerError(error: PlaybackException) {
                 isLoading = false
                 hasError = true
+                if (isLooping) {
+                    exoPlayer.prepare()
+                    exoPlayer.playWhenReady = true
+                }
             }
         }
 
@@ -124,7 +136,7 @@ fun VideoPlayer(
                     exoPlayer.playWhenReady = false
                 }
                 Lifecycle.Event.ON_RESUME -> {
-                    if (isPlaying && exoPlayer.playbackState != Player.STATE_ENDED) {
+                    if (isLooping || (isPlaying && exoPlayer.playbackState != Player.STATE_ENDED)) {
                         exoPlayer.playWhenReady = true
                     }
                 }

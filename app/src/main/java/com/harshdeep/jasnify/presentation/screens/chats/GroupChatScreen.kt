@@ -212,7 +212,7 @@ fun GroupChatScreen(
                             image = if (!roomPictureUrl.isNullOrBlank()) {
                                 rememberAsyncImagePainter(roomPictureUrl)
                             } else {
-                                painterResource(R.drawable.ic_user_profile)
+                                painterResource(R.drawable.img_profile_placeholder)
                             },
                             onBackClick = onBackClick,
                             onDropdownClick = onMembersClick,

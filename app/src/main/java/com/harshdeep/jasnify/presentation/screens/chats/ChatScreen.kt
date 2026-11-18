@@ -271,7 +271,7 @@ fun ChatContent(
                     CustomTopBar(
                         title = itemName,
                         subtitle = activeStatus,
-                        image = painterResource(R.drawable.ic_user_profile),
+                        image = painterResource(R.drawable.img_profile_placeholder),
                         onBackClick = onBackClick,
                         buttonStyle = ButtonBackground.OPAQUE,
                         backIcon = TopIcon.Predefined.BACK

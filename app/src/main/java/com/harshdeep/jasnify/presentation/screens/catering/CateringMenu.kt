@@ -1518,11 +1518,7 @@ fun CateringMenuContent(
             onConfirm = {
                 val target = userToRemove
                 if (target != null) {
-                    if (target.uid.isNotBlank()) {
-                        roomViewModel.removeAccess(activeEvent.id, "Catering", target.uid)
-                    } else if (target.email.isNotBlank()) {
-                        roomViewModel.removePendingAccess(activeEvent.id, "Catering", target.email)
-                    }
+                    roomViewModel.removeUserAccess(activeEvent.id, "Catering", target)
                     toastData = ToastData("${target.name} removed from room", ToastType.SUCCESS)
                 }
                 userToRemove = null

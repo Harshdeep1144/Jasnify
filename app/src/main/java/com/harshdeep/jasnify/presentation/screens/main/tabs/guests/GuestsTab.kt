@@ -1766,11 +1766,7 @@ fun GuestsTab(
                     val target = userToRemove
                     val eventId = activeEvent?.id
                     if (target != null && eventId != null) {
-                        if (target.uid.isNotBlank()) {
-                            roomViewModel.removeAccess(eventId, "Guest", target.uid)
-                        } else if (target.email.isNotBlank()) {
-                            roomViewModel.removePendingAccess(eventId, "Guest", target.email)
-                        }
+                        roomViewModel.removeUserAccess(eventId, "Guest", target)
                         toastData = ToastData("${target.name} removed from Room!", ToastType.SUCCESS)
                     }
                     userToRemove = null
