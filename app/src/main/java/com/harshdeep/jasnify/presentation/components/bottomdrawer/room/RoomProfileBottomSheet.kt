@@ -378,12 +378,16 @@ fun ActionsSection(
     val errorColor = MaterialTheme.colorScheme.error
     val firstName = remember(user.name) { user.name.substringBefore(' ') }
 
-    val actionItems = remember(showRemove, showLeave, showReport, errorColor, firstName) {
+    val removeText = remember(user.isPending, user.uid) {
+        if (user.isPending || user.uid.isBlank()) "Revoke Access" else "Remove from Room"
+    }
+
+    val actionItems = remember(showRemove, showLeave, showReport, errorColor, firstName, removeText) {
         buildList {
             if (showRemove) {
                 add(
                     ActionItem(
-                        text = "Remove from Room",
+                        text = removeText,
                         textColor = errorColor,
                         iconResId = R.drawable.ic_minus,
                         onClick = onRemove

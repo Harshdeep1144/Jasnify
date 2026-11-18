@@ -83,7 +83,7 @@ fun VenueRoomContent(
             onSearch = { roomViewModel.searchUsers(it) },
             onGrantAccess = { email, role ->
                 roomViewModel.grantAccess(eventId, "Venue", email, role)
-                onShowToast(ToastData("Access granted to $email", ToastType.SUCCESS))
+                onShowToast(ToastData("Access granted", ToastType.SUCCESS))
             },
             roomPictureUrl = roomViewModel.roomPictureUrl.collectAsStateWithLifecycle().value,
             onUploadRoomPicture = { uri ->

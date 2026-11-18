@@ -615,6 +615,7 @@ fun BudgetScreen(
                                     searchQuery = searchQuery,
                                     onSearchQueryChange = { searchQuery = it },
                                     filteredExpenses = filteredExpenses,
+                                    hasAnyExpenses = allExpenses.isNotEmpty(),
                                     expandedCardId = expandedCardId,
                                     onExpandedCardIdChange = { expandedCardId = it },
                                     onBackClick = onBackClick,
@@ -1177,7 +1178,11 @@ fun BudgetScreen(
                 onDismiss = { userToRemove = null },
                 onConfirm = {
                     activeEvent?.id?.let { id ->
-                        roomViewModel.removeAccess(id, "Budget", user.uid)
+                        if (user.uid.isNotBlank()) {
+                            roomViewModel.removeAccess(id, "Budget", user.uid)
+                        } else if (user.email.isNotBlank()) {
+                            roomViewModel.removePendingAccess(id, "Budget", user.email)
+                        }
                         toastData = ToastData("${user.name} removed from room", ToastType.SUCCESS)
                     }
                     userToRemove = null

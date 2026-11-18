@@ -15,6 +15,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -71,8 +72,11 @@ import com.harshdeep.jasnify.presentation.components.others.CustomSearchBar
 import com.harshdeep.jasnify.presentation.components.scaffold.CustomTopBar
 import com.harshdeep.jasnify.presentation.utils.SetStatusBarTheme
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.sp
 import com.harshdeep.jasnify.theme.ContentPrimary
+import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.BackgroundSecondary
 import com.harshdeep.jasnify.theme.ContentInvPrimary
 import com.harshdeep.jasnify.theme.CornerExtraLarge
@@ -200,7 +204,7 @@ fun RoomScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
+                    .padding(start = 12.dp, end = 12.dp)
                     .pointerInput(Unit) {
                         detectTapGestures(onTap = { focusManager.clearFocus() })
                     }
@@ -299,43 +303,130 @@ fun RoomScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
+                val (memberUsers, invitedUsers) = remember(filteredUsers) {
+                    filteredUsers.partition { !it.isPending }
+                }
+
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(CornerExtraLarge))
-                        .background(Color.Transparent)
-                        .navigationBarsPadding(),
+                        .background(Color.Transparent),
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    itemsIndexed(
-                        items = filteredUsers,
-                        key = { _, user -> user.uid },
-                        contentType = { _, _ -> "user_list_item" }
-                    ) { index, user ->
-                        val isFirst = index == 0
-                        val isLast = index == filteredUsers.size - 1
-
-                        val itemShape = when {
-                            isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
-                            isFirst -> RoundedCornerShape(
-                                topStart = CornerExtraLarge,
-                                topEnd = CornerExtraLarge
+                    // --- Members Section ---
+                    if (memberUsers.isNotEmpty()) {
+                        item(key = "members_header", contentType = "header") {
+                            Text(
+                                text = "Members (${memberUsers.size})",
+                                style = JasnifyTheme.typography.headingMedium.copy(
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = ContentSecondary,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
                             )
-                            isLast -> RoundedCornerShape(
-                                bottomStart = CornerExtraLarge,
-                                bottomEnd = CornerExtraLarge
-                            )
-                            else -> RectangleShape
                         }
 
-                        UserListItem(
-                            user = user,
-                            shape = itemShape,
-                            onClick = {
-                                selectedUser = user
-                                showProfileBottomSheet = true
+                        itemsIndexed(
+                            items = memberUsers,
+                            key = { idx, user ->
+                                val k = user.uid.ifBlank { user.email.ifBlank { user.username } }
+                                if (k.isNotBlank()) "member_$k" else "member_$idx"
                             },
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
+                            contentType = { _, _ -> "user_list_item" }
+                        ) { index, user ->
+                            val isFirst = index == 0
+                            val isLast = index == memberUsers.size - 1
+
+                            val itemShape = when {
+                                isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
+                                isFirst -> RoundedCornerShape(
+                                    topStart = CornerExtraLarge,
+                                    topEnd = CornerExtraLarge
+                                )
+                                isLast -> RoundedCornerShape(
+                                    bottomStart = CornerExtraLarge,
+                                    bottomEnd = CornerExtraLarge
+                                )
+                                else -> RectangleShape
+                            }
+
+                            UserListItem(
+                                user = user,
+                                shape = itemShape,
+                                onClick = {
+                                    selectedUser = user
+                                    showProfileBottomSheet = true
+                                },
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+
+                    // --- Invited Section ---
+                    if (invitedUsers.isNotEmpty()) {
+                        item(key = "invited_header", contentType = "header") {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                text = "Invited (${invitedUsers.size})",
+                                style = JasnifyTheme.typography.headingMedium.copy(
+                                    fontWeight = FontWeight.Medium
+                                ),
+                                color = ContentSecondary,
+                                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 8.dp)
+                            )
+                        }
+
+                        itemsIndexed(
+                            items = invitedUsers,
+                            key = { idx, user ->
+                                val k = user.uid.ifBlank { user.email.ifBlank { user.username } }
+                                if (k.isNotBlank()) "invited_$k" else "invited_$idx"
+                            },
+                            contentType = { _, _ -> "user_list_item" }
+                        ) { index, user ->
+                            val isFirst = index == 0
+                            val isLast = index == invitedUsers.size - 1
+
+                            val itemShape = when {
+                                isFirst && isLast -> RoundedCornerShape(CornerExtraLarge)
+                                isFirst -> RoundedCornerShape(
+                                    topStart = CornerExtraLarge,
+                                    topEnd = CornerExtraLarge
+                                )
+                                isLast -> RoundedCornerShape(
+                                    bottomStart = CornerExtraLarge,
+                                    bottomEnd = CornerExtraLarge
+                                )
+                                else -> RectangleShape
+                            }
+
+                            UserListItem(
+                                user = user,
+                                shape = itemShape,
+                                onClick = {
+                                    selectedUser = user
+                                    showProfileBottomSheet = true
+                                },
+                                modifier = Modifier.padding(bottom = 2.dp)
+                            )
+                        }
+                    }
+
+                    if (memberUsers.isEmpty() && invitedUsers.isEmpty()) {
+                        item(key = "no_users_found", contentType = "empty_search") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No user found",
+                                    style = JasnifyTheme.typography.bodyLarge,
+                                    color = ContentSecondary
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -359,7 +450,12 @@ fun RoomScreen(
         if (showProfileBottomSheet && selectedUser != null) {
             focusManager.clearFocus()
             val activeUser = remember(selectedUser, allUsers) {
-                allUsers.find { it.uid == selectedUser?.uid } ?: selectedUser!!
+                val target = selectedUser!!
+                if (target.isPending) {
+                    allUsers.find { it.isPending && (it.email.equals(target.email, ignoreCase = true) || (target.uid.isNotBlank() && it.uid == target.uid)) } ?: target
+                } else {
+                    allUsers.find { !it.isPending && it.uid == target.uid } ?: target
+                }
             }
             RoomProfileBottomSheet(
                 user = activeUser,

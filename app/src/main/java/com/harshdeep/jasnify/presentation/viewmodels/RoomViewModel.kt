@@ -149,9 +149,24 @@ class RoomViewModel @Inject constructor(
         if (eventId.isBlank()) return
         viewModelScope.launch {
             try {
-                userRepository.updateRoomRole(user.uid, eventId, roomType, newRole)
+                if (user.isPending || user.uid.isBlank()) {
+                    userRepository.updatePendingRoomRole(eventId, roomType, user.email, newRole)
+                } else {
+                    userRepository.updateRoomRole(user.uid, eventId, roomType, newRole)
+                }
             } catch (e: Exception) {
                 android.util.Log.e("RoomViewModel", "Error updating role for ${user.email} in $roomType", e)
+            }
+        }
+    }
+
+    fun removePendingAccess(eventId: String, roomType: String, email: String) {
+        if (eventId.isBlank() || email.isBlank()) return
+        viewModelScope.launch {
+            try {
+                userRepository.removePendingRoomAccess(eventId, roomType, email)
+            } catch (e: Exception) {
+                android.util.Log.e("RoomViewModel", "Error removing pending access for $email in $roomType", e)
             }
         }
     }

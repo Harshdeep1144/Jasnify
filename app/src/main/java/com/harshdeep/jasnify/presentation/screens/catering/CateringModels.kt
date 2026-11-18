@@ -9,7 +9,12 @@ data class MenuItem(
     val name: String,
     val dietary: Dietary,
     val type: String,
-    val cuisine: String = "Indian"
+    val cuisine: String = "Indian",
+    val lastUpdated: Long = System.currentTimeMillis(),
+    val lastUpdatedBy: String? = null,
+    val lastUpdatedTime: Long? = null,
+    val addedBy: String? = null,
+    val addedTime: Long? = null
 )
 
 enum class CateringMenuView {

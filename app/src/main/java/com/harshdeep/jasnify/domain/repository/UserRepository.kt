@@ -26,6 +26,8 @@ interface UserRepository {
     suspend fun grantDirectRoomAccess(eventId: String, roomType: String, email: String, uid: String, role: UserRole)
     suspend fun grantAccessFromPending(eventId: String, email: String, uid: String, userProfile: User? = null)
     suspend fun removeRoomAccess(eventId: String, roomType: String, uid: String)
+    suspend fun updatePendingRoomRole(eventId: String, roomType: String, email: String, role: UserRole)
+    suspend fun removePendingRoomAccess(eventId: String, roomType: String, email: String)
     fun getRoomUsers(eventId: String, roomType: String): Flow<List<User>>
     fun getRoomPictureUrlFlow(eventId: String, roomType: String): Flow<String?>
     suspend fun updateRoomPictureUrl(eventId: String, roomType: String, url: String)

@@ -85,6 +85,7 @@ fun BudgetTrackerContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     filteredExpenses: List<ExpenseItem>,
+    hasAnyExpenses: Boolean = true,
     expandedCardId: String?,
     onExpandedCardIdChange: (String?) -> Unit,
     onBackClick: () -> Unit,
@@ -186,37 +187,39 @@ fun BudgetTrackerContent(
                             color = ContentPrimary
                         )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CustomSearchBar(
-                                value = searchQuery,
-                                placeholder = "Search with AI",
-                                onValueChange = onSearchQueryChange,
-                                isAiSearch = true,
-                                modifier = Modifier
-                                    .weight(1.0f)
-                                    .onFocusChanged { focusState ->
-                                        if (focusState.isFocused && !isSearchBarFocused) {
-                                            coroutineScope.launch {
-                                                delay(150.milliseconds)
-                                                listState.animateScrollToItem(
-                                                    index = 1,
-                                                    scrollOffset = -8
-                                                )
+                        if (hasAnyExpenses) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CustomSearchBar(
+                                    value = searchQuery,
+                                    placeholder = "Search with AI",
+                                    onValueChange = onSearchQueryChange,
+                                    isAiSearch = true,
+                                    modifier = Modifier
+                                        .weight(1.0f)
+                                        .onFocusChanged { focusState ->
+                                            if (focusState.isFocused && !isSearchBarFocused) {
+                                                coroutineScope.launch {
+                                                    delay(150.milliseconds)
+                                                    listState.animateScrollToItem(
+                                                        index = 1,
+                                                        scrollOffset = -8
+                                                    )
+                                                }
                                             }
-                                        }
-                                        onSearchBarFocusChange(focusState.isFocused)
-                                    },
-                                backgroundColor = SurfacePrimary
-                            )
+                                            onSearchBarFocusChange(focusState.isFocused)
+                                        },
+                                    backgroundColor = SurfacePrimary
+                                )
 
-                            FilterButton(
-                                onClick = onFilterClick,
-                                backgroundColor = SurfacePrimary
-                            )
+                                FilterButton(
+                                    onClick = onFilterClick,
+                                    backgroundColor = SurfacePrimary
+                                )
+                            }
                         }
                     }
                 }
@@ -238,7 +241,7 @@ fun BudgetTrackerContent(
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "No expense found",
+                                text = if (hasAnyExpenses) "No expense found" else "Your expenses will \n appear here",
                                 style = JasnifyTheme.typography.displayMedium.copy(
                                     fontWeight = FontWeight.Medium
                                 ),

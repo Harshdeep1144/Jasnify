@@ -735,7 +735,11 @@ fun CardsScreen(
                         onConfirm = {
                             val eventId = activeEventId
                             if (eventId != null) {
-                                roomViewModel.removeAccess(eventId, "Cards", targetUser.uid)
+                                if (targetUser.uid.isNotBlank()) {
+                                    roomViewModel.removeAccess(eventId, "Cards", targetUser.uid)
+                                } else if (targetUser.email.isNotBlank()) {
+                                    roomViewModel.removePendingAccess(eventId, "Cards", targetUser.email)
+                                }
                                 toastData = ToastData("${targetUser.name} removed", ToastType.ERROR)
                             }
                             userToRemove = null

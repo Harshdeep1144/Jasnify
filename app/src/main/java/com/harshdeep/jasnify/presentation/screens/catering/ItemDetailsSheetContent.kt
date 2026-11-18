@@ -67,11 +67,14 @@ import com.harshdeep.jasnify.theme.ContentPrimary
 import com.harshdeep.jasnify.theme.ContentSecondary
 import com.harshdeep.jasnify.theme.ContentTertiary
 import com.harshdeep.jasnify.theme.CornerLarge
+import com.harshdeep.jasnify.theme.CornerLargeIncrease
 import com.harshdeep.jasnify.theme.CornerSmoothingDefault
 import com.harshdeep.jasnify.theme.JasnifyTheme
 import com.harshdeep.jasnify.theme.SurfaceBrandSecondary
 import com.harshdeep.jasnify.theme.SurfacePrimary
 import com.harshdeep.jasnify.theme.SurfaceSecondary
+import com.harshdeep.jasnify.presentation.components.bottomdrawer.common.CustomBottomSheet
+import androidx.compose.material3.Surface
 import sv.lib.squircleshape.SquircleShape
 
 private val CardTranslucentGradientBrush = androidx.compose.ui.graphics.Brush.verticalGradient(
@@ -201,8 +204,7 @@ fun ItemDetailsSheetContent(
                                     .padding(horizontal = 16.dp)
                                     .height(136.dp)
                                     .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                    .background(SurfaceSecondary)
-                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(0.16f), SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                    .background(Color.White.copy(alpha = 0.5f))
                                     .clickable {
                                         val googleSearchQuery = "${item.name} ${item.type} ${item.cuisine}"
                                         val queryUri =
@@ -252,8 +254,7 @@ fun ItemDetailsSheetContent(
                                         modifier = Modifier
                                             .size(160.dp)
                                             .clip(SquircleShape(CornerLarge, CornerSmoothingDefault))
-                                            .background(SurfaceBrandSecondary)
-                                            .border(1.dp, ContentBrandDark, SquircleShape(CornerLarge, CornerSmoothingDefault))
+                                            .background(Color.White.copy(alpha = 0.5f))
                                             .clickable {
                                                 val googleSearchQuery = "${item.name} ${item.type} ${item.cuisine}"
                                                 val queryUri =
@@ -353,7 +354,7 @@ fun ItemDetailsSheetContent(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onRecentActivityClick() },
+                                .noRippleClickable { onRecentActivityClick() },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -400,7 +401,7 @@ fun ItemDetailsSheetContent(
                         onDeleteClick()
                     },
                     icon = painterResource(R.drawable.ic_delete),
-                    containerColor = SurfacePrimary,
+                    containerColor = Color.White.copy(alpha = 0.8f),
                     contentColor = MaterialTheme.colorScheme.error,
                     modifier = Modifier.width(84.dp)
                 )
@@ -417,6 +418,108 @@ fun ItemDetailsSheetContent(
                     modifier = Modifier.weight(1f)
                 )
             }
+        }
+    }
+}
+
+@Composable
+fun ItemRecentActivityBottomSheet(
+    item: MenuItem,
+    defaultUserName: String = "You",
+    onDismiss: () -> Unit,
+    onProgress: (Float) -> Unit = {}
+) {
+    val dateFormatter = remember { java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()) }
+
+    val editedUser = item.lastUpdatedBy?.ifBlank { null } ?: defaultUserName
+    val editedTime = item.lastUpdatedTime ?: item.lastUpdated
+    val formattedEditedTime = dateFormatter.format(java.util.Date(editedTime))
+
+    val addedUser = item.addedBy?.ifBlank { null } ?: defaultUserName
+    val addedTime = item.addedTime ?: item.lastUpdated
+    val formattedAddedTime = dateFormatter.format(java.util.Date(addedTime))
+
+    CustomBottomSheet(
+        heading = "Recent Activity",
+        onDismiss = onDismiss,
+        onProgress = onProgress,
+        showDragHandle = false,
+        sheetHeight = 280.dp
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(SquircleShape(CornerLargeIncrease, CornerSmoothingDefault))
+                    .border(1.dp, SurfaceSecondary, SquircleShape(CornerLargeIncrease, CornerSmoothingDefault)),
+                color = SurfacePrimary,
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    ItemActivityRow(
+                        iconRes = R.drawable.ic_edit_pen,
+                        label = "Last Edited by",
+                        userName = editedUser,
+                        timestamp = formattedEditedTime
+                    )
+
+                    DashedDivider()
+
+                    ItemActivityRow(
+                        iconRes = R.drawable.ic_add_circle,
+                        label = "Added by",
+                        userName = addedUser,
+                        timestamp = formattedAddedTime
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun ItemActivityRow(
+    iconRes: Int,
+    label: String,
+    userName: String,
+    timestamp: String
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(18.dp),
+            tint = ContentSecondary
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Row {
+                Text(
+                    text = "$label ",
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentSecondary,
+                    fontWeight = FontWeight.Light
+                )
+                Text(
+                    text = userName,
+                    style = JasnifyTheme.typography.bodyMedium,
+                    color = ContentPrimary
+                )
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = timestamp,
+                style = JasnifyTheme.typography.bodyMedium,
+                color = ContentTertiary,
+                fontWeight = FontWeight.Light
+            )
         }
     }
 }

@@ -60,7 +60,7 @@ fun GuestEmptyState(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "No guests to invite",
+                    text = "No guests in \n your list",
                     style = JasnifyTheme.typography.displayMedium.copy(
                         textAlign = TextAlign.Center,
                         fontWeight = FontWeight.Medium

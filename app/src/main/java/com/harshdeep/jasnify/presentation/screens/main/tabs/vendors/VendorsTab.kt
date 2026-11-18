@@ -1020,7 +1020,11 @@ fun VendorsTab(
                 onConfirm = {
                     val activeId = activeEvent?.id
                     if (activeId != null) {
-                        roomViewModel.removeAccess(activeId, "Vendors", targetUser.uid)
+                        if (targetUser.uid.isNotBlank()) {
+                            roomViewModel.removeAccess(activeId, "Vendors", targetUser.uid)
+                        } else if (targetUser.email.isNotBlank()) {
+                            roomViewModel.removePendingAccess(activeId, "Vendors", targetUser.email)
+                        }
                         toastData = ToastData("${targetUser.name} removed from room", ToastType.SUCCESS)
                     }
                     userToRemove = null

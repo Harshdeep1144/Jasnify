@@ -74,7 +74,7 @@ fun BudgetRoomContent(
             onSearch = { roomViewModel.searchUsers(it) },
             onGrantAccess = { email, role ->
                 roomViewModel.grantAccess(eventId, "Budget", email, role)
-                onToastShow(ToastData("Access granted to $email", ToastType.SUCCESS))
+                onToastShow(ToastData("Access granted", ToastType.SUCCESS))
             },
             roomPictureUrl = roomViewModel.roomPictureUrl.collectAsState().value,
             onUploadRoomPicture = { uri ->
