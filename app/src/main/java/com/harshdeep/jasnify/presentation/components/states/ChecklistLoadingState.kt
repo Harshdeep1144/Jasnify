@@ -68,7 +68,7 @@ fun ChecklistLoadingState(
                 menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                 isLeftAligned = true,
                 isLargeTitle = true,
-                secondaryIcon = TopIcon.Predefined.SEARCH,
+                secondaryIcon = TopIcon.Predefined.CHAT,
                 onSecondaryClick = {},
                 onMenuClick = {},
                 buttonStyle = ButtonBackground.OPAQUE

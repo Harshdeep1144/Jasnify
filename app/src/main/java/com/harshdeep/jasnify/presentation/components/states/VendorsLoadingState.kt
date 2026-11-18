@@ -67,12 +67,15 @@ fun VendorsLoadingState(
                 CustomTopBar(
                     title = "Vendors",
                     titleIcon = painterResource(R.drawable.ill_vendors),
+                    onBackClick = {},
+                    onMenuClick = {},
+                    secondaryIcon = TopIcon.Predefined.CHAT,
+                    onSecondaryClick = {},
                     menuIcon = TopIcon.Predefined.MENU_VERTICAL,
                     backIcon = TopIcon.Predefined.DOWN,
                     isLargeTitle = true,
                     isLeftAligned = true,
-                    buttonStyle = ButtonBackground.OPAQUE,
-                    onMenuClick = {}
+                    buttonStyle = ButtonBackground.OPAQUE
                 )
             }
 
