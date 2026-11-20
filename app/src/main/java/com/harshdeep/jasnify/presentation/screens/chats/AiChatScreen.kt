@@ -136,6 +136,7 @@ import com.harshdeep.jasnify.presentation.viewmodels.ChecklistViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.EventViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GenerativeViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.GuestViewModel
+import com.harshdeep.jasnify.presentation.viewmodels.ProfileViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.RoomViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VendorViewModel
 import com.harshdeep.jasnify.presentation.viewmodels.VenueViewModel
@@ -168,6 +169,7 @@ fun AiChatScreen(
     checklistViewModel: ChecklistViewModel = hiltViewModel(),
     guestViewModel: GuestViewModel = hiltViewModel(),
     roomViewModel: RoomViewModel = hiltViewModel(),
+    profileViewModel: ProfileViewModel = hiltViewModel(),
     mainNavController: NavHostController? = null,
     onBackClick: () -> Unit = {},
 ) {
@@ -187,9 +189,11 @@ fun AiChatScreen(
     var audioRms by remember { mutableFloatStateOf(0f) }
     var hasQueuedFinalForId by remember { mutableStateOf<String?>(null) }
 
+    val userProfile by profileViewModel.userProfile.collectAsStateWithLifecycle()
     val firebaseUser = remember { com.google.firebase.auth.FirebaseAuth.getInstance().currentUser }
-    val userFirstName = remember(firebaseUser) {
-        firebaseUser?.displayName?.trim()?.split("\\s+".toRegex())?.firstOrNull() ?: "there"
+    val userFirstName = remember(userProfile, firebaseUser) {
+        val name = userProfile?.name?.ifBlank { null } ?: firebaseUser?.displayName
+        name?.trim()?.split("\\s+".toRegex())?.firstOrNull() ?: "there"
     }
 
     var activeSpeakingMessageId by remember { mutableStateOf<String?>(null) }

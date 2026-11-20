@@ -12,6 +12,7 @@ import com.harshdeep.jasnify.domain.repository.UserRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -41,7 +42,76 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override suspend fun updateUserProfile(user: User) {
-        firestore.collection("users").document(user.uid).set(user, com.google.firebase.firestore.SetOptions.merge()).await()
+        if (user.uid.isBlank()) return
+
+        // 1. Update global user document in 'users' collection
+        firestore.collection("users").document(user.uid)
+            .set(user, com.google.firebase.firestore.SetOptions.merge())
+            .await()
+
+        // 2. Update Firebase Auth currentUser profile (displayName and photoUrl)
+        try {
+            val authUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            if (authUser != null && authUser.uid == user.uid) {
+                val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                    .setDisplayName(user.name)
+                    .apply {
+                        if (!user.profilePictureUrl.isNullOrBlank()) {
+                            setPhotoUri(android.net.Uri.parse(user.profilePictureUrl))
+                        }
+                    }
+                    .build()
+                authUser.updateProfile(profileUpdates).await()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error updating FirebaseAuth profile for ${user.uid}: ${e.message}")
+        }
+
+        // 3. Update embedded user profile in all joined room subcollections across events
+        try {
+            val roomTypes = listOf("Budget", "Catering", "Checklist", "Vendors", "Venue", "Guest", "Cards", "Moments")
+            for (userEvent in user.joinedEvents) {
+                if (userEvent.eventId.isBlank()) continue
+                for (roomType in roomTypes) {
+                    val normalizedRoom = getRoomDocId(roomType)
+                    val collectionName = getUserCollectionName(normalizedRoom)
+
+                    val roomUserRef = firestore.collection("events").document(userEvent.eventId)
+                        .collection("rooms").document(normalizedRoom)
+                        .collection(collectionName).document(user.uid)
+
+                    val docSnap = roomUserRef.get().await()
+                    if (docSnap.exists()) {
+                        roomUserRef.update(
+                            mapOf(
+                                "name" to user.name,
+                                "username" to user.username,
+                                "profilePictureUrl" to user.profilePictureUrl
+                            )
+                        ).await()
+                    }
+
+                    if (user.email.isNotBlank()) {
+                        val pendingRef = firestore.collection("events").document(userEvent.eventId)
+                            .collection("rooms").document(normalizedRoom)
+                            .collection("pending_access").document(user.email.lowercase().trim())
+
+                        val pendingSnap = pendingRef.get().await()
+                        if (pendingSnap.exists()) {
+                            pendingRef.update(
+                                mapOf(
+                                    "name" to user.name,
+                                    "username" to user.username,
+                                    "profilePictureUrl" to user.profilePictureUrl
+                                )
+                            ).await()
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("UserRepository", "Error updating room subcollections for ${user.uid}: ${e.message}")
+        }
     }
 
     override suspend fun updateFcmToken(uid: String, token: String) {
@@ -95,19 +165,27 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun searchUsers(query: String): List<User> {
         if (query.isBlank()) return emptyList()
+        val q = query.lowercase().trim()
         return try {
-            // Simple search by username or email
             val usernameQuery = firestore.collection("users")
-                .whereGreaterThanOrEqualTo("username", query.lowercase())
-                .whereLessThanOrEqualTo("username", query.lowercase() + "\uf8ff")
+                .whereGreaterThanOrEqualTo("username", q)
+                .whereLessThanOrEqualTo("username", q + "\uf8ff")
                 .get().await()
 
             val emailQuery = firestore.collection("users")
-                .whereGreaterThanOrEqualTo("email", query.lowercase())
-                .whereLessThanOrEqualTo("email", query.lowercase() + "\uf8ff")
+                .whereGreaterThanOrEqualTo("email", q)
+                .whereLessThanOrEqualTo("email", q + "\uf8ff")
                 .get().await()
 
-            (usernameQuery.toObjects(User::class.java) + emailQuery.toObjects(User::class.java)).distinctBy { it.uid }
+            val allUsersSnapshot = firestore.collection("users").get().await()
+            val nameFiltered = allUsersSnapshot.toObjects(User::class.java).filter { user ->
+                user.name.contains(query, ignoreCase = true) ||
+                user.username.contains(query, ignoreCase = true) ||
+                user.email.contains(query, ignoreCase = true)
+            }
+
+            (usernameQuery.toObjects(User::class.java) + emailQuery.toObjects(User::class.java) + nameFiltered)
+                .distinctBy { it.uid }
         } catch (e: Exception) {
             emptyList()
         }
@@ -442,50 +520,60 @@ class UserRepositoryImpl @Inject constructor(
         val activeSub = roomRef.collection(collectionName)
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null) {
-                    activeUsers = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            val uid = doc.getString("uid") ?: ""
-                            val name = doc.getString("name") ?: ""
-                            val email = doc.getString("email") ?: ""
-                            val username = doc.getString("username") ?: ""
-                            val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
-                            val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
-                            val profilePictureUrl = doc.getString("profilePictureUrl")
-                            User(uid, name, email, username, role, profilePictureUrl)
-                        } catch (_: Exception) {
-                            null
+                    val docs = snapshot.documents
+                    launch {
+                        activeUsers = docs.mapNotNull { doc ->
+                            try {
+                                val uid = doc.getString("uid") ?: ""
+                                val email = doc.getString("email") ?: ""
+                                val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
+                                val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
+                                
+                                val freshProfile = if (uid.isNotBlank()) getUserProfile(uid) else null
+                                val name = freshProfile?.name?.ifBlank { null } ?: doc.getString("name") ?: ""
+                                val username = freshProfile?.username?.ifBlank { null } ?: doc.getString("username") ?: ""
+                                val profilePictureUrl = freshProfile?.profilePictureUrl ?: doc.getString("profilePictureUrl")
+                                User(uid, name, email, username, role, profilePictureUrl)
+                            } catch (_: Exception) {
+                                null
+                            }
                         }
+                        emitCombined()
                     }
-                    emitCombined()
                 }
             }
 
         val pendingSub = roomRef.collection("pending_access")
             .addSnapshotListener { snapshot, error ->
                 if (error == null && snapshot != null) {
-                    pendingUsers = snapshot.documents.mapNotNull { doc ->
-                        try {
-                            val email = doc.getString("email") ?: doc.id
-                            val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
-                            val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
-                            val uid = doc.getString("uid") ?: ""
-                            val name = doc.getString("name")?.ifBlank { null } ?: email.substringBefore("@")
-                            val username = doc.getString("username")?.ifBlank { null } ?: email.substringBefore("@")
-                            val profilePictureUrl = doc.getString("profilePictureUrl")
-                            User(
-                                uid = uid,
-                                name = name,
-                                email = email,
-                                username = username,
-                                role = role,
-                                profilePictureUrl = profilePictureUrl,
-                                isPending = true
-                            )
-                        } catch (_: Exception) {
-                            null
+                    val docs = snapshot.documents
+                    launch {
+                        pendingUsers = docs.mapNotNull { doc ->
+                            try {
+                                val email = doc.getString("email") ?: doc.id
+                                val roleStr = doc.getString("role") ?: UserRole.VIEWER.name
+                                val role = try { UserRole.valueOf(roleStr) } catch (_: Exception) { UserRole.VIEWER }
+                                val uid = doc.getString("uid") ?: ""
+                                
+                                val freshProfile = if (uid.isNotBlank()) getUserProfile(uid) else null
+                                val name = freshProfile?.name?.ifBlank { null } ?: doc.getString("name")?.ifBlank { null } ?: email.substringBefore("@")
+                                val username = freshProfile?.username?.ifBlank { null } ?: doc.getString("username")?.ifBlank { null } ?: email.substringBefore("@")
+                                val profilePictureUrl = freshProfile?.profilePictureUrl ?: doc.getString("profilePictureUrl")
+                                User(
+                                    uid = uid,
+                                    name = name,
+                                    email = email,
+                                    username = username,
+                                    role = role,
+                                    profilePictureUrl = profilePictureUrl,
+                                    isPending = true
+                                )
+                            } catch (_: Exception) {
+                                null
+                            }
                         }
+                        emitCombined()
                     }
-                    emitCombined()
                 }
             }
 
