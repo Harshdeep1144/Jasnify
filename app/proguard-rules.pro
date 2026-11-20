@@ -32,6 +32,7 @@
 -keep class com.harshdeep.jasnify.domain.model.** { *; }
 -keep class com.harshdeep.jasnify.data.models.** { *; }
 -keep class com.harshdeep.jasnify.data.local.** { *; }
+-keep class com.harshdeep.jasnify.data.remote.** { *; }
 
 # Specifically keep classes used with Firestore in other packages
 -keep class com.harshdeep.jasnify.domain.model.ChatSession { *; }
